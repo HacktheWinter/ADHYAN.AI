@@ -168,7 +168,7 @@ const DoubtChat = ({ classId, user }) => {
         description: newDoubtDescription.trim(),
       };
 
-      console.log("📤 Posting doubt:", payload);
+      console.log("Posting doubt:", payload);
 
       const res = await axios.post("http://localhost:5000/api/doubts", payload);
 
