@@ -63,7 +63,7 @@ export const checkTestWithAI = async (testPaperId) => {
   return res.data;
 };
 
-// NEW: Publish results to students
+// Publish results to students
 export const publishResults = async (testPaperId) => {
   const res = await axios.post(
     `${BASE_URL}/test-submission/publish-results/${testPaperId}`
@@ -82,7 +82,7 @@ export const updateMarksManually = async (submissionId, answers) => {
   return res.data;
 };
 
-// NEW: Get single submission by ID
+// Get single submission by ID
 export const getSubmissionById = async (submissionId) => {
   const res = await axios.get(
     `${BASE_URL}/test-submission/submission/${submissionId}`

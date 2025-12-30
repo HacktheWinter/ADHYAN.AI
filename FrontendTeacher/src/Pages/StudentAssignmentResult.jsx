@@ -67,7 +67,7 @@ const StudentAssignmentResult = () => {
       await updateMarksManually(submission._id, updatedAnswers);
 
       alert(
-        '✅ Marks updated successfully!\n\nNote: Results are NOT automatically published to students.\nGo back and click "Publish Results" to make changes visible.'
+        'Marks updated successfully!\n\nNote: Results are NOT automatically published to students.\nGo back and click "Publish Results" to make changes visible.'
       );
 
       await fetchSubmission();
