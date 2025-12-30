@@ -1,7 +1,7 @@
 // FrontendTeacher/src/Pages/DoubtsPage.jsx
 import React from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
-import DoubtChat from '../components/DoubtChat';
+import DoubtChat from '../components/TeacherDoubts';
 
 const DoubtsPage = () => {
   const { classId } = useParams();
