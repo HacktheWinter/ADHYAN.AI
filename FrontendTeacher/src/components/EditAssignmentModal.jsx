@@ -29,7 +29,7 @@ export default function EditAssignmentModal({ assignment, onClose, onSave }) {
         questions
       });
 
-      alert('✅ Assignment updated successfully!');
+      alert('Assignment updated successfully!');
       onSave();
     } catch (error) {
       console.error('Error updating:', error);

@@ -51,7 +51,7 @@ export const getClassroomDetails = async (classId) => {
   }
 };
 
-// NEW - Delete classroom
+// Delete classroom
 export const deleteClassroom = async (classId, teacherId) => {
   try {
     const response = await API.delete(`/${classId}`, {
