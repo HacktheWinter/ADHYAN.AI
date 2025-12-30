@@ -10,13 +10,13 @@ export default function CourseDetailPage() {
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
   
-  // ✅ Memoize active tab to prevent recalculation on every render
+  //  Memoize active tab to prevent recalculation on every render
   const activeTab = useMemo(() => {
     const pathParts = location.pathname.split('/');
     return pathParts[pathParts.length - 1];
   }, [location.pathname]);
 
-  // ✅ Memoize classInfo to prevent re-parsing localStorage
+  //  Memoize classInfo to prevent re-parsing localStorage
   const classInfo = useMemo(() => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     return {
@@ -31,6 +31,7 @@ export default function CourseDetailPage() {
     { id: 'quiz', label: 'Quiz', path: 'quiz' },
     { id: 'assignment', label: 'Assignment', path: 'assignment' },
     { id: 'test', label: 'Test Paper', path: 'test' },
+    { id: "doubt", label: "Doubts", path: "doubt" },
   ];
 
   // Check scroll position and update arrow visibility
@@ -77,7 +78,7 @@ export default function CourseDetailPage() {
           ← Back to Courses
         </button>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Course Material</h1>
-        <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, quizzes, assignments, and tests</p>
+        <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, quizzes, assignments, tests and doubts</p>
       </div>
 
       {/* Tabs with Scroll Arrows */}

@@ -64,7 +64,7 @@ export default function Login() {
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(userData));
 
-      // ✅ Check if need to redirect to different frontend
+      // Check if need to redirect to different frontend
       const TEACHER_URL =
         import.meta.env.VITE_TEACHER_URL || "http://localhost:5174";
       const STUDENT_URL =
