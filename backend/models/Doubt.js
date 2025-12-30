@@ -4,17 +4,17 @@ const replySchema = new mongoose.Schema({
   authorId: String,
   authorName: String,
   message: String,
-  createdAt: Date,
+  createdAt: { type: Date, default: Date.now },
 });
 
 const doubtSchema = new mongoose.Schema({
-  classId: String,
+  classId: { type: String, required: true },
   authorId: String,
   authorName: String,
   title: String,
   description: String,
+  createdAt: { type: Date, default: Date.now },
   replies: [replySchema],
-  createdAt: Date,
 });
 
 export default mongoose.model("Doubt", doubtSchema);
