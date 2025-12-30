@@ -12,7 +12,7 @@ export default function PublishAssignmentModal({ assignment, onClose, onPublishe
 
       await publishAssignment(assignment._id, dueDate || null);
 
-      alert('✅ Assignment published successfully!');
+      alert('Assignment published successfully!');
       onPublished();
     } catch (error) {
       console.error('Publish error:', error);

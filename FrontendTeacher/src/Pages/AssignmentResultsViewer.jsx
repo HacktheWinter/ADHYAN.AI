@@ -51,8 +51,8 @@ const AssignmentResultsViewer = () => {
       const response = await checkAssignmentWithAI(assignmentId);
 
       alert(
-        `✅ AI Checking Complete!\n\n` +
-        `✓ Checked: ${response.checkedCount}/${response.totalSubmissions}\n` +
+        `AI Checking Complete!\n\n` +
+        `Checked: ${response.checkedCount}/${response.totalSubmissions}\n` +
         `${response.failedCount > 0 ? `✗ Failed: ${response.failedCount}\n` : ''}` +
         `\nNote: Results are NOT visible to students yet.\n` +
         `Click "Publish Results" to make them visible.`
@@ -84,7 +84,7 @@ const AssignmentResultsViewer = () => {
 
       const response = await publishResults(assignmentId);
 
-      alert(`✅ Results Published!\n\n${response.count} students can now view their results.`);
+      alert(`Results Published!\n\n${response.count} students can now view their results.`);
 
       await fetchData();
     } catch (error) {
