@@ -97,8 +97,8 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       exitFullScreen();
 
       const scoreMessage = autoSubmit 
-        ? `🚨 AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${quiz.questions.length}\n\n`
-        : `✅ Quiz Submitted!\n\n`;
+        ? ` AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${quiz.questions.length}\n\n`
+        : ` Quiz Submitted!\n\n`;
 
       alert(
         `${scoreMessage}Score: ${response.submission.score}/${response.submission.totalQuestions}\n` +
@@ -112,7 +112,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       exitFullScreen();
       
       const errorMsg = error.response?.data?.error || error.message || 'Failed to submit quiz';
-      alert(`❌ Error: ${errorMsg}`);
+      alert(` Error: ${errorMsg}`);
       
       setIsSubmitting(false);
       setProctorSubmitting(false);
@@ -171,14 +171,14 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">{quiz.title}</h2>
                 <p className="text-xs text-gray-600 mt-1">
-                  🔒 Protected Mode {!isFullScreen && '(Full-screen exited)'}
+                  Protected Mode {!isFullScreen && '(Full-screen exited)'}
                 </p>
               </div>
             </div>
             
             {violations.length > 0 && (
               <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-semibold">
-                ⚠️ {violations.length}/2 Violation{violations.length > 1 ? 's' : ''}
+               {violations.length}/2 Violation{violations.length > 1 ? 's' : ''}
               </div>
             )}
           </div>

@@ -154,7 +154,7 @@ export default function TestResultModal({ testPaperId, studentId, onClose }) {
                         <h4 className="text-lg font-semibold text-gray-900">
                           Question {index + 1}
                         </h4>
-                        <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap text-base leading-relaxed">
+                        <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap leading-relaxed">
                           {answer.question}
                         </p>
                       </div>
@@ -194,7 +194,7 @@ export default function TestResultModal({ testPaperId, studentId, onClose }) {
                         {answer.aiFeedback && (
                           <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                             <p className="text-sm text-purple-900">
-                              <span className="font-semibold">✨ AI Feedback: </span>
+                              <span className="font-semibold"> AI Feedback: </span>
                               {answer.aiFeedback}
                             </p>
                           </div>
@@ -202,7 +202,7 @@ export default function TestResultModal({ testPaperId, studentId, onClose }) {
                         {answer.teacherFeedback && (
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                             <p className="text-sm text-blue-900">
-                              <span className="font-semibold">👨‍🏫 Teacher Feedback: </span>
+                              <span className="font-semibold"> Teacher Feedback: </span>
                               {answer.teacherFeedback}
                             </p>
                           </div>

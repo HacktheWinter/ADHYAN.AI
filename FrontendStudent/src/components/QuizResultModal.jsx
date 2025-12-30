@@ -151,7 +151,7 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
                         <h4 className="text-lg font-semibold text-gray-900">
                           Question {index + 1}
                         </h4>
-                        <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap text-base leading-relaxed">
+                        <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap  leading-relaxed">
                           {question.question}
                         </p>
                       </div>

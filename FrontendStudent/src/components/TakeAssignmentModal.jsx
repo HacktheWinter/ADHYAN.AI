@@ -88,7 +88,7 @@ export default function TakeAssignmentModal({ assignment, studentId, studentName
       const answeredCount = Object.keys(currentAnswers).length;
       const violationsCount = violations.length;
 
-      console.log('📤 Submitting assignment:', { assignmentId: assignment._id, studentId });
+      console.log(' Submitting assignment:', { assignmentId: assignment._id, studentId });
 
       await submitAssignment(assignment._id, studentId, answersArray);
 
@@ -96,19 +96,19 @@ export default function TakeAssignmentModal({ assignment, studentId, studentName
 
       if (autoSubmit) {
         alert(
-          `🚨 AUTO-SUBMITTED!\n\n` +
+          ` AUTO-SUBMITTED!\n\n` +
           `Reason: ${reason}\n` +
           `Violations: ${violationsCount}\n` +
           `Answered: ${answeredCount}/${assignment.questions.length}\n\n` +
           `Your assignment has been submitted. Results will be available after evaluation.`
         );
       } else {
-        alert('✅ Assignment Submitted Successfully!\n\nYour answers have been submitted. Results will be available after evaluation.');
+        alert(' Assignment Submitted Successfully!\n\nYour answers have been submitted. Results will be available after evaluation.');
       }
 
       onSubmit();
     } catch (error) {
-      console.error('❌ Submit error:', error);
+      console.error(' Submit error:', error);
       exitFullScreen();
       alert(error.response?.data?.error || 'Failed to submit assignment. Please try again.');
       
@@ -137,14 +137,14 @@ export default function TakeAssignmentModal({ assignment, studentId, studentName
                   <p className="text-xs text-gray-600 mt-1">{assignment.description}</p>
                 )}
                 <p className="text-xs text-gray-600 mt-1">
-                  🔒 Protected Mode {!isFullScreen && '(Full-screen exited)'}
+                  Protected Mode {!isFullScreen && '(Full-screen exited)'}
                 </p>
               </div>
             </div>
             
             {violations.length > 0 && (
               <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-semibold">
-                ⚠️ {violations.length}/2 Violation{violations.length > 1 ? 's' : ''}
+               {violations.length}/2 Violation{violations.length > 1 ? 's' : ''}
               </div>
             )}
           </div>
@@ -202,7 +202,7 @@ export default function TakeAssignmentModal({ assignment, studentId, studentName
                 rows={12}
               />
               <p className="text-xs text-gray-500 mt-1">
-                💡 Tip: Provide a detailed and well-structured answer for maximum marks
+                 Tip: Provide a detailed and well-structured answer for maximum marks
               </p>
             </div>
           </div>

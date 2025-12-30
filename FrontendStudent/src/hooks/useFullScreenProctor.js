@@ -131,7 +131,7 @@ export const useFullScreenProctor = ({
     }
 
     if (currentCount >= maxViolations) {
-      setViolationMessage(`🚨 FINAL WARNING!\n\n${currentCount}${currentCount === 2 ? 'nd' : 'th'} Violation: ${reason}\n\nYour assessment will be auto-submitted now.`);
+      setViolationMessage(` FINAL WARNING!\n\n${currentCount}${currentCount === 2 ? 'nd' : 'th'} Violation: ${reason}\n\nYour assessment will be auto-submitted now.`);
       setShowViolationAlert(true);
       
       setTimeout(() => {
@@ -141,7 +141,7 @@ export const useFullScreenProctor = ({
         }
       }, 2000);
     } else {
-      setViolationMessage(`⚠️ WARNING ${currentCount}/${maxViolations}\n\nViolation: ${reason}\n\nPlease stay in full-screen mode!\n\nOne more violation = auto-submit.`);
+      setViolationMessage(` WARNING ${currentCount}/${maxViolations}\n\nViolation: ${reason}\n\nPlease stay in full-screen mode!\n\nOne more violation = auto-submit.`);
       setShowViolationAlert(true);
     }
   };
