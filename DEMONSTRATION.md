@@ -203,7 +203,7 @@ Press `CTRL + C` in all three terminal windows to stop the servers.
 
 ---
 
-🎯 **Goal of Demo:**  
+**Goal of Demo:**  
 Show how ADHYAN.AI enables teachers to easily manage classes, generate assessments, evaluate students fairly, and maintain academic integrity — all while significantly reducing manual effort.
 
 ---
