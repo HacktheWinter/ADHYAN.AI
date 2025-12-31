@@ -207,3 +207,9 @@ Press `CTRL + C` in all three terminal windows to stop the servers.
 Show how ADHYAN.AI enables teachers to easily manage classes, generate assessments, evaluate students fairly, and maintain academic integrity — all while significantly reducing manual effort.
 
 ---
+
+## Live Demo
+
+- **Landing Page Live Link:** https://adhyanai-5eum.onrender.com/
+- **Teacher Live Link:** https://adhayan-teacher.onrender.com/
+- **Student Live Link:** https://adhayan-student.onrender.com/
