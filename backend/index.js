@@ -19,6 +19,8 @@ import testPaperRoutes from "./routes/testPaperRoutes.js";
 import testSubmissionRoutes from "./routes/testSubmissionRoutes.js";
 import assignmentRoutes from "./routes/assignmentRoutes.js";
 import assignmentSubmissionRoutes from "./routes/assignmentSubmissionRoutes.js";
+import forgotPasswordRoutes from './routes/forgotPassword.js';
+import profileRoutes from "./routes/profileRoutes.js";
 
 const app = express();
 
@@ -83,6 +85,11 @@ app.use("/api/test-paper", testPaperRoutes);
 app.use("/api/test-submission", testSubmissionRoutes);
 app.use("/api/assignment", assignmentRoutes); //
 app.use("/api/assignment-submission", assignmentSubmissionRoutes);
+app.use('/api', forgotPasswordRoutes);
+app.use("/api/profile", profileRoutes);
+
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
 
 // Health check
 app.get("/", (req, res) => {
