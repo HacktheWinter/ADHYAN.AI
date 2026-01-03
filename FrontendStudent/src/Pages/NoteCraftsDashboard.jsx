@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { getStoredUser } from "../utils/authStorage";
 
 export default function NoteCraftsDashboard() {
   const navigate = useNavigate();
@@ -21,8 +22,7 @@ export default function NoteCraftsDashboard() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Get student info from localStorage
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = getStoredUser() || {};
   const studentId = user.id || user._id;
 
   // Fetch student's enrolled classes

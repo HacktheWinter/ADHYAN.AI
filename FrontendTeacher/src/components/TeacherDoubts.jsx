@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { getStoredUser } from "../utils/authStorage";
 
 export default function TeacherDoubts({ classId, user }) {
   const [doubts, setDoubts] = useState([]);
@@ -8,7 +9,7 @@ export default function TeacherDoubts({ classId, user }) {
   const [editReplyText, setEditReplyText] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const teacher = user || JSON.parse(localStorage.getItem("teacher") || "{}");
+  const teacher = user || getStoredUser() || {};
 
   // Load doubts for this specific class
   const loadDoubts = async () => {

@@ -2,6 +2,7 @@
 
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { clearAuth, getStoredToken, getStoredUser, persistAuth } from '../utils/authStorage';
 
 const AuthContext = createContext();
 
@@ -20,28 +21,26 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in on mount
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
+    const storedToken = getStoredToken();
+    const storedUser = getStoredUser();
     
     if (storedToken && storedUser) {
       setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      setUser(storedUser);
     }
     setLoading(false);
   }, []);
 
-  const login = (userData, authToken) => {
+  const login = (userData, authToken, rememberMe = true) => {
     setUser(userData);
     setToken(authToken);
-    localStorage.setItem('token', authToken);
-    localStorage.setItem('user', JSON.stringify(userData));
+    persistAuth(authToken, userData, rememberMe);
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearAuth();
   };
 
   const isAuthenticated = () => {
