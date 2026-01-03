@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Camera, X, Save, Calendar, User as UserIcon, Building2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getStoredToken, updateStoredUser } from '../utils/authStorage';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getStoredToken();
       const response = await axios.get(`${API_URL}/profile`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -72,7 +73,7 @@ export default function ProfilePage() {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getStoredToken();
       const formData = new FormData();
       formData.append('profilePhoto', file);
 
@@ -86,9 +87,7 @@ export default function ProfilePage() {
       setUser(response.data.user);
       setSuccess('Profile photo updated successfully');
       
-      // Update user in localStorage
-      const storedUser = JSON.parse(localStorage.getItem('user'));
-      localStorage.setItem('user', JSON.stringify({ ...storedUser, profilePhoto: response.data.user.profilePhoto }));
+      updateStoredUser({ profilePhoto: response.data.user.profilePhoto });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to upload photo');
     } finally {
@@ -102,7 +101,7 @@ export default function ProfilePage() {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getStoredToken();
       const response = await axios.delete(`${API_URL}/profile/photo`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -110,9 +109,7 @@ export default function ProfilePage() {
       setUser(response.data.user);
       setSuccess('Profile photo deleted successfully');
       
-      // Update user in localStorage
-      const storedUser = JSON.parse(localStorage.getItem('user'));
-      localStorage.setItem('user', JSON.stringify({ ...storedUser, profilePhoto: '' }));
+      updateStoredUser({ profilePhoto: '' });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to delete photo');
     }
@@ -125,7 +122,7 @@ export default function ProfilePage() {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getStoredToken();
       const response = await axios.put(`${API_URL}/profile`, formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -133,9 +130,7 @@ export default function ProfilePage() {
       setUser(response.data.user);
       setSuccess('Profile updated successfully');
       
-      // Update user name in localStorage
-      const storedUser = JSON.parse(localStorage.getItem('user'));
-      localStorage.setItem('user', JSON.stringify({ ...storedUser, name: formData.name }));
+      updateStoredUser({ name: formData.name });
       
       // Reload page after 1 second to update navbar
       setTimeout(() => window.location.reload(), 1000);

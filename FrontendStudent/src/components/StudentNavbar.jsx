@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogIn, LogOut, Settings, User, UserPlus } from 'lucide-react';
+import { clearAuth, getStoredUser } from '../utils/authStorage';
 
 export default function StudentNavbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -9,14 +10,13 @@ export default function StudentNavbar() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        setUser({ email: storedUser });
-      }
-    }
+    const syncUser = () => {
+      setUser(getStoredUser());
+    };
+
+    syncUser();
+    window.addEventListener('storage', syncUser);
+    return () => window.removeEventListener('storage', syncUser);
   }, []);
 
   useEffect(() => {
@@ -30,8 +30,7 @@ export default function StudentNavbar() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearAuth();
     setUser(null);
     setIsDropdownOpen(false);
     navigate('/login');

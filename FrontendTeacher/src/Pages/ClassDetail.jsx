@@ -5,6 +5,7 @@ import axios from "axios";
 import Header from "../components/Header";
 import ClassHeader from "../components/ClassHeader";
 import ClassTabs from "../components/ClassTabs";
+import { getStoredUser } from "../utils/authStorage";
 
 const ClassDetail = () => {
   const { classId } = useParams();
@@ -23,7 +24,7 @@ const ClassDetail = () => {
   ];
 
   const currentUser = useMemo(() => {
-    return JSON.parse(localStorage.getItem("user") || "{}");
+    return getStoredUser() || {};
   }, []);
 
   const activeTab = useMemo(() => {
@@ -84,7 +85,7 @@ const ClassDetail = () => {
     };
 
     if (classId) fetchClassData();
-  }, [classId]);
+  }, [classId, currentUser.id, currentUser._id, navigate]);
 
   const outletContext = useMemo(() => ({ classData, currentUser }), [classData, currentUser]);
 

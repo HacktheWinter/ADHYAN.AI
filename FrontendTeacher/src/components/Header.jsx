@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, LogOut, Settings, User, UserPlus } from 'lucide-react';
+import { clearAuth, getStoredUser } from '../utils/authStorage';
 
 const Header = ({ onLogoClick }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -9,10 +10,10 @@ const Header = ({ onLogoClick }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const syncUser = () => setUser(getStoredUser());
+    syncUser();
+    window.addEventListener('storage', syncUser);
+    return () => window.removeEventListener('storage', syncUser);
   }, []);
 
   useEffect(() => {
@@ -26,8 +27,7 @@ const Header = ({ onLogoClick }) => {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearAuth();
     setUser(null);
     setIsDropdownOpen(false);
     navigate('/login');

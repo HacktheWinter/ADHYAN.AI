@@ -3,6 +3,7 @@ import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Header from '../components/Header';
+import { getStoredToken } from '../utils/authStorage';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export default function SettingsPage() {
     if (!validate()) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getStoredToken();
       await axios.post(
         'http://localhost:5000/api/profile/change-password',
         { currentPassword, newPassword },
