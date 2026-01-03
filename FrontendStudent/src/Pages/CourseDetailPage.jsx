@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useParams, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { getStoredUser } from "../utils/authStorage";
 
 export default function CourseDetailPage() {
   const { id } = useParams(); // classId
@@ -18,7 +19,7 @@ export default function CourseDetailPage() {
 
   //  Memoize classInfo to prevent re-parsing localStorage
   const classInfo = useMemo(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = getStoredUser() || {};
     return {
       classId: id,
       studentId: user.id || user._id,

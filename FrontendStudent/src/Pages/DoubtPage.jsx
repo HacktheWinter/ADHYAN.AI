@@ -1,11 +1,12 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import DoubtChat from "../components/DoubtChat";
+import { getStoredUser } from "../utils/authStorage";
 
 export default function DoubtPage() {
   const { id: classId } = useParams();
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = getStoredUser();
 
   // If user is not logged in
   if (!user) {

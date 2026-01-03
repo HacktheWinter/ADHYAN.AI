@@ -4,6 +4,7 @@ import Header from "../components/Header";
 import ClassCard from "../components/ClassCard";
 import NewClass from "../components/NewClass";
 import { getClassrooms, createClassroom, deleteClassroom } from "../api/classroomApi";
+import { getStoredUser } from "../utils/authStorage";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -11,7 +12,7 @@ const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getStoredUser() || {};
   const teacherId = user.id || user._id;
   const role = "teacher";
 

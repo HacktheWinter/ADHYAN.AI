@@ -3,6 +3,7 @@ import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import StudentNavbar from '../components/StudentNavbar';
+import { getStoredToken } from '../utils/authStorage';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export default function SettingsPage() {
     if (!validate()) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getStoredToken();
       await axios.post(
         'http://localhost:5000/api/profile/change-password',
         { currentPassword, newPassword },
@@ -63,7 +64,7 @@ export default function SettingsPage() {
             onClick={() => navigate('/')}
             className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-purple-700"
           >
-            <ChevronLeft className="w-5 h-5" /> Back to Dashboard
+            <ChevronLeft className="w-5 h-5" /> Back to Course
           </button>
         </div>
 
