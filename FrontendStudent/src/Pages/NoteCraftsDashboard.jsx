@@ -6,9 +6,8 @@ import {
   X,
   CheckCircle,
   AlertCircle,
-  Menu,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import axios from "axios";
 import { getStoredUser } from "../utils/authStorage";
 
@@ -24,6 +23,17 @@ export default function NoteCraftsDashboard() {
 
   const user = getStoredUser() || {};
   const studentId = user.id || user._id;
+  const { searchQuery = "" } = useOutletContext() || {};
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredCourses = normalizedQuery
+    ? myCourses.filter((course) => {
+        const haystack = [course.title, course.teacher, course.classCode]
+          .filter(Boolean)
+          .map((item) => item.toString().toLowerCase());
+        return haystack.some((item) => item.includes(normalizedQuery));
+      })
+    : myCourses;
 
   // Fetch student's enrolled classes
   useEffect(() => {
@@ -242,10 +252,25 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
+        {!loading && myCourses.length > 0 && filteredCourses.length === 0 && (
+          <div className="text-center mt-12 sm:mt-16 px-4">
+            <AlertCircle
+              size={40}
+              className="mx-auto text-gray-300 mb-3 sm:w-12 sm:h-12"
+            />
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-700 mb-2">
+              No courses match "{searchQuery.trim()}"
+            </h2>
+            <p className="text-sm sm:text-base text-gray-500">
+              Try a different title, teacher name, or class code.
+            </p>
+          </div>
+        )}
+
         {/* My Courses Grid */}
-        {!loading && myCourses.length > 0 && (
+        {!loading && filteredCourses.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {myCourses.map((course) => (
+            {filteredCourses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
           </div>
