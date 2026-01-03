@@ -1,5 +1,5 @@
 // FrontendStudent/src/App.jsx
-import React from "react";
+import React, { useState } from "react";
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 
 import StudentNavbar from "./components/StudentNavbar";
@@ -22,10 +22,15 @@ import DoubtPage  from "./Pages/DoubtPage";
 import SettingsPage from "./Pages/SettingsPage";
 
 function StudentLayout() {
+  const [searchQuery, setSearchQuery] = useState("");
+
   return (
     <>
-      <StudentNavbar />
-      <Outlet />
+      <StudentNavbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
+      <Outlet context={{ searchQuery, setSearchQuery }} />
     </>
   );
 }
