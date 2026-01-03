@@ -9,7 +9,13 @@ import { nanoid } from "nanoid";
  */
 export const createClassroom = async (req, res) => {
   try {
-    const { teacherId, name } = req.body;
+    const {
+      teacherId,
+      name,
+      subject = "",
+      colorTheme = "bg-gradient-to-br from-purple-500 to-purple-700",
+      themeImage = "",
+    } = req.body;
 
     if (!teacherId || !name) {
       return res.status(400).json({ error: "teacherId and name are required" });
@@ -25,7 +31,14 @@ export const createClassroom = async (req, res) => {
 
     const classCode = nanoid(6).toUpperCase();
 
-    const classroom = await Classroom.create({ teacherId, name, classCode });
+    const classroom = await Classroom.create({
+      teacherId,
+      name,
+      subject,
+      classCode,
+      colorTheme,
+      themeImage,
+    });
 
     res.status(201).json({
       message: "Classroom created successfully",
@@ -134,6 +147,47 @@ export const getClassroomById = async (req, res) => {
   } catch (error) {
     console.error("Error fetching classroom:", error);
     res.status(500).json({ error: "Server error" });
+  }
+};
+
+/**
+ * Update classroom details (teacher)
+ * PUT /api/classroom/:classId
+ * Body: { teacherId, name?, subject?, colorTheme?, themeImage? }
+ */
+export const updateClassroom = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { teacherId, name, subject, colorTheme, themeImage } = req.body;
+
+    if (!teacherId) {
+      return res.status(400).json({ error: "teacherId is required" });
+    }
+
+    const classroom = await Classroom.findById(classId);
+    if (!classroom) {
+      return res.status(404).json({ error: "Classroom not found" });
+    }
+
+    if (classroom.teacherId.toString() !== teacherId) {
+      return res.status(403).json({ error: "Unauthorized: You are not the teacher of this classroom" });
+    }
+
+    if (name !== undefined) classroom.name = name;
+    if (subject !== undefined) classroom.subject = subject;
+    if (colorTheme !== undefined) classroom.colorTheme = colorTheme;
+    if (themeImage !== undefined) classroom.themeImage = themeImage;
+
+    await classroom.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Classroom updated successfully",
+      classroom,
+    });
+  } catch (error) {
+    console.error("Update Classroom Error:", error);
+    res.status(500).json({ error: "Server error while updating classroom" });
   }
 };
 

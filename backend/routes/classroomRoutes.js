@@ -5,6 +5,7 @@ import {
   joinClassroom,
   getClassrooms,
   getClassroomById,
+  updateClassroom,
   deleteClassroom,
 } from "../controllers/classroomController.js";
 
@@ -14,6 +15,7 @@ router.post("/create", createClassroom);
 router.post("/join", joinClassroom);
 router.get("/", getClassrooms);
 router.get("/:classId", getClassroomById);
+router.put("/:classId", updateClassroom);
 router.delete("/:classId", deleteClassroom);
 
 export default router;

@@ -69,7 +69,8 @@ app.use(
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
 );
-app.use(express.json());
+// Increase body limit to allow base64 theme images when creating classes
+app.use(express.json({ limit: "10mb" }));
 
 // Routes
 app.use("/api/teacher", teacherRoutes);
