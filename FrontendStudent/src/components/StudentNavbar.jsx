@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, LogOut, Settings, User, UserPlus } from 'lucide-react';
+import { LogIn, LogOut, Settings, User, UserPlus, X } from 'lucide-react';
 import { clearAuth, getStoredUser } from '../utils/authStorage';
 
-export default function StudentNavbar() {
+export default function StudentNavbar({ searchQuery = '', onSearchChange = () => {} }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState(null);
   const dropdownRef = useRef(null);
@@ -68,6 +68,16 @@ export default function StudentNavbar() {
   const displayName = getDisplayName(user);
   const initials = getInitials(displayName);
 
+  const handleSearchInput = (value) => {
+    onSearchChange(value);
+  };
+
+  const clearSearch = () => {
+    if (searchQuery) {
+      onSearchChange('');
+    }
+  };
+
   return (
     <>
       <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
@@ -101,6 +111,9 @@ export default function StudentNavbar() {
                   type="text"
                   placeholder="Search your courses..."
                   className="w-full px-4 py-2 pl-10 pr-4 text-gray-700 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-700 focus:border-transparent transition-all"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchInput(e.target.value)}
+                  aria-label="Search courses"
                 />
                 <svg
                   className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
@@ -115,6 +128,16 @@ export default function StudentNavbar() {
                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   />
                 </svg>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
 
