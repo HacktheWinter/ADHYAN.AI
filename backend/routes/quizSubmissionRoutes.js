@@ -4,7 +4,8 @@ import {
   submitQuiz,
   getQuizResult,
   checkSubmission,
-  getQuizSubmissions
+  getQuizSubmissions,
+  getSubmissionById
 } from '../controllers/quizSubmissionController.js';
 
 const router = express.Router();
@@ -17,6 +18,9 @@ router.get('/result/:quizId/:studentId', getQuizResult);
 
 // Check if submitted
 router.get('/check/:quizId/:studentId', checkSubmission);
+
+// Get single submission by ID (Teacher)
+router.get('/submission/:submissionId', getSubmissionById);
 
 // Get all submissions for quiz (Teacher)
 router.get('/quiz/:quizId', getQuizSubmissions);

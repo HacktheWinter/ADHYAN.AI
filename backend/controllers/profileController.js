@@ -177,3 +177,122 @@ export const changePassword = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+// Configure multer for background image uploads
+const backgroundStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = "uploads/backgrounds";
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, "background-" + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+export const uploadBackground = multer({
+  storage: backgroundStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: fileFilter,
+});
+
+// Upload background image
+export const uploadBackgroundImage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    // Delete old background image if exists
+    const user = await User.findById(userId);
+    if (user.backgroundImage) {
+      const oldBgPath = path.join(process.cwd(), user.backgroundImage);
+      if (fs.existsSync(oldBgPath)) {
+        fs.unlinkSync(oldBgPath);
+      }
+    }
+
+    // Update user with new background image path
+    const bgPath = `uploads/backgrounds/${req.file.filename}`;
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { 
+        $set: { 
+          backgroundImage: bgPath,
+          useCustomBackground: true
+        } 
+      },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json({
+      message: "Background image uploaded successfully",
+      user: updatedUser,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Toggle background (use custom or default)
+export const toggleBackground = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { useCustomBackground } = req.body;
+
+    if (typeof useCustomBackground !== 'boolean') {
+      return res.status(400).json({ error: "useCustomBackground must be a boolean" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: { useCustomBackground } },
+      { new: true }
+    ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "Background preference updated",
+      user: updatedUser,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Delete background image
+export const deleteBackgroundImage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (user.backgroundImage) {
+      const bgPath = path.join(process.cwd(), user.backgroundImage);
+      if (fs.existsSync(bgPath)) {
+        fs.unlinkSync(bgPath);
+      }
+
+      user.backgroundImage = "";
+      user.useCustomBackground = false;
+      await user.save();
+    }
+
+    res.status(200).json({
+      message: "Background image deleted successfully",
+      user: await User.findById(userId).select("-password"),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

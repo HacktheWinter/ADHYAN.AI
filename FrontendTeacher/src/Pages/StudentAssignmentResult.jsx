@@ -12,6 +12,7 @@ const StudentAssignmentResult = () => {
   const [submission, setSubmission] = useState(null);
   const [assignment, setAssignment] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [imageLoadError, setImageLoadError] = useState(false);
   const [editingMarks, setEditingMarks] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
@@ -132,9 +133,18 @@ const StudentAssignmentResult = () => {
           <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4">
             {/* Student Info */}
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl sm:text-2xl flex-shrink-0">
-                {submission.studentName?.charAt(0).toUpperCase()}
-              </div>
+              {submission.studentId?.profilePhoto && !imageLoadError ? (
+                <img 
+                  src={`http://localhost:5000/${submission.studentId.profilePhoto}`}
+                  alt={submission.studentName}
+                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0 border-2 border-purple-200"
+                  onError={() => setImageLoadError(true)}
+                />
+              ) : (
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl sm:text-2xl flex-shrink-0">
+                  {submission.studentName?.charAt(0).toUpperCase()}
+                </div>
+              )}
 
               <div className="min-w-0 flex-1">
                 <h1 className="text-lg sm:text-2xl font-bold text-gray-900 mb-1 truncate">
