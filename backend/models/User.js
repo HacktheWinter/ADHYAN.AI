@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema({
   
   // Profile fields
   profilePhoto: { type: String, default: "" }, // URL or path to profile photo
+  backgroundImage: { type: String, default: "" }, // URL or path to background image
+  useCustomBackground: { type: Boolean, default: false }, // Toggle between custom and default background
   dateOfBirth: { type: Date },
   gender: { type: String, enum: ["male", "female", "other", "prefer-not-to-say", ""], default: "" },
   collegeName: { type: String, default: "" },

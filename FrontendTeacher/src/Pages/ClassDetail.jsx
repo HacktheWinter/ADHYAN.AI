@@ -57,16 +57,15 @@ const ClassDetail = () => {
     const fetchClassData = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:5000/api/classroom`, {
-          params: { userId: currentUser.id || currentUser._id, role: "teacher" },
-        });
+        const response = await axios.get(`http://localhost:5000/api/classroom/${classId}`);
 
-        const classroom = response.data.classrooms.find((c) => c._id === classId);
+        const classroom = response.data.classroom;
 
         if (classroom) {
           setClassData({
             ...classroom,
             students: classroom.students || [],
+            leftStudents: classroom.leftStudents || [],
             id: classroom._id,
             subject: classroom.name,
             studentCount: classroom.students?.length || 0,
@@ -85,7 +84,7 @@ const ClassDetail = () => {
     };
 
     if (classId) fetchClassData();
-  }, [classId, currentUser.id, currentUser._id, navigate]);
+  }, [classId, navigate]);
 
   const outletContext = useMemo(() => ({ classData, currentUser }), [classData, currentUser]);
 

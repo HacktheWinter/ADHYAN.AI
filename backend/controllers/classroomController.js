@@ -81,6 +81,18 @@ export const joinClassroom = async (req, res) => {
         .json({ error: "Student already joined this classroom" });
     }
 
+    // Check if student previously left this class
+    const wasInLeftStudents = classroom.leftStudents.some(
+      (ls) => ls.studentId.toString() === studentId.toString()
+    );
+
+    if (wasInLeftStudents) {
+      // Remove from leftStudents
+      classroom.leftStudents = classroom.leftStudents.filter(
+        (ls) => ls.studentId.toString() !== studentId.toString()
+      );
+    }
+
     classroom.students.push(studentId);
     await classroom.save();
 
@@ -108,10 +120,9 @@ export const getClassrooms = async (req, res) => {
 
     let classrooms;
     if (role === "teacher") {
-      classrooms = await Classroom.find({ teacherId: userId }).populate(
-        "students",
-        "name email"
-      );
+      classrooms = await Classroom.find({ teacherId: userId })
+        .populate("students", "name email")
+        .populate("leftStudents.studentId", "name email");
     } else if (role === "student") {
       classrooms = await Classroom.find({ students: userId }).populate(
         "teacherId",
@@ -133,7 +144,8 @@ export const getClassroomById = async (req, res) => {
     const { classId } = req.params;
 
     const classroom = await Classroom.findById(classId)
-      .populate("students", "name email createdAt")
+      .populate("students", "name email profilePhoto createdAt")
+      .populate("leftStudents.studentId", "name email profilePhoto createdAt")
       .populate("teacherId", "name email");
 
     if (!classroom) {
@@ -227,5 +239,65 @@ export const deleteClassroom = async (req, res) => {
   } catch (error) {
     console.error("Delete Classroom Error:", error);
     res.status(500).json({ error: "Server error while deleting classroom" });
+  }
+};
+
+/**
+ * Leave Classroom (Student)
+ * POST /api/classroom/:classId/leave
+ * Body: { studentId }
+ */
+export const leaveClassroom = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { studentId } = req.body;
+
+    if (!studentId) {
+      return res.status(400).json({ error: "studentId is required" });
+    }
+
+    const classroom = await Classroom.findById(classId);
+    if (!classroom) {
+      return res.status(404).json({ error: "Classroom not found" });
+    }
+
+    const student = await User.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ error: "Student not found" });
+    }
+    if (student.role !== "student") {
+      return res.status(400).json({ error: "User is not a student" });
+    }
+
+    if (!classroom.students.includes(studentId)) {
+      return res.status(400).json({ error: "Student is not enrolled in this classroom" });
+    }
+
+    // Remove student from active students
+    classroom.students = classroom.students.filter(
+      (id) => id.toString() !== studentId.toString()
+    );
+
+    // Add to leftStudents array if not already there
+    const alreadyLeft = classroom.leftStudents.some(
+      (ls) => ls.studentId.toString() === studentId.toString()
+    );
+    
+    if (!alreadyLeft) {
+      classroom.leftStudents.push({
+        studentId: studentId,
+        leftAt: new Date()
+      });
+    }
+
+    await classroom.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Successfully left the classroom",
+    });
+  } catch (error) {
+    console.error("Leave Classroom Error:", error);
+    res.status(500).json({ error: "Server error while leaving classroom" });
   }
 };

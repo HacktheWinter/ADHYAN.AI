@@ -1,11 +1,13 @@
 // FrontendStudent/src/Pages/NoteCraftsDashboard.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   BookOpen,
   User,
   X,
   CheckCircle,
   AlertCircle,
+  MoreVertical,
+  LogOut,
 } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import axios from "axios";
@@ -152,6 +154,26 @@ export default function NoteCraftsDashboard() {
   };
 
   const CourseCard = ({ course }) => {
+    const [showDropdown, setShowDropdown] = useState(false);
+    const dropdownRef = useRef(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+          setShowDropdown(false);
+        }
+      };
+
+      if (showDropdown) {
+        document.addEventListener('mousedown', handleClickOutside);
+      }
+
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, [showDropdown]);
+
     // Check if colorTheme or themeImage contains an image URL
     const isImageUrl = (str) => str && (str.startsWith('data:') || str.includes('.jpg') || str.includes('.jpeg') || str.includes('.png') || str.includes('.webp'));
     const hasImage = Boolean(course.themeImage) || isImageUrl(course.colorTheme);
@@ -168,6 +190,36 @@ export default function NoteCraftsDashboard() {
       ? undefined
       : { background: course.fallbackColor };
 
+    const handleDropdownToggle = (e) => {
+      e.stopPropagation();
+      setShowDropdown(!showDropdown);
+    };
+
+    const handleLeaveClass = async (e) => {
+      e.stopPropagation();
+      setShowDropdown(false);
+
+      if (window.confirm(`Are you sure you want to leave "${course.title}"?`)) {
+        try {
+          await axios.post(
+            `http://localhost:5000/api/classroom/${course.courseId}/leave`,
+            { studentId }
+          );
+          
+          // Remove class from the list
+          setMyCourses((prev) => prev.filter((c) => c.id !== course.id));
+          setSuccess(`Successfully left ${course.title}`);
+          setTimeout(() => setSuccess(""), 3000);
+        } catch (err) {
+          console.error("Error leaving class:", err);
+          setError(
+            err.response?.data?.error || "Failed to leave class. Please try again."
+          );
+          setTimeout(() => setError(""), 5000);
+        }
+      }
+    };
+
     return (
       <div
         onClick={() => navigate(`/course/${course.courseId}`)}
@@ -181,6 +233,30 @@ export default function NoteCraftsDashboard() {
           <h3 className="text-xl sm:text-2xl font-bold text-white z-10 px-3 text-center">
             {course.title}
           </h3>
+
+          {/* Three Dots Menu */}
+          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20" ref={dropdownRef}>
+            <button
+              onClick={handleDropdownToggle}
+              className="p-1.5 sm:p-2 bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-all cursor-pointer relative z-20"
+              title="More options"
+            >
+              <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showDropdown && (
+              <div className="absolute right-0 mt-2 w-40 sm:w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                <button
+                  onClick={handleLeaveClass}
+                  className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 text-left text-xs sm:text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  Leave Class
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="p-3 sm:p-4 space-y-2 sm:space-y-3 flex-1 flex flex-col">
