@@ -59,9 +59,13 @@ export default function NoteCraftsDashboard() {
           id: cls._id,
           title: cls.name,
           teacher: cls.teacherId?.name || "Teacher",
-          color: getGradientColor(idx),
+          // Prefer teacher-set theme; fallback to existing rotating gradient
+          colorTheme: cls.colorTheme || "",
+          themeImage: cls.themeImage || "",
+          fallbackColor: getGradientColor(idx),
           courseId: cls._id,
           classCode: cls.classCode,
+          subject: cls.subject || cls.name,
         }));
 
         setMyCourses(formattedClasses);
@@ -121,9 +125,12 @@ export default function NoteCraftsDashboard() {
         id: response.data.classroom._id,
         title: response.data.classroom.name,
         teacher: "Teacher",
-        color: getGradientColor(myCourses.length),
+        colorTheme: response.data.classroom.colorTheme || "",
+        themeImage: response.data.classroom.themeImage || "",
+        fallbackColor: getGradientColor(myCourses.length),
         courseId: response.data.classroom._id,
         classCode: response.data.classroom.classCode,
+        subject: response.data.classroom.subject || response.data.classroom.name,
       };
 
       setMyCourses((prev) => [...prev, newClass]);
@@ -144,51 +151,73 @@ export default function NoteCraftsDashboard() {
     }
   };
 
-  const CourseCard = ({ course }) => (
-    <div
-      onClick={() => navigate(`/course/${course.courseId}`)}
-      className="bg-white rounded-xl sm:rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden"
-    >
-      <div
-        className="h-32 sm:h-40 flex items-center justify-center relative"
-        style={{ background: course.color }}
-      >
-        <div className="absolute inset-0 bg-black/10 rounded-t-xl sm:rounded-t-2xl" />
-        <h3 className="text-xl sm:text-2xl font-bold text-white z-10 px-3 text-center">
-          {course.title}
-        </h3>
-      </div>
+  const CourseCard = ({ course }) => {
+    // Check if colorTheme or themeImage contains an image URL
+    const isImageUrl = (str) => str && (str.startsWith('data:') || str.includes('.jpg') || str.includes('.jpeg') || str.includes('.png') || str.includes('.webp'));
+    const hasImage = Boolean(course.themeImage) || isImageUrl(course.colorTheme);
+    const imageUrl = course.themeImage || (isImageUrl(course.colorTheme) ? course.colorTheme : null);
+    
+    const headerClass = hasImage ? "bg-gray-900" : course.colorTheme || "";
+    const headerStyle = hasImage
+      ? {
+          backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.15), rgba(0,0,0,0.3)), url(${imageUrl})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }
+      : course.colorTheme
+      ? undefined
+      : { background: course.fallbackColor };
 
-      <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-        <div className="flex items-center text-gray-700 font-medium text-sm sm:text-base">
-          <User
-            size={16}
-            className="mr-2 text-indigo-600 sm:w-[18px] sm:h-[18px]"
-          />
-          <span>{course.teacher}</span>
+    return (
+      <div
+        onClick={() => navigate(`/course/${course.courseId}`)}
+        className="bg-white rounded-xl sm:rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden w-full min-h-[220px] flex flex-col"
+      >
+        <div
+          className={`h-28 sm:h-32 flex items-center justify-center relative ${headerClass}`}
+          style={headerStyle}
+        >
+          <div className="absolute inset-0 bg-black/10 rounded-t-xl sm:rounded-t-2xl" />
+          <h3 className="text-xl sm:text-2xl font-bold text-white z-10 px-3 text-center">
+            {course.title}
+          </h3>
         </div>
 
-        {course.classCode && (
-          <div className="text-xs text-gray-500 bg-gray-100 px-2 sm:px-3 py-1 rounded font-mono text-center">
-            Code: {course.classCode}
+        <div className="p-3 sm:p-4 space-y-2 sm:space-y-3 flex-1 flex flex-col">
+          <div className="flex items-center text-gray-700 font-medium text-sm sm:text-base">
+            <User
+              size={16}
+              className="mr-2 text-indigo-600 sm:w-[18px] sm:h-[18px]"
+            />
+            <span>{course.teacher}</span>
           </div>
-        )}
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/course/${course.courseId}`);
-          }}
-          className="w-full py-2.5 sm:py-3 rounded-lg text-white font-semibold text-sm sm:text-base transition-all cursor-pointer"
-          style={{
-            background: "linear-gradient(135deg, #6D28D9 0%, #9333EA 100%)",
-          }}
-        >
-          Continue Learning
-        </button>
+          {course.subject && (
+            <p className="text-xs sm:text-sm text-gray-500">{course.subject}</p>
+          )}
+
+          {course.classCode && (
+            <div className="text-xs text-gray-500 bg-gray-100 px-2 sm:px-3 py-1 rounded font-mono text-center">
+              Code: {course.classCode}
+            </div>
+          )}
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/course/${course.courseId}`);
+            }}
+            className="w-full mt-auto py-2.5 sm:py-3 rounded-lg text-white font-semibold text-sm sm:text-base transition-all cursor-pointer"
+            style={{
+              background: "linear-gradient(135deg, #6D28D9 0%, #9333EA 100%)",
+            }}
+          >
+            Continue Learning
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -269,7 +298,7 @@ export default function NoteCraftsDashboard() {
 
         {/* My Courses Grid */}
         {!loading && filteredCourses.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6 justify-items-stretch height-auto">
             {filteredCourses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}

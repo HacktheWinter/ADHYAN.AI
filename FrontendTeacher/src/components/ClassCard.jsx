@@ -52,10 +52,15 @@ const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
   };
 
   const headerColor = classData.colorTheme || classData.color || "bg-gradient-to-br from-purple-500 to-purple-700";
-  const hasImage = Boolean(classData.themeImage);
+  
+  // Check if we have an image (either from themeImage or colorTheme containing an image URL)
+  const isImageUrl = (str) => str && (str.startsWith('data:') || str.includes('.jpg') || str.includes('.jpeg') || str.includes('.png') || str.includes('.webp'));
+  const hasImage = Boolean(classData.themeImage) || isImageUrl(headerColor);
+  const imageUrl = classData.themeImage || (isImageUrl(headerColor) ? headerColor : null);
+  
   const headerStyle = hasImage
     ? {
-        backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.35), rgba(0,0,0,0.6)), url(${classData.themeImage})`,
+        backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.15), rgba(0,0,0,0.3)), url(${imageUrl})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }
@@ -65,7 +70,7 @@ const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
     <>
       <div
         onClick={onClick}
-        className="cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-xl h-full relative"
+        className="cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-xl h-full relative min-h-[260px]"
       >
         <div className="bg-white rounded-xl shadow-lg h-full flex flex-col relative overflow-visible">
           <div

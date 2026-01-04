@@ -1,14 +1,19 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
+import ThemeSelectionModal from "./ThemeSelectionModal";
+import general5 from '../assets/themes/general/general-5.jpg';
+import { getAllThemes } from '../data/themeData';
 
 const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "create" }) => {
   const [formData, setFormData] = useState({
     name: "",
     subject: "",
-    color: "bg-gradient-to-br from-purple-500 to-purple-700",
+    color: general5,
     themeType: "color",
     themeImage: "",
+    selectedTheme: { id: 'general-5', name: 'Theme 5', type: 'image', value: general5, pattern: 'custom' },
   });
+  const [showThemeModal, setShowThemeModal] = useState(false);
 
   React.useEffect(() => {
     if (!initialData) {
@@ -16,21 +21,31 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
         ...prev,
         name: "",
         subject: "",
-        color: "bg-gradient-to-br from-purple-500 to-purple-700",
+        color: general5,
         themeType: "color",
         themeImage: "",
+        selectedTheme: { id: 'general-5', name: 'Theme 5', type: 'image', value: general5, pattern: 'custom' },
       }));
       return;
     }
 
     const isImageTheme = Boolean(initialData.themeImage);
+    const colorThemeValue = initialData.colorTheme || initialData.color || general5;
+    
+    // Find matching theme from themeData based on colorTheme value
+    let matchedTheme = null;
+    if (!isImageTheme) {
+      const allThemes = getAllThemes();
+      matchedTheme = allThemes.find(theme => theme.value === colorThemeValue);
+    }
 
     setFormData({
       name: initialData.name || "",
       subject: initialData.subject || "",
-      color: initialData.colorTheme || initialData.color || "bg-gradient-to-br from-purple-500 to-purple-700",
+      color: colorThemeValue,
       themeType: isImageTheme ? "image" : "color",
       themeImage: initialData.themeImage || "",
+      selectedTheme: matchedTheme || initialData.selectedTheme || { id: 'general-5', name: 'Theme 5', type: 'image', value: general5, pattern: 'custom' },
     });
   }, [initialData]);
 
@@ -44,6 +59,19 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
     { name: "Indigo", value: "bg-gradient-to-br from-indigo-500 to-indigo-700" },
     { name: "Teal", value: "bg-gradient-to-br from-teal-500 to-teal-700" },
   ];
+
+  const handleThemeSelect = (theme) => {
+    // Always keep themeType as 'color' for themes from modal
+    // Only 'image' type should be for manual custom uploads
+    setFormData({
+      ...formData,
+      themeType: 'color',
+      color: theme.value,
+      selectedTheme: theme,
+      themeImage: '',
+    });
+    setShowThemeModal(false);
+  };
 
   const handleImageUpload = (event) => {
     const file = event.target.files?.[0];
@@ -65,6 +93,7 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
     }
 
     const payload = {
+      selectedTheme: null,
       name: formData.name,
       subject: formData.subject,
       colorTheme: formData.color,
@@ -81,9 +110,10 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
     setFormData({
       name: "",
       subject: "",
-      color: "bg-gradient-to-br from-purple-500 to-purple-700",
+      color: general5,
       themeType: "color",
       themeImage: "",
+      selectedTheme: { id: 'general-5', name: 'Theme 5', type: 'image', value: general5, pattern: 'custom' },
     });
     onClose();
   };
@@ -155,9 +185,9 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
                       name="themeType"
                       value="color"
                       checked={formData.themeType === "color"}
-                      onChange={() => setFormData({ ...formData, themeType: "color", themeImage: "" })}
+                      onChange={() => setFormData({ ...formData, themeType: "color", themeImage: "", selectedTheme: null })}
                     />
-                    <span className="text-sm font-medium text-gray-700">Color theme</span>
+                    <span className="text-sm font-medium text-gray-700">Class theme</span>
                   </label>
 
                   <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
@@ -170,7 +200,7 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
                       name="themeType"
                       value="image"
                       checked={formData.themeType === "image"}
-                      onChange={() => setFormData({ ...formData, themeType: "image" })}
+                      onChange={() => setFormData({ ...formData, themeType: "image", selectedTheme: null })}
                     />
                     <span className="text-sm font-medium text-gray-700">Custom image</span>
                   </label>
@@ -182,21 +212,53 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
                   <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
                     Choose Color Theme
                   </label>
-                  <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                    {colors.map((color) => (
+                  {/* Theme Preview Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowThemeModal(true)}
+                    className="w-full border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-purple-400 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div 
+                        className="w-20 h-20 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200"
+                        style={{
+                          backgroundImage: formData.color ? `url(${formData.color})` : 'none',
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          backgroundColor: !formData.color ? '#e5e7eb' : 'transparent',
+                        }}
+                      >
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="text-sm font-medium text-gray-900">
+                          {formData.selectedTheme ? formData.selectedTheme.name : 'Select a theme'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Click to browse theme patterns
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Current Theme Info */}
+                  {formData.selectedTheme && (
+                    <div className="mt-2 flex items-center justify-between text-xs text-gray-600">
+                      <span>
+                        🎨 {formData.selectedTheme.name}
+                      </span>
                       <button
-                        key={color.value}
                         type="button"
-                        onClick={() => setFormData({ ...formData, color: color.value })}
-                        className={`h-12 sm:h-14 rounded-lg sm:rounded-xl ${color.value} transition-transform ${
-                          formData.color === color.value
-                            ? "ring-2 ring-purple-300 scale-105"
-                            : "hover:scale-105"
-                        }`}
-                        title={color.name}
-                      />
-                    ))}
-                  </div>
+                        onClick={() => setFormData({
+                          ...formData,
+                          selectedTheme: { id: 'general-5', name: 'Theme 5', type: 'image', value: general5, pattern: 'custom' },
+                          color: general5
+                        })}
+                        className="text-red-600 hover:text-red-700 cursor-pointer"
+                      >
+                        Reset theme
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -223,7 +285,7 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
                         />
                         <button
                           type="button"
-                          onClick={() => setFormData({ ...formData, themeImage: "", themeType: "color" })}
+                          onClick={() => setFormData({ ...formData, themeImage: "" })}
                           className="absolute top-2 right-2 px-2 py-1 text-xs bg-black/60 text-white rounded cursor-pointer"
                         >
                           Remove
@@ -243,19 +305,23 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
             </label>
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-200">
               <div
-                className={`${
-                  formData.themeType === "image" && formData.themeImage
-                    ? "bg-gray-900"
-                    : formData.color
-                } h-28 sm:h-36 flex items-center justify-center p-4 rounded-t-xl sm:rounded-t-2xl relative overflow-hidden`}
+                className="h-28 sm:h-36 flex items-center justify-center p-4 rounded-t-xl sm:rounded-t-2xl relative overflow-hidden"
                 style={
                   formData.themeType === "image" && formData.themeImage
                     ? {
-                        backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.35), rgba(0,0,0,0.55)), url(${formData.themeImage})`,
+                        backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.15), rgba(0,0,0,0.3)), url(${formData.themeImage})`,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
                       }
-                    : undefined
+                    : formData.selectedTheme?.type === 'image'
+                    ? {
+                        backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.15), rgba(0,0,0,0.3)), url(${formData.color})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }
+                    : {
+                        background: formData.color,
+                      }
                 }
               >
                 <h3 className="text-lg sm:text-xl font-bold text-white text-center drop-shadow-sm">
@@ -289,6 +355,14 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
           </div>
         </form>
       </div>
+
+      {/* Theme Selection Modal */}
+      <ThemeSelectionModal
+        isOpen={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
+        onSelectTheme={handleThemeSelect}
+        currentTheme={formData.selectedTheme}
+      />
     </div>
   );
 };
