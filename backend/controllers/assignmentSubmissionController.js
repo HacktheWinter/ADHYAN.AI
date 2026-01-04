@@ -332,7 +332,7 @@ export const getAssignmentSubmissions = async (req, res) => {
     const { assignmentId } = req.params;
 
     const submissions = await AssignmentSubmission.find({ assignmentId })
-      .populate("studentId", "name email")
+      .populate("studentId", "name email profilePhoto")
       .sort({ submittedAt: -1 });
 
     res.status(200).json({

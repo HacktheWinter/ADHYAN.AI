@@ -1,6 +1,6 @@
 // FrontendTeacher/src/components/QuizzesPage.jsx
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Sparkles,
   Pencil,
@@ -18,6 +18,7 @@ import EditQuizModal from "./EditQuizModal";
 
 const QuizzesPage = () => {
   const { classId } = useParams();
+  const navigate = useNavigate();
 
   const [drafts, setDrafts] = useState([]);
   const [published, setPublished] = useState([]);
@@ -124,6 +125,10 @@ const QuizzesPage = () => {
   const handleView = (quiz) => {
     setViewingQuiz(quiz);
     setShowViewModal(true);
+  };
+
+  const handleViewResults = (quizId) => {
+    navigate(`/class/${classId}/quizzes/results/${quizId}`);
   };
 
   const handleSaveQuiz = async (updatedQuiz) => {
@@ -356,19 +361,11 @@ const QuizzesPage = () => {
 
                   <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                     <button
-                      onClick={() => handleView(quiz)}
+                      onClick={() => handleViewResults(quiz._id)}
                       className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors cursor-pointer"
                     >
                       <Eye className="w-4 h-4" />
-                      <span>View</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleEdit(quiz)}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                    >
-                      <Pencil className="w-4 h-4" />
-                      <span>Edit</span>
+                      <span>View Results</span>
                     </button>
 
                     <button

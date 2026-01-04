@@ -1,4 +1,5 @@
 import Doubt from "../models/Doubt.js";
+import User from "../models/User.js";
 
 /* ---------------------------------------------
    GET ALL DOUBTS (Teacher Panel)
@@ -6,7 +7,44 @@ import Doubt from "../models/Doubt.js";
 export const getAllDoubts = async (req, res) => {
   try {
     const doubts = await Doubt.find().sort({ createdAt: -1 });
-    res.json(doubts);
+    
+    // Populate current user data for doubts and replies
+    const populatedDoubts = await Promise.all(
+      doubts.map(async (doubt) => {
+        const doubtObj = doubt.toObject();
+        
+        // Get current author info
+        if (doubtObj.authorId) {
+          const author = await User.findById(doubtObj.authorId);
+          if (author) {
+            doubtObj.authorName = author.name;
+            doubtObj.profilePhoto = author.profilePhoto;
+            doubtObj.authorRole = author.role;
+          }
+        }
+        
+        // Get current info for reply authors
+        if (doubtObj.replies && doubtObj.replies.length > 0) {
+          doubtObj.replies = await Promise.all(
+            doubtObj.replies.map(async (reply) => {
+              if (reply.authorId) {
+                const replyAuthor = await User.findById(reply.authorId);
+                if (replyAuthor) {
+                  reply.authorName = replyAuthor.name;
+                  reply.profilePhoto = replyAuthor.profilePhoto;
+                  reply.authorRole = replyAuthor.role;
+                }
+              }
+              return reply;
+            })
+          );
+        }
+        
+        return doubtObj;
+      })
+    );
+    
+    res.json(populatedDoubts);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch doubts" });
   }
@@ -20,7 +58,44 @@ export const getDoubtsByClass = async (req, res) => {
     const doubts = await Doubt.find({ classId: req.params.classId }).sort({
       createdAt: -1,
     });
-    res.json(doubts);
+    
+    // Populate current user data for doubts and replies
+    const populatedDoubts = await Promise.all(
+      doubts.map(async (doubt) => {
+        const doubtObj = doubt.toObject();
+        
+        // Get current author info
+        if (doubtObj.authorId) {
+          const author = await User.findById(doubtObj.authorId);
+          if (author) {
+            doubtObj.authorName = author.name;
+            doubtObj.profilePhoto = author.profilePhoto;
+            doubtObj.authorRole = author.role;
+          }
+        }
+        
+        // Get current info for reply authors
+        if (doubtObj.replies && doubtObj.replies.length > 0) {
+          doubtObj.replies = await Promise.all(
+            doubtObj.replies.map(async (reply) => {
+              if (reply.authorId) {
+                const replyAuthor = await User.findById(reply.authorId);
+                if (replyAuthor) {
+                  reply.authorName = replyAuthor.name;
+                  reply.profilePhoto = replyAuthor.profilePhoto;
+                  reply.authorRole = replyAuthor.role;
+                }
+              }
+              return reply;
+            })
+          );
+        }
+        
+        return doubtObj;
+      })
+    );
+    
+    res.json(populatedDoubts);
   } catch (err) {
     res.status(500).json({ message: "Failed to get doubts" });
   }
@@ -35,6 +110,8 @@ export const postDoubt = async (req, res) => {
       classId: req.body.classId,
       authorId: req.body.authorId,
       authorName: req.body.authorName,
+      authorRole: req.body.authorRole,
+      profilePhoto: req.body.profilePhoto,
       title: req.body.title,
       description: req.body.description,
     });
@@ -88,6 +165,8 @@ export const addReply = async (req, res) => {
     const reply = {
       authorId: req.body.authorId,
       authorName: req.body.authorName,
+      authorRole: req.body.authorRole,
+      profilePhoto: req.body.profilePhoto,
       message: req.body.message,
       createdAt: Date.now(),
     };

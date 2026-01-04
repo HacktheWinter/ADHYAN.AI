@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, X, Save, Calendar, User as UserIcon, Building2, ArrowLeft } from 'lucide-react';
+import { Camera, X, Save, Calendar, User as UserIcon, Building2, ArrowLeft, Image } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getStoredToken, updateStoredUser } from '../utils/authStorage';
@@ -10,6 +10,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingBackground, setUploadingBackground] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     dateOfBirth: '',
@@ -115,6 +116,88 @@ export default function ProfilePage() {
     }
   };
 
+  const handleBackgroundChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image size should be less than 10MB');
+      return;
+    }
+
+    setUploadingBackground(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const token = getStoredToken();
+      const bgFormData = new FormData();
+      bgFormData.append('backgroundImage', file);
+
+      const response = await axios.post(`${API_URL}/profile/background`, bgFormData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      setUser(response.data.user);
+      setSuccess('Background image updated successfully');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to upload background');
+    } finally {
+      setUploadingBackground(false);
+    }
+  };
+
+  const handleDeleteBackground = async () => {
+    if (!window.confirm('Are you sure you want to delete your background image?')) {
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+
+    try {
+      const token = getStoredToken();
+      const response = await axios.delete(`${API_URL}/profile/background`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setUser(response.data.user);
+      setSuccess('Background image deleted successfully');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete background');
+    }
+  };
+
+  const handleToggleBackground = async (useCustom) => {
+    setError('');
+    setSuccess('');
+
+    try {
+      const token = getStoredToken();
+      const response = await axios.post(`${API_URL}/profile/background/toggle`, 
+        { useCustomBackground: useCustom },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setUser(response.data.user);
+      setSuccess(useCustom ? 'Switched to custom background' : 'Switched to default background');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to toggle background');
+    }
+  };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -158,6 +241,13 @@ export default function ProfilePage() {
     return null;
   };
 
+  const getBackgroundImageUrl = () => {
+    if (user?.backgroundImage && user?.useCustomBackground) {
+      return `${API_URL.replace('/api', '')}/${user.backgroundImage}`;
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -182,9 +272,80 @@ export default function ProfilePage() {
         </button>
 
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          {/* Header Section */}
-          <div className="bg-gradient-to-r from-purple-600 to-purple-800 px-8 py-12">
-            <div className="flex items-start gap-6">
+          {/* Header Section with Background */}
+          <div 
+            className="relative px-8 py-12 bg-cover bg-center"
+            style={{
+              backgroundImage: getBackgroundImageUrl() 
+                ? `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${getBackgroundImageUrl()})`
+                : 'linear-gradient(to right, #9333ea, #6d28d9)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
+            {/* Overlay for better text readability - removed as it's now in inline style */}
+            
+            {/* Background Upload Section */}
+            <div className="absolute top-4 right-4 z-10 flex gap-2">
+              <label
+                htmlFor="bg-upload"
+                className="flex items-center justify-center px-3 py-2 bg-white bg-opacity-90 rounded-lg cursor-pointer hover:bg-opacity-100 transition-all shadow-md text-sm font-medium text-gray-700"
+              >
+                {uploadingBackground ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-2"></div>
+                ) : (
+                  <Image className="w-4 h-4 mr-2" />
+                )}
+                {user?.backgroundImage ? 'Change' : 'Add'} Background
+              </label>
+              <input
+                id="bg-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleBackgroundChange}
+                className="hidden"
+                disabled={uploadingBackground}
+              />
+
+              {user?.backgroundImage && (
+                <button
+                  onClick={handleDeleteBackground}
+                  className="flex items-center justify-center px-3 py-2 bg-red-500 bg-opacity-90 rounded-lg hover:bg-opacity-100 transition-all shadow-md text-sm font-medium text-white"
+                  title="Delete background"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Background Toggle Buttons */}
+            {user?.backgroundImage && (
+              <div className="absolute bottom-4 right-4 z-10 flex gap-2">
+                <button
+                  onClick={() => handleToggleBackground(true)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    user?.useCustomBackground
+                      ? 'bg-white text-purple-600 shadow-md'
+                      : 'bg-white bg-opacity-50 text-gray-700 hover:bg-opacity-70'
+                  }`}
+                >
+                  Custom
+                </button>
+                <button
+                  onClick={() => handleToggleBackground(false)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    !user?.useCustomBackground
+                      ? 'bg-white text-purple-600 shadow-md'
+                      : 'bg-white bg-opacity-50 text-gray-700 hover:bg-opacity-70'
+                  }`}
+                >
+                  Default
+                </button>
+              </div>
+            )}
+
+            {/* Content */}
+            <div className="relative z-20 flex items-start gap-6">
               {/* Profile Photo Section */}
               <div className="relative group">
                 <div className="w-32 h-32 rounded-full bg-white flex items-center justify-center overflow-hidden shadow-lg">
