@@ -17,6 +17,7 @@ import Quiz from "./Pages/Quiz";
 import TestPapers from "./Pages/TestPapers";
 import Assignments from "./Pages/Assignments"; 
 import DoubtPage  from "./Pages/DoubtPage";
+import StudentFeedbackPage from "./Pages/StudentFeedbackPage";
 
 function StudentLayout() {
   return (
@@ -58,6 +59,12 @@ export default function App() {
         }
       >
         <Route index element={<NoteCraftsDashboard />} />
+
+        <Route
+    path="course/:id/feedback"
+    element={<StudentFeedbackPage />}
+  />
+
         
         {/* Course Detail with Nested Routes */}
         <Route path="course/:id" element={<CourseDetailPage />}>
