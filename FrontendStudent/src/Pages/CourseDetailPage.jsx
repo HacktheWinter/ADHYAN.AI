@@ -7,48 +7,88 @@ export default function CourseDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const scrollContainerRef = useRef(null);
+
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
-  
-  //  Memoize active tab to prevent recalculation on every render
+
+  // ⭐ FEEDBACK VISIBILITY STATE
+  const [showFeedbackBtn, setShowFeedbackBtn] = useState(false);
+
+  // Memoize active tab
   const activeTab = useMemo(() => {
-    const pathParts = location.pathname.split('/');
+    const pathParts = location.pathname.split("/");
     return pathParts[pathParts.length - 1];
   }, [location.pathname]);
 
-  //  Memoize classInfo to prevent re-parsing localStorage
+  // Memoize classInfo
   const classInfo = useMemo(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
     return {
       classId: id,
       studentId: user.id || user._id,
       studentName: user.name,
     };
-  }, [id]); // Only recompute when id changes
+  }, [id]);
 
   const tabs = [
-    { id: 'notes', label: 'Notes', path: 'notes' },
-    { id: 'quiz', label: 'Quiz', path: 'quiz' },
-    { id: 'assignment', label: 'Assignment', path: 'assignment' },
-    { id: 'test', label: 'Test Paper', path: 'test' },
+    { id: "notes", label: "Notes", path: "notes" },
+    { id: "quiz", label: "Quiz", path: "quiz" },
+    { id: "assignment", label: "Assignment", path: "assignment" },
+    { id: "test", label: "Test Paper", path: "test" },
     { id: "doubt", label: "Doubts", path: "doubt" },
   ];
 
-  // Check scroll position and update arrow visibility
+  /* =========================
+     ⭐ STEP 3 CORE LOGIC
+     Show feedback button ONLY IF:
+     - feedback is active
+     - student has NOT submitted
+  ========================== */
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const checkFeedback = async () => {
+      try {
+        const res = await fetch(
+          `http://localhost:5000/api/feedback/active/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await res.json();
+
+        // ✅ show button only when allowed
+        setShowFeedbackBtn(data.isActive && !data.alreadySubmitted);
+      } catch (err) {
+        console.error("Error checking feedback", err);
+      }
+    };
+
+    checkFeedback();
+  }, [id]);
+
+  /* =========================
+     SCROLL HELPERS
+  ========================== */
   const checkScroll = () => {
     const container = scrollContainerRef.current;
     if (container) {
       setShowLeftArrow(container.scrollLeft > 0);
       setShowRightArrow(
-        container.scrollLeft < container.scrollWidth - container.clientWidth - 5
+        container.scrollLeft <
+          container.scrollWidth - container.clientWidth - 5
       );
     }
   };
 
   useEffect(() => {
     checkScroll();
-    window.addEventListener('resize', checkScroll);
-    return () => window.removeEventListener('resize', checkScroll);
+    window.addEventListener("resize", checkScroll);
+    return () => window.removeEventListener("resize", checkScroll);
   }, []);
 
   const scroll = (direction) => {
@@ -56,8 +96,8 @@ export default function CourseDetailPage() {
     if (container) {
       const scrollAmount = 200;
       container.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
       });
       setTimeout(checkScroll, 300);
     }
@@ -72,45 +112,60 @@ export default function CourseDetailPage() {
       {/* Header */}
       <div className="mb-6 sm:mb-8">
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate("/")}
           className="text-purple-600 hover:text-purple-700 mb-3 sm:mb-4 flex items-center gap-2 cursor-pointer text-sm sm:text-base"
         >
           ← Back to Courses
         </button>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Course Material</h1>
-        <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, quizzes, assignments, tests and doubts</p>
+
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              Course Material
+            </h1>
+            <p className="text-gray-600 mt-1 text-sm sm:text-base">
+              Access notes, quizzes, assignments, tests and doubts
+            </p>
+          </div>
+
+          {/* ⭐ GIVE FEEDBACK BUTTON */}
+          {showFeedbackBtn && (
+            <button
+              onClick={() => navigate("feedback")}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+            >
+              📝 Give Feedback
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Tabs with Scroll Arrows */}
+      {/* Tabs */}
       <div className="relative mb-6 sm:mb-8">
-        {/* Left Arrow */}
         {showLeftArrow && (
           <button
-            onClick={() => scroll('left')}
+            onClick={() => scroll("left")}
             className="absolute left-0 top-1/2 -translate-y-1/2 z-10 md:hidden"
-            aria-label="Scroll left"
           >
-            <div className="bg-white rounded-full shadow-lg p-2 border border-gray-200 hover:bg-gray-50 transition-colors">
+            <div className="bg-white rounded-full shadow-lg p-2 border">
               <ChevronLeft className="w-5 h-5 text-gray-700" />
             </div>
           </button>
         )}
 
-        {/* Tabs Container */}
         <div
           ref={scrollContainerRef}
           onScroll={checkScroll}
-          className="flex gap-2 sm:gap-4 overflow-x-auto border-b border-gray-200 scrollbar-hide scroll-smooth px-8 md:px-0"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          className="flex gap-2 sm:gap-4 overflow-x-auto border-b border-gray-200 scrollbar-hide px-8 md:px-0"
         >
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleTabClick(tab.path)}
-              className={`pb-3 px-3 sm:px-4 font-semibold transition-colors cursor-pointer whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${
+              className={`pb-3 px-3 sm:px-4 font-semibold whitespace-nowrap ${
                 activeTab === tab.path
-                  ? 'text-purple-600 border-b-2 border-purple-600'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? "text-purple-600 border-b-2 border-purple-600"
+                  : "text-gray-600 hover:text-gray-900"
               }`}
             >
               {tab.label}
@@ -118,30 +173,20 @@ export default function CourseDetailPage() {
           ))}
         </div>
 
-        {/* Right Arrow */}
         {showRightArrow && (
           <button
-            onClick={() => scroll('right')}
+            onClick={() => scroll("right")}
             className="absolute right-0 top-1/2 -translate-y-1/2 z-10 md:hidden"
-            aria-label="Scroll right"
           >
-            <div className="bg-white rounded-full shadow-lg p-2 border border-gray-200 hover:bg-gray-50 transition-colors">
+            <div className="bg-white rounded-full shadow-lg p-2 border">
               <ChevronRight className="w-5 h-5 text-gray-700" />
             </div>
           </button>
         )}
       </div>
 
-      {/* Nested Routes Content */}
-      <div>
-        <Outlet context={{ classInfo }} />
-      </div>
-
-      <style jsx>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
+      {/* Nested Routes */}
+      <Outlet context={{ classInfo }} />
     </div>
   );
 }

@@ -15,11 +15,12 @@ import NotesPage from "./Pages/NotesPage";
 import QuizzesPage from "./components/QuizzesPage";
 import TestPapersPage from "./components/TestPapersPage";
 import AssignmentsPage from "./components/AssignmentsPage";
-import StudentsPage from "./Pages/StudentsPage"; 
+import StudentsPage from "./Pages/StudentsPage";
 import DoubtsPage from "./Pages/DoubtsPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
+import TeacherFeedbackPage from "./Pages/TeacherFeedbackPage";
 
 export default function App() {
   return (
@@ -52,6 +53,15 @@ export default function App() {
         }
       />
 
+      <Route
+        path="/class/:classId/feedback"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <TeacherFeedbackPage />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Class Detail Routes - Main Layout */}
       <Route
         path="/class/:classId"
@@ -66,7 +76,7 @@ export default function App() {
         <Route path="quizzes" element={<QuizzesPage />} />
         <Route path="test-papers" element={<TestPapersPage />} />
         <Route path="assignments" element={<AssignmentsPage />} />
-        <Route path="students" element={<StudentsPage />} /> 
+        <Route path="students" element={<StudentsPage />} />
         <Route path="doubts" element={<DoubtsPage />} />
       </Route>
 
