@@ -20,12 +20,12 @@ const transporter = nodemailer.createTransport({
 // Verify transporter connection
 transporter.verify(function (error, success) {
   if (error) {
-    console.error('❌ Email transporter error:', error.message);
+    console.error('Email transporter error:', error.message);
     console.error('Please check your SMTP credentials in .env file');
     console.error('SMTP_USER:', process.env.SMTP_USER);
     console.error('SENDER_EMAIL:', process.env.SENDER_EMAIL);
   } else {
-    console.log('✅ Brevo SMTP server is ready to send messages');
+    console.log('Brevo SMTP server is ready to send messages');
     console.log('Configured sender:', process.env.SENDER_EMAIL);
   }
 });
@@ -35,7 +35,7 @@ router.post('/test-email', async (req, res) => {
   try {
     const { email } = req.body;
     
-    console.log('🧪 Testing email with simple message...');
+    console.log('Testing email with simple message...');
     console.log('To:', email);
     console.log('From:', process.env.SENDER_EMAIL);
     
@@ -47,11 +47,11 @@ router.post('/test-email', async (req, res) => {
     };
     
     const result = await transporter.sendMail(testMail);
-    console.log('✅ Test email sent!', result);
+    console.log('Test email sent!', result);
     
     res.json({ success: true, messageId: result.messageId });
   } catch (error) {
-    console.error('❌ Test email failed:');
+    console.error('Test email failed:');
     console.error('Message:', error.message);
     console.error('Code:', error.code);
     console.error('Command:', error.command);
@@ -75,35 +75,34 @@ router.post('/teacher/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
     
-    console.log('\n🔍 Searching for teacher with email:', email);
+    console.log('\nSearching for teacher with email:', email);
     const teacher = await User.findOne({ email, role: 'teacher' });
     
-    console.log('Query result:', teacher ? '✅ Found' : '❌ Not found');
+    console.log('Query result:', teacher ? 'Found' : 'Not found');
     console.log('Found user:', teacher ? { name: teacher.name, email: teacher.email, role: teacher.role } : 'null');
     
     // If not found with role, try without role to debug
     if (!teacher) {
       const anyUser = await User.findOne({ email });
-      console.log('\n🔎 Searching for user with email (without role filter):', anyUser ? '✅ Found' : '❌ Not found');
+      console.log('\nSearching for user with email (without role filter):', anyUser ? 'Found' : 'Not found');
       if (anyUser) {
         console.log('User found but role mismatch. User role:', anyUser.role, 'Expected: teacher');
       }
-      console.log('\n⚠️  No teacher account found with this email');
+      console.log('\nNo teacher account found with this email');
       return res.status(404).json({ error: 'No account found with this email. Make sure this email is registered as a teacher.' });
     }
 
-    console.log('📋 Teacher found:', { name: teacher.name, email: teacher.email, hasPassword: !!teacher.password });
-
+    console.log('Teacher found:', { name: teacher.name, email: teacher.email, hasPassword: !!teacher.password });
     // Generate a new temporary password
     const tempPassword = crypto.randomBytes(8).toString('hex').substring(0, 12).toUpperCase();
-    console.log('🔐 Generated temporary password:', tempPassword);
+    console.log('Generated temporary password:', tempPassword);
     
     // Hash the temporary password before storing
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
     
     // Update user with new hashed password
     await User.findByIdAndUpdate(teacher._id, { password: hashedPassword });
-    console.log('✅ Password updated in database');
+    console.log('Password updated in database');
 
     // Email content
     const mailOptions = {
@@ -150,7 +149,7 @@ router.post('/teacher/forgot-password', async (req, res) => {
               
               <div style="text-align: center; margin-top: 30px;">
                 <a href="${process.env.TEACHER_URL || 'http://localhost:5174'}/login" 
-                   style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+                  style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
                   Login to Your Account
                 </a>
               </div>
@@ -166,13 +165,13 @@ router.post('/teacher/forgot-password', async (req, res) => {
     };
 
     // Send email
-    console.log('📧 Attempting to send email to teacher...');
+    console.log('Attempting to send email to teacher...');
     console.log('From:', process.env.SENDER_EMAIL);
     console.log('To:', email);
     console.log('SMTP User:', process.env.SMTP_USER);
     
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Teacher email sent successfully:', info.messageId);
+    console.log('Teacher email sent successfully:', info.messageId);
     console.log('Response:', info.response);
 
     res.json({ 
@@ -181,7 +180,7 @@ router.post('/teacher/forgot-password', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Teacher forgot password error:');
+    console.error('Teacher forgot password error:');
     console.error('Error message:', error.message);
     console.error('Error code:', error.code);
     if (error.response) console.error('Error response:', error.response);
@@ -203,36 +202,36 @@ router.post('/student/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
     
-    console.log('\n🔍 Searching for student with email:', email);
+    console.log('\nSearching for student with email:', email);
     // Find student by email
     const student = await User.findOne({ email, role: 'student' });
 
-    console.log('Query result:', student ? '✅ Found' : '❌ Not found');
+    console.log('Query result:', student ? 'Found' : 'Not found');
     console.log('Found user:', student ? { name: student.name, email: student.email, role: student.role } : 'null');
 
     if (!student) {
       // If not found with role, try without role to debug
       const anyUser = await User.findOne({ email });
-      console.log('\n🔎 Searching for user with email (without role filter):', anyUser ? '✅ Found' : '❌ Not found');
+      console.log('\nSearching for user with email (without role filter):', anyUser ? 'Found' : 'Not found');
       if (anyUser) {
         console.log('User found but role mismatch. User role:', anyUser.role, 'Expected: student');
       }
-      console.log('\n⚠️  No student account found with this email');
+      console.log('\nNo student account found with this email');
       return res.status(404).json({ error: 'No account found with this email. Make sure this email is registered as a student.' });
     }
 
     // Generate temporary password
     const tempPassword = crypto.randomBytes(8).toString('hex').substring(0, 12).toUpperCase();
-    console.log('🔐 Generated temporary password:', tempPassword);
+    console.log('Generated temporary password:', tempPassword);
     
     // Hash the temporary password before storing
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
     
     // Update user with new hashed password
     await User.findByIdAndUpdate(student._id, { password: hashedPassword });
-    console.log('✅ Password updated in database');
+    console.log('Password updated in database');
 
-    console.log('📋 Student found:', { name: student.name, email: student.email, hasPassword: !!tempPassword });
+    console.log('Student found:', { name: student.name, email: student.email, hasPassword: !!tempPassword });
 
     // Email content
     const mailOptions = {
@@ -279,7 +278,7 @@ router.post('/student/forgot-password', async (req, res) => {
               
               <div style="text-align: center; margin-top: 30px;">
                 <a href="${process.env.STUDENT_URL || 'http://localhost:5173'}/login" 
-                   style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
+                  style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: bold;">
                   Login to Your Account
                 </a>
               </div>
@@ -295,13 +294,13 @@ router.post('/student/forgot-password', async (req, res) => {
     };
 
     // Send email
-    console.log('📧 Attempting to send email to student...');
+    console.log('Attempting to send email to student...');
     console.log('From:', process.env.SENDER_EMAIL);
     console.log('To:', email);
     console.log('SMTP User:', process.env.SMTP_USER);
     
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Student email sent successfully:', info.messageId);
+    console.log('Student email sent successfully:', info.messageId);
     console.log('Response:', info.response);
 
     res.json({ 
@@ -310,7 +309,7 @@ router.post('/student/forgot-password', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Student forgot password error:');
+    console.error('Student forgot password error:');
     console.error('Error message:', error.message);
     console.error('Error code:', error.code);
     if (error.response) console.error('Error response:', error.response);

@@ -1,6 +1,3 @@
-// Theme data for classroom themes
-// All theme images imported from assets/themes
-
 // Import general theme images
 import general1 from '../assets/themes/general/general-1.jpg';
 import general2 from '../assets/themes/general/general-2.jpg';

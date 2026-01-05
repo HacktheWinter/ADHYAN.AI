@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogIn, LogOut, Settings, User, UserPlus } from 'lucide-react';
 import { clearAuth, getStoredUser } from '../utils/authStorage';
 
-const Header = ({ onLogoClick }) => {
+const Header = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState(null);
   const dropdownRef = useRef(null);

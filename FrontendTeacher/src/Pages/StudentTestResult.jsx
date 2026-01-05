@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   ChevronLeft,
@@ -24,13 +24,8 @@ const StudentTestResult = () => {
   const [loading, setLoading] = useState(true);
   const [editingMarks, setEditingMarks] = useState({});
   const [isSaving, setIsSaving] = useState(false);
-  const [imageLoadError, setImageLoadError] = useState(false);
 
-  useEffect(() => {
-    fetchSubmission();
-  }, []);
-
-  const fetchSubmission = async () => {
+  const fetchSubmission = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -71,7 +66,11 @@ const StudentTestResult = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [classId, testId, studentId, location.state?.submissionId, navigate]);
+
+  useEffect(() => {
+    fetchSubmission();
+  }, [fetchSubmission]);
 
   const startEditingMarks = (questionId, currentMarks) => {
     setEditingMarks({ ...editingMarks, [questionId]: currentMarks });
@@ -185,7 +184,6 @@ const StudentTestResult = () => {
                   src={`http://localhost:5000/${submission.studentId.profilePhoto}`}
                   alt={submission.studentName}
                   className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0 border-2 border-purple-200"
-                  onError={() => setImageLoadError(true)}
                 />
               ) : (
                 <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg sm:text-2xl flex-shrink-0">
