@@ -42,7 +42,7 @@ export default function ProfilePage() {
         collegeName: userData.collegeName || '',
       });
       setLoading(false);
-    } catch (err) {
+    } catch {
       setError('Failed to load profile');
       setLoading(false);
     }

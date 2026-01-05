@@ -18,7 +18,7 @@ export const generateTestPaperWithAI = async (req, res) => {
     const { noteIds, classroomId } = req.body;
 
     console.log("=== TEST PAPER GENERATION STARTED ===");
-    console.log("📥 Request:", { noteIds, classroomId });
+    console.log("Request:", { noteIds, classroomId });
 
     if (!noteIds || !Array.isArray(noteIds) || noteIds.length === 0) {
       return res.status(400).json({ error: "Please select at least one note" });

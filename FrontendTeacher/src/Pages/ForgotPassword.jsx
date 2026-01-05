@@ -23,7 +23,9 @@ export default function ForgotPassword() {
         setRole(selectedRole);
         return;
       }
-    } catch {}
+    } catch {
+      // Invalid URL, proceed with redirect
+    }
 
     window.location.replace(target);
   };

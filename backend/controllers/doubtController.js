@@ -2,11 +2,17 @@ import Doubt from "../models/Doubt.js";
 import User from "../models/User.js";
 
 /* ---------------------------------------------
-   GET ALL DOUBTS (Teacher Panel)
+  GET ALL DOUBTS (Teacher Panel)
 --------------------------------------------- */
 export const getAllDoubts = async (req, res) => {
   try {
-    const doubts = await Doubt.find().sort({ createdAt: -1 });
+    // Build query filter
+    const filter = {};
+    if (req.query.classId) {
+      filter.classId = req.query.classId;
+    }
+    
+    const doubts = await Doubt.find(filter).sort({ createdAt: -1 });
     
     // Populate current user data for doubts and replies
     const populatedDoubts = await Promise.all(
@@ -51,7 +57,7 @@ export const getAllDoubts = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   GET DOUBTS BY CLASS ID (Student Panel)
+  GET DOUBTS BY CLASS ID (Student Panel)
 --------------------------------------------- */
 export const getDoubtsByClass = async (req, res) => {
   try {
@@ -102,7 +108,7 @@ export const getDoubtsByClass = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   POST A DOUBT (Student Only)
+  POST A DOUBT (Student Only)
 --------------------------------------------- */
 export const postDoubt = async (req, res) => {
   try {
@@ -123,7 +129,7 @@ export const postDoubt = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   EDIT DOUBT (Student Only)
+  EDIT DOUBT (Student Only)
 --------------------------------------------- */
 export const editDoubt = async (req, res) => {
   try {
@@ -142,7 +148,7 @@ export const editDoubt = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   DELETE DOUBT (Student or Teacher)
+  DELETE DOUBT (Student or Teacher)
 --------------------------------------------- */
 export const deleteDoubt = async (req, res) => {
   try {
@@ -154,7 +160,7 @@ export const deleteDoubt = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   ADD REPLY (Student or Teacher)
+  ADD REPLY (Student or Teacher)
 --------------------------------------------- */
 export const addReply = async (req, res) => {
   try {
@@ -181,7 +187,7 @@ export const addReply = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   DELETE A REPLY
+  DELETE A REPLY
 --------------------------------------------- */
 export const deleteReply = async (req, res) => {
   try {
@@ -200,7 +206,7 @@ export const deleteReply = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   EDIT A REPLY
+  EDIT A REPLY
 --------------------------------------------- */
 export const editReply = async (req, res) => {
   try {
