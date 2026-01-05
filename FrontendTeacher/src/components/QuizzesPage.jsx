@@ -1,5 +1,5 @@
 // FrontendTeacher/src/components/QuizzesPage.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Sparkles,
@@ -36,11 +36,7 @@ const QuizzesPage = () => {
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishingQuiz, setPublishingQuiz] = useState(null);
 
-  useEffect(() => {
-    fetchQuizzes();
-  }, [classId]);
-
-  const fetchQuizzes = async () => {
+  const fetchQuizzes = useCallback(async () => {
     try {
       const res = await axios.get(
         `http://localhost:5000/api/quiz/classroom/${classId}`
@@ -52,7 +48,11 @@ const QuizzesPage = () => {
     } catch (err) {
       console.error("Error fetching quizzes:", err);
     }
-  };
+  }, [classId]);
+
+  useEffect(() => {
+    fetchQuizzes();
+  }, [fetchQuizzes]);
 
   const handleOpenAIModal = async () => {
     setShowAIModal(true);
@@ -120,11 +120,6 @@ const QuizzesPage = () => {
   const handleEdit = (quiz) => {
     setEditingQuiz(quiz);
     setShowEditModal(true);
-  };
-
-  const handleView = (quiz) => {
-    setViewingQuiz(quiz);
-    setShowViewModal(true);
   };
 
   const handleViewResults = (quizId) => {
