@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { getStoredUser } from "../utils/authStorage";
 
 export default function TeacherDoubts({ classId, user }) {
   const [doubts, setDoubts] = useState([]);
@@ -8,7 +9,7 @@ export default function TeacherDoubts({ classId, user }) {
   const [editReplyText, setEditReplyText] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const teacher = user || JSON.parse(localStorage.getItem("teacher") || "{}");
+  const teacher = user || getStoredUser() || {};
 
   // Load doubts for this specific class
   const loadDoubts = async () => {
@@ -191,7 +192,12 @@ export default function TeacherDoubts({ classId, user }) {
                     </h2>
                     <p className="text-gray-700 text-sm leading-relaxed">
                       <span className="font-medium text-purple-700">
-                        {doubt.authorName}:
+                        {doubt.authorName}
+                        {doubt.authorRole && (
+                          <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-600 rounded-full text-xs font-medium">
+                            {doubt.authorRole}
+                          </span>
+                        )}:
                       </span>{" "}
                       {doubt.description}
                     </p>
@@ -232,7 +238,12 @@ export default function TeacherDoubts({ classId, user }) {
                       >
                         <div className="text-sm">
                           <span className="font-medium text-purple-900">
-                            {reply.authorName}:
+                            {reply.authorName}
+                            {reply.authorRole && (
+                              <span className="ml-2 px-2 py-0.5 bg-purple-200 text-purple-800 rounded-full text-xs font-medium">
+                                {reply.authorRole}
+                              </span>
+                            )}:
                           </span>{" "}
                           {editingReply?.doubtId === doubt._id &&
                           editingReply?.index === index ? (

@@ -5,6 +5,7 @@ import axios from "axios";
 import Header from "../components/Header";
 import ClassHeader from "../components/ClassHeader";
 import ClassTabs from "../components/ClassTabs";
+import { getStoredUser } from "../utils/authStorage";
 
 const ClassDetail = () => {
   const { classId } = useParams();
@@ -35,7 +36,7 @@ const ClassDetail = () => {
   ];
 
   const currentUser = useMemo(() => {
-    return JSON.parse(localStorage.getItem("user") || "{}");
+    return getStoredUser() || {};
   }, []);
 
   const activeTab = useMemo(() => {
@@ -58,6 +59,12 @@ const ClassDetail = () => {
   const handleDropdownOption = useCallback(
     (option) => {
       setIsDropdownOpen(false);
+      if(option === 'announcement') {
+        navigate('announcement');
+    }
+    if(option === 'calendar') {
+        navigate('calendar');
+    }
 
       if (option === "feedback" && classData) {
         navigate(`/class/${classId}/feedback`, {
@@ -67,6 +74,7 @@ const ClassDetail = () => {
     },
     [navigate, classId, classData]
   );
+
 
   useEffect(() => {
     if (isDropdownOpen) {
@@ -79,11 +87,26 @@ const ClassDetail = () => {
     }
   }, [isDropdownOpen]);
 
-  useEffect(() => {
-    const fetchClassData = async () => {
+useEffect(() => {
+  const fetchClassData = async () => {
+    try {
+      setLoading(true);
+
+      let classroom = null;
+
+      // 1️⃣ PRIMARY: Detail API (most accurate)
       try {
-        setLoading(true);
-        const response = await axios.get(
+        const detailRes = await axios.get(
+          `http://localhost:5000/api/classroom/${classId}`
+        );
+        classroom = detailRes.data.classroom;
+      } catch (err) {
+        console.warn("Detail API failed, trying list API fallback");
+      }
+
+      // 2️⃣ FALLBACK: List API (git pull wala logic)
+      if (!classroom) {
+        const listRes = await axios.get(
           `http://localhost:5000/api/classroom`,
           {
             params: {
@@ -93,33 +116,40 @@ const ClassDetail = () => {
           }
         );
 
-        const classroom = response.data.classrooms.find(
+        classroom = listRes.data.classrooms?.find(
           (c) => c._id === classId
         );
-
-        if (classroom) {
-          setClassData({
-            ...classroom,
-            students: classroom.students || [],
-            id: classroom._id,
-            subject: classroom.name,
-            studentCount: classroom.students?.length || 0,
-            color: "bg-gradient-to-br from-purple-500 to-purple-700",
-          });
-        } else {
-          console.error("Classroom not found");
-          navigate("/");
-        }
-      } catch (error) {
-        console.error("Error fetching classroom:", error);
-        navigate("/");
-      } finally {
-        setLoading(false);
       }
-    };
 
-    if (classId) fetchClassData();
-  }, [classId]);
+      // 3️⃣ Final check
+      if (!classroom) {
+        console.error("Classroom not found");
+        navigate("/");
+        return;
+      }
+
+      // 4️⃣ Unified state set
+      setClassData({
+        ...classroom,
+        students: classroom.students || [],
+        leftStudents: classroom.leftStudents || [],
+        id: classroom._id,
+        subject: classroom.name,
+        studentCount: classroom.students?.length || 0,
+        color: "bg-gradient-to-br from-purple-500 to-purple-700",
+      });
+
+    } catch (error) {
+      console.error("Error fetching classroom:", error);
+      navigate("/");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (classId) fetchClassData();
+}, [classId, navigate, currentUser]);
+
 
   const outletContext = useMemo(
     () => ({ classData, currentUser }),

@@ -250,6 +250,25 @@ export const publishAssignment = async (req, res) => {
 
     await assignment.save();
 
+    // Auto-create Calendar Event
+    try {
+      const CalendarEvent = (await import("../models/CalendarEvent.js")).default;
+      await CalendarEvent.create({
+        title: `Assignment: ${assignment.title}`,
+        type: 'assignment',
+        classId: assignment.classroomId,
+        teacherId: req.user._id, // Assuming auth middleware populates req.user
+        startDate: new Date(),
+        submissionDeadline: dueDate,
+        description: assignment.description,
+        relatedId: assignment._id,
+        onModel: 'Assignment'
+      });
+      console.log("Calendar event created for Assignment");
+    } catch (calError) {
+      console.error("Failed to create calendar event:", calError);
+    }
+
     res.status(200).json({
       success: true,
       message: "Assignment published successfully",

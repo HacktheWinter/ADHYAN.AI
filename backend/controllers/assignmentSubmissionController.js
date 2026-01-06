@@ -7,7 +7,7 @@ export const submitAssignment = async (req, res) => {
   try {
     const { assignmentId, studentId, answers } = req.body;
 
-    console.log("📥 Assignment submission received:", {
+    console.log("Assignment submission received:", {
       assignmentId,
       studentId,
     });
@@ -144,7 +144,7 @@ export const checkAssignmentWithAI_Batch = async (req, res) => {
 
       for (const submission of batch) {
         try {
-          console.log(`👤 Checking submission for: ${submission.studentName}`);
+          console.log(`Checking submission for: ${submission.studentName}`);
 
           const studentAnswers = submission.answers.map((ans) => ({
             questionId: ans.questionId,
@@ -164,7 +164,7 @@ export const checkAssignmentWithAI_Batch = async (req, res) => {
               break;
             } catch (error) {
               retries--;
-              console.error(`⚠️ Retry ${3 - retries}/3 failed:`, error.message);
+              console.error(`Retry ${3 - retries}/3 failed:`, error.message);
               if (retries === 0) throw error;
               await new Promise((resolve) => setTimeout(resolve, 2000)); // 2s retry delay
             }
@@ -332,7 +332,7 @@ export const getAssignmentSubmissions = async (req, res) => {
     const { assignmentId } = req.params;
 
     const submissions = await AssignmentSubmission.find({ assignmentId })
-      .populate("studentId", "name email")
+      .populate("studentId", "name email profilePhoto")
       .sort({ submittedAt: -1 });
 
     res.status(200).json({
