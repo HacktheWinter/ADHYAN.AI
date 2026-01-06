@@ -6,19 +6,13 @@ import {
   X,
   CheckCircle,
   AlertCircle,
-<<<<<<< HEAD
-=======
   MoreVertical,
   LogOut,
->>>>>>> 29c80c93f9701db4dcb897debdd9eca9c2db3d9b
 } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import axios from "axios";
-<<<<<<< HEAD
 import UpcomingEventsSidebar from "../components/UpcomingEventsSidebar";
-=======
 import { getStoredUser } from "../utils/authStorage";
->>>>>>> 29c80c93f9701db4dcb897debdd9eca9c2db3d9b
 
 export default function NoteCraftsDashboard() {
   const navigate = useNavigate();
@@ -327,6 +321,21 @@ export default function NoteCraftsDashboard() {
           </button>
         </div>
 
+        {/* Global Success/Error Messages */}
+        {success && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 text-green-700 text-xs sm:text-sm">
+            <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{success}</span>
+          </div>
+        )}
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 text-xs sm:text-sm">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center min-h-[400px]">
@@ -339,7 +348,7 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Empty State - No courses at all */}
         {!loading && myCourses.length === 0 && (
           <div className="text-center mt-12 sm:mt-20 px-4">
             <BookOpen
@@ -364,18 +373,7 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
-<<<<<<< HEAD
-        {/* Upcoming Events Section (Collapsible) */}
-        {!loading && <UpcomingEventsSidebar />}
-
-        {/* Content Layout */}
-        {!loading && myCourses.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-                {myCourses.map((course) => (
-                    <CourseCard key={course.id} course={course} />
-                ))}
-            </div>
-=======
+        {/* Has courses but search returned no results */}
         {!loading && myCourses.length > 0 && filteredCourses.length === 0 && (
           <div className="text-center mt-12 sm:mt-16 px-4">
             <AlertCircle
@@ -391,14 +389,19 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
-        {/* My Courses Grid */}
+        {/* Courses Grid - Only show when there are filtered courses */}
         {!loading && filteredCourses.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6 justify-items-stretch height-auto">
-            {filteredCourses.map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
->>>>>>> 29c80c93f9701db4dcb897debdd9eca9c2db3d9b
+          <>
+            {/* Upcoming Events Sidebar */}
+            <UpcomingEventsSidebar />
+
+            {/* My Courses Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-6">
+              {filteredCourses.map((course) => (
+                <CourseCard key={course.id} course={course} />
+              ))}
+            </div>
+          </>
         )}
       </div>
 
