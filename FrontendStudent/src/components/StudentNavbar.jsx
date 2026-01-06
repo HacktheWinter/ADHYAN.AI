@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, LogOut, Settings, LogIn, UserPlus } from 'lucide-react';
+import NotificationDropdown from './NotificationDropdown';
 
 export default function StudentNavbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -89,7 +90,7 @@ export default function StudentNavbar() {
             <span className="text-xl font-bold text-gray-900">ADHYAN.AI</span>
           </Link>
 
-          <div className="flex-1 max-w-2xl mx-8">
+          <div className="flex-1 max-w-2xl mx-4 md:mx-8 hidden md:block">
             <div className="relative">
               <input
                 type="text"
@@ -112,7 +113,12 @@ export default function StudentNavbar() {
             </div>
           </div>
 
-          <div className="relative" ref={dropdownRef}>
+          <div className="flex items-center gap-4">
+            {/* Notification Dropdown */}
+            <NotificationDropdown />
+            
+            {/* Profile Dropdown */}
+            <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="w-10 h-10 rounded-full bg-purple-700 flex items-center justify-center text-white font-semibold hover:bg-purple-800 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-700 focus:ring-offset-2 cursor-pointer"
@@ -175,6 +181,7 @@ export default function StudentNavbar() {
                 )}
               </div>
             )}
+          </div>
           </div>
         </div>
       </div>

@@ -17,6 +17,8 @@ import TestPapersPage from "./components/TestPapersPage";
 import AssignmentsPage from "./components/AssignmentsPage";
 import StudentsPage from "./Pages/StudentsPage"; 
 import DoubtsPage from "./Pages/DoubtsPage";
+import Announcement from "./Pages/Announcement";
+import CalendarPage from "./Pages/CalendarPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
@@ -69,6 +71,23 @@ export default function App() {
         <Route path="students" element={<StudentsPage />} /> 
         <Route path="doubts" element={<DoubtsPage />} />
       </Route>
+
+      <Route
+        path="/class/:classId/announcement"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <Announcement />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/class/:classId/calendar"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <CalendarPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Test Results Routes */}
       <Route

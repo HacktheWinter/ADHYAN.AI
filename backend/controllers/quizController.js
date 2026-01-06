@@ -347,6 +347,26 @@ export const publishQuizWithTiming = async (req, res) => {
 
     console.log("Quiz published successfully");
 
+    // Auto-create Calendar Event
+    try {
+      const CalendarEvent = (await import("../models/CalendarEvent.js")).default;
+      await CalendarEvent.create({
+        title: `Quiz: ${quiz.title}`,
+        type: 'quiz',
+        classId: quiz.classroomId,
+        teacherId: req.user._id, // Assuming auth middleware populates req.user
+        startDate: startTime || new Date(),
+        endDate: calculatedEndTime || new Date(Date.now() + (duration || 60) * 60000),
+        description: `Quiz duration: ${duration} minutes`,
+        relatedId: quiz._id,
+        onModel: 'Quiz'
+      });
+      console.log("Calendar event created for Quiz");
+    } catch (calError) {
+      console.error("Failed to create calendar event:", calError);
+      // Don't fail the request if calendar creation fails
+    }
+
     res.status(200).json({
       success: true,
       message: "Quiz published successfully",

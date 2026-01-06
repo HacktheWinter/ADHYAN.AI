@@ -236,6 +236,25 @@ export const publishTestPaper = async (req, res) => {
 
     await testPaper.save();
 
+    // Auto-create Calendar Event
+    try {
+      const CalendarEvent = (await import("../models/CalendarEvent.js")).default;
+      await CalendarEvent.create({
+        title: `Test: ${testPaper.title}`,
+        type: 'test',
+        classId: testPaper.classroomId,
+        teacherId: req.user._id, // Assuming auth middleware
+        startDate: startTime || new Date(),
+        endDate: calculatedEndTime || new Date(Date.now() + (duration || 60) * 60000),
+        description: `Test duration: ${duration} minutes`,
+        relatedId: testPaper._id,
+        onModel: 'TestPaper'
+      });
+      console.log("Calendar event created for Test Paper");
+    } catch (calError) {
+      console.error("Failed to create calendar event:", calError);
+    }
+
     res.status(200).json({
       success: true,
       message: "Test paper published successfully",

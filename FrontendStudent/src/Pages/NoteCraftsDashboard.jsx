@@ -6,10 +6,10 @@ import {
   X,
   CheckCircle,
   AlertCircle,
-  Menu,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import UpcomingEventsSidebar from "../components/UpcomingEventsSidebar";
 
 export default function NoteCraftsDashboard() {
   const navigate = useNavigate();
@@ -242,13 +242,16 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
-        {/* My Courses Grid */}
+        {/* Upcoming Events Section (Collapsible) */}
+        {!loading && <UpcomingEventsSidebar />}
+
+        {/* Content Layout */}
         {!loading && myCourses.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {myCourses.map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                {myCourses.map((course) => (
+                    <CourseCard key={course.id} course={course} />
+                ))}
+            </div>
         )}
       </div>
 
