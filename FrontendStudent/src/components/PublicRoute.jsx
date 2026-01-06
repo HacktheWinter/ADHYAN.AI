@@ -1,17 +1,10 @@
 // FrontendStudent/src/components/PublicRoute.jsx
 import React from "react";
 import { Navigate } from "react-router-dom";
-
-const getUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
-};
+import { clearAuth, getStoredUser } from "../utils/authStorage";
 
 export default function PublicRoute({ children, currentRole }) {
-  const user = getUser();
+  const user = getStoredUser();
 
   if (!user) {
     return children;
@@ -21,7 +14,6 @@ export default function PublicRoute({ children, currentRole }) {
     return <Navigate to="/" replace />;
   }
 
-  localStorage.removeItem("user");
-  localStorage.removeItem("token");
+  clearAuth();
   return <Navigate to="/login" replace />;
 }

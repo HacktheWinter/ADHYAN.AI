@@ -57,6 +57,7 @@ export const loginStudent = async (req, res) => {
         id: student._id,
         name: student.name,
         email: student.email,
+        profilePhoto: student.profilePhoto,
         role: "student",
       },
     });
