@@ -1,11 +1,12 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 import DoubtChat from "../components/DoubtChat";
+import { getStoredUser } from "../utils/authStorage";
 
 export default function DoubtPage() {
   const { id: classId } = useParams();
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = getStoredUser();
 
   // If user is not logged in
   if (!user) {
@@ -28,17 +29,11 @@ export default function DoubtPage() {
   }
 
   return (
-    <div className="h-screen bg-white flex flex-col">
-      {/* Header */}
-      <div className="px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md">
-        <h1 className="text-xl font-bold">Class Doubt Portal</h1>
-        <p className="text-sm opacity-90">Class ID: {classId}</p>
-      </div>
-
-      {/* Chat Section */}
-      <div className="flex-1 overflow-hidden">
-        <DoubtChat classId={classId} user={user} />
-      </div>
+    <div
+      className="bg-white rounded-xl border overflow-hidden shadow-lg"
+      style={{ height: "calc(100vh - 280px)" }}
+    >
+      <DoubtChat classId={classId} user={user} />
     </div>
   );
 }

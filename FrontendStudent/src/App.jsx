@@ -1,12 +1,14 @@
 // FrontendStudent/src/App.jsx
-import React from "react";
+import React, { useState } from "react";
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 
 import StudentNavbar from "./components/StudentNavbar";
 import NoteCraftsDashboard from "./Pages/NoteCraftsDashboard";
 import CourseDetailPage from "./Pages/CourseDetailPage";
 import StudentNotesPage from "./Pages/StudentNotesPage";
+import ProfilePage from "./Pages/ProfilePage";
 import Login from "./Pages/Login";
+import ForgotPassword from './Pages/ForgotPassword';
 import Signup from "./Pages/Signup";
 
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -17,12 +19,18 @@ import Quiz from "./Pages/Quiz";
 import TestPapers from "./Pages/TestPapers";
 import Assignments from "./Pages/Assignments"; 
 import DoubtPage  from "./Pages/DoubtPage";
+import SettingsPage from "./Pages/SettingsPage";
 
 function StudentLayout() {
+  const [searchQuery, setSearchQuery] = useState("");
+
   return (
     <>
-      <StudentNavbar />
-      <Outlet />
+      <StudentNavbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
+      <Outlet context={{ searchQuery, setSearchQuery }} />
     </>
   );
 }
@@ -45,6 +53,29 @@ export default function App() {
           <PublicRoute currentRole="student">
             <Signup />
           </PublicRoute>
+        }
+      />
+      <Route 
+        path="/forgot-password" 
+        element={<ForgotPassword />} 
+      />
+
+      {/* Profile route without navbar */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute requiredRole="student">
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute requiredRole="student">
+            <SettingsPage />
+          </ProtectedRoute>
         }
       />
 
