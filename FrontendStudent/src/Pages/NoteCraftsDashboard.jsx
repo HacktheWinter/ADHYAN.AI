@@ -1,15 +1,17 @@
 // FrontendStudent/src/Pages/NoteCraftsDashboard.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   BookOpen,
   User,
   X,
   CheckCircle,
   AlertCircle,
-  Menu,
+  MoreVertical,
+  LogOut,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import axios from "axios";
+import { getStoredUser } from "../utils/authStorage";
 
 export default function NoteCraftsDashboard() {
   const navigate = useNavigate();
@@ -21,9 +23,19 @@ export default function NoteCraftsDashboard() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Get student info from localStorage
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = getStoredUser() || {};
   const studentId = user.id || user._id;
+  const { searchQuery = "" } = useOutletContext() || {};
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredCourses = normalizedQuery
+    ? myCourses.filter((course) => {
+        const haystack = [course.title, course.teacher, course.classCode]
+          .filter(Boolean)
+          .map((item) => item.toString().toLowerCase());
+        return haystack.some((item) => item.includes(normalizedQuery));
+      })
+    : myCourses;
 
   // Fetch student's enrolled classes
   useEffect(() => {
@@ -49,9 +61,13 @@ export default function NoteCraftsDashboard() {
           id: cls._id,
           title: cls.name,
           teacher: cls.teacherId?.name || "Teacher",
-          color: getGradientColor(idx),
+          // Prefer teacher-set theme; fallback to existing rotating gradient
+          colorTheme: cls.colorTheme || "",
+          themeImage: cls.themeImage || "",
+          fallbackColor: getGradientColor(idx),
           courseId: cls._id,
           classCode: cls.classCode,
+          subject: cls.subject || cls.name,
         }));
 
         setMyCourses(formattedClasses);
@@ -111,9 +127,12 @@ export default function NoteCraftsDashboard() {
         id: response.data.classroom._id,
         title: response.data.classroom.name,
         teacher: "Teacher",
-        color: getGradientColor(myCourses.length),
+        colorTheme: response.data.classroom.colorTheme || "",
+        themeImage: response.data.classroom.themeImage || "",
+        fallbackColor: getGradientColor(myCourses.length),
         courseId: response.data.classroom._id,
         classCode: response.data.classroom.classCode,
+        subject: response.data.classroom.subject || response.data.classroom.name,
       };
 
       setMyCourses((prev) => [...prev, newClass]);
@@ -134,51 +153,147 @@ export default function NoteCraftsDashboard() {
     }
   };
 
-  const CourseCard = ({ course }) => (
-    <div
-      onClick={() => navigate(`/course/${course.courseId}`)}
-      className="bg-white rounded-xl sm:rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden"
-    >
-      <div
-        className="h-32 sm:h-40 flex items-center justify-center relative"
-        style={{ background: course.color }}
-      >
-        <div className="absolute inset-0 bg-black/10 rounded-t-xl sm:rounded-t-2xl" />
-        <h3 className="text-xl sm:text-2xl font-bold text-white z-10 px-3 text-center">
-          {course.title}
-        </h3>
-      </div>
+  const CourseCard = ({ course }) => {
+    const [showDropdown, setShowDropdown] = useState(false);
+    const dropdownRef = useRef(null);
 
-      <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-        <div className="flex items-center text-gray-700 font-medium text-sm sm:text-base">
-          <User
-            size={16}
-            className="mr-2 text-indigo-600 sm:w-[18px] sm:h-[18px]"
-          />
-          <span>{course.teacher}</span>
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+          setShowDropdown(false);
+        }
+      };
+
+      if (showDropdown) {
+        document.addEventListener('mousedown', handleClickOutside);
+      }
+
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }, [showDropdown]);
+
+    // Check if colorTheme or themeImage contains an image URL
+    const isImageUrl = (str) => str && (str.startsWith('data:') || str.includes('.jpg') || str.includes('.jpeg') || str.includes('.png') || str.includes('.webp'));
+    const hasImage = Boolean(course.themeImage) || isImageUrl(course.colorTheme);
+    const imageUrl = course.themeImage || (isImageUrl(course.colorTheme) ? course.colorTheme : null);
+    
+    const headerClass = hasImage ? "bg-gray-900" : course.colorTheme || "";
+    const headerStyle = hasImage
+      ? {
+          backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.15), rgba(0,0,0,0.3)), url(${imageUrl})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }
+      : course.colorTheme
+      ? undefined
+      : { background: course.fallbackColor };
+
+    const handleDropdownToggle = (e) => {
+      e.stopPropagation();
+      setShowDropdown(!showDropdown);
+    };
+
+    const handleLeaveClass = async (e) => {
+      e.stopPropagation();
+      setShowDropdown(false);
+
+      if (window.confirm(`Are you sure you want to leave "${course.title}"?`)) {
+        try {
+          await axios.post(
+            `http://localhost:5000/api/classroom/${course.courseId}/leave`,
+            { studentId }
+          );
+          
+          // Remove class from the list
+          setMyCourses((prev) => prev.filter((c) => c.id !== course.id));
+          setSuccess(`Successfully left ${course.title}`);
+          setTimeout(() => setSuccess(""), 3000);
+        } catch (err) {
+          console.error("Error leaving class:", err);
+          setError(
+            err.response?.data?.error || "Failed to leave class. Please try again."
+          );
+          setTimeout(() => setError(""), 5000);
+        }
+      }
+    };
+
+    return (
+      <div
+        onClick={() => navigate(`/course/${course.courseId}`)}
+        className="bg-white rounded-xl sm:rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden w-full min-h-[220px] flex flex-col"
+      >
+        <div
+          className={`h-28 sm:h-32 flex items-center justify-center relative ${headerClass}`}
+          style={headerStyle}
+        >
+          <div className="absolute inset-0 bg-black/10 rounded-t-xl sm:rounded-t-2xl" />
+          <h3 className="text-xl sm:text-2xl font-bold text-white z-10 px-3 text-center">
+            {course.title}
+          </h3>
+
+          {/* Three Dots Menu */}
+          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20" ref={dropdownRef}>
+            <button
+              onClick={handleDropdownToggle}
+              className="p-1.5 sm:p-2 bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-all cursor-pointer relative z-20"
+              title="More options"
+            >
+              <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showDropdown && (
+              <div className="absolute right-0 mt-2 w-40 sm:w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                <button
+                  onClick={handleLeaveClass}
+                  className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 text-left text-xs sm:text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  Leave Class
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {course.classCode && (
-          <div className="text-xs text-gray-500 bg-gray-100 px-2 sm:px-3 py-1 rounded font-mono text-center">
-            Code: {course.classCode}
+        <div className="p-3 sm:p-4 space-y-2 sm:space-y-3 flex-1 flex flex-col">
+          <div className="flex items-center text-gray-700 font-medium text-sm sm:text-base">
+            <User
+              size={16}
+              className="mr-2 text-indigo-600 sm:w-[18px] sm:h-[18px]"
+            />
+            <span>{course.teacher}</span>
           </div>
-        )}
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/course/${course.courseId}`);
-          }}
-          className="w-full py-2.5 sm:py-3 rounded-lg text-white font-semibold text-sm sm:text-base transition-all cursor-pointer"
-          style={{
-            background: "linear-gradient(135deg, #6D28D9 0%, #9333EA 100%)",
-          }}
-        >
-          Continue Learning
-        </button>
+          {course.subject && (
+            <p className="text-xs sm:text-sm text-gray-500">{course.subject}</p>
+          )}
+
+          {course.classCode && (
+            <div className="text-xs text-gray-500 bg-gray-100 px-2 sm:px-3 py-1 rounded font-mono text-center">
+              Code: {course.classCode}
+            </div>
+          )}
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/course/${course.courseId}`);
+            }}
+            className="w-full mt-auto py-2.5 sm:py-3 rounded-lg text-white font-semibold text-sm sm:text-base transition-all cursor-pointer"
+            style={{
+              background: "linear-gradient(135deg, #6D28D9 0%, #9333EA 100%)",
+            }}
+          >
+            Continue Learning
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -242,10 +357,25 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
+        {!loading && myCourses.length > 0 && filteredCourses.length === 0 && (
+          <div className="text-center mt-12 sm:mt-16 px-4">
+            <AlertCircle
+              size={40}
+              className="mx-auto text-gray-300 mb-3 sm:w-12 sm:h-12"
+            />
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-700 mb-2">
+              No courses match "{searchQuery.trim()}"
+            </h2>
+            <p className="text-sm sm:text-base text-gray-500">
+              Try a different title, teacher name, or class code.
+            </p>
+          </div>
+        )}
+
         {/* My Courses Grid */}
-        {!loading && myCourses.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {myCourses.map((course) => (
+        {!loading && filteredCourses.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6 justify-items-stretch height-auto">
+            {filteredCourses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
           </div>

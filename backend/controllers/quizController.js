@@ -100,7 +100,7 @@ export const generateQuizWithAI = async (req, res) => {
           console.log(`Empty text from ${note.title}`);
         }
       } catch (error) {
-        console.error(`❌ Error processing ${note.title}:`, error.message);
+        console.error(`Error processing ${note.title}:`, error.message);
         // Continue with other notes even if one fails
       }
     }

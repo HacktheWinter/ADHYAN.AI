@@ -1,6 +1,8 @@
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useParams, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { getStoredUser } from "../utils/authStorage";
+import API from "../api.js";
 
 export default function CourseDetailPage() {
   const { id } = useParams(); // classId
@@ -9,6 +11,7 @@ export default function CourseDetailPage() {
   const scrollContainerRef = useRef(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+  const [className, setClassName] = useState("");
   
   //  Memoize active tab to prevent recalculation on every render
   const activeTab = useMemo(() => {
@@ -18,19 +21,21 @@ export default function CourseDetailPage() {
 
   //  Memoize classInfo to prevent re-parsing localStorage
   const classInfo = useMemo(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = getStoredUser() || {};
     return {
       classId: id,
       studentId: user.id || user._id,
       studentName: user.name,
+      studentRole: user.role || 'student',
+      profilePhoto: user.profilePhoto || '',
     };
   }, [id]); // Only recompute when id changes
 
   const tabs = [
     { id: 'notes', label: 'Notes', path: 'notes' },
     { id: 'quiz', label: 'Quiz', path: 'quiz' },
-    { id: 'assignment', label: 'Assignment', path: 'assignment' },
     { id: 'test', label: 'Test Paper', path: 'test' },
+    { id: 'assignment', label: 'Assignment', path: 'assignment' },
     { id: "doubt", label: "Doubts", path: "doubt" },
   ];
 
@@ -50,6 +55,21 @@ export default function CourseDetailPage() {
     window.addEventListener('resize', checkScroll);
     return () => window.removeEventListener('resize', checkScroll);
   }, []);
+
+  // Fetch classroom details to get the name
+  useEffect(() => {
+    const fetchClassroom = async () => {
+      try {
+        const response = await API.get(`/classroom/${id}`);
+        if (response.data && response.data.classroom && response.data.classroom.name) {
+          setClassName(response.data.classroom.name);
+        }
+      } catch (error) {
+        console.error("Error fetching classroom:", error);
+      }
+    };
+    fetchClassroom();
+  }, [id]);
 
   const scroll = (direction) => {
     const container = scrollContainerRef.current;
@@ -77,7 +97,7 @@ export default function CourseDetailPage() {
         >
           ← Back to Courses
         </button>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Course Material</h1>
+        {className && <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{className}</h1>}
         <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, quizzes, assignments, tests and doubts</p>
       </div>
 
