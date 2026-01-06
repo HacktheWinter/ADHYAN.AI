@@ -18,13 +18,10 @@ import PublicRoute from "./components/PublicRoute";
 import Quiz from "./Pages/Quiz";
 import TestPapers from "./Pages/TestPapers";
 import Assignments from "./Pages/Assignments"; 
-import DoubtPage  from "./Pages/DoubtPage";
-<<<<<<< HEAD
+import DoubtPage from "./Pages/DoubtPage";
 import StudentAnnouncement from "./Pages/StudentAnnouncement";
 import StudentCalendarPage from "./Pages/StudentCalendarPage";
-=======
 import SettingsPage from "./Pages/SettingsPage";
->>>>>>> 29c80c93f9701db4dcb897debdd9eca9c2db3d9b
 
 function StudentLayout() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -75,6 +72,7 @@ export default function App() {
         }
       />
 
+      {/* Settings route without navbar */}
       <Route
         path="/settings"
         element={
@@ -105,11 +103,10 @@ export default function App() {
           <Route path="quiz" element={<Quiz />} />
           <Route path="assignment" element={<Assignments />} />
           <Route path="test" element={<TestPapers />} />
-          <Route path="test" element={<TestPapers />} />
           <Route path="doubt" element={<DoubtPage />} />
         </Route>
 
-        {/* Standalone Course Announcement Route */}
+        {/* Standalone Course Announcement Route (with navbar) */}
         <Route path="course/:id/announcement" element={<StudentAnnouncement />} />
       </Route>
 
