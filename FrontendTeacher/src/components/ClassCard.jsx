@@ -1,9 +1,9 @@
 // FrontendTeacher/src/components/ClassCard.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Share2, MoreVertical, Trash2 } from 'lucide-react';
+import { Share2, MoreVertical, Trash2, Edit3 } from 'lucide-react';
 import ClassCodeModal from './ClassCodeModal';
 
-const ClassCard = ({ classData, onClick, onDelete }) => {
+const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
   const [showCodeModal, setShowCodeModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -45,23 +45,47 @@ const ClassCard = ({ classData, onClick, onDelete }) => {
     setShowDropdown(!showDropdown);
   };
 
+  const handleEditClick = (e) => {
+    e.stopPropagation();
+    setShowDropdown(false);
+    onEdit?.();
+  };
+
+  const headerColor = classData.colorTheme || classData.color || "bg-gradient-to-br from-purple-500 to-purple-700";
+  
+  // Check if we have an image (either from themeImage or colorTheme containing an image URL)
+  const isImageUrl = (str) => str && (str.startsWith('data:') || str.includes('.jpg') || str.includes('.jpeg') || str.includes('.png') || str.includes('.webp'));
+  const hasImage = Boolean(classData.themeImage) || isImageUrl(headerColor);
+  const imageUrl = classData.themeImage || (isImageUrl(headerColor) ? headerColor : null);
+  
+  const headerStyle = hasImage
+    ? {
+        backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.15), rgba(0,0,0,0.3)), url(${imageUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : undefined;
+
   return (
     <>
       <div
         onClick={onClick}
-        className="cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
+        className="cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-xl h-full relative min-h-[260px]"
       >
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          <div className={`${classData.color} h-32 flex items-center justify-center relative`}>
+        <div className="bg-white rounded-xl shadow-lg h-full flex flex-col relative overflow-visible">
+          <div
+            className={`${hasImage ? "bg-gray-900" : headerColor} h-32 flex items-center justify-center relative overflow-visible rounded-t-xl`}
+            style={headerStyle}
+          >
             <h3 className="text-2xl font-bold text-white px-4 text-center">
               {classData.name}
             </h3>
             
             {/* Three Dots Menu */}
-            <div className="absolute top-3 right-3" ref={dropdownRef}>
+            <div className="absolute top-3 right-3 z-20" ref={dropdownRef}>
               <button
                 onClick={handleDropdownToggle}
-                className="p-2 bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-all cursor-pointer"
+                className="p-2 bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-all cursor-pointer relative z-20"
                 title="More options"
               >
                 <MoreVertical className="w-4 h-4 text-white" />
@@ -77,6 +101,14 @@ const ClassCard = ({ classData, onClick, onDelete }) => {
                     <Share2 className="w-4 h-4" />
                     Share Class Code
                   </button>
+
+                  <button
+                    onClick={handleEditClick}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Edit Class
+                  </button>
                   
                   <button
                     onClick={handleDeleteClick}
@@ -90,9 +122,9 @@ const ClassCard = ({ classData, onClick, onDelete }) => {
             </div>
           </div>
           
-          <div className="p-6">
+            <div className="p-6 flex-1 flex flex-col">
             <p className="text-gray-700 font-semibold mb-2">{classData.subject}</p>
-            <div className="flex items-center justify-between">
+              <div className="mt-auto flex items-center justify-between">
               <p className="text-gray-500 text-sm">
                 {classData.studentCount} student{classData.studentCount !== 1 ? 's' : ''}
               </p>
