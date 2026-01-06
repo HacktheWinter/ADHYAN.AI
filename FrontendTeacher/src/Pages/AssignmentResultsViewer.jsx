@@ -291,9 +291,21 @@ const AssignmentResultsViewer = () => {
                     <tr key={submission._id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
                         <div className="flex items-center gap-2 sm:gap-3">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <User className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
-                          </div>
+                          {submission.studentId?.profilePhoto ? (
+                            <img 
+                              src={`http://localhost:5000/${submission.studentId.profilePhoto}`}
+                              alt={submission.studentName}
+                              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0 border border-purple-200"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextElementSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <User className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                            </div>
+                          )}
                           <div className="min-w-0">
                             <p className="font-semibold text-gray-900 text-xs sm:text-base truncate">{submission.studentName}</p>
                             <p className="text-xs text-gray-500 truncate hidden sm:block">{submission.studentId?.email}</p>

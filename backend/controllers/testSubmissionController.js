@@ -354,7 +354,7 @@ export const getSubmissionById = async (req, res) => {
 
     const submission = await TestSubmission.findById(submissionId)
       .populate("testPaperId", "title totalMarks questions")
-      .populate("studentId", "name email");
+      .populate("studentId", "name email profilePhoto");
 
     if (!submission) {
       return res.status(404).json({ error: "Submission not found" });
@@ -404,7 +404,7 @@ export const getTestSubmissions = async (req, res) => {
     const { testPaperId } = req.params;
 
     const submissions = await TestSubmission.find({ testPaperId })
-      .populate("studentId", "name email")
+      .populate("studentId", "name email profilePhoto")
       .sort({ submittedAt: -1 });
 
     res.status(200).json({
