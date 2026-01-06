@@ -4,12 +4,12 @@ import {
   updateProfile,
   uploadProfilePhoto,
   deleteProfilePhoto,
-  upload,
-  uploadBackground,
-  uploadBackgroundImage,
-  toggleBackground,
-  deleteBackgroundImage,
   changePassword,
+  uploadBackgroundImage,
+  deleteBackgroundImage,
+  toggleBackgroundImage,
+  backgroundUpload,
+  upload,
 } from "../controllers/profileController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -27,16 +27,16 @@ router.post("/photo", authMiddleware, upload.single("profilePhoto"), uploadProfi
 // Delete profile photo
 router.delete("/photo", authMiddleware, deleteProfilePhoto);
 
-// Upload background image
-router.post("/background", authMiddleware, uploadBackground.single("backgroundImage"), uploadBackgroundImage);
+// Change password
+router.post("/change-password", authMiddleware, changePassword);
 
-// Toggle background (use custom or default)
-router.post("/background/toggle", authMiddleware, toggleBackground);
+// Upload background image
+router.post("/background", authMiddleware, backgroundUpload.single("backgroundImage"), uploadBackgroundImage);
 
 // Delete background image
 router.delete("/background", authMiddleware, deleteBackgroundImage);
 
-// Change password
-router.post("/change-password", authMiddleware, changePassword);
+// Toggle background image usage
+router.post("/background/toggle", authMiddleware, toggleBackgroundImage);
 
 export default router;
