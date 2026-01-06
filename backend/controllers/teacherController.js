@@ -80,6 +80,7 @@ export const loginTeacher = async (req, res) => {
         id: teacher._id,
         name: teacher.name,
         email: teacher.email,
+        profilePhoto: teacher.profilePhoto,
         role: "teacher",
       },
     });

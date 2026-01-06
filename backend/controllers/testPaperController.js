@@ -18,7 +18,7 @@ export const generateTestPaperWithAI = async (req, res) => {
     const { noteIds, classroomId } = req.body;
 
     console.log("=== TEST PAPER GENERATION STARTED ===");
-    console.log("📥 Request:", { noteIds, classroomId });
+    console.log("Request:", { noteIds, classroomId });
 
     if (!noteIds || !Array.isArray(noteIds) || noteIds.length === 0) {
       return res.status(400).json({ error: "Please select at least one note" });
@@ -235,6 +235,25 @@ export const publishTestPaper = async (req, res) => {
     testPaper.isActive = true;
 
     await testPaper.save();
+
+    // Auto-create Calendar Event
+    try {
+      const CalendarEvent = (await import("../models/CalendarEvent.js")).default;
+      await CalendarEvent.create({
+        title: `Test: ${testPaper.title}`,
+        type: 'test',
+        classId: testPaper.classroomId,
+        teacherId: req.user._id, // Assuming auth middleware
+        startDate: startTime || new Date(),
+        endDate: calculatedEndTime || new Date(Date.now() + (duration || 60) * 60000),
+        description: `Test duration: ${duration} minutes`,
+        relatedId: testPaper._id,
+        onModel: 'TestPaper'
+      });
+      console.log("Calendar event created for Test Paper");
+    } catch (calError) {
+      console.error("Failed to create calendar event:", calError);
+    }
 
     res.status(200).json({
       success: true,

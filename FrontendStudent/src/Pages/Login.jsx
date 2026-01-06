@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import axios from "axios";
+import { clearAuth, persistAuth } from "../utils/authStorage";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function Login() {
     password: "",
     role: "student",
   });
+  const [rememberMe, setRememberMe] = useState(false);
 
   const TEACHER_URL =
     import.meta.env.VITE_TEACHER_URL || "http://localhost:5174";
@@ -29,7 +31,7 @@ export default function Login() {
       }
     } catch {}
 
-    localStorage.removeItem("user");
+    clearAuth();
     window.location.replace(target);
   };
 
@@ -61,8 +63,7 @@ export default function Login() {
         role: formData.role,
       };
 
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(userData));
+      persistAuth(response.data.token, userData, rememberMe);
 
       // Check if need to redirect to different frontend
       const TEACHER_URL =
@@ -101,7 +102,10 @@ export default function Login() {
         {/* Left Side - Branding */}
         <div className="hidden md:block">
           <div className="text-center space-y-6">
-            <div className="flex items-center justify-center space-x-3 mb-8">
+            <a
+              href="https://adhyanai-5eum.onrender.com/"
+              className="flex items-center justify-center space-x-3 mb-8"
+            >
               <div className="w-16 h-16 bg-purple-700 rounded-2xl flex items-center justify-center shadow-lg">
                 <svg
                   className="w-10 h-10 text-white"
@@ -118,7 +122,7 @@ export default function Login() {
                 </svg>
               </div>
               <h1 className="text-4xl font-bold text-gray-900">ADHYAN.AI</h1>
-            </div>
+            </a>
 
             <div className="space-y-4">
               <h2 className="text-3xl font-bold text-gray-800">
@@ -174,7 +178,10 @@ export default function Login() {
         <div className="w-full">
           <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10">
             <div className="md:hidden text-center mb-6">
-              <div className="flex items-center justify-center space-x-2 mb-4">
+              <a
+                href="https://adhyanai-5eum.onrender.com/"
+                className="flex items-center justify-center space-x-2 mb-4"
+              >
                 <div className="w-10 h-10 bg-purple-700 rounded-lg flex items-center justify-center">
                   <svg
                     className="w-6 h-6 text-white"
@@ -193,7 +200,7 @@ export default function Login() {
                 <span className="text-2xl font-bold text-gray-900">
                   ADHYAN.AI
                 </span>
-              </div>
+              </a>
             </div>
 
             <div className="text-center mb-8">
@@ -295,6 +302,8 @@ export default function Login() {
                 <label className="flex items-center">
                   <input
                     type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 cursor-pointer"
                   />
                   <span className="ml-2 text-sm text-gray-600">
