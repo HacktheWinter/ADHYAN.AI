@@ -1,6 +1,12 @@
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useParams, Outlet, useNavigate, useLocation } from "react-router-dom";
+<<<<<<< HEAD
 import { ChevronLeft, ChevronRight, Grid } from "lucide-react";
+=======
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { getStoredUser } from "../utils/authStorage";
+import API from "../api.js";
+>>>>>>> 29c80c93f9701db4dcb897debdd9eca9c2db3d9b
 
 export default function CourseDetailPage() {
   const { id } = useParams();
@@ -9,6 +15,7 @@ export default function CourseDetailPage() {
   const scrollContainerRef = useRef(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+<<<<<<< HEAD
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const menuOptions = [
@@ -17,6 +24,9 @@ export default function CourseDetailPage() {
     { name: 'Classes', icon: '📚' },
     { name: 'Feedback', icon: '💬' }
   ];
+=======
+  const [className, setClassName] = useState("");
+>>>>>>> 29c80c93f9701db4dcb897debdd9eca9c2db3d9b
   
   const activeTab = useMemo(() => {
     const pathParts = location.pathname.split('/');
@@ -24,19 +34,21 @@ export default function CourseDetailPage() {
   }, [location.pathname]);
 
   const classInfo = useMemo(() => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = getStoredUser() || {};
     return {
       classId: id,
       studentId: user.id || user._id,
       studentName: user.name,
+      studentRole: user.role || 'student',
+      profilePhoto: user.profilePhoto || '',
     };
   }, [id]);
 
   const tabs = [
     { id: 'notes', label: 'Notes', path: 'notes' },
     { id: 'quiz', label: 'Quiz', path: 'quiz' },
-    { id: 'assignment', label: 'Assignment', path: 'assignment' },
     { id: 'test', label: 'Test Paper', path: 'test' },
+    { id: 'assignment', label: 'Assignment', path: 'assignment' },
     { id: "doubt", label: "Doubts", path: "doubt" },
   ];
 
@@ -56,6 +68,7 @@ export default function CourseDetailPage() {
     return () => window.removeEventListener('resize', checkScroll);
   }, []);
 
+<<<<<<< HEAD
   useEffect(() => {
     if (isMenuOpen) {
       const handleClickOutside = (e) => {
@@ -65,6 +78,22 @@ export default function CourseDetailPage() {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isMenuOpen]);
+=======
+  // Fetch classroom details to get the name
+  useEffect(() => {
+    const fetchClassroom = async () => {
+      try {
+        const response = await API.get(`/classroom/${id}`);
+        if (response.data && response.data.classroom && response.data.classroom.name) {
+          setClassName(response.data.classroom.name);
+        }
+      } catch (error) {
+        console.error("Error fetching classroom:", error);
+      }
+    };
+    fetchClassroom();
+  }, [id]);
+>>>>>>> 29c80c93f9701db4dcb897debdd9eca9c2db3d9b
 
   const scroll = (direction) => {
     const container = scrollContainerRef.current;
@@ -104,6 +133,7 @@ export default function CourseDetailPage() {
         >
           ← Back to Courses
         </button>
+<<<<<<< HEAD
         
         <div className="flex items-center justify-between">
           <div>
@@ -147,6 +177,10 @@ export default function CourseDetailPage() {
             )}
           </div>
         </div>
+=======
+        {className && <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{className}</h1>}
+        <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, quizzes, assignments, tests and doubts</p>
+>>>>>>> 29c80c93f9701db4dcb897debdd9eca9c2db3d9b
       </div>
 
       {/* Tabs with Scroll Arrows */}

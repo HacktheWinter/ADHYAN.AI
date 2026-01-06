@@ -1,33 +1,114 @@
 import Doubt from "../models/Doubt.js";
+import User from "../models/User.js";
 
 /* ---------------------------------------------
-   GET ALL DOUBTS (Teacher Panel)
+  GET ALL DOUBTS (Teacher Panel)
 --------------------------------------------- */
 export const getAllDoubts = async (req, res) => {
   try {
-    const doubts = await Doubt.find().sort({ createdAt: -1 });
-    res.json(doubts);
+    // Build query filter
+    const filter = {};
+    if (req.query.classId) {
+      filter.classId = req.query.classId;
+    }
+    
+    const doubts = await Doubt.find(filter).sort({ createdAt: -1 });
+    
+    // Populate current user data for doubts and replies
+    const populatedDoubts = await Promise.all(
+      doubts.map(async (doubt) => {
+        const doubtObj = doubt.toObject();
+        
+        // Get current author info
+        if (doubtObj.authorId) {
+          const author = await User.findById(doubtObj.authorId);
+          if (author) {
+            doubtObj.authorName = author.name;
+            doubtObj.profilePhoto = author.profilePhoto;
+            doubtObj.authorRole = author.role;
+          }
+        }
+        
+        // Get current info for reply authors
+        if (doubtObj.replies && doubtObj.replies.length > 0) {
+          doubtObj.replies = await Promise.all(
+            doubtObj.replies.map(async (reply) => {
+              if (reply.authorId) {
+                const replyAuthor = await User.findById(reply.authorId);
+                if (replyAuthor) {
+                  reply.authorName = replyAuthor.name;
+                  reply.profilePhoto = replyAuthor.profilePhoto;
+                  reply.authorRole = replyAuthor.role;
+                }
+              }
+              return reply;
+            })
+          );
+        }
+        
+        return doubtObj;
+      })
+    );
+    
+    res.json(populatedDoubts);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch doubts" });
   }
 };
 
 /* ---------------------------------------------
-   GET DOUBTS BY CLASS ID (Student Panel)
+  GET DOUBTS BY CLASS ID (Student Panel)
 --------------------------------------------- */
 export const getDoubtsByClass = async (req, res) => {
   try {
     const doubts = await Doubt.find({ classId: req.params.classId }).sort({
       createdAt: -1,
     });
-    res.json(doubts);
+    
+    // Populate current user data for doubts and replies
+    const populatedDoubts = await Promise.all(
+      doubts.map(async (doubt) => {
+        const doubtObj = doubt.toObject();
+        
+        // Get current author info
+        if (doubtObj.authorId) {
+          const author = await User.findById(doubtObj.authorId);
+          if (author) {
+            doubtObj.authorName = author.name;
+            doubtObj.profilePhoto = author.profilePhoto;
+            doubtObj.authorRole = author.role;
+          }
+        }
+        
+        // Get current info for reply authors
+        if (doubtObj.replies && doubtObj.replies.length > 0) {
+          doubtObj.replies = await Promise.all(
+            doubtObj.replies.map(async (reply) => {
+              if (reply.authorId) {
+                const replyAuthor = await User.findById(reply.authorId);
+                if (replyAuthor) {
+                  reply.authorName = replyAuthor.name;
+                  reply.profilePhoto = replyAuthor.profilePhoto;
+                  reply.authorRole = replyAuthor.role;
+                }
+              }
+              return reply;
+            })
+          );
+        }
+        
+        return doubtObj;
+      })
+    );
+    
+    res.json(populatedDoubts);
   } catch (err) {
     res.status(500).json({ message: "Failed to get doubts" });
   }
 };
 
 /* ---------------------------------------------
-   POST A DOUBT (Student Only)
+  POST A DOUBT (Student Only)
 --------------------------------------------- */
 export const postDoubt = async (req, res) => {
   try {
@@ -35,6 +116,8 @@ export const postDoubt = async (req, res) => {
       classId: req.body.classId,
       authorId: req.body.authorId,
       authorName: req.body.authorName,
+      authorRole: req.body.authorRole,
+      profilePhoto: req.body.profilePhoto,
       title: req.body.title,
       description: req.body.description,
     });
@@ -46,7 +129,7 @@ export const postDoubt = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   EDIT DOUBT (Student Only)
+  EDIT DOUBT (Student Only)
 --------------------------------------------- */
 export const editDoubt = async (req, res) => {
   try {
@@ -65,7 +148,7 @@ export const editDoubt = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   DELETE DOUBT (Student or Teacher)
+  DELETE DOUBT (Student or Teacher)
 --------------------------------------------- */
 export const deleteDoubt = async (req, res) => {
   try {
@@ -77,7 +160,7 @@ export const deleteDoubt = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   ADD REPLY (Student or Teacher)
+  ADD REPLY (Student or Teacher)
 --------------------------------------------- */
 export const addReply = async (req, res) => {
   try {
@@ -88,6 +171,8 @@ export const addReply = async (req, res) => {
     const reply = {
       authorId: req.body.authorId,
       authorName: req.body.authorName,
+      authorRole: req.body.authorRole,
+      profilePhoto: req.body.profilePhoto,
       message: req.body.message,
       createdAt: Date.now(),
     };
@@ -102,7 +187,7 @@ export const addReply = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   DELETE A REPLY
+  DELETE A REPLY
 --------------------------------------------- */
 export const deleteReply = async (req, res) => {
   try {
@@ -121,7 +206,7 @@ export const deleteReply = async (req, res) => {
 };
 
 /* ---------------------------------------------
-   EDIT A REPLY
+  EDIT A REPLY
 --------------------------------------------- */
 export const editReply = async (req, res) => {
   try {

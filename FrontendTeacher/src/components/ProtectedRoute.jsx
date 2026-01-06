@@ -1,17 +1,10 @@
 // src/routes/ProtectedRoute.jsx
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-
-const getUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
-};
+import { clearAuth, getStoredUser } from "../utils/authStorage";
 
 export default function ProtectedRoute({ children, requiredRole }) {
-  const user = getUser();
+  const user = getStoredUser();
   const [redirecting, setRedirecting] = useState(false);
 
   const shouldRedirect = requiredRole && user?.role && user.role !== requiredRole;
@@ -27,12 +20,12 @@ export default function ProtectedRoute({ children, requiredRole }) {
     try {
       const targetOrigin = new URL(target).origin;
       if (window.location.origin !== targetOrigin) {
-        localStorage.removeItem("user");
+        clearAuth();
         setRedirecting(true);
         window.location.replace(target);
       }
     } catch {
-      localStorage.removeItem("user");
+      clearAuth();
       setRedirecting(true);
       window.location.replace(target);
     }
