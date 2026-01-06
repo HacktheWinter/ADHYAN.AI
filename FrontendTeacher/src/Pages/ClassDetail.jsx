@@ -37,10 +37,16 @@ const ClassDetail = () => {
   const handleLogoClick = useCallback(() => navigate("/"), [navigate]);
 
   const handleDropdownOption = useCallback((option) => {
-    console.log(`Selected: ${option}`);
+    // console.log(`Selected: ${option}`);
     setIsDropdownOpen(false);
-    // Add your navigation logic here
-  }, []);
+    if(option === 'announcement') {
+        navigate('announcement');
+    }
+    if(option === 'calendar') {
+        navigate('calendar');
+    }
+    // Add other navigations here if needed
+  }, [navigate]);
 
   useEffect(() => {
     if (isDropdownOpen) {

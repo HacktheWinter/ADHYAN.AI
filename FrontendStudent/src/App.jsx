@@ -17,6 +17,8 @@ import Quiz from "./Pages/Quiz";
 import TestPapers from "./Pages/TestPapers";
 import Assignments from "./Pages/Assignments"; 
 import DoubtPage  from "./Pages/DoubtPage";
+import StudentAnnouncement from "./Pages/StudentAnnouncement";
+import StudentCalendarPage from "./Pages/StudentCalendarPage";
 
 function StudentLayout() {
   return (
@@ -69,9 +71,23 @@ export default function App() {
           <Route path="quiz" element={<Quiz />} />
           <Route path="assignment" element={<Assignments />} />
           <Route path="test" element={<TestPapers />} />
+          <Route path="test" element={<TestPapers />} />
           <Route path="doubt" element={<DoubtPage />} />
         </Route>
+
+        {/* Standalone Course Announcement Route */}
+        <Route path="course/:id/announcement" element={<StudentAnnouncement />} />
       </Route>
+
+      {/* Calendar Route (Fullscreen - No Navbar) */}
+      <Route
+        path="/course/:id/calendar"
+        element={
+          <ProtectedRoute requiredRole="student">
+            <StudentCalendarPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Redirect any unknown route */}
       <Route path="*" element={<Navigate to="/" replace />} />
