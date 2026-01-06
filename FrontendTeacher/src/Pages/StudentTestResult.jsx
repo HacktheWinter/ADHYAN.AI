@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   ChevronLeft,
@@ -9,6 +9,8 @@ import {
   Sparkles,
   User,
   Award,
+  CheckCircle,
+  AlertTriangle,
 } from "lucide-react";
 import axios from "axios";
 
@@ -23,11 +25,7 @@ const StudentTestResult = () => {
   const [editingMarks, setEditingMarks] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    fetchSubmission();
-  }, []);
-
-  const fetchSubmission = async () => {
+  const fetchSubmission = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -68,7 +66,11 @@ const StudentTestResult = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [classId, testId, studentId, location.state?.submissionId, navigate]);
+
+  useEffect(() => {
+    fetchSubmission();
+  }, [fetchSubmission]);
 
   const startEditingMarks = (questionId, currentMarks) => {
     setEditingMarks({ ...editingMarks, [questionId]: currentMarks });
@@ -177,9 +179,17 @@ const StudentTestResult = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
           <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4">
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg sm:text-2xl flex-shrink-0">
-                {submission.studentName?.charAt(0).toUpperCase()}
-              </div>
+              {submission.studentId?.profilePhoto ? (
+                <img 
+                  src={`http://localhost:5000/${submission.studentId.profilePhoto}`}
+                  alt={submission.studentName}
+                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0 border-2 border-purple-200"
+                />
+              ) : (
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg sm:text-2xl flex-shrink-0">
+                  {submission.studentName?.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 truncate">
                   {submission.studentName}
@@ -221,9 +231,21 @@ const StudentTestResult = () => {
                 >
                   {submission.status === "checked" ? "Checked" : "Pending"}
                 </span>
-                {submission.isResultPublished && (
-                  <span className="inline-block px-2 sm:px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 whitespace-nowrap">
-                    Published
+                {submission.status === "checked" && (
+                  <span className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+                    submission.percentage >= 40
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                  }`}>
+                    {submission.percentage >= 40 ? (
+                      <>
+                        <CheckCircle className="w-3 h-3" /> Pass
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-3 h-3" /> Fail
+                      </>
+                    )}
                   </span>
                 )}
               </div>

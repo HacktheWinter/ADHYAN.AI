@@ -9,6 +9,7 @@ export default function Signup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [agreeTerms, setAgreeTerms] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -20,6 +21,11 @@ export default function Signup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!agreeTerms) {
+      setError("Please accept Terms & Conditions to continue.");
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match!");
@@ -43,9 +49,9 @@ export default function Signup() {
       alert("Registration successful! Please login.");
       navigate("/login");
     } catch (err) {
-      setError(
-        err.response?.data?.error || "Registration failed. Please try again."
-      );
+      const backendMsg = err.response?.data?.error || "Registration failed. Please try again.";
+      const isDuplicate = err.response?.status === 409 || /exist/i.test(backendMsg);
+      setError(isDuplicate ? "Account already exists. Please login." : backendMsg);
       console.error("Signup error:", err);
     } finally {
       setLoading(false);
@@ -356,7 +362,8 @@ export default function Signup() {
               <div className="flex items-start">
                 <input
                   type="checkbox"
-                  required
+                  checked={agreeTerms}
+                  onChange={(e) => setAgreeTerms(e.target.checked)}
                   className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 mt-1 cursor-pointer"
                 />
                 <label className="ml-2 text-sm text-gray-600">

@@ -6,9 +6,13 @@ import Dashboard from "./Pages/Dashboard";
 import ClassDetail from "./Pages/ClassDetail";
 import TestResultsViewer from "./Pages/TestResultsViewer";
 import StudentTestResult from "./Pages/StudentTestResult";
+import QuizResultsViewer from "./Pages/QuizResultsViewer";
+import StudentQuizResult from "./Pages/StudentQuizResult";
 import AssignmentResultsViewer from "./Pages/AssignmentResultsViewer";
 import StudentAssignmentResult from "./Pages/StudentAssignmentResult";
+import ProfilePage from "./Pages/ProfilePage";
 import Login from "./Pages/Login";
+import ForgotPassword from './Pages/ForgotPassword';
 import Signup from "./Pages/Signup";
 
 import NotesPage from "./Pages/NotesPage";
@@ -17,6 +21,7 @@ import TestPapersPage from "./components/TestPapersPage";
 import AssignmentsPage from "./components/AssignmentsPage";
 import StudentsPage from "./Pages/StudentsPage"; 
 import DoubtsPage from "./Pages/DoubtsPage";
+import SettingsPage from "./Pages/SettingsPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
@@ -41,6 +46,10 @@ export default function App() {
           </PublicRoute>
         }
       />
+      <Route 
+        path="/forgot-password" 
+        element={<ForgotPassword />} 
+      />
 
       {/* Protected Routes */}
       <Route
@@ -48,6 +57,24 @@ export default function App() {
         element={
           <ProtectedRoute requiredRole="teacher">
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <SettingsPage />
           </ProtectedRoute>
         }
       />
@@ -85,6 +112,25 @@ export default function App() {
         element={
           <ProtectedRoute requiredRole="teacher">
             <StudentTestResult />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Quiz Results Routes */}
+      <Route
+        path="/class/:classId/quizzes/results/:quizId"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <QuizResultsViewer />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/class/:classId/quizzes/results/:quizId/student/:studentId"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <StudentQuizResult />
           </ProtectedRoute>
         }
       />
