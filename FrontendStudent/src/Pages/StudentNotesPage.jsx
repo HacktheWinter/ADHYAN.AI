@@ -1,8 +1,9 @@
-// FrontendStudent/src/Pages/StudentNotesPage.jsx
 import React, { useState, useEffect } from "react";
 import { useOutletContext, useParams } from "react-router-dom";
 import { FileText, Download, Eye, X, Loader } from "lucide-react";
 import axios from "axios";
+
+import PdfPreview from "../components/PdfPreview";
 
 const StudentNotesPage = () => {
   const { id: classId } = useParams();
@@ -151,28 +152,11 @@ const StudentNotesPage = () => {
 
       {/* Preview Modal */}
       {previewNote && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {previewNote.title}
-              </h3>
-              <button
-                onClick={closePreview}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <iframe
-                src={`http://localhost:5000/api/notes/file/${previewNote.fileId}`}
-                className="w-full h-full"
-                title="PDF Preview"
-              />
-            </div>
-          </div>
-        </div>
+        <PdfPreview
+          url={`http://localhost:5000/api/notes/file/${previewNote.fileId}`}
+          title={previewNote.title}
+          onClose={closePreview}
+        />
       )}
     </div>
   );

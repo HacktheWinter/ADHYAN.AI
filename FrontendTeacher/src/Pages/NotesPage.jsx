@@ -17,6 +17,8 @@ import {
   deleteNote,
 } from "../api/notesApi";
 
+import PdfPreview from "../components/PdfPreview";
+
 const NotesPage = () => {
   const { classId } = useParams();
   const { currentUser } = useOutletContext();
@@ -365,28 +367,11 @@ const NotesPage = () => {
 
       {/* Preview Modal */}
       {previewNote && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded-xl w-full max-w-6xl h-[95vh] sm:h-[90vh] flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between p-3 sm:p-4 border-b">
-              <h3 className="text-sm sm:text-lg font-semibold text-gray-900 truncate pr-2">
-                {previewNote.title}
-              </h3>
-              <button
-                onClick={closePreview}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 cursor-pointer"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <iframe
-                src={getNoteFileUrl(previewNote.fileId)}
-                className="w-full h-full"
-                title="PDF Preview"
-              />
-            </div>
-          </div>
-        </div>
+        <PdfPreview
+          url={getNoteFileUrl(previewNote.fileId)}
+          title={previewNote.title}
+          onClose={closePreview}
+        />
       )}
     </div>
   );

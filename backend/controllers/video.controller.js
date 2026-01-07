@@ -22,6 +22,7 @@ export const uploadVideo = async (req, res) => {
     }
 
     let videoUrl = "";
+    let cloudinaryId = "";
 
     if (req.file) {
       const result = await cloudinary.uploader.upload(req.file.path, {
@@ -29,6 +30,7 @@ export const uploadVideo = async (req, res) => {
         folder: "live_videos",
       });
       videoUrl = result.secure_url;
+      cloudinaryId = result.public_id;
 
       // Remove local file
       fs.unlinkSync(req.file.path);
@@ -44,7 +46,8 @@ export const uploadVideo = async (req, res) => {
       visibility,
       videoUrl,
       thumbnail,
-      uploadedBy: req.user.id,
+      cloudinaryId,
+      uploadedBy: req.user._id,
     });
 
     res.json({ success: true, data: newVideo });

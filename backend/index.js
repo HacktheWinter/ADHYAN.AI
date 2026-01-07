@@ -19,6 +19,9 @@ import testPaperRoutes from "./routes/testPaperRoutes.js";
 import testSubmissionRoutes from "./routes/testSubmissionRoutes.js";
 import assignmentRoutes from "./routes/assignmentRoutes.js";
 import assignmentSubmissionRoutes from "./routes/assignmentSubmissionRoutes.js";
+import calendarRoutes from "./routes/calendarRoutes.js";
+import forgotPasswordRoutes from './routes/forgotPassword.js';
+import profileRoutes from "./routes/profileRoutes.js";
 
 import videoRoutes from "./routes/video.routes.js";
 
@@ -69,7 +72,8 @@ app.use(
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
 );
-app.use(express.json());
+// Increase body limit to allow base64 theme images when creating classes
+app.use(express.json({ limit: "10mb" }));
 
 // Routes
 app.use("/api/teacher", teacherRoutes);
@@ -83,9 +87,15 @@ app.use("/api/doubts", doubtRoutes);
 app.use("/api/quiz-submission", quizSubmissionRoutes);
 app.use("/api/test-paper", testPaperRoutes);
 app.use("/api/test-submission", testSubmissionRoutes);
-app.use("/api/assignment", assignmentRoutes); //
+app.use("/api/assignment", assignmentRoutes);
 app.use("/api/assignment-submission", assignmentSubmissionRoutes);
+app.use("/api/calendar", calendarRoutes);
+app.use('/api', forgotPasswordRoutes);
+app.use("/api/profile", profileRoutes);
 app.use("/api", videoRoutes);
+
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
 
 // Health check
 app.get("/", (req, res) => {

@@ -1,17 +1,10 @@
 // FrontendStudent/src/components/ProtectedRoute.jsx
 import React from "react";
 import { Navigate } from "react-router-dom";
-
-const getUser = () => {
-  try {
-    return JSON.parse(localStorage.getItem("user") || "null");
-  } catch {
-    return null;
-  }
-};
+import { clearAuth, getStoredUser } from "../utils/authStorage";
 
 export default function ProtectedRoute({ children, requiredRole }) {
-  const user = getUser();
+  const user = getStoredUser();
 
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -25,7 +18,6 @@ export default function ProtectedRoute({ children, requiredRole }) {
     return children;
   }
 
-  localStorage.removeItem("user");
-  localStorage.removeItem("token");
+  clearAuth();
   return <Navigate to="/login" replace />;
 }

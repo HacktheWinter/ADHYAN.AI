@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import api from "../api/axios";
+import { Video, Play, Square, Loader2, Signal } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const LiveMeeting = ({ classId }) => {
   const [isLive, setIsLive] = useState(false);
@@ -41,7 +43,8 @@ const LiveMeeting = ({ classId }) => {
             return;
           }
           const script = document.createElement("script");
-          script.src = "https://8x8.vc/vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/external_api.js";
+          script.src =
+            "https://8x8.vc/vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/external_api.js";
           script.async = true;
           script.onload = resolve;
           document.head.appendChild(script);
@@ -55,7 +58,7 @@ const LiveMeeting = ({ classId }) => {
             parentNode: jitsiContainerRef.current,
             userInfo: {
               displayName: user.name || "Teacher",
-              email: user.email || ""
+              email: user.email || "",
             },
             configOverwrite: {
               startWithAudioMuted: false,
@@ -63,7 +66,7 @@ const LiveMeeting = ({ classId }) => {
             },
             interfaceConfigOverwrite: {
               // Add any specific UI customizations here
-            }
+            },
           });
         }
       });
@@ -81,7 +84,9 @@ const LiveMeeting = ({ classId }) => {
     if (!user) return;
     setLoading(true);
     try {
-      await api.put(`/classroom/${classId}/meeting/start`, { teacherId: user._id || user.id });
+      await api.put(`/classroom/${classId}/meeting/start`, {
+        teacherId: user._id || user.id,
+      });
       setIsLive(true);
     } catch (err) {
       console.error("Failed to start meeting", err);
@@ -100,7 +105,9 @@ const LiveMeeting = ({ classId }) => {
         jitsiApiRef.current.dispose();
         jitsiApiRef.current = null;
       }
-      await api.put(`/classroom/${classId}/meeting/end`, { teacherId: user._id || user.id });
+      await api.put(`/classroom/${classId}/meeting/end`, {
+        teacherId: user._id || user.id,
+      });
       setIsLive(false);
     } catch (err) {
       console.error("Failed to end meeting", err);
@@ -111,49 +118,144 @@ const LiveMeeting = ({ classId }) => {
   };
 
   return (
-    <div className="bg-white rounded shadow p-4">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center space-x-2">
-          <h2 className="text-xl font-bold">Live Classroom</h2>
-          {isLive && (
-            <span className="flex items-center text-xs font-semibold bg-red-100 text-red-600 px-2.5 py-0.5 rounded-full animate-pulse">
-              <span className="w-2 h-2 bg-red-600 rounded-full mr-1"></span>
-              LIVE
-            </span>
-          )}
+    <div className="bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white/40 shadow-2xl shadow-slate-200/40 overflow-hidden transition-all duration-700">
+      <div className="p-6 sm:p-8 border-b border-white/40 bg-white/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
+            <Video size={24} />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">
+              Broadcast Control
+            </h2>
+            <div className="flex items-center gap-2 mt-0.5">
+              {isLive ? (
+                <div className="flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1 rounded-full border border-red-100/50">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">
+                    On Air
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 bg-slate-100 text-slate-500 px-3 py-1 rounded-full border border-slate-200/50">
+                  <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">
+                    Offline
+                  </span>
+                </div>
+              )}
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                • Class ID: {classId.slice(-6)}
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="space-x-2">
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           {!isLive ? (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleStart}
               disabled={loading}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-8 py-3.5 rounded-2xl font-bold shadow-xl shadow-emerald-200/50 transition-all hover:shadow-emerald-300/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Starting..." : "Start Live Class"}
-            </button>
+              {loading ? (
+                <Loader2 className="animate-spin" size={20} />
+              ) : (
+                <Play fill="currentColor" size={20} />
+              )}
+              <span>{loading ? "Initializing..." : "Start Broadcast"}</span>
+            </motion.button>
           ) : (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleEnd}
               disabled={loading}
-              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-pink-600 text-white px-8 py-3.5 rounded-2xl font-bold shadow-xl shadow-rose-200/50 transition-all hover:shadow-rose-300/50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Ending..." : "End Live Class"}
-            </button>
+              {loading ? (
+                <Loader2 className="animate-spin" size={20} />
+              ) : (
+                <Square fill="currentColor" size={20} />
+              )}
+              <span>{loading ? "Stopping..." : "End Session"}</span>
+            </motion.button>
           )}
         </div>
       </div>
 
-      <div
-        ref={jitsiContainerRef}
-        style={{ height: isLive ? "70vh" : "40vh" }}
-        className={`w-full rounded border overflow-hidden ${!isLive ? 'bg-gray-50 flex flex-col items-center justify-center border-dashed border-gray-300' : 'bg-black'}`}
-      >
-        {!isLive && (
-          <>
-            <p className="text-gray-500 text-lg">Class is currently offline.</p>
-            <p className="text-gray-400 text-sm mt-2">Click "Start Live Class" to begin session with Jitsi.</p>
-          </>
-        )}
+      <div className="p-4 sm:p-6 bg-slate-50/30">
+        <div
+          ref={jitsiContainerRef}
+          style={{ height: isLive ? "70vh" : "45vh" }}
+          className={`w-full rounded-[2rem] border-2 transition-all duration-700 relative overflow-hidden ${
+            !isLive
+              ? "bg-white/40 border-dashed border-slate-200 flex flex-col items-center justify-center group"
+              : "bg-black border-slate-900 shadow-2xl shadow-black/40"
+          }`}
+        >
+          <AnimatePresence mode="wait">
+            {!isLive && (
+              <motion.div
+                key="offline"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.1 }}
+                className="text-center p-8 max-w-sm"
+              >
+                <div className="relative mb-8">
+                  <div className="absolute inset-0 bg-indigo-200 blur-3xl opacity-30 rounded-full group-hover:opacity-50 transition-opacity"></div>
+                  <div className="relative w-24 h-24 bg-white rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-100 mx-auto transform rotate-3 group-hover:rotate-0 transition-transform duration-500">
+                    <Signal
+                      className="text-indigo-600 animate-pulse"
+                      size={40}
+                    />
+                  </div>
+                </div>
+                <h3 className="text-2xl font-black text-slate-800 leading-tight">
+                  Ready to lead?
+                </h3>
+                <p className="mt-3 text-slate-500 font-medium leading-relaxed">
+                  Your classroom platform is primed and ready.
+                </p>
+                <div className="mt-8 flex justify-center gap-2">
+                  <div
+                    className="w-1.5 h-1.5 rounded-full bg-indigo-200 animate-bounce"
+                    style={{ animationDelay: "0ms" }}
+                  ></div>
+                  <div
+                    className="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  ></div>
+                  <div
+                    className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce"
+                    style={{ animationDelay: "300ms" }}
+                  ></div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <div className="px-8 py-4 bg-white/20 border-t border-white/40 flex items-center justify-center gap-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+        <span className="flex items-center gap-2">
+          <div className="w-1 h-1 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></div>{" "}
+          Encrypted Stream
+        </span>
+        <span className="flex items-center gap-2">
+          <div className="w-1 h-1 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400/50"></div>{" "}
+          Global CDN
+        </span>
+        <span className="flex items-center gap-2">
+          <div className="w-1 h-1 rounded-full bg-purple-400 shadow-sm shadow-purple-400/50"></div>{" "}
+          Auto-Recording
+        </span>
       </div>
     </div>
   );
