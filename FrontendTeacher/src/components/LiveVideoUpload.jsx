@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { getStoredUser } from "../utils/authStorage";
+
 const LiveVideoUpload = ({ classId, role }) => {
   const [videos, setVideos] = useState([]);
   const [title, setTitle] = useState("");
@@ -32,6 +34,13 @@ const LiveVideoUpload = ({ classId, role }) => {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showUploadForm, setShowUploadForm] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    setCurrentUser(getStoredUser());
+  }, []);
+
+  const effectiveRole = role || currentUser?.role;
 
   const fileInputRef = useRef(null);
 
@@ -169,16 +178,15 @@ const LiveVideoUpload = ({ classId, role }) => {
           </p>
         </div>
 
-        {role === "teacher" && (
+        {effectiveRole === "teacher" && (
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowUploadForm(!showUploadForm)}
-            className={`flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black transition-all shadow-2xl ${
-              showUploadForm
+            className={`flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black transition-all shadow-2xl ${showUploadForm
                 ? "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
                 : "bg-gradient-to-br from-indigo-600 to-purple-700 text-white shadow-indigo-200"
-            }`}
+              }`}
           >
             {showUploadForm ? <X size={20} /> : <CloudUpload size={20} />}
             {showUploadForm ? "Close Publisher" : "Publish Recording"}
@@ -258,11 +266,10 @@ const LiveVideoUpload = ({ classId, role }) => {
                   </label>
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className={`relative group border-2 border-dashed rounded-[2rem] p-10 text-center cursor-pointer transition-all duration-500 ${
-                      videoFile
+                    className={`relative group border-2 border-dashed rounded-[2rem] p-10 text-center cursor-pointer transition-all duration-500 ${videoFile
                         ? "border-emerald-500 bg-emerald-50/20"
                         : "border-slate-200 bg-slate-50/50 hover:border-indigo-500 hover:bg-white"
-                    }`}
+                      }`}
                   >
                     <input
                       ref={fileInputRef}
@@ -341,11 +348,10 @@ const LiveVideoUpload = ({ classId, role }) => {
                         <button
                           key={v}
                           onClick={() => setVisibility(v)}
-                          className={`flex-1 py-3 px-6 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                            visibility === v
+                          className={`flex-1 py-3 px-6 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${visibility === v
                               ? "bg-white text-indigo-600 shadow-xl shadow-indigo-100"
                               : "text-slate-400 hover:text-slate-600"
-                          }`}
+                            }`}
                         >
                           {v}
                         </button>
@@ -491,7 +497,7 @@ const LiveVideoUpload = ({ classId, role }) => {
                     </motion.a>
                   </div>
 
-                  {role === "teacher" && (
+                  {effectiveRole === "teacher" && (
                     <button
                       onClick={(e) => {
                         e.preventDefault();

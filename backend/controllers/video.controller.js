@@ -61,8 +61,8 @@ export const uploadVideo = async (req, res) => {
 export const getVideosByClass = async (req, res) => {
   try {
     const { classId } = req.params;
-    const videos = await Video.find({ classId }).sort({ createdAt: -1 });
-    res.json(videos);
+    const videos = await Video.find({ classId: classId.trim() }).sort({ createdAt: -1 });
+    res.json({ success: true, data: videos });
   } catch (error) {
     console.error("Fetch videos error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch videos" });
@@ -74,6 +74,9 @@ export const deleteVideo = async (req, res) => {
   try {
     const video = await Video.findById(req.params.id);
     if (!video) return res.status(404).json({ message: "Video not found" });
+
+    // Optional: Extra security check if needed
+    // if (video.uploadedBy.toString() !== req.user._id.toString()) { ... }
 
     // Delete from Cloudinary if uploaded
     if (video.cloudinaryId) {

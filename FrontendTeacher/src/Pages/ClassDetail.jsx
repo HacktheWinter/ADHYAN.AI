@@ -57,7 +57,6 @@ const ClassDetail = () => {
   const handleBack = useCallback(() => navigate("/"), [navigate]);
   const handleLogoClick = useCallback(() => navigate("/"), [navigate]);
 
-
   const handleDropdownOption = useCallback(
     (option) => {
       console.log(`Selected: ${option}`);
@@ -65,22 +64,19 @@ const ClassDetail = () => {
       if (option === "classes") {
         navigate(`/class/${classId}/live-classroom`);
       }
+
+      // console.log(`Selected: ${option}`);
+      setIsDropdownOpen(false);
+      if (option === "announcement") {
+        navigate("announcement");
+      }
+      if (option === "calendar") {
+        navigate("calendar");
+      }
+      // Add other navigations here if needed
     },
-    [navigate, classId]
+    [navigate]
   );
-
-  const handleDropdownOption = useCallback((option) => {
-    // console.log(`Selected: ${option}`);
-    setIsDropdownOpen(false);
-    if(option === 'announcement') {
-        navigate('announcement');
-    }
-    if(option === 'calendar') {
-        navigate('calendar');
-    }
-    // Add other navigations here if needed
-  }, [navigate]);
-
 
   useEffect(() => {
     if (isDropdownOpen) {
@@ -98,7 +94,6 @@ const ClassDetail = () => {
       try {
         setLoading(true);
         const response = await api.get(`/classroom/${classId}`);
-        const response = await axios.get(`http://localhost:5000/api/classroom/${classId}`);
 
         const classroom = response.data.classroom;
 
@@ -175,10 +170,11 @@ const ClassDetail = () => {
       {!isLiveClassroom && <Header onLogoClick={handleLogoClick} />}
 
       <main
-        className={`${isLiveClassroom
-          ? "w-full h-screen p-0"
-          : "max-w-7xl mx-auto px-6 py-8"
-          }`}
+        className={`${
+          isLiveClassroom
+            ? "w-full h-screen p-0"
+            : "max-w-7xl mx-auto px-6 py-8"
+        }`}
       >
         {!isLiveClassroom && (
           <div className="relative">
