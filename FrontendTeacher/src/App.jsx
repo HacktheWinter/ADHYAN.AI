@@ -15,8 +15,9 @@ import NotesPage from "./Pages/NotesPage";
 import QuizzesPage from "./components/QuizzesPage";
 import TestPapersPage from "./components/TestPapersPage";
 import AssignmentsPage from "./components/AssignmentsPage";
-import StudentsPage from "./Pages/StudentsPage"; 
+import StudentsPage from "./Pages/StudentsPage";
 import DoubtsPage from "./Pages/DoubtsPage";
+import LiveClassroom from "./Pages/liveClassroom";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
@@ -66,8 +67,10 @@ export default function App() {
         <Route path="quizzes" element={<QuizzesPage />} />
         <Route path="test-papers" element={<TestPapersPage />} />
         <Route path="assignments" element={<AssignmentsPage />} />
-        <Route path="students" element={<StudentsPage />} /> 
+        <Route path="students" element={<StudentsPage />} />
+
         <Route path="doubts" element={<DoubtsPage />} />
+        <Route path="live-classroom" element={<LiveClassroom />} />
       </Route>
 
       {/* Test Results Routes */}

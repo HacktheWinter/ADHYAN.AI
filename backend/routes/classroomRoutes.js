@@ -6,6 +6,8 @@ import {
   getClassrooms,
   getClassroomById,
   deleteClassroom,
+  startMeeting,
+  endMeeting,
 } from "../controllers/classroomController.js";
 
 const router = express.Router();
@@ -15,5 +17,8 @@ router.post("/join", joinClassroom);
 router.get("/", getClassrooms);
 router.get("/:classId", getClassroomById);
 router.delete("/:classId", deleteClassroom);
+router.put("/:classId/meeting/start", startMeeting);
+router.put("/:classId/meeting/end", endMeeting);
+
 
 export default router;
