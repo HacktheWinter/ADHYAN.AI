@@ -7,6 +7,8 @@ const StudentFeedbackPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState(null);
+const [feedbackStatus, setFeedbackStatus] = useState(null);
+
 
   // student info (auto-fill)
   const [studentName, setStudentName] = useState("");
@@ -33,7 +35,7 @@ const StudentFeedbackPage = () => {
   useEffect(() => {
     const fetchFeedback = async () => {
       try {
-        // 1️⃣ Check active feedback
+        // Check active feedback
         const token = localStorage.getItem("token");
 
         if (!token) {
@@ -54,16 +56,11 @@ const StudentFeedbackPage = () => {
         const activeData = await activeRes.json();
 
         if (!activeData.isActive) {
-          alert("No active feedback available");
-          navigate(-1);
-          return;
-        }
+  setFeedbackStatus(activeData.reason);
+  setLoading(false);
+  return;
+}
 
-        if (activeData.alreadySubmitted) {
-          alert("You have already submitted feedback");
-          navigate(-1);
-          return;
-        }
 
         // Fetch feedback form (questions)
 
@@ -152,7 +149,31 @@ const StudentFeedbackPage = () => {
     return <p className="p-6">Loading feedback...</p>;
   }
 
-  if (!feedback) return null;
+if (feedbackStatus === "NO_FEEDBACK") {
+  return (
+    <div className="max-w-xl mx-auto p-8 text-center">
+      <h2 className="text-2xl font-bold text-gray-800 mb-2">
+        No Feedback Available
+      </h2>
+      <p className="text-gray-600">
+        Your teacher has not published any feedback yet.
+      </p>
+    </div>
+  );
+}
+
+if (feedbackStatus === "ALREADY_SUBMITTED") {
+  return (
+    <div className="max-w-xl mx-auto p-8 text-center">
+      <h2 className="text-2xl font-bold text-gray-800 mb-2">
+        Feedback Already Submitted
+      </h2>
+      <p className="text-gray-600">
+        Thank you! You have already submitted your feedback.
+      </p>
+    </div>
+  );
+}
 
   return (
     <div className="max-w-4xl mx-auto p-6">

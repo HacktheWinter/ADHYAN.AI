@@ -41,33 +41,45 @@ export const getActiveFeedback = async (req, res) => {
   try {
     const { classId } = req.params;
 
+    // Find active feedback for this class
     const feedback = await Feedback.findOne({
       classId,
       isActive: true,
     });
 
+    //  No feedback exists
     if (!feedback) {
-      return res.json({ isActive: false });
+      return res.json({
+        isActive: false,
+        reason: "NO_FEEDBACK",
+      });
     }
 
-    // check if student already submitted
-    let alreadySubmitted = false;
-
-    if (req.user && feedback.responses?.length > 0) {
-      alreadySubmitted = feedback.responses.some(
-        (r) => r.studentId && r.studentId.toString() === req.user._id.toString()
+    //  Check if student already submitted
+    const alreadySubmitted =
+      req.user &&
+      feedback.responses?.some(
+        (r) => r.studentId.toString() === req.user._id.toString()
       );
+
+    // Student already submitted → treat as inactive
+    if (alreadySubmitted) {
+      return res.json({
+        isActive: false,
+        reason: "ALREADY_SUBMITTED",
+      });
     }
 
-    res.json({
+    // Feedback is active & student has NOT submitted
+    return res.json({
       isActive: true,
       feedbackId: feedback._id,
-      alreadySubmitted,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 export const getFeedbackForm = async (req, res) => {
   try {
