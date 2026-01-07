@@ -3,25 +3,33 @@ import api from "../api/axios";
 import { Video, Play, Square, Loader2, Signal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { getStoredUser } from "../utils/authStorage";
+
 const LiveMeeting = ({ classId }) => {
   const [isLive, setIsLive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
   const jitsiContainerRef = useRef(null);
   const jitsiApiRef = useRef(null);
+  const isTeacherHostingRef = useRef(false); // Track if teacher is actively hosting
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    setUser(getStoredUser());
   }, []);
 
   const fetchStatus = async () => {
+    // NEVER override state when teacher is actively hosting
+    if (isTeacherHostingRef.current) {
+      console.log('[LiveMeeting] Skipping polling - teacher is hosting');
+      return;
+    }
+
     try {
       const res = await api.get(`/classroom/${classId}`);
       if (res.data.success) {
-        setIsLive(res.data.classroom.isLive);
+        const backendIsLive = res.data.classroom.isLive;
+        console.log('[LiveMeeting] Fetched status:', backendIsLive);
+        setIsLive(backendIsLive);
       }
     } catch (err) {
       console.error("Error fetching class status:", err);
@@ -35,7 +43,8 @@ const LiveMeeting = ({ classId }) => {
   }, [classId]);
 
   useEffect(() => {
-    if (isLive && user) {
+    if (isLive && user && !jitsiApiRef.current) {
+      console.log('[LiveMeeting] Initializing Jitsi...');
       const loadJitsiScript = () => {
         return new Promise((resolve) => {
           if (window.JitsiMeetExternalAPI) {
@@ -43,8 +52,7 @@ const LiveMeeting = ({ classId }) => {
             return;
           }
           const script = document.createElement("script");
-          script.src =
-            "https://8x8.vc/vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/external_api.js";
+          script.src = "https://8x8.vc/vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/external_api.js";
           script.async = true;
           script.onload = resolve;
           document.head.appendChild(script);
@@ -53,8 +61,9 @@ const LiveMeeting = ({ classId }) => {
 
       loadJitsiScript().then(() => {
         if (jitsiContainerRef.current && !jitsiApiRef.current) {
+          console.log('[LiveMeeting] Creating Jitsi instance');
           jitsiApiRef.current = new window.JitsiMeetExternalAPI("8x8.vc", {
-            roomName: `vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/class-${classId}`,
+            roomName: `vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/adhyan-class-${classId}`,
             parentNode: jitsiContainerRef.current,
             userInfo: {
               displayName: user.name || "Teacher",
@@ -63,30 +72,57 @@ const LiveMeeting = ({ classId }) => {
             configOverwrite: {
               startWithAudioMuted: false,
               startWithVideoMuted: false,
+              prejoinPageEnabled: false,
+              enableWelcomePage: false,
             },
             interfaceConfigOverwrite: {
-              // Add any specific UI customizations here
+              SHOW_JITSI_WATERMARK: false,
+              SHOW_WATERMARK_FOR_GUESTS: false,
+              DEFAULT_BACKGROUND: '#474747',
+              DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+              SHOW_BRAND_WATERMARK: false,
             },
+          });
+
+          // Monitor Jitsi events
+          jitsiApiRef.current.addEventListener('videoConferenceJoined', () => {
+            console.log('[LiveMeeting] Teacher joined conference');
+            isTeacherHostingRef.current = true;
+          });
+
+          jitsiApiRef.current.addEventListener('videoConferenceLeft', () => {
+            console.log('[LiveMeeting] Teacher left conference');
+            // Don't immediately end - let teacher control via button
+          });
+
+          jitsiApiRef.current.addEventListener('readyToClose', () => {
+            console.log('[LiveMeeting] Jitsi ready to close');
           });
         }
       });
+    } else if (!isLive && jitsiApiRef.current) {
+      console.log('[LiveMeeting] Disposing Jitsi instance');
+      jitsiApiRef.current.dispose();
+      jitsiApiRef.current = null;
+      isTeacherHostingRef.current = false;
     }
-
-    return () => {
-      if (jitsiApiRef.current) {
-        jitsiApiRef.current.dispose();
-        jitsiApiRef.current = null;
-      }
-    };
   }, [isLive, user, classId]);
 
   const handleStart = async () => {
-    if (!user) return;
+    const teacherId = user?._id || user?.id;
+    if (!teacherId) {
+      console.error("No teacher ID found in user session");
+      alert("Unable to start meeting - please log in again");
+      return;
+    }
     setLoading(true);
+    console.log('[LiveMeeting] Starting meeting...');
     try {
-      await api.put(`/classroom/${classId}/meeting/start`, {
-        teacherId: user._id || user.id,
+      const response = await api.put(`/classroom/${classId}/meeting/start`, {
+        teacherId,
       });
+      console.log('[LiveMeeting] Meeting started on backend:', response.data);
+      isTeacherHostingRef.current = true; // Mark as hosting immediately
       setIsLive(true);
     } catch (err) {
       console.error("Failed to start meeting", err);
@@ -97,18 +133,20 @@ const LiveMeeting = ({ classId }) => {
   };
 
   const handleEnd = async () => {
-    if (!user) return;
-    if (!window.confirm("Are you sure you want to end the class?")) return;
+    const teacherId = user?._id || user?.id;
+    if (!teacherId) {
+      console.error("No teacher ID found in user session");
+      return;
+    }
     setLoading(true);
+    console.log('[LiveMeeting] Ending meeting...');
     try {
-      if (jitsiApiRef.current) {
-        jitsiApiRef.current.dispose();
-        jitsiApiRef.current = null;
-      }
-      await api.put(`/classroom/${classId}/meeting/end`, {
-        teacherId: user._id || user.id,
+      const response = await api.put(`/classroom/${classId}/meeting/end`, {
+        teacherId,
       });
-      setIsLive(false);
+      console.log('[LiveMeeting] Meeting ended on backend:', response.data);
+      isTeacherHostingRef.current = false; // Clear hosting flag
+      setIsLive(false); // useEffect will handle Jitsi disposal
     } catch (err) {
       console.error("Failed to end meeting", err);
       alert("Failed to end meeting");
@@ -193,11 +231,10 @@ const LiveMeeting = ({ classId }) => {
         <div
           ref={jitsiContainerRef}
           style={{ height: isLive ? "70vh" : "45vh" }}
-          className={`w-full rounded-[2rem] border-2 transition-all duration-700 relative overflow-hidden ${
-            !isLive
-              ? "bg-white/40 border-dashed border-slate-200 flex flex-col items-center justify-center group"
-              : "bg-black border-slate-900 shadow-2xl shadow-black/40"
-          }`}
+          className={`w-full rounded-[2rem] border-2 transition-all duration-700 relative overflow-hidden ${!isLive
+            ? "bg-white/40 border-dashed border-slate-200 flex flex-col items-center justify-center group"
+            : "bg-black border-slate-900 shadow-2xl shadow-black/40"
+            }`}
         >
           <AnimatePresence mode="wait">
             {!isLive && (
