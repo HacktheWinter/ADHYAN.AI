@@ -13,20 +13,16 @@ export default function CourseDetailPage() {
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
 
-
-  // ⭐ FEEDBACK VISIBILITY STATE
-  const [showFeedbackBtn, setShowFeedbackBtn] = useState(false);
-
-  // Memoize active tab
-
+  // FEEDBACK VISIBILITY STATE
+  // const [showFeedbackBtn, setShowFeedbackBtn] = useState(false);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const menuOptions = [
-    { name: 'Announcement', icon: '📢' },
-    { name: 'Calendar', icon: '📅' },
-    { name: 'Classes', icon: '📚' },
-    { name: 'Feedback', icon: '💬' }
+    { name: "Announcement", icon: "📢" },
+    { name: "Calendar", icon: "📅" },
+    { name: "Classes", icon: "📚" },
+    { name: "Feedback", icon: "💬" },
   ];
 
   const [className, setClassName] = useState("");
@@ -36,7 +32,6 @@ export default function CourseDetailPage() {
     return pathParts[pathParts.length - 1];
   }, [location.pathname]);
 
-
   // Memoize classInfo
 
   const classInfo = useMemo(() => {
@@ -45,8 +40,8 @@ export default function CourseDetailPage() {
       classId: id,
       studentId: user.id || user._id,
       studentName: user.name,
-      studentRole: user.role || 'student',
-      profilePhoto: user.profilePhoto || '',
+      studentRole: user.role || "student",
+      profilePhoto: user.profilePhoto || "",
     };
   }, [id]);
 
@@ -58,47 +53,40 @@ export default function CourseDetailPage() {
     { id: "doubt", label: "Doubts", path: "doubt" },
   ];
 
-  /* =========================
-     ⭐ STEP 3 CORE LOGIC
-     Show feedback button ONLY IF:
-     - feedback is active
-     - student has NOT submitted
-  ========================== */
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
 
-    const checkFeedback = async () => {
-      try {
-        const res = await fetch(
-          `http://localhost:5000/api/feedback/active/${id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+  // useEffect(() => {
+  //   const token = localStorage.getItem("token");
+  //   if (!token) return;
 
-        const data = await res.json();
+  //   const checkFeedback = async () => {
+  //     try {
+  //       const res = await fetch(
+  //         `http://localhost:5000/api/feedback/active/${id}`,
+  //         {
+  //           headers: {
+  //             Authorization: `Bearer ${token}`,
+  //           },
+  //         }
+  //       );
 
-        // ✅ show button only when allowed
-        setShowFeedbackBtn(data.isActive && !data.alreadySubmitted);
-      } catch (err) {
-        console.error("Error checking feedback", err);
-      }
-    };
+  //       const data = await res.json();
 
-    checkFeedback();
-  }, [id]);
+  //       // show button only when allowed
+  //       setShowFeedbackBtn(data.isActive && !data.alreadySubmitted);
+  //     } catch (err) {
+  //       console.error("Error checking feedback", err);
+  //     }
+  //   };
 
+  //   checkFeedback();
+  // }, [id]);
 
   const checkScroll = () => {
     const container = scrollContainerRef.current;
     if (container) {
       setShowLeftArrow(container.scrollLeft > 0);
       setShowRightArrow(
-        container.scrollLeft <
-          container.scrollWidth - container.clientWidth - 5
+        container.scrollLeft < container.scrollWidth - container.clientWidth - 5
       );
     }
   };
@@ -112,10 +100,11 @@ export default function CourseDetailPage() {
   useEffect(() => {
     if (isMenuOpen) {
       const handleClickOutside = (e) => {
-        if (!e.target.closest('.menu-container')) setIsMenuOpen(false);
+        if (!e.target.closest(".menu-container")) setIsMenuOpen(false);
       };
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isMenuOpen]);
   // Fetch classroom details to get the name
@@ -123,7 +112,11 @@ export default function CourseDetailPage() {
     const fetchClassroom = async () => {
       try {
         const response = await API.get(`/classroom/${id}`);
-        if (response.data && response.data.classroom && response.data.classroom.name) {
+        if (
+          response.data &&
+          response.data.classroom &&
+          response.data.classroom.name
+        ) {
           setClassName(response.data.classroom.name);
         }
       } catch (error) {
@@ -152,13 +145,13 @@ export default function CourseDetailPage() {
   const handleMenuOption = (option) => {
     // console.log(`Selected: ${option}`);
     setIsMenuOpen(false);
-    if (option === 'announcement') {
-        navigate(`announcement`);
+    if (option === "announcement") {
+      navigate(`announcement`);
     }
-    if (option === 'calendar') {
-        navigate(`calendar`);
+    if (option === "calendar") {
+      navigate(`calendar`);
     }
-    // Add your navigation logic here
+    if (option === "feedback"){ navigate("feedback");}
   };
 
   return (
@@ -175,69 +168,51 @@ export default function CourseDetailPage() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              Course Material
+              {className || "Course Material"}
             </h1>
             <p className="text-gray-600 mt-1 text-sm sm:text-base">
               Access notes, quizzes, assignments, tests and doubts
             </p>
           </div>
 
-          {/* ⭐ GIVE FEEDBACK BUTTON */}
-          {showFeedbackBtn && (
-            <button
-              onClick={() => navigate("feedback")}
-              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
-            >
-              📝 Give Feedback
-            </button>
-          )}
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Course Material</h1>
-            <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, quizzes, assignments, tests and doubts</p>
-          </div>
+          <div className="flex items-center gap-4">
+            {/*  GIVE FEEDBACK BUTTON */}
+            {/* {showFeedbackBtn && (
+              <button
+                onClick={() => navigate("feedback")}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
+              >
+                📝 Give Feedback
+              </button>
+            )} */}
 
-          {/* Floating Action Button */}
-          <div className="menu-container relative">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center ${
-                isMenuOpen ? 'rotate-90 scale-110' : 'hover:scale-105'
-              }`}
-            >
-              <Grid className="w-6 h-6" />
-            </button>
+            {/* Floating Menu */}
+            <div className="menu-container relative">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg flex items-center justify-center"
+              >
+                <Grid className="w-6 h-6" />
+              </button>
 
-            {/* Sidebar Style Dropdown */}
-            {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-gray-50 rounded-lg shadow-lg border border-gray-300 overflow-hidden z-50">
-                <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-4 py-2 border-b border-purple-400">
-                  <p className="text-xs font-semibold text-white uppercase tracking-wide">Quick Tools</p>
+              {isMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-gray-50 rounded-lg shadow-lg border z-50">
+                  {menuOptions.map((option, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() =>
+                        handleMenuOption(option.name.toLowerCase())
+                      }
+                      className="w-full px-4 py-3 text-left hover:bg-white"
+                    >
+                      {option.icon} {option.name}
+                    </button>
+                  ))}
                 </div>
-                {menuOptions.map((option, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleMenuOption(option.name.toLowerCase())}
-                    className="w-full flex items-center justify-between px-4 py-3 text-gray-800 hover:bg-white hover:shadow-sm transition-all cursor-pointer border-b border-gray-200 last:border-b-0"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">{option.icon}</span>
-                      <span className="font-medium text-sm">{option.name}</span>
-                    </div>
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                ))}
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-        {className && <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{className}</h1>}
-        <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, quizzes, assignments, tests and doubts</p>
-
       </div>
 
       {/* Tabs */}
