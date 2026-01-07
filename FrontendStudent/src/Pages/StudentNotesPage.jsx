@@ -1,4 +1,3 @@
-// FrontendStudent/src/Pages/StudentNotesPage.jsx
 import React, { useState, useEffect } from "react";
 import { useOutletContext, useParams } from "react-router-dom";
 import { FileText, Download, Eye, X, Loader } from "lucide-react";
@@ -153,11 +152,14 @@ const StudentNotesPage = () => {
 
       {/* Preview Modal */}
       {previewNote && (
-         <PdfPreview
-            url={`http://localhost:5000/api/notes/file/${previewNote.fileId}`}
-            title={previewNote.title}
-            onClose={closePreview}
-         />
+
+        <PdfPreview
+          url={`http://localhost:5000/api/notes/file/${previewNote.fileId}`}
+          title={previewNote.title}
+          onClose={closePreview}
+        />
+
+       
       )}
     </div>
   );
