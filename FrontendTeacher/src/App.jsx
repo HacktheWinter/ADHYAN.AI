@@ -97,24 +97,9 @@ export default function App() {
         <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="students" element={<StudentsPage />} /> 
         <Route path="doubts" element={<DoubtsPage />} />
+        <Route path="announcement" element={<Announcement />} />
+        <Route path="calendar" element={<CalendarPage />} />
       </Route>
-
-      <Route
-        path="/class/:classId/announcement"
-        element={
-          <ProtectedRoute requiredRole="teacher">
-            <Announcement />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/class/:classId/calendar"
-        element={
-          <ProtectedRoute requiredRole="teacher">
-            <CalendarPage />
-          </ProtectedRoute>
-        }
-      />
 
       {/* Test Results Routes */}
       <Route
