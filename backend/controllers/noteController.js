@@ -2,7 +2,7 @@
 import mongoose from "mongoose";
 import multer from "multer";
 import Note from "../models/Note.js";
-import { bucket, conn } from "../config/gridfs.js";
+import { getBucket } from "../config/gridfs.js";
 
 // Multer setup for GridFS (memory storage for streaming to bucket)
 const storage = multer.memoryStorage();
@@ -23,6 +23,11 @@ export const uploadNote = [
   async (req, res) => {
     try {
       const { title, uploadedBy, classroomId } = req.body;
+      const bucket = getBucket();
+
+      if (!bucket) {
+        return res.status(503).json({ message: "Database connection not ready. Please try again in a few seconds." });
+      }
 
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -42,20 +47,27 @@ export const uploadNote = [
         contentType: req.file.mimetype,
       });
 
+      const fileId = uploadStream.id;
+
       uploadStream.end(req.file.buffer);
 
       uploadStream.on("finish", async () => {
-        const note = await Note.create({
-          title,
-          uploadedBy,
-          classroomId,
-          fileId: uploadStream.id,
-        });
+        try {
+          const note = await Note.create({
+            title,
+            uploadedBy,
+            classroomId,
+            fileId: fileId,
+          });
 
-        res.status(201).json({
-          message: "Note uploaded successfully",
-          note,
-        });
+          res.status(201).json({
+            message: "Note uploaded successfully",
+            note,
+          });
+        } catch (dbError) {
+          console.error("Database Error after GridFS upload:", dbError);
+          res.status(500).json({ message: "File uploaded but database record failed" });
+        }
       });
 
       uploadStream.on("error", (err) => {
@@ -95,6 +107,7 @@ export const getNotesByClassroom = async (req, res) => {
       return res.status(400).json({ message: "Classroom ID is required" });
     }
 
+    // Try finding by classroomId (as stored in DB)
     const notes = await Note.find({ classroomId }).sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -115,31 +128,44 @@ export const getNotesByClassroom = async (req, res) => {
 export const getNoteFile = async (req, res) => {
   try {
     const { fileId } = req.params;
+    const bucket = getBucket();
+
+    if (!bucket) {
+      return res.status(503).json({ message: "Database connection not ready" });
+    }
+
     const _id = new mongoose.Types.ObjectId(fileId);
 
     const readStream = bucket.openDownloadStream(_id);
 
     readStream.on("error", (err) => {
       console.error("GridFS Read Error:", err);
-      res.status(404).json({
-        message: "File not found",
-        error: err.message,
-      });
+      if (!res.headersSent) {
+        res.status(404).json({
+          message: "File not found",
+          error: err.message,
+        });
+      }
     });
 
     res.set("Content-Type", "application/pdf");
     readStream.pipe(res);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Server error" });
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Server error" });
+    }
   }
 };
 
 export const deleteNote = async (req, res) => {
   try {
     const { noteId } = req.params;
+    const bucket = getBucket();
 
-    console.log("Delete request for note:", noteId);
+    if (!bucket) {
+      return res.status(503).json({ message: "Database connection not ready" });
+    }
 
     // Find the note
     const note = await Note.findById(noteId);
@@ -154,15 +180,13 @@ export const deleteNote = async (req, res) => {
     // Delete file from GridFS
     try {
       await bucket.delete(new mongoose.Types.ObjectId(note.fileId));
-      console.log("File deleted from GridFS:", note.fileId);
     } catch (gridFsError) {
       console.error("GridFS delete error:", gridFsError);
-      // Continue even if GridFS delete fails
+      // Continue even if GridFS delete fails (maybe file already gone)
     }
 
     // Delete note from database
     await Note.findByIdAndDelete(noteId);
-    console.log("Note deleted from database:", noteId);
 
     res.status(200).json({
       success: true,
