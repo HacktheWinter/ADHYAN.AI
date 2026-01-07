@@ -6,9 +6,9 @@ const API = axios.create({
 });
 
 // Create new classroom
-export const createClassroom = async (teacherId, name) => {
+export const createClassroom = async (payload) => {
   try {
-    const response = await API.post("/create", { teacherId, name });
+    const response = await API.post("/create", payload);
     return response.data;
   } catch (error) {
     console.error("Error creating classroom:", error);
@@ -47,6 +47,17 @@ export const getClassroomDetails = async (classId) => {
     return response.data;
   } catch (error) {
     console.error("Error fetching classroom details:", error);
+    throw error;
+  }
+};
+
+// Update classroom
+export const updateClassroom = async (classId, payload) => {
+  try {
+    const response = await API.put(`/${classId}`, payload);
+    return response.data;
+  } catch (error) {
+    console.error("Error updating classroom:", error);
     throw error;
   }
 };

@@ -1,12 +1,14 @@
 // FrontendStudent/src/App.jsx
-import React from "react";
+import React, { useState } from "react";
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 
 import StudentNavbar from "./components/StudentNavbar";
 import NoteCraftsDashboard from "./Pages/NoteCraftsDashboard";
 import CourseDetailPage from "./Pages/CourseDetailPage";
 import StudentNotesPage from "./Pages/StudentNotesPage";
+import ProfilePage from "./Pages/ProfilePage";
 import Login from "./Pages/Login";
+import ForgotPassword from './Pages/ForgotPassword';
 import Signup from "./Pages/Signup";
 import ClassesPage from "./Pages/ClassesPage";
 
@@ -18,12 +20,20 @@ import Quiz from "./Pages/Quiz";
 import TestPapers from "./Pages/TestPapers";
 import Assignments from "./Pages/Assignments";
 import DoubtPage from "./Pages/DoubtPage";
+import StudentAnnouncement from "./Pages/StudentAnnouncement";
+import StudentCalendarPage from "./Pages/StudentCalendarPage";
+import SettingsPage from "./Pages/SettingsPage";
 
 function StudentLayout() {
+  const [searchQuery, setSearchQuery] = useState("");
+
   return (
     <>
-      <StudentNavbar />
-      <Outlet />
+      <StudentNavbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+      />
+      <Outlet context={{ searchQuery, setSearchQuery }} />
     </>
   );
 }
@@ -46,6 +56,30 @@ export default function App() {
           <PublicRoute currentRole="student">
             <Signup />
           </PublicRoute>
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={<ForgotPassword />}
+      />
+
+      {/* Profile route without navbar */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute requiredRole="student">
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Settings route without navbar */}
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute requiredRole="student">
+            <SettingsPage />
+          </ProtectedRoute>
         }
       />
 
@@ -73,7 +107,20 @@ export default function App() {
           <Route path="doubt" element={<DoubtPage />} />
           <Route path="classes" element={<ClassesPage />} />
         </Route>
+
+        {/* Standalone Course Announcement Route (with navbar) */}
+        <Route path="course/:id/announcement" element={<StudentAnnouncement />} />
       </Route>
+
+      {/* Calendar Route (Fullscreen - No Navbar) */}
+      <Route
+        path="/course/:id/calendar"
+        element={
+          <ProtectedRoute requiredRole="student">
+            <StudentCalendarPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Redirect any unknown route */}
       <Route path="*" element={<Navigate to="/" replace />} />
