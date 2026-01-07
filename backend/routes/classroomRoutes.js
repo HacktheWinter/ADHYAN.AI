@@ -7,6 +7,8 @@ import {
   getClassroomById,
   updateClassroom,
   deleteClassroom,
+  startMeeting,
+  endMeeting,
   leaveClassroom,
 } from "../controllers/classroomController.js";
 
@@ -18,6 +20,9 @@ router.get("/", getClassrooms);
 router.get("/:classId", getClassroomById);
 router.put("/:classId", updateClassroom);
 router.delete("/:classId", deleteClassroom);
+router.put("/:classId/meeting/start", startMeeting);
+router.put("/:classId/meeting/end", endMeeting);
+
 router.post("/:classId/leave", leaveClassroom);
 
 export default router;

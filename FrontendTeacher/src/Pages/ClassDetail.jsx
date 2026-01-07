@@ -1,7 +1,7 @@
 // FrontendTeacher/src/Pages/ClassDetail.jsx
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Outlet, useLocation } from "react-router-dom";
-import axios from "axios";
+import api from "../api/axios";
 import Header from "../components/Header";
 import ClassHeader from "../components/ClassHeader";
 import ClassTabs from "../components/ClassTabs";
@@ -11,16 +11,29 @@ const ClassDetail = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const isLiveClassroom = location.pathname.includes("/live-classroom");
 
   const [classData, setClassData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const menuItems = [
-    { name: 'Announcement', icon: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z' },
-    { name: 'Calendar', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-    { name: 'Classes', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-    { name: 'Feedback', icon: 'M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z' }
+    {
+      name: "Announcement",
+      icon: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z",
+    },
+    {
+      name: "Calendar",
+      icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+    },
+    {
+      name: "Classes",
+      icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+    },
+    {
+      name: "Feedback",
+      icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z",
+    },
   ];
 
   const currentUser = useMemo(() => {
@@ -30,12 +43,24 @@ const ClassDetail = () => {
   const activeTab = useMemo(() => {
     const pathParts = location.pathname.split("/").filter(Boolean);
     const lastPart = pathParts[pathParts.length - 1];
-    const validTabs = ["notes", "quizzes", "test-papers", "assignments", "students", "doubts", "announcement", "calendar"];
+    const validTabs = ["notes", "quizzes", "test-papers", "assignments", "students", "doubts"];
     return validTabs.includes(lastPart) ? lastPart : "notes";
   }, [location.pathname]);
 
   const handleBack = useCallback(() => navigate("/"), [navigate]);
   const handleLogoClick = useCallback(() => navigate("/"), [navigate]);
+
+
+  const handleDropdownOption = useCallback(
+    (option) => {
+      console.log(`Selected: ${option}`);
+      setIsDropdownOpen(false);
+      if (option === "classes") {
+        navigate(`/class/${classId}/live-classroom`);
+      }
+    },
+    [navigate, classId]
+  );
 
   const handleDropdownOption = useCallback((option) => {
     // console.log(`Selected: ${option}`);
@@ -49,13 +74,15 @@ const ClassDetail = () => {
     // Add other navigations here if needed
   }, [navigate]);
 
+
   useEffect(() => {
     if (isDropdownOpen) {
       const handleClickOutside = (e) => {
-        if (!e.target.closest('.dropdown-container')) setIsDropdownOpen(false);
+        if (!e.target.closest(".dropdown-container")) setIsDropdownOpen(false);
       };
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isDropdownOpen]);
 
@@ -63,6 +90,7 @@ const ClassDetail = () => {
     const fetchClassData = async () => {
       try {
         setLoading(true);
+        const response = await api.get(`/classroom/${classId}`);
         const response = await axios.get(`http://localhost:5000/api/classroom/${classId}`);
 
         const classroom = response.data.classroom;
@@ -96,7 +124,10 @@ const ClassDetail = () => {
     return () => console.log('ClassDetail: Unmounting');
   }, [classId]);
 
-  const outletContext = useMemo(() => ({ classData, currentUser }), [classData, currentUser]);
+  const outletContext = useMemo(
+    () => ({ classData, currentUser }),
+    [classData, currentUser]
+  );
 
   if (loading) {
     return (
@@ -120,8 +151,13 @@ const ClassDetail = () => {
         <Header onLogoClick={handleLogoClick} />
         <main className="max-w-7xl mx-auto px-6 py-8">
           <div className="text-center mt-20">
-            <h2 className="text-2xl font-semibold text-gray-700 mb-4">Classroom not found</h2>
-            <button onClick={handleBack} className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+            <h2 className="text-2xl font-semibold text-gray-700 mb-4">
+              Classroom not found
+            </h2>
+            <button
+              onClick={handleBack}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+            >
               Back to Dashboard
             </button>
           </div>
@@ -132,16 +168,14 @@ const ClassDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header onLogoClick={handleLogoClick} />
+      {/* Hide global header in live classroom */}
+      {!isLiveClassroom && <Header onLogoClick={handleLogoClick} />}
 
-      <main className={`max-w-7xl mx-auto ${activeTab === 'calendar' ? 'p-0 max-w-none' : 'px-6 py-8'}`}>
+      <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="relative">
-          {!["announcement", "calendar"].includes(activeTab) && (
-            <ClassHeader classData={classData} onBack={handleBack} />
-          )}
+          <ClassHeader classData={classData} onBack={handleBack} />
           
           {/* Dropdown Menu */}
-          {!["announcement", "calendar"].includes(activeTab) && (
           <div className="absolute top-0 right-0 dropdown-container">
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -174,22 +208,25 @@ const ClassDetail = () => {
               </div>
             )}
           </div>
-          )}
         </div>
 
-        {!["announcement", "calendar"].includes(activeTab) && (
-          <ClassTabs activeTab={activeTab} classId={classId} />
-        )}
+        <ClassTabs activeTab={activeTab} classId={classId} />
 
-        <div className={!["announcement", "calendar"].includes(activeTab) ? "mt-6" : ""}>
+        <div className="mt-6">
           <Outlet context={outletContext} />
         </div>
       </main>
 
       <style jsx>{`
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
         .animate-fadeIn {
           animation: fadeIn 0.2s ease-out;

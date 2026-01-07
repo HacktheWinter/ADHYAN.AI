@@ -7,7 +7,8 @@ const classroomSchema = new mongoose.Schema({
   classCode: { type: String, required: true, unique: true, default: () => nanoid(6).toUpperCase() },
   teacherId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  leftStudents: [{ 
+
+  leftStudents: [{
     studentId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     leftAt: { type: Date, default: Date.now }
   }],
