@@ -23,5 +23,6 @@ router.delete("/:classId", deleteClassroom);
 router.put("/:classId/meeting/start", startMeeting);
 router.put("/:classId/meeting/end", endMeeting);
 
+router.post("/:classId/leave", leaveClassroom);
 
 export default router;

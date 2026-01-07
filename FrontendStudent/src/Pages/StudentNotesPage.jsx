@@ -152,11 +152,14 @@ const StudentNotesPage = () => {
 
       {/* Preview Modal */}
       {previewNote && (
+
         <PdfPreview
           url={`http://localhost:5000/api/notes/file/${previewNote.fileId}`}
           title={previewNote.title}
           onClose={closePreview}
         />
+
+       
       )}
     </div>
   );

@@ -18,7 +18,9 @@ import PublicRoute from "./components/PublicRoute";
 // Import existing tab components
 import Quiz from "./Pages/Quiz";
 import TestPapers from "./Pages/TestPapers";
+
 import Assignments from "./Pages/Assignments";
+
 import DoubtPage from "./Pages/DoubtPage";
 import StudentAnnouncement from "./Pages/StudentAnnouncement";
 import StudentCalendarPage from "./Pages/StudentCalendarPage";
@@ -58,9 +60,11 @@ export default function App() {
           </PublicRoute>
         }
       />
+
       <Route
         path="/forgot-password"
         element={<ForgotPassword />}
+
       />
 
       {/* Profile route without navbar */}

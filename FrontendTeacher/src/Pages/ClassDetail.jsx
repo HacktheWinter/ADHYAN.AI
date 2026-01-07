@@ -57,6 +57,7 @@ const ClassDetail = () => {
   const handleBack = useCallback(() => navigate("/"), [navigate]);
   const handleLogoClick = useCallback(() => navigate("/"), [navigate]);
 
+
   const handleDropdownOption = useCallback(
     (option) => {
       console.log(`Selected: ${option}`);
@@ -67,6 +68,19 @@ const ClassDetail = () => {
     },
     [navigate, classId]
   );
+
+  const handleDropdownOption = useCallback((option) => {
+    // console.log(`Selected: ${option}`);
+    setIsDropdownOpen(false);
+    if(option === 'announcement') {
+        navigate('announcement');
+    }
+    if(option === 'calendar') {
+        navigate('calendar');
+    }
+    // Add other navigations here if needed
+  }, [navigate]);
+
 
   useEffect(() => {
     if (isDropdownOpen) {
@@ -84,6 +98,8 @@ const ClassDetail = () => {
       try {
         setLoading(true);
         const response = await api.get(`/classroom/${classId}`);
+        const response = await axios.get(`http://localhost:5000/api/classroom/${classId}`);
+
         const classroom = response.data.classroom;
 
         if (classroom) {
