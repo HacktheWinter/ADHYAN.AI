@@ -20,6 +20,8 @@ import testSubmissionRoutes from "./routes/testSubmissionRoutes.js";
 import assignmentRoutes from "./routes/assignmentRoutes.js";
 import assignmentSubmissionRoutes from "./routes/assignmentSubmissionRoutes.js";
 
+import videoRoutes from "./routes/video.routes.js";
+
 const app = express();
 
 dotenv.config();
@@ -83,6 +85,7 @@ app.use("/api/test-paper", testPaperRoutes);
 app.use("/api/test-submission", testSubmissionRoutes);
 app.use("/api/assignment", assignmentRoutes); //
 app.use("/api/assignment-submission", assignmentSubmissionRoutes);
+app.use("/api", videoRoutes);
 
 // Health check
 app.get("/", (req, res) => {

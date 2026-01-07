@@ -8,6 +8,7 @@ import CourseDetailPage from "./Pages/CourseDetailPage";
 import StudentNotesPage from "./Pages/StudentNotesPage";
 import Login from "./Pages/Login";
 import Signup from "./Pages/Signup";
+import ClassesPage from "./Pages/ClassesPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
@@ -15,8 +16,8 @@ import PublicRoute from "./components/PublicRoute";
 // Import existing tab components
 import Quiz from "./Pages/Quiz";
 import TestPapers from "./Pages/TestPapers";
-import Assignments from "./Pages/Assignments"; 
-import DoubtPage  from "./Pages/DoubtPage";
+import Assignments from "./Pages/Assignments";
+import DoubtPage from "./Pages/DoubtPage";
 
 function StudentLayout() {
   return (
@@ -58,18 +59,19 @@ export default function App() {
         }
       >
         <Route index element={<NoteCraftsDashboard />} />
-        
+
         {/* Course Detail with Nested Routes */}
         <Route path="course/:id" element={<CourseDetailPage />}>
           {/* Default redirect to notes */}
           <Route index element={<Navigate to="notes" replace />} />
-          
+
           {/* Tab Routes */}
           <Route path="notes" element={<StudentNotesPage />} />
           <Route path="quiz" element={<Quiz />} />
           <Route path="assignment" element={<Assignments />} />
           <Route path="test" element={<TestPapers />} />
           <Route path="doubt" element={<DoubtPage />} />
+          <Route path="classes" element={<ClassesPage />} />
         </Route>
       </Route>
 
