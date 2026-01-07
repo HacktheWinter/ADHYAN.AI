@@ -185,7 +185,8 @@ export const getQuizSubmissions = async (req, res) => {
     const { quizId } = req.params;
 
     const submissions = await QuizSubmission.find({ quizId })
-      .populate("studentId", "name email")
+      .populate("studentId", "name email profilePhoto")
+      .populate("quizId", "title questions status")
       .sort({ submittedAt: -1 });
 
     res.status(200).json({
@@ -195,6 +196,24 @@ export const getQuizSubmissions = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching submissions:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+export const getSubmissionById = async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+
+    const submission = await QuizSubmission.findById(submissionId)
+      .populate("studentId", "name email profilePhoto")
+      .populate("quizId", "title questions");
+
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found" });
+    }
+
+    res.status(200).json({ submission });
+  } catch (error) {
+    console.error("Error fetching submission:", error);
     res.status(500).json({ error: "Server error" });
   }
 };

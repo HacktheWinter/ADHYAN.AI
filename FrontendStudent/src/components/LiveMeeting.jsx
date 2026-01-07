@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import API from "../api/axios";
+import { Video } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function LiveMeeting({ classId, role }) {
   const [isLive, setIsLive] = useState(false);
@@ -40,7 +42,8 @@ export default function LiveMeeting({ classId, role }) {
             return;
           }
           const script = document.createElement("script");
-          script.src = "https://8x8.vc/vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/external_api.js";
+          script.src =
+            "https://8x8.vc/vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/external_api.js";
           script.async = true;
           script.onload = resolve;
           document.head.appendChild(script);
@@ -54,7 +57,7 @@ export default function LiveMeeting({ classId, role }) {
             parentNode: jitsiContainerRef.current,
             userInfo: {
               displayName: user.name || "Student",
-              email: user.email || ""
+              email: user.email || "",
             },
             configOverwrite: {
               startWithAudioMuted: true,
@@ -62,7 +65,7 @@ export default function LiveMeeting({ classId, role }) {
             },
             interfaceConfigOverwrite: {
               // Custom UI for students if needed
-            }
+            },
           });
         }
       });
@@ -77,31 +80,56 @@ export default function LiveMeeting({ classId, role }) {
   }, [isLive, user, classId]);
 
   return (
-    <div className="bg-white rounded-xl shadow border p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-semibold text-gray-800">Live Class</h2>
+    <div className="bg-white/50 backdrop-blur-sm rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
+      <div className="p-4 sm:p-6 border-b border-slate-100 bg-white/30 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600">
+            <Video size={20} />
+          </div>
+          <h2 className="font-bold text-slate-800 text-lg">Class Stream</h2>
+        </div>
         {isLive && (
-          <span className="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full animate-pulse flex items-center font-medium">
-            <span className="w-1.5 h-1.5 bg-red-700 rounded-full mr-1.5"></span>
-            LIVE
-          </span>
+          <div className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-1.5 rounded-full animate-pulse border border-red-100">
+            <span className="w-2 h-2 bg-red-600 rounded-full"></span>
+            <span className="text-xs font-black uppercase tracking-wider">
+              Live Now
+            </span>
+          </div>
         )}
       </div>
 
-      <div
-        ref={jitsiContainerRef}
-        style={{ height: "70vh" }}
-        className={`w-full rounded-lg border overflow-hidden ${!isLive ? 'bg-gray-50 flex flex-col items-center justify-center border-dashed border-gray-300' : 'bg-black'}`}
-      >
-        {!isLive && (
-          <div className="text-center p-6">
-            <h3 className="text-lg font-medium text-gray-900">Waiting for teacher...</h3>
-            <p className="mt-1 text-sm text-gray-500">The live class hasn't started yet.</p>
-            <div className="mt-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-            </div>
-          </div>
-        )}
+      <div className="p-2 sm:p-4">
+        <div
+          ref={jitsiContainerRef}
+          style={{ height: "65vh" }}
+          className={`w-full rounded-2xl border overflow-hidden transition-all duration-500 ${
+            !isLive
+              ? "bg-slate-50 flex flex-col items-center justify-center border-dashed border-slate-300"
+              : "bg-black shadow-inner shadow-black/20"
+          }`}
+        >
+          {!isLive && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center p-8 max-w-sm"
+            >
+              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mx-auto mb-6">
+                <Video className="text-slate-300" size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">
+                Waiting for Teacher
+              </h3>
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed font-medium">
+                The session hasn't started yet.
+              </p>
+              <div className="mt-8 relative">
+                <div className="absolute inset-0 bg-indigo-400 blur-xl opacity-20 rounded-full animate-pulse"></div>
+                <div className="relative animate-spin rounded-full h-10 w-10 border-[3px] border-indigo-100 border-t-indigo-600 mx-auto"></div>
+              </div>
+            </motion.div>
+          )}
+        </div>
       </div>
     </div>
   );

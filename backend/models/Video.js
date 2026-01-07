@@ -35,6 +35,9 @@ const videoSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    cloudinaryId: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

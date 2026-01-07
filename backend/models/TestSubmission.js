@@ -13,7 +13,7 @@ const answerSchema = new mongoose.Schema({
   studentAnswer: {
     type: String,
     default: "",      // allow empty answers
-    required: false,  // ❌ REQUIRED = TRUE BREAKS EMPTY ANSWERS
+    required: false,  // REQUIRED = TRUE BREAKS EMPTY ANSWERS
   },
   answerKey: {
     type: String,
@@ -79,7 +79,7 @@ const testSubmissionSchema = new mongoose.Schema({
     enum: ["pending", "checked"],
     default: "pending",
   },
-  // ⭐ NEW: Result publication flag
+  // Result publication flag
   isResultPublished: {
     type: Boolean,
     default: false,

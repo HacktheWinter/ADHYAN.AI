@@ -3,15 +3,17 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import ClassCard from "../components/ClassCard";
 import NewClass from "../components/NewClass";
-import { getClassrooms, createClassroom, deleteClassroom } from "../api/classroomApi";
+import { getClassrooms, createClassroom, deleteClassroom, updateClassroom } from "../api/classroomApi";
+import { getStoredUser } from "../utils/authStorage";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingClass, setEditingClass] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getStoredUser() || {};
   const teacherId = user.id || user._id;
   const role = "teacher";
 
@@ -36,8 +38,16 @@ const Dashboard = () => {
 
   const handleCreateClass = async (newClassData) => {
     try {
-      const { name } = newClassData;
-      const response = await createClassroom(teacherId, name);
+      const { name, subject, colorTheme, themeImage } = newClassData;
+
+      const response = await createClassroom({
+        teacherId,
+        name,
+        subject,
+        colorTheme,
+        themeImage,
+      });
+
       if (response && response.classroom) {
         setClasses((prev) => [...prev, response.classroom]);
         alert(`Class created successfully! Class Code: ${response.classroom.classCode}`);
@@ -46,6 +56,31 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error creating classroom:", error);
       alert("Failed to create classroom");
+    }
+  };
+
+  const handleUpdateClass = async (updates) => {
+    if (!editingClass) return;
+    try {
+      const response = await updateClassroom(editingClass._id, {
+        teacherId,
+        ...updates,
+      });
+
+      if (response && response.classroom) {
+        setClasses((prev) =>
+          prev.map((cls) =>
+            (cls._id || cls.id) === editingClass._id ? response.classroom : cls
+          )
+        );
+        alert("Class updated successfully");
+      }
+    } catch (error) {
+      console.error("Error updating classroom:", error);
+      alert("Failed to update classroom");
+    } finally {
+      setEditingClass(null);
+      setIsModalOpen(false);
     }
   };
 
@@ -86,7 +121,10 @@ const Dashboard = () => {
           </div>
           {classes.length > 0 && (
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setEditingClass(null);
+                setIsModalOpen(true);
+              }}
               className="w-full sm:w-auto px-4 py-2 sm:py-2.5 bg-blue-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-blue-700 transition cursor-pointer whitespace-nowrap"
             >
               + Create New Class
@@ -107,7 +145,10 @@ const Dashboard = () => {
               You haven't created any classrooms yet.
             </h2>
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setEditingClass(null);
+                setIsModalOpen(true);
+              }}
               className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-blue-700 transition cursor-pointer"
             >
               + Create Your First Class
@@ -116,21 +157,28 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {classes.map((classItem) => (
-              <ClassCard
-                key={classItem._id}
-                classData={{
-                  id: classItem._id,
-                  _id: classItem._id,
-                  name: classItem.name,
-                  subject: classItem.name,
-                  studentCount: classItem.students?.length || 0,
-                  classCode: classItem.classCode,
-                  students: classItem.students,
-                  color: "bg-gradient-to-br from-purple-500 to-purple-700",
-                }}
-                onClick={() => handleClassClick(classItem)}
-                onDelete={handleDeleteClass}
-              />
+              <div key={classItem._id} className="h-full">
+                <ClassCard
+                  classData={{
+                    id: classItem._id,
+                    _id: classItem._id,
+                    name: classItem.name,
+                    subject: classItem.subject || classItem.name,
+                    studentCount: classItem.students?.length || 0,
+                    classCode: classItem.classCode,
+                    students: classItem.students,
+                    color: classItem.colorTheme || classItem.color || "bg-gradient-to-br from-purple-500 to-purple-700",
+                    colorTheme: classItem.colorTheme,
+                    themeImage: classItem.themeImage,
+                  }}
+                  onClick={() => handleClassClick(classItem)}
+                  onDelete={handleDeleteClass}
+                  onEdit={() => {
+                    setEditingClass(classItem);
+                    setIsModalOpen(true);
+                  }}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -140,8 +188,14 @@ const Dashboard = () => {
         <div className="fixed inset-0 z-50">
           <NewClass
             isOpen={isModalOpen}
-            onClose={() => setIsModalOpen(false)}
+            onClose={() => {
+              setIsModalOpen(false);
+              setEditingClass(null);
+            }}
             onCreate={handleCreateClass}
+            onUpdate={handleUpdateClass}
+            initialData={editingClass}
+            mode={editingClass ? "edit" : "create"}
           />
         </div>
       )}
