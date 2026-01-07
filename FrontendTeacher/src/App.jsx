@@ -21,7 +21,10 @@ import TestPapersPage from "./components/TestPapersPage";
 import AssignmentsPage from "./components/AssignmentsPage";
 import StudentsPage from "./Pages/StudentsPage";
 import DoubtsPage from "./Pages/DoubtsPage";
+
 import LiveClassroom from "./Pages/LiveClassroom";
+
+
 import Announcement from "./Pages/Announcement";
 import CalendarPage from "./Pages/CalendarPage";
 import SettingsPage from "./Pages/SettingsPage";
@@ -49,9 +52,11 @@ export default function App() {
           </PublicRoute>
         }
       />
+
       <Route
         path="/forgot-password"
         element={<ForgotPassword />}
+
       />
 
       {/* Protected Routes */}
