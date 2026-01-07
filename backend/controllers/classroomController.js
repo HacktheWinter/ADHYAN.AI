@@ -175,3 +175,71 @@ export const deleteClassroom = async (req, res) => {
     res.status(500).json({ error: "Server error while deleting classroom" });
   }
 };
+
+/**
+ * Start Live Meeting
+ * PUT /api/classroom/:classId/meeting/start
+ */
+export const startMeeting = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { teacherId } = req.body;
+
+    const classroom = await Classroom.findById(classId);
+    if (!classroom) {
+      return res.status(404).json({ error: "Classroom not found" });
+    }
+
+    // Verify teacher
+    if (classroom.teacherId.toString() !== teacherId) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    classroom.isLive = true;
+    await classroom.save();
+
+    // Emit socket event
+    const io = req.app.get("io");
+    if (io) {
+      io.to(classId).emit("meeting_status_changed", { isLive: true, classId });
+    }
+
+    res.status(200).json({ success: true, message: "Meeting started", isLive: true });
+  } catch (error) {
+    console.error("Start Meeting Error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+/**
+ * End Live Meeting
+ * PUT /api/classroom/:classId/meeting/end
+ */
+export const endMeeting = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { teacherId } = req.body;
+
+    const classroom = await Classroom.findById(classId);
+    if (!classroom) {
+      return res.status(404).json({ error: "Classroom not found" });
+    }
+
+    if (classroom.teacherId.toString() !== teacherId) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    classroom.isLive = false;
+    await classroom.save();
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(classId).emit("meeting_status_changed", { isLive: false, classId });
+    }
+
+    res.status(200).json({ success: true, message: "Meeting ended", isLive: false });
+  } catch (error) {
+    console.error("End Meeting Error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
