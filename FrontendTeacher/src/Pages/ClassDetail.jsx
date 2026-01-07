@@ -28,9 +28,9 @@ const ClassDetail = () => {
   }, []);
 
   const activeTab = useMemo(() => {
-    const pathParts = location.pathname.split("/");
+    const pathParts = location.pathname.split("/").filter(Boolean);
     const lastPart = pathParts[pathParts.length - 1];
-    const validTabs = ["notes", "quizzes", "test-papers", "assignments", "students", "doubts"];
+    const validTabs = ["notes", "quizzes", "test-papers", "assignments", "students", "doubts", "announcement", "calendar"];
     return validTabs.includes(lastPart) ? lastPart : "notes";
   }, [location.pathname]);
 
@@ -41,10 +41,10 @@ const ClassDetail = () => {
     // console.log(`Selected: ${option}`);
     setIsDropdownOpen(false);
     if(option === 'announcement') {
-        navigate('announcement');
+        navigate(`/class/${classId}/announcement`);
     }
     if(option === 'calendar') {
-        navigate('calendar');
+        navigate(`/class/${classId}/calendar`);
     }
     // Add other navigations here if needed
   }, [navigate]);
@@ -89,8 +89,12 @@ const ClassDetail = () => {
       }
     };
 
+    console.log('ClassDetail: Mounted or Updated', classId);
+    
     if (classId) fetchClassData();
-  }, [classId, navigate]);
+
+    return () => console.log('ClassDetail: Unmounting');
+  }, [classId]);
 
   const outletContext = useMemo(() => ({ classData, currentUser }), [classData, currentUser]);
 
@@ -130,11 +134,14 @@ const ClassDetail = () => {
     <div className="min-h-screen bg-gray-50">
       <Header onLogoClick={handleLogoClick} />
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className={`max-w-7xl mx-auto ${activeTab === 'calendar' ? 'p-0 max-w-none' : 'px-6 py-8'}`}>
         <div className="relative">
-          <ClassHeader classData={classData} onBack={handleBack} />
+          {!["announcement", "calendar"].includes(activeTab) && (
+            <ClassHeader classData={classData} onBack={handleBack} />
+          )}
           
           {/* Dropdown Menu */}
+          {!["announcement", "calendar"].includes(activeTab) && (
           <div className="absolute top-0 right-0 dropdown-container">
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -167,11 +174,14 @@ const ClassDetail = () => {
               </div>
             )}
           </div>
+          )}
         </div>
 
-        <ClassTabs activeTab={activeTab} classId={classId} />
+        {!["announcement", "calendar"].includes(activeTab) && (
+          <ClassTabs activeTab={activeTab} classId={classId} />
+        )}
 
-        <div className="mt-6">
+        <div className={!["announcement", "calendar"].includes(activeTab) ? "mt-6" : ""}>
           <Outlet context={outletContext} />
         </div>
       </main>
