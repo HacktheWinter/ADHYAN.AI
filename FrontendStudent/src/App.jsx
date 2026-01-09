@@ -18,13 +18,14 @@ import PublicRoute from "./components/PublicRoute";
 // Import existing tab components
 import Quiz from "./Pages/Quiz";
 import TestPapers from "./Pages/TestPapers";
-
-import Assignments from "./Pages/Assignments";
-
-import DoubtPage from "./Pages/DoubtPage";
+import Assignments from "./Pages/Assignments"; 
+import DoubtPage  from "./Pages/DoubtPage";
+import StudentFeedbackPage from "./Pages/StudentFeedbackPage";
 import StudentAnnouncement from "./Pages/StudentAnnouncement";
 import StudentCalendarPage from "./Pages/StudentCalendarPage";
 import SettingsPage from "./Pages/SettingsPage";
+
+
 
 function StudentLayout() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,6 +98,12 @@ export default function App() {
         }
       >
         <Route index element={<NoteCraftsDashboard />} />
+
+        <Route
+    path="course/:id/feedback"
+    element={<StudentFeedbackPage />}
+  />
+
 
         {/* Course Detail with Nested Routes */}
         <Route path="course/:id" element={<CourseDetailPage />}>
