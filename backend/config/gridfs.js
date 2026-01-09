@@ -10,14 +10,15 @@ const getBucket = () => {
   if (bucket) return bucket;
 
   const conn = mongoose.connection;
-  if (conn.readyState === 1) { // 1 = connected
+  if (conn.readyState === 1) {
+    // 1 = connected
     bucket = new GridFSBucket(conn.db, { bucketName: "notes" });
     return bucket;
   }
   return null;
 };
 
-// For backward compatibility but with a getter-like behavior if possible, 
+// For backward compatibility but with a getter-like behavior if possible,
 // or we update controllers to use getBucket()
 export { getBucket };
 
