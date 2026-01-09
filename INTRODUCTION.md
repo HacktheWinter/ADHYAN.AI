@@ -65,7 +65,7 @@ All within a single, easy-to-use platform.
 
 ### AI & NLP
 
-- OpenAI / LLAMA APIs
+- Gemini-2.5-flash APIs
 - Retrieval-Augmented Generation (RAG)
 - Named Entity Recognition (NER)
 - Semantic Role Labeling (SRL)

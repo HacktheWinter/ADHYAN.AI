@@ -12,7 +12,7 @@ import AssignmentResultsViewer from "./Pages/AssignmentResultsViewer";
 import StudentAssignmentResult from "./Pages/StudentAssignmentResult";
 import ProfilePage from "./Pages/ProfilePage";
 import Login from "./Pages/Login";
-import ForgotPassword from './Pages/ForgotPassword';
+import ForgotPassword from "./Pages/ForgotPassword";
 import Signup from "./Pages/Signup";
 
 import NotesPage from "./Pages/NotesPage";
@@ -31,6 +31,7 @@ import SettingsPage from "./Pages/SettingsPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
+import TeacherFeedbackPage from "./Pages/TeacherFeedbackPage";
 
 export default function App() {
   return (
@@ -52,12 +53,8 @@ export default function App() {
           </PublicRoute>
         }
       />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
-      <Route
-        path="/forgot-password"
-        element={<ForgotPassword />}
-
-      />
 
       {/* Protected Routes */}
       <Route
@@ -65,6 +62,15 @@ export default function App() {
         element={
           <ProtectedRoute requiredRole="teacher">
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/class/:classId/feedback"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <TeacherFeedbackPage />
           </ProtectedRoute>
         }
       />
