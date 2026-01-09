@@ -133,7 +133,8 @@ export default function NoteCraftsDashboard() {
         fallbackColor: getGradientColor(myCourses.length),
         courseId: response.data.classroom._id,
         classCode: response.data.classroom.classCode,
-        subject: response.data.classroom.subject || response.data.classroom.name,
+        subject:
+          response.data.classroom.subject || response.data.classroom.name,
       };
 
       setMyCourses((prev) => [...prev, newClass]);
@@ -161,25 +162,37 @@ export default function NoteCraftsDashboard() {
     // Close dropdown when clicking outside
     useEffect(() => {
       const handleClickOutside = (event) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        if (
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target)
+        ) {
           setShowDropdown(false);
         }
       };
 
       if (showDropdown) {
-        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener("mousedown", handleClickOutside);
       }
 
       return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener("mousedown", handleClickOutside);
       };
     }, [showDropdown]);
 
     // Check if colorTheme or themeImage contains an image URL
-    const isImageUrl = (str) => str && (str.startsWith('data:') || str.includes('.jpg') || str.includes('.jpeg') || str.includes('.png') || str.includes('.webp'));
-    const hasImage = Boolean(course.themeImage) || isImageUrl(course.colorTheme);
-    const imageUrl = course.themeImage || (isImageUrl(course.colorTheme) ? course.colorTheme : null);
-    
+    const isImageUrl = (str) =>
+      str &&
+      (str.startsWith("data:") ||
+        str.includes(".jpg") ||
+        str.includes(".jpeg") ||
+        str.includes(".png") ||
+        str.includes(".webp"));
+    const hasImage =
+      Boolean(course.themeImage) || isImageUrl(course.colorTheme);
+    const imageUrl =
+      course.themeImage ||
+      (isImageUrl(course.colorTheme) ? course.colorTheme : null);
+
     const headerClass = hasImage ? "bg-gray-900" : course.colorTheme || "";
     const headerStyle = hasImage
       ? {
@@ -206,7 +219,7 @@ export default function NoteCraftsDashboard() {
             `http://localhost:5000/api/classroom/${course.courseId}/leave`,
             { studentId }
           );
-          
+
           // Remove class from the list
           setMyCourses((prev) => prev.filter((c) => c.id !== course.id));
           setSuccess(`Successfully left ${course.title}`);
@@ -214,7 +227,8 @@ export default function NoteCraftsDashboard() {
         } catch (err) {
           console.error("Error leaving class:", err);
           setError(
-            err.response?.data?.error || "Failed to leave class. Please try again."
+            err.response?.data?.error ||
+              "Failed to leave class. Please try again."
           );
           setTimeout(() => setError(""), 5000);
         }
@@ -236,7 +250,10 @@ export default function NoteCraftsDashboard() {
           </h3>
 
           {/* Three Dots Menu */}
-          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20" ref={dropdownRef}>
+          <div
+            className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20"
+            ref={dropdownRef}
+          >
             <button
               onClick={handleDropdownToggle}
               className="p-1.5 sm:p-2 bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-all cursor-pointer relative z-20"
@@ -373,6 +390,10 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
+        {/* Upcoming Events Section (Collapsible) */}
+        {!loading && <UpcomingEventsSidebar />}
+
+        {/* No Search Results */}
         {/* Has courses but search returned no results */}
         {!loading && myCourses.length > 0 && filteredCourses.length === 0 && (
           <div className="text-center mt-12 sm:mt-16 px-4">
@@ -389,6 +410,13 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
+        {/* Courses Grid */}
+        {/* {!loading && filteredCourses.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            {filteredCourses.map((course) => (
+              <CourseCard key={course.id} course={course} />
+            ))}
+          </div> */}
         {/* Courses Grid - Only show when there are filtered courses */}
         {!loading && filteredCourses.length > 0 && (
           <>

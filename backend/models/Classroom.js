@@ -12,6 +12,7 @@ const classroomSchema = new mongoose.Schema({
     studentId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     leftAt: { type: Date, default: Date.now }
   }],
+  isLive: { type: Boolean, default: false },
   colorTheme: {
     type: String,
     default: "bg-gradient-to-br from-purple-500 to-purple-700",

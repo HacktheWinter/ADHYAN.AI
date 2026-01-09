@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { getStoredUser } from "../utils/authStorage";
+
 const LiveVideoUpload = ({ classId, role }) => {
   const [videos, setVideos] = useState([]);
   const [title, setTitle] = useState("");
@@ -32,6 +34,13 @@ const LiveVideoUpload = ({ classId, role }) => {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showUploadForm, setShowUploadForm] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    setCurrentUser(getStoredUser());
+  }, []);
+
+  const effectiveRole = role || currentUser?.role;
 
   const fileInputRef = useRef(null);
 
@@ -40,8 +49,14 @@ const LiveVideoUpload = ({ classId, role }) => {
     try {
       const res = await api.get(`/live/videos/${classId}`);
       // Standardize response handling
-      const data = res.data?.success ? res.data.data : res.data;
-      setVideos(Array.isArray(data) ? data : []);
+      if (res.data?.success) {
+        setVideos(Array.isArray(res.data.data) ? res.data.data : []);
+      } else if (Array.isArray(res.data)) {
+        // Fallback for non-standardized responses
+        setVideos(res.data);
+      } else {
+        setVideos([]);
+      }
     } catch (err) {
       console.error("Fetch failed:", err);
     }
@@ -158,16 +173,15 @@ const LiveVideoUpload = ({ classId, role }) => {
           </p>
         </div>
 
-        {role === "teacher" && (
+        {effectiveRole === "teacher" && (
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowUploadForm(!showUploadForm)}
-            className={`flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black transition-all shadow-2xl ${
-              showUploadForm
-                ? "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-                : "bg-gradient-to-br from-indigo-600 to-purple-700 text-white shadow-indigo-200"
-            }`}
+            className={`flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black transition-all shadow-2xl ${showUploadForm
+              ? "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+              : "bg-gradient-to-br from-indigo-600 to-purple-700 text-white shadow-indigo-200"
+              }`}
           >
             {showUploadForm ? <X size={20} /> : <CloudUpload size={20} />}
             {showUploadForm ? "Close Publisher" : "Publish Recording"}
@@ -238,11 +252,10 @@ const LiveVideoUpload = ({ classId, role }) => {
               <div className="grid md:grid-cols-2 gap-6">
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className={`relative group border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
-                    videoFile
-                      ? "border-green-500 bg-green-50/30"
-                      : "border-gray-300 bg-gray-50/50 hover:border-indigo-500 hover:bg-indigo-50/30"
-                  }`}
+                  className={`relative group border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${videoFile
+                    ? "border-green-500 bg-green-50/30"
+                    : "border-gray-300 bg-gray-50/50 hover:border-indigo-500 hover:bg-indigo-50/30"
+                    }`}
                 >
                   <input
                     ref={fileInputRef}
@@ -320,11 +333,10 @@ const LiveVideoUpload = ({ classId, role }) => {
                         <button
                           key={v}
                           onClick={() => setVisibility(v)}
-                          className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold capitalize transition-all ${
-                            visibility === v
-                              ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                              : "bg-white text-gray-600 border border-gray-200 hover:border-indigo-300"
-                          }`}
+                          className={`flex-1 py-2 px-4 rounded-lg text-sm font-bold capitalize transition-all ${visibility === v
+                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
+                            : "bg-white text-gray-600 border border-gray-200 hover:border-indigo-300"
+                            }`}
                         >
                           {v}
                         </button>
@@ -453,7 +465,7 @@ const LiveVideoUpload = ({ classId, role }) => {
                     </motion.a>
                   </div>
 
-                  {role === "teacher" && (
+                  {effectiveRole === "teacher" && (
                     <button
                       onClick={(e) => {
                         e.preventDefault();

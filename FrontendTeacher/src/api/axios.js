@@ -1,6 +1,7 @@
 import axios from "axios";
 import { getStoredToken } from "../utils/authStorage";
 
+
 const api = axios.create({
   baseURL: "http://localhost:5000/api",
 });
@@ -9,9 +10,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = getStoredToken();
-    if (!token) {
-      console.warn("Unauthorized! Token might be missing or expired.");
-    } else {
+    if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;

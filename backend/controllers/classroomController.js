@@ -297,30 +297,61 @@ export const startMeeting = async (req, res) => {
     const { classId } = req.params;
     const { teacherId } = req.body;
 
+    console.log('[startMeeting] Request received:', { classId, teacherId });
+
     const classroom = await Classroom.findById(classId);
     if (!classroom) {
+      console.error('[startMeeting] Classroom not found:', classId);
       return res
         .status(404)
         .json({ success: false, error: "Classroom not found" });
     }
 
-    if (classroom.teacherId.toString() !== teacherId) {
+    console.log('[startMeeting] Classroom found:', {
+      classroomId: classroom._id,
+      classroomTeacherId: classroom.teacherId,
+      providedTeacherId: teacherId,
+      currentIsLive: classroom.isLive
+    });
+
+    const classroomTeacherIdStr = classroom.teacherId.toString().trim();
+    const providedTeacherIdStr = teacherId?.toString().trim();
+
+    console.log('[startMeeting] ID Comparison:', {
+      classroomTeacherId: classroomTeacherIdStr,
+      providedTeacherId: providedTeacherIdStr,
+      match: classroomTeacherIdStr === providedTeacherIdStr
+    });
+
+    if (classroomTeacherIdStr !== providedTeacherIdStr) {
+      console.warn(`[startMeeting] UNAUTHORIZED - Classroom Teacher: ${classroomTeacherIdStr}, Provided Teacher: ${providedTeacherIdStr}`);
       return res.status(403).json({ success: false, error: "Unauthorized" });
     }
 
+    console.log('[startMeeting] Authorization passed, updating isLive to true');
     classroom.isLive = true;
-    await classroom.save();
+
+    const savedClassroom = await classroom.save();
+    console.log('[startMeeting] Classroom saved successfully:', {
+      classroomId: savedClassroom._id,
+      isLive: savedClassroom.isLive
+    });
 
     const io = req.app.get("io");
     if (io) {
+      console.log('[startMeeting] Emitting socket event to room:', classId);
       io.to(classId).emit("meeting_status_changed", { isLive: true, classId });
+    } else {
+      console.warn('[startMeeting] Socket.io not available');
     }
 
+    console.log('[startMeeting] Sending success response');
     res
       .status(200)
       .json({ success: true, message: "Meeting started", isLive: true });
   } catch (error) {
-    console.error("Start Meeting Error:", error);
+    console.error("[startMeeting] ERROR:", error);
+    console.error("[startMeeting] Error stack:", error.stack);
     res.status(500).json({ success: false, error: "Server error" });
   }
 };
