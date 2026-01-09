@@ -53,27 +53,20 @@ const ClassDetail = () => {
 
   const handleDropdownOption = useCallback(
     (option) => {
-      console.log(`Selected: ${option}`);
+      // console.log(`Selected: ${option}`);
       setIsDropdownOpen(false);
       if (option === "classes") {
         navigate(`/class/${classId}/live-classroom`);
       }
+      if (option === 'announcement') {
+        navigate(`/class/${classId}/announcement`);
+      }
+      if (option === 'calendar') {
+        navigate(`/class/${classId}/calendar`);
+      }
     },
     [navigate, classId]
   );
-
-  const handleDropdownOption = useCallback((option) => {
-    // console.log(`Selected: ${option}`);
-    setIsDropdownOpen(false);
-    if(option === 'announcement') {
-        navigate(`/class/${classId}/announcement`);
-    }
-    if(option === 'calendar') {
-        navigate(`/class/${classId}/calendar`);
-    }
-    // Add other navigations here if needed
-  }, [navigate]);
-
 
   useEffect(() => {
     if (isDropdownOpen) {
@@ -91,7 +84,6 @@ const ClassDetail = () => {
       try {
         setLoading(true);
         const response = await api.get(`/classroom/${classId}`);
-        const response = await axios.get(`http://localhost:5000/api/classroom/${classId}`);
 
         const classroom = response.data.classroom;
 
