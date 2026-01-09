@@ -9,12 +9,19 @@ export default function CourseDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const scrollContainerRef = useRef(null);
+
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+
+  // FEEDBACK VISIBILITY STATE
+  // const [showFeedbackBtn, setShowFeedbackBtn] = useState(false);
+
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [className, setClassName] = useState("");
 
   const menuOptions = [
+
 
     { name: "Announcement", icon: "📢" },
     { name: "Calendar", icon: "📅" },
@@ -28,20 +35,21 @@ export default function CourseDetailPage() {
     return pathParts[pathParts.length - 1];
   }, [location.pathname]);
 
+  // Memoize classInfo
+
   const classInfo = useMemo(() => {
     const user = getStoredUser() || {};
     return {
       classId: id,
       studentId: user.id || user._id,
       studentName: user.name,
-
       studentRole: user.role || "student",
       profilePhoto: user.profilePhoto || "",
-
     };
   }, [id]);
 
   const tabs = [
+
 
     { id: "notes", label: "Notes", path: "notes" },
     { id: "quiz", label: "Quiz", path: "quiz" },
@@ -50,6 +58,33 @@ export default function CourseDetailPage() {
     { id: "doubt", label: "Doubts", path: "doubt" },
   ];
 
+
+  // useEffect(() => {
+  //   const token = localStorage.getItem("token");
+  //   if (!token) return;
+
+  //   const checkFeedback = async () => {
+  //     try {
+  //       const res = await fetch(
+  //         `http://localhost:5000/api/feedback/active/${id}`,
+  //         {
+  //           headers: {
+  //             Authorization: `Bearer ${token}`,
+  //           },
+  //         }
+  //       );
+
+  //       const data = await res.json();
+
+  //       // show button only when allowed
+  //       setShowFeedbackBtn(data.isActive && !data.alreadySubmitted);
+  //     } catch (err) {
+  //       console.error("Error checking feedback", err);
+  //     }
+  //   };
+
+  //   checkFeedback();
+  // }, [id]);
   const isClassesPage = activeTab === "classes";
 
 
@@ -78,10 +113,10 @@ export default function CourseDetailPage() {
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
-
-
     }
   }, [isMenuOpen]);
+
+
 
   // Fetch classroom details to get the name
   useEffect(() => {
@@ -129,11 +164,15 @@ export default function CourseDetailPage() {
     }
     if (option === "calendar") {
       navigate(`calendar`);
+
     }
-    if (option === "classes") {
-      navigate(`classes`);
-    }
+     if (option === "classes") {
+    navigate("classes");
+  }
+    if (option === "feedback"){ navigate("feedback");}
   };
+
+
 
   return (
     <div
