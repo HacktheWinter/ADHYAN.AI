@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Assignment from "../models/Assignment.js";
 import Note from "../models/Note.js";
-import { bucket } from "../config/gridfs.js";
+import { getBucket } from "../config/gridfs.js";
 import { generateAssignmentFromText } from "../config/geminiAssignment.js";
 import {
   extractTextFromPDF,
@@ -11,6 +11,11 @@ import {
 
 export const generateAssignmentWithAI = async (req, res) => {
   try {
+    const bucket = getBucket();
+    if (!bucket) {
+      console.error("GridFS bucket not ready");
+      return;
+    }
     const { noteIds, classroomId } = req.body;
 
     console.log("=== ASSIGNMENT GENERATION STARTED ===");
@@ -252,17 +257,18 @@ export const publishAssignment = async (req, res) => {
 
     // Auto-create Calendar Event
     try {
-      const CalendarEvent = (await import("../models/CalendarEvent.js")).default;
+      const CalendarEvent = (await import("../models/CalendarEvent.js"))
+        .default;
       await CalendarEvent.create({
         title: `Assignment: ${assignment.title}`,
-        type: 'assignment',
+        type: "assignment",
         classId: assignment.classroomId,
         teacherId: req.user._id, // Assuming auth middleware populates req.user
         startDate: new Date(),
         submissionDeadline: dueDate,
         description: assignment.description,
         relatedId: assignment._id,
-        onModel: 'Assignment'
+        onModel: "Assignment",
       });
       console.log("Calendar event created for Assignment");
     } catch (calError) {
