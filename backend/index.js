@@ -19,6 +19,8 @@ import testPaperRoutes from "./routes/testPaperRoutes.js";
 import testSubmissionRoutes from "./routes/testSubmissionRoutes.js";
 import assignmentRoutes from "./routes/assignmentRoutes.js";
 import assignmentSubmissionRoutes from "./routes/assignmentSubmissionRoutes.js";
+import feedbackRoutes from "./routes/feedbackRoutes.js";
+
 import calendarRoutes from "./routes/calendarRoutes.js";
 import forgotPasswordRoutes from './routes/forgotPassword.js';
 import profileRoutes from "./routes/profileRoutes.js";
@@ -89,6 +91,8 @@ app.use("/api/test-paper", testPaperRoutes);
 app.use("/api/test-submission", testSubmissionRoutes);
 app.use("/api/assignment", assignmentRoutes);
 app.use("/api/assignment-submission", assignmentSubmissionRoutes);
+app.use("/api/feedback", feedbackRoutes);
+
 app.use("/api/calendar", calendarRoutes);
 app.use('/api', forgotPasswordRoutes);
 app.use("/api/profile", profileRoutes);

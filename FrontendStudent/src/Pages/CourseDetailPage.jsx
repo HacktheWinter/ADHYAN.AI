@@ -9,12 +9,19 @@ export default function CourseDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const scrollContainerRef = useRef(null);
+
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+
+  // FEEDBACK VISIBILITY STATE
+  // const [showFeedbackBtn, setShowFeedbackBtn] = useState(false);
+
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [className, setClassName] = useState("");
 
   const menuOptions = [
+
 
     { name: "Announcement", icon: "📢" },
     { name: "Calendar", icon: "📅" },
@@ -28,20 +35,21 @@ export default function CourseDetailPage() {
     return pathParts[pathParts.length - 1];
   }, [location.pathname]);
 
+  // Memoize classInfo
+
   const classInfo = useMemo(() => {
     const user = getStoredUser() || {};
     return {
       classId: id,
       studentId: user.id || user._id,
       studentName: user.name,
-
       studentRole: user.role || "student",
       profilePhoto: user.profilePhoto || "",
-
     };
   }, [id]);
 
   const tabs = [
+
 
     { id: "notes", label: "Notes", path: "notes" },
     { id: "quiz", label: "Quiz", path: "quiz" },
@@ -50,6 +58,33 @@ export default function CourseDetailPage() {
     { id: "doubt", label: "Doubts", path: "doubt" },
   ];
 
+
+  // useEffect(() => {
+  //   const token = localStorage.getItem("token");
+  //   if (!token) return;
+
+  //   const checkFeedback = async () => {
+  //     try {
+  //       const res = await fetch(
+  //         `http://localhost:5000/api/feedback/active/${id}`,
+  //         {
+  //           headers: {
+  //             Authorization: `Bearer ${token}`,
+  //           },
+  //         }
+  //       );
+
+  //       const data = await res.json();
+
+  //       // show button only when allowed
+  //       setShowFeedbackBtn(data.isActive && !data.alreadySubmitted);
+  //     } catch (err) {
+  //       console.error("Error checking feedback", err);
+  //     }
+  //   };
+
+  //   checkFeedback();
+  // }, [id]);
   const isClassesPage = activeTab === "classes";
 
 
@@ -78,10 +113,10 @@ export default function CourseDetailPage() {
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
-
-     
     }
   }, [isMenuOpen]);
+
+
 
   // Fetch classroom details to get the name
   useEffect(() => {
@@ -129,11 +164,15 @@ export default function CourseDetailPage() {
     }
     if (option === "calendar") {
       navigate(`calendar`);
+
     }
-    if (option === "classes") {
-      navigate(`classes`);
-    }
+     if (option === "classes") {
+    navigate("classes");
+  }
+    if (option === "feedback"){ navigate("feedback");}
   };
+
+
 
   return (
     <div
@@ -145,10 +184,10 @@ export default function CourseDetailPage() {
     >
       {!isClassesPage && (
         <>
-          {/* Header with Floating Menu Button */}
+          {/* Header Section */}
           <div className="mb-6 sm:mb-8 relative">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="text-purple-600 hover:text-purple-700 mb-3 sm:mb-4 flex items-center gap-2 cursor-pointer text-sm sm:text-base"
             >
               ← Back to Courses
@@ -162,7 +201,7 @@ export default function CourseDetailPage() {
                 <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, quizzes, assignments, tests and doubts</p>
               </div>
 
-              {/* Floating Action Button */}
+              {/* Floating Action Button / Quick Tools */}
               <div className="menu-container relative">
                 <button
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -224,11 +263,10 @@ export default function CourseDetailPage() {
                 <button
                   key={tab.id}
                   onClick={() => handleTabClick(tab.path)}
-                  className={`pb-3 px-3 sm:px-4 font-semibold transition-colors cursor-pointer whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${
-                    activeTab === tab.path
+                  className={`pb-3 px-3 sm:px-4 font-semibold transition-colors cursor-pointer whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${activeTab === tab.path
                       ? "text-purple-600 border-b-2 border-purple-600"
                       : "text-gray-600 hover:text-gray-900"
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -255,7 +293,7 @@ export default function CourseDetailPage() {
         <Outlet context={{ classInfo }} />
       </div>
 
-      <style jsx>{`
+      <style jsx="true">{`
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }
