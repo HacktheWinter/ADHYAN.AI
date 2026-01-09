@@ -10,6 +10,7 @@ import ProfilePage from "./Pages/ProfilePage";
 import Login from "./Pages/Login";
 import ForgotPassword from './Pages/ForgotPassword';
 import Signup from "./Pages/Signup";
+import ClassesPage from "./Pages/ClassesPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
@@ -23,6 +24,7 @@ import StudentFeedbackPage from "./Pages/StudentFeedbackPage";
 import StudentAnnouncement from "./Pages/StudentAnnouncement";
 import StudentCalendarPage from "./Pages/StudentCalendarPage";
 import SettingsPage from "./Pages/SettingsPage";
+
 
 
 function StudentLayout() {
@@ -59,9 +61,11 @@ export default function App() {
           </PublicRoute>
         }
       />
-      <Route 
-        path="/forgot-password" 
-        element={<ForgotPassword />} 
+
+      <Route
+        path="/forgot-password"
+        element={<ForgotPassword />}
+
       />
 
       {/* Profile route without navbar */}
@@ -74,6 +78,7 @@ export default function App() {
         }
       />
 
+      {/* Settings route without navbar */}
       <Route
         path="/settings"
         element={
@@ -99,22 +104,22 @@ export default function App() {
     element={<StudentFeedbackPage />}
   />
 
-        
+
         {/* Course Detail with Nested Routes */}
         <Route path="course/:id" element={<CourseDetailPage />}>
           {/* Default redirect to notes */}
           <Route index element={<Navigate to="notes" replace />} />
-          
+
           {/* Tab Routes */}
           <Route path="notes" element={<StudentNotesPage />} />
           <Route path="quiz" element={<Quiz />} />
           <Route path="assignment" element={<Assignments />} />
           <Route path="test" element={<TestPapers />} />
-          <Route path="test" element={<TestPapers />} />
           <Route path="doubt" element={<DoubtPage />} />
+          <Route path="classes" element={<ClassesPage />} />
         </Route>
 
-        {/* Standalone Course Announcement Route */}
+        {/* Standalone Course Announcement Route (with navbar) */}
         <Route path="course/:id/announcement" element={<StudentAnnouncement />} />
       </Route>
 

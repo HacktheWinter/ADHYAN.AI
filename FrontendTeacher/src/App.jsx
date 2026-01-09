@@ -21,6 +21,10 @@ import TestPapersPage from "./components/TestPapersPage";
 import AssignmentsPage from "./components/AssignmentsPage";
 import StudentsPage from "./Pages/StudentsPage";
 import DoubtsPage from "./Pages/DoubtsPage";
+
+import LiveClassroom from "./Pages/LiveClassroom";
+
+
 import Announcement from "./Pages/Announcement";
 import CalendarPage from "./Pages/CalendarPage";
 import SettingsPage from "./Pages/SettingsPage";
@@ -50,6 +54,7 @@ export default function App() {
         }
       />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+
 
       {/* Protected Routes */}
       <Route
@@ -103,7 +108,9 @@ export default function App() {
         <Route path="test-papers" element={<TestPapersPage />} />
         <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="students" element={<StudentsPage />} />
+
         <Route path="doubts" element={<DoubtsPage />} />
+        <Route path="live-classroom" element={<LiveClassroom />} />
       </Route>
 
       <Route

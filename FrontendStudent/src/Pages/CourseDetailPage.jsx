@@ -16,16 +16,19 @@ export default function CourseDetailPage() {
   // FEEDBACK VISIBILITY STATE
   // const [showFeedbackBtn, setShowFeedbackBtn] = useState(false);
 
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [className, setClassName] = useState("");
 
   const menuOptions = [
+
+
     { name: "Announcement", icon: "📢" },
     { name: "Calendar", icon: "📅" },
     { name: "Classes", icon: "📚" },
     { name: "Feedback", icon: "💬" },
   ];
 
-  const [className, setClassName] = useState("");
 
   const activeTab = useMemo(() => {
     const pathParts = location.pathname.split("/");
@@ -46,6 +49,8 @@ export default function CourseDetailPage() {
   }, [id]);
 
   const tabs = [
+
+
     { id: "notes", label: "Notes", path: "notes" },
     { id: "quiz", label: "Quiz", path: "quiz" },
     { id: "assignment", label: "Assignment", path: "assignment" },
@@ -80,6 +85,8 @@ export default function CourseDetailPage() {
 
   //   checkFeedback();
   // }, [id]);
+  const isClassesPage = activeTab === "classes";
+
 
   const checkScroll = () => {
     const container = scrollContainerRef.current;
@@ -100,6 +107,7 @@ export default function CourseDetailPage() {
   useEffect(() => {
     if (isMenuOpen) {
       const handleClickOutside = (e) => {
+
         if (!e.target.closest(".menu-container")) setIsMenuOpen(false);
       };
       document.addEventListener("mousedown", handleClickOutside);
@@ -107,16 +115,21 @@ export default function CourseDetailPage() {
         document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [isMenuOpen]);
+
+
+
   // Fetch classroom details to get the name
   useEffect(() => {
     const fetchClassroom = async () => {
       try {
         const response = await API.get(`/classroom/${id}`);
+
         if (
           response.data &&
           response.data.classroom &&
           response.data.classroom.name
         ) {
+
           setClassName(response.data.classroom.name);
         }
       } catch (error) {
@@ -145,123 +158,163 @@ export default function CourseDetailPage() {
   const handleMenuOption = (option) => {
     // console.log(`Selected: ${option}`);
     setIsMenuOpen(false);
+
     if (option === "announcement") {
       navigate(`announcement`);
     }
     if (option === "calendar") {
       navigate(`calendar`);
+
     }
+     if (option === "classes") {
+    navigate("classes");
+  }
     if (option === "feedback"){ navigate("feedback");}
   };
 
+
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-      {/* Header with Floating Menu Button */}
-      <div className="mb-6 sm:mb-8 relative">
-        <button
-          onClick={() => navigate("/")}
-          className="text-purple-600 hover:text-purple-700 mb-3 sm:mb-4 flex items-center gap-2 cursor-pointer text-sm sm:text-base"
-        >
-          ← Back to Courses
-        </button>
-
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-              {className || "Course Material"}
-            </h1>
-            <p className="text-gray-600 mt-1 text-sm sm:text-base">
-              Access notes, quizzes, assignments, tests and doubts
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/*  GIVE FEEDBACK BUTTON */}
-            {/* {showFeedbackBtn && (
-              <button
-                onClick={() => navigate("feedback")}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700"
-              >
-                📝 Give Feedback
-              </button>
-            )} */}
-
-            {/* Floating Menu */}
-            <div className="menu-container relative">
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg flex items-center justify-center"
-              >
-                <Grid className="w-6 h-6" />
-              </button>
-
-              {isMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-gray-50 rounded-lg shadow-lg border z-50">
-                  {menuOptions.map((option, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() =>
-                        handleMenuOption(option.name.toLowerCase())
-                      }
-                      className="w-full px-4 py-3 text-left hover:bg-white"
-                    >
-                      {option.icon} {option.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="relative mb-6 sm:mb-8">
-        {showLeftArrow && (
-          <button
-            onClick={() => scroll("left")}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 md:hidden"
-          >
-            <div className="bg-white rounded-full shadow-lg p-2 border">
-              <ChevronLeft className="w-5 h-5 text-gray-700" />
-            </div>
-          </button>
-        )}
-
-        <div
-          ref={scrollContainerRef}
-          onScroll={checkScroll}
-          className="flex gap-2 sm:gap-4 overflow-x-auto border-b border-gray-200 scrollbar-hide px-8 md:px-0"
-        >
-          {tabs.map((tab) => (
+    <div
+      className={
+        isClassesPage
+          ? "h-screen w-full"
+          : "max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10"
+      }
+    >
+      {!isClassesPage && (
+        <>
+          {/* Header Section */}
+          <div className="mb-6 sm:mb-8 relative">
             <button
-              key={tab.id}
-              onClick={() => handleTabClick(tab.path)}
-              className={`pb-3 px-3 sm:px-4 font-semibold whitespace-nowrap ${
-                activeTab === tab.path
-                  ? "text-purple-600 border-b-2 border-purple-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              onClick={() => navigate("/")}
+              className="text-purple-600 hover:text-purple-700 mb-3 sm:mb-4 flex items-center gap-2 cursor-pointer text-sm sm:text-base"
             >
-              {tab.label}
+              ← Back to Courses
             </button>
-          ))}
-        </div>
 
-        {showRightArrow && (
-          <button
-            onClick={() => scroll("right")}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 md:hidden"
-          >
-            <div className="bg-white rounded-full shadow-lg p-2 border">
-              <ChevronRight className="w-5 h-5 text-gray-700" />
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  {className || "Course Material"}
+                </h1>
+                <p className="text-gray-600 mt-1 text-sm sm:text-base">
+                  Access notes, quizzes, assignments, tests and doubts
+                </p>
+              </div>
+
+              {/* Floating Action Button / Quick Tools */}
+              <div className="menu-container relative">
+                <button
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center ${isMenuOpen ? "rotate-90 scale-110" : "hover:scale-105"
+                    }`}
+                >
+                  <Grid className="w-6 h-6" />
+                </button>
+
+                {/* Sidebar Style Dropdown */}
+                {isMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-gray-50 rounded-lg shadow-lg border border-gray-300 overflow-hidden z-50">
+                    <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-4 py-2 border-b border-purple-400">
+                      <p className="text-xs font-semibold text-white uppercase tracking-wide">
+                        Quick Tools
+                      </p>
+                    </div>
+                    {menuOptions.map((option, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() =>
+                          handleMenuOption(option.name.toLowerCase())
+                        }
+                        className="w-full flex items-center justify-between px-4 py-3 text-gray-800 hover:bg-white hover:shadow-sm transition-all cursor-pointer border-b border-gray-200 last:border-b-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{option.icon}</span>
+                          <span className="font-medium text-sm">
+                            {option.name}
+                          </span>
+                        </div>
+                        <svg
+                          className="w-4 h-4 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </button>
-        )}
+          </div>
+
+          {/* Tabs with Scroll Arrows */}
+          <div className="relative mb-6 sm:mb-8">
+            {showLeftArrow && (
+              <button
+                onClick={() => scroll("left")}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 md:hidden"
+                aria-label="Scroll left"
+              >
+                <div className="bg-white rounded-full shadow-lg p-2 border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <ChevronLeft className="w-5 h-5 text-gray-700" />
+                </div>
+              </button>
+            )}
+
+            <div
+              ref={scrollContainerRef}
+              onScroll={checkScroll}
+              className="flex gap-2 sm:gap-4 overflow-x-auto border-b border-gray-200 scrollbar-hide scroll-smooth px-8 md:px-0"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabClick(tab.path)}
+                  className={`pb-3 px-3 sm:px-4 font-semibold transition-colors cursor-pointer whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${activeTab === tab.path
+                      ? "text-purple-600 border-b-2 border-purple-600"
+                      : "text-gray-600 hover:text-gray-900"
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {showRightArrow && (
+              <button
+                onClick={() => scroll("right")}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 md:hidden"
+                aria-label="Scroll right"
+              >
+                <div className="bg-white rounded-full shadow-lg p-2 border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <ChevronRight className="w-5 h-5 text-gray-700" />
+                </div>
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Nested Routes Content */}
+      <div className={isClassesPage ? "h-full w-full" : "mt-6"}>
+        <Outlet context={{ classInfo }} />
       </div>
 
-      {/* Nested Routes */}
-      <Outlet context={{ classInfo }} />
+      <style jsx="true">{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }

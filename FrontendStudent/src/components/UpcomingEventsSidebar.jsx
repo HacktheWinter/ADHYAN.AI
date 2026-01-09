@@ -75,7 +75,7 @@ const UpcomingEventsSidebar = () => {
         <div className="mb-8">
             <button 
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors group"
+                className="w-full flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors group cursor-pointer"
             >
                 <div className="flex items-center gap-3">
                     <div className="bg-purple-100 p-2 rounded-lg text-purple-600">
@@ -102,7 +102,7 @@ const UpcomingEventsSidebar = () => {
                                     end: event.endDate,
                                     extendedProps: { type: event.type, className: event.classId?.name, description: event.description }
                                 })}
-                                className={`text-left p-3 rounded-xl border transition-all duration-200 hover:shadow-md group ${styles.bg} ${styles.border} hover:bg-white bg-white`}
+                                className={`text-left p-3 rounded-xl border transition-all duration-200 hover:shadow-md group cursor-pointer ${styles.bg} ${styles.border} hover:bg-white bg-white`}
                             >
                                 <div className="flex justify-between items-start mb-2">
                                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white border border-gray-100 ${styles.color}`}>

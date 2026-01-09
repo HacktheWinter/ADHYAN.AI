@@ -7,8 +7,7 @@ const StudentFeedbackPage = () => {
 
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState(null);
-const [feedbackStatus, setFeedbackStatus] = useState(null);
-
+  const [feedbackStatus, setFeedbackStatus] = useState(null);
 
   // student info (auto-fill)
   const [studentName, setStudentName] = useState("");
@@ -56,11 +55,10 @@ const [feedbackStatus, setFeedbackStatus] = useState(null);
         const activeData = await activeRes.json();
 
         if (!activeData.isActive) {
-  setFeedbackStatus(activeData.reason);
-  setLoading(false);
-  return;
-}
-
+          setFeedbackStatus(activeData.reason);
+          setLoading(false);
+          return;
+        }
 
         // Fetch feedback form (questions)
 
@@ -100,10 +98,16 @@ const [feedbackStatus, setFeedbackStatus] = useState(null);
       return;
     }
 
-    if (Object.keys(answers).length !== feedback.questions.length) {
-      alert("Please rate all questions");
-      return;
-    }
+    if (!feedback || !feedback.questions) {
+  alert("Feedback not loaded yet");
+  return;
+}
+
+if (Object.keys(answers).length !== feedback.questions.length) {
+  alert("Please rate all questions");
+  return;
+}
+
 
     const formattedAnswers = Object.entries(answers).map(
       ([questionId, rating]) => ({
@@ -149,31 +153,31 @@ const [feedbackStatus, setFeedbackStatus] = useState(null);
     return <p className="p-6">Loading feedback...</p>;
   }
 
-if (feedbackStatus === "NO_FEEDBACK") {
-  return (
-    <div className="max-w-xl mx-auto p-8 text-center">
-      <h2 className="text-2xl font-bold text-gray-800 mb-2">
-        No Feedback Available
-      </h2>
-      <p className="text-gray-600">
-        Your teacher has not published any feedback yet.
-      </p>
-    </div>
-  );
-}
+  if (feedbackStatus === "NO_FEEDBACK") {
+    return (
+      <div className="max-w-xl mx-auto p-8 text-center">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          No Feedback Available
+        </h2>
+        <p className="text-gray-600">
+          Your teacher has not published any feedback yet.
+        </p>
+      </div>
+    );
+  }
 
-if (feedbackStatus === "ALREADY_SUBMITTED") {
-  return (
-    <div className="max-w-xl mx-auto p-8 text-center">
-      <h2 className="text-2xl font-bold text-gray-800 mb-2">
-        Feedback Already Submitted
-      </h2>
-      <p className="text-gray-600">
-        Thank you! You have already submitted your feedback.
-      </p>
-    </div>
-  );
-}
+  if (feedbackStatus === "ALREADY_SUBMITTED") {
+    return (
+      <div className="max-w-xl mx-auto p-8 text-center">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          Feedback Already Submitted
+        </h2>
+        <p className="text-gray-600">
+          Thank you! You have already submitted your feedback.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -209,42 +213,43 @@ if (feedbackStatus === "ALREADY_SUBMITTED") {
 
         {/* QUESTIONS */}
         <div className="space-y-8">
-          {feedback.questions.map((q, index) => (
-            <div
-              key={q._id}
-              className="p-5 border rounded-xl hover:shadow-sm transition"
-            >
-              <div className="flex items-start gap-3 mb-4">
-                {/* Question Number */}
-                <span className="text-purple-600 font-bold text-lg select-none">
-                  {index + 1}.
-                </span>
+          {feedback?.questions?.length > 0 ? (
+            feedback.questions.map((q, index) => (
+              <div
+                key={q._id}
+                className="p-5 border rounded-xl hover:shadow-sm transition"
+              >
+                <div className="flex items-start gap-3 mb-4">
+                  <span className="text-purple-600 font-bold text-lg select-none">
+                    {index + 1}.
+                  </span>
 
-                {/* Question Text */}
-                <p className="text-lg font-semibold text-gray-900 leading-relaxed">
-                  {q.text}
-                </p>
-              </div>
+                  <p className="text-lg font-semibold text-gray-900 leading-relaxed">
+                    {q.text}
+                  </p>
+                </div>
 
-              {/* Rating buttons */}
-              <div className="flex gap-3">
-                {[1, 2, 3, 4, 5].map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => handleRatingChange(q._id, r)}
-                    className={`w-10 h-10 rounded-full border flex items-center justify-center font-medium transition
-                    ${
-                      answers[q._id] === r
-                        ? "bg-purple-600 text-white border-purple-600"
-                        : "bg-white text-gray-700 hover:bg-purple-50"
-                    }`}
-                  >
-                    {r}
-                  </button>
-                ))}
+                <div className="flex gap-3">
+                  {[1, 2, 3, 4, 5].map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => handleRatingChange(q._id, r)}
+                      className={`w-10 h-10 rounded-full border flex items-center justify-center font-medium transition
+              ${
+                answers[q._id] === r
+                  ? "bg-purple-600 text-white border-purple-600"
+                  : "bg-white text-gray-700 hover:bg-purple-50"
+              }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="text-center text-gray-500">No questions available.</p>
+          )}
         </div>
 
         {/* COMMENT */}
