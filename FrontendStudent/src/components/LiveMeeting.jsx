@@ -3,6 +3,8 @@ import API from "../api/axios";
 import { Video } from "lucide-react";
 import { motion } from "framer-motion";
 
+import { getStoredUser } from "../utils/authStorage";
+
 export default function LiveMeeting({ classId, role }) {
   const [isLive, setIsLive] = useState(false);
   const [user, setUser] = useState(null);
@@ -10,31 +12,47 @@ export default function LiveMeeting({ classId, role }) {
   const jitsiApiRef = useRef(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    setUser(getStoredUser());
   }, []);
 
   const fetchStatus = async () => {
     try {
+      console.log('[Student LiveMeeting] Fetching status for class:', classId);
       const res = await API.get(`/classroom/${classId}`);
+      console.log('[Student LiveMeeting] Full response:', res.data);
+
       if (res.data?.success || res.data?.classroom) {
-        setIsLive(res.data.classroom?.isLive || false);
+        const backendIsLive = res.data.classroom?.isLive || false;
+        console.log('[Student LiveMeeting] Backend isLive status:', backendIsLive);
+        console.log('[Student LiveMeeting] Current local isLive:', isLive);
+
+        if (backendIsLive !== isLive) {
+          console.log('[Student LiveMeeting] Status changed! Updating to:', backendIsLive);
+        }
+
+        setIsLive(backendIsLive);
+      } else {
+        console.warn('[Student LiveMeeting] Unexpected response format:', res.data);
       }
     } catch (err) {
-      console.error("Error fetching class status:", err);
+      console.error('[Student LiveMeeting] Error fetching class status:', err);
+      console.error('[Student LiveMeeting] Error details:', err.response?.data);
     }
   };
 
   useEffect(() => {
+    console.log('[Student LiveMeeting] Component mounted, starting polling...');
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000); // Poll every 5s
-    return () => clearInterval(interval);
+    return () => {
+      console.log('[Student LiveMeeting] Component unmounting, stopping polling');
+      clearInterval(interval);
+    };
   }, [classId]);
 
   useEffect(() => {
-    if (isLive && user) {
+    if (isLive && user && !jitsiApiRef.current) {
+      console.log('[Student LiveMeeting] Initializing Jitsi...');
       const loadJitsiScript = () => {
         return new Promise((resolve) => {
           if (window.JitsiMeetExternalAPI) {
@@ -42,8 +60,7 @@ export default function LiveMeeting({ classId, role }) {
             return;
           }
           const script = document.createElement("script");
-          script.src =
-            "https://8x8.vc/vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/external_api.js";
+          script.src = "https://8x8.vc/vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/external_api.js";
           script.async = true;
           script.onload = resolve;
           document.head.appendChild(script);
@@ -52,8 +69,9 @@ export default function LiveMeeting({ classId, role }) {
 
       loadJitsiScript().then(() => {
         if (jitsiContainerRef.current && !jitsiApiRef.current) {
+          console.log('[Student LiveMeeting] Creating Jitsi instance');
           jitsiApiRef.current = new window.JitsiMeetExternalAPI("8x8.vc", {
-            roomName: `vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/class-${classId}`,
+            roomName: `vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/adhyan-class-${classId}`,
             parentNode: jitsiContainerRef.current,
             userInfo: {
               displayName: user.name || "Student",
@@ -62,21 +80,34 @@ export default function LiveMeeting({ classId, role }) {
             configOverwrite: {
               startWithAudioMuted: true,
               startWithVideoMuted: true,
+              prejoinPageEnabled: false,
+              enableWelcomePage: false,
             },
             interfaceConfigOverwrite: {
-              // Custom UI for students if needed
+              SHOW_JITSI_WATERMARK: false,
+              SHOW_WATERMARK_FOR_GUESTS: false,
+              DEFAULT_BACKGROUND: '#474747',
+              DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+              SHOW_BRAND_WATERMARK: false,
             },
+          });
+
+          // Monitor Jitsi events
+          jitsiApiRef.current.addEventListener('videoConferenceJoined', () => {
+            console.log('[Student LiveMeeting] Student joined conference');
+          });
+
+          jitsiApiRef.current.addEventListener('videoConferenceLeft', () => {
+            console.log('[Student LiveMeeting] Student left conference');
           });
         }
       });
+    } else if (!isLive && jitsiApiRef.current) {
+      // Only dispose when meeting actually ends (isLive becomes false)
+      console.log('[Student LiveMeeting] Disposing Jitsi instance');
+      jitsiApiRef.current.dispose();
+      jitsiApiRef.current = null;
     }
-
-    return () => {
-      if (jitsiApiRef.current) {
-        jitsiApiRef.current.dispose();
-        jitsiApiRef.current = null;
-      }
-    };
   }, [isLive, user, classId]);
 
   return (
@@ -102,11 +133,10 @@ export default function LiveMeeting({ classId, role }) {
         <div
           ref={jitsiContainerRef}
           style={{ height: "65vh" }}
-          className={`w-full rounded-2xl border overflow-hidden transition-all duration-500 ${
-            !isLive
-              ? "bg-slate-50 flex flex-col items-center justify-center border-dashed border-slate-300"
-              : "bg-black shadow-inner shadow-black/20"
-          }`}
+          className={`w-full rounded-2xl border overflow-hidden transition-all duration-500 ${!isLive
+            ? "bg-slate-50 flex flex-col items-center justify-center border-dashed border-slate-300"
+            : "bg-black shadow-inner shadow-black/20"
+            }`}
         >
           {!isLive && (
             <motion.div
@@ -126,6 +156,17 @@ export default function LiveMeeting({ classId, role }) {
               <div className="mt-8 relative">
                 <div className="absolute inset-0 bg-indigo-400 blur-xl opacity-20 rounded-full animate-pulse"></div>
                 <div className="relative animate-spin rounded-full h-10 w-10 border-[3px] border-indigo-100 border-t-indigo-600 mx-auto"></div>
+              </div>
+              {/* Debug info */}
+              <div className="mt-6 p-3 bg-slate-100 rounded-lg text-left">
+                <p className="text-xs font-mono text-slate-600">
+                  <strong>Debug Info:</strong><br />
+                  Class ID: {classId}<br />
+                  Status: {isLive ? 'LIVE' : 'OFFLINE'}<br />
+                  User: {user ? user.name : 'Not loaded'}<br />
+                  Jitsi: {jitsiApiRef.current ? 'Initialized' : 'Not initialized'}<br />
+                  <span className="text-xs text-slate-500">Check browser console (F12) for detailed logs</span>
+                </p>
               </div>
             </motion.div>
           )}
