@@ -25,6 +25,8 @@ import calendarRoutes from "./routes/calendarRoutes.js";
 import forgotPasswordRoutes from './routes/forgotPassword.js';
 import profileRoutes from "./routes/profileRoutes.js";
 
+import videoRoutes from "./routes/video.routes.js";
+
 const app = express();
 
 dotenv.config();
@@ -87,13 +89,14 @@ app.use("/api/doubts", doubtRoutes);
 app.use("/api/quiz-submission", quizSubmissionRoutes);
 app.use("/api/test-paper", testPaperRoutes);
 app.use("/api/test-submission", testSubmissionRoutes);
-app.use("/api/assignment", assignmentRoutes); //
+app.use("/api/assignment", assignmentRoutes);
 app.use("/api/assignment-submission", assignmentSubmissionRoutes);
 app.use("/api/feedback", feedbackRoutes);
 
 app.use("/api/calendar", calendarRoutes);
 app.use('/api', forgotPasswordRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api", videoRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));

@@ -338,6 +338,21 @@ export default function NoteCraftsDashboard() {
           </button>
         </div>
 
+        {/* Global Success/Error Messages */}
+        {success && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 text-green-700 text-xs sm:text-sm">
+            <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{success}</span>
+          </div>
+        )}
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 text-xs sm:text-sm">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center min-h-[400px]">
@@ -350,7 +365,7 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Empty State - No courses at all */}
         {!loading && myCourses.length === 0 && (
           <div className="text-center mt-12 sm:mt-20 px-4">
             <BookOpen
@@ -379,6 +394,7 @@ export default function NoteCraftsDashboard() {
         {!loading && <UpcomingEventsSidebar />}
 
         {/* No Search Results */}
+        {/* Has courses but search returned no results */}
         {!loading && myCourses.length > 0 && filteredCourses.length === 0 && (
           <div className="text-center mt-12 sm:mt-16 px-4">
             <AlertCircle
@@ -395,12 +411,25 @@ export default function NoteCraftsDashboard() {
         )}
 
         {/* Courses Grid */}
-        {!loading && filteredCourses.length > 0 && (
+        {/* {!loading && filteredCourses.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {filteredCourses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
-          </div>
+          </div> */}
+        {/* Courses Grid - Only show when there are filtered courses */}
+        {!loading && filteredCourses.length > 0 && (
+          <>
+            {/* Upcoming Events Sidebar */}
+            <UpcomingEventsSidebar />
+
+            {/* My Courses Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-6">
+              {filteredCourses.map((course) => (
+                <CourseCard key={course.id} course={course} />
+              ))}
+            </div>
+          </>
         )}
       </div>
 

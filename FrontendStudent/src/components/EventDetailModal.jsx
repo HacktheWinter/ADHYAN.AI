@@ -36,7 +36,7 @@ const EventDetailModal = ({ event, onClose }) => {
 
                 <button 
                     onClick={onClose}
-                    className="absolute top-4 right-4 z-10 bg-white/80 hover:bg-white text-gray-500 hover:text-gray-900 p-2 rounded-full transition-all backdrop-blur-md shadow-sm border border-gray-100"
+                    className="absolute top-4 right-4 z-10 bg-white/80 hover:bg-white text-gray-500 hover:text-gray-900 p-2 rounded-full transition-all backdrop-blur-md shadow-sm border border-gray-100 cursor-pointer"
                 >
                     <X className="w-5 h-5" />
                 </button>

@@ -148,35 +148,53 @@ export const deleteProfilePhoto = async (req, res) => {
   }
 };
 
-// Change user password
+// Change password
 export const changePassword = async (req, res) => {
   try {
     const userId = req.user.id;
     const { currentPassword, newPassword } = req.body;
 
+    // Validate inputs
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: "Current and new password are required" });
+      return res.status(400).json({ message: "Current password and new password are required" });
     }
 
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters long" });
+    }
+
+    // Get user with password field
     const user = await User.findById(userId);
+    
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: "Current password is incorrect" });
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Current password is incorrect" });
     }
 
-    const hashed = await bcrypt.hash(newPassword, 10);
-    user.password = hashed;
+    // Check if new password is same as current
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ message: "New password must be different from current password" });
+    }
+
+    // Hash and update new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
     await user.save();
 
-    res.status(200).json({ message: "Password updated successfully" });
+    res.status(200).json({
+      message: "Password changed successfully",
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: err.message });
   }
 };
+
 // Configure multer for background image uploads
 const backgroundStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -192,10 +210,22 @@ const backgroundStorage = multer.diskStorage({
   },
 });
 
-export const uploadBackground = multer({
+const bgFileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error("Only image files are allowed"));
+  }
+};
+
+export const backgroundUpload = multer({
   storage: backgroundStorage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-  fileFilter: fileFilter,
+  fileFilter: bgFileFilter,
 });
 
 // Upload background image
@@ -210,56 +240,22 @@ export const uploadBackgroundImage = async (req, res) => {
     // Delete old background image if exists
     const user = await User.findById(userId);
     if (user.backgroundImage) {
-      const oldBgPath = path.join(process.cwd(), user.backgroundImage);
-      if (fs.existsSync(oldBgPath)) {
-        fs.unlinkSync(oldBgPath);
+      const oldImagePath = path.join(process.cwd(), user.backgroundImage);
+      if (fs.existsSync(oldImagePath)) {
+        fs.unlinkSync(oldImagePath);
       }
     }
 
     // Update user with new background image path
-    const bgPath = `uploads/backgrounds/${req.file.filename}`;
+    const imagePath = `uploads/backgrounds/${req.file.filename}`;
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { 
-        $set: { 
-          backgroundImage: bgPath,
-          useCustomBackground: true
-        } 
-      },
+      { $set: { backgroundImage: imagePath, useCustomBackground: true } },
       { new: true }
     ).select("-password");
 
     res.status(200).json({
       message: "Background image uploaded successfully",
-      user: updatedUser,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Toggle background (use custom or default)
-export const toggleBackground = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { useCustomBackground } = req.body;
-
-    if (typeof useCustomBackground !== 'boolean') {
-      return res.status(400).json({ error: "useCustomBackground must be a boolean" });
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { $set: { useCustomBackground } },
-      { new: true }
-    ).select("-password");
-
-    if (!updatedUser) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    res.status(200).json({
-      message: "Background preference updated",
       user: updatedUser,
     });
   } catch (err) {
@@ -278,9 +274,9 @@ export const deleteBackgroundImage = async (req, res) => {
     }
 
     if (user.backgroundImage) {
-      const bgPath = path.join(process.cwd(), user.backgroundImage);
-      if (fs.existsSync(bgPath)) {
-        fs.unlinkSync(bgPath);
+      const imagePath = path.join(process.cwd(), user.backgroundImage);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
       }
 
       user.backgroundImage = "";
@@ -291,6 +287,31 @@ export const deleteBackgroundImage = async (req, res) => {
     res.status(200).json({
       message: "Background image deleted successfully",
       user: await User.findById(userId).select("-password"),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Toggle background image usage
+export const toggleBackgroundImage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { useCustomBackground } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: { useCustomBackground } },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({
+      message: useCustomBackground ? "Switched to custom background" : "Switched to default background",
+      user,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
