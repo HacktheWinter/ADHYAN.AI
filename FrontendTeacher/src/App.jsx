@@ -85,6 +85,33 @@ export default function App() {
         }
       />
 
+      {/* Full Screen Routes for Announcement and Calendar */}
+      <Route
+        path="/class/:classId/announcement"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <Announcement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/class/:classId/calendar"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <CalendarPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/class/:classId/live-classroom"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <LiveClassroom />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Class Detail Routes - Main Layout */}
       <Route
         path="/class/:classId"
@@ -101,9 +128,6 @@ export default function App() {
         <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="students" element={<StudentsPage />} />
         <Route path="doubts" element={<DoubtsPage />} />
-        <Route path="announcement" element={<Announcement />} />
-        <Route path="calendar" element={<CalendarPage />} />
-        <Route path="live-classroom" element={<LiveClassroom />} />
       </Route>
 
       {/* Test Results Routes */}

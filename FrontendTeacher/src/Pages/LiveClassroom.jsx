@@ -1,22 +1,39 @@
-import React, { useState } from "react";
-import { useNavigate, useParams, useOutletContext } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Video, Upload, ArrowLeft } from "lucide-react";
 import LiveVideoUpload from "../components/LiveVideoUpload";
 import LiveMeeting from "../components/LiveMeeting";
+import api from "../api/axios";
 
 const LiveClassroom = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
-  const { classData, currentUser } = useOutletContext();
-
+  
+  const [classData, setClassData] = useState(null);
+  const [currentUser, setCurrentUser] = useState({ role: "teacher" });
   const [activeTab, setActiveTab] = useState("videos");
+
+  useEffect(() => {
+    // Fetch class data if needed
+    const fetchClassData = async () => {
+      try {
+        // Using the same endpoint as ClassDetail
+        const response = await api.get(`/classroom/${classId}`);
+        const data = response.data.classroom || response.data;
+        setClassData(data);
+      } catch (error) {
+        console.error("Error:", error);
+      }
+    };
+    
+    fetchClassData();
+  }, [classId]);
 
   return (
     <div className="min-h-screen bg-gray-100">
       {/* ================= NAVBAR ================= */}
       <header className="sticky top-0 z-50 bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          {/* Back */}
           <button
             onClick={() => navigate(`/class/${classId}`)}
             className="flex items-center gap-2 text-gray-600 hover:text-purple-600 transition font-medium"
@@ -27,7 +44,6 @@ const LiveClassroom = () => {
             </span>
           </button>
 
-          {/* Title */}
           <div className="text-center">
             <h1 className="text-base sm:text-lg font-semibold text-gray-900">
               Live Classroom
@@ -35,14 +51,12 @@ const LiveClassroom = () => {
             <p className="text-xs text-gray-500">{classData?.subject}</p>
           </div>
 
-          {/* Right Spacer */}
           <div className="w-8" />
         </div>
       </header>
 
       {/* ================= CONTENT ================= */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* ---------- TAB SWITCHER ---------- */}
         <div className="flex justify-center mb-8">
           <div className="inline-flex bg-gray-200 rounded-full p-1 shadow-inner">
             <button
@@ -73,7 +87,6 @@ const LiveClassroom = () => {
           </div>
         </div>
 
-        {/* ---------- TAB CONTENT ---------- */}
         <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
           {activeTab === "videos" && (
             <div className="animate-fadeIn">
@@ -89,8 +102,7 @@ const LiveClassroom = () => {
         </section>
       </main>
 
-      {/* Animation */}
-      <style jsx>{`
+      <style>{`
         @keyframes fadeIn {
           from {
             opacity: 0;
