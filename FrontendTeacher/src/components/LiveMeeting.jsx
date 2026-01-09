@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import api from "../api/axios";
 import { Video, Play, Square, Loader2, Signal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getStoredUser } from "../utils/authStorage";
 
 const LiveMeeting = ({ classId }) => {
   const [isLive, setIsLive] = useState(false);
@@ -11,9 +12,9 @@ const LiveMeeting = ({ classId }) => {
   const jitsiApiRef = useRef(null);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = getStoredUser();
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      setUser(storedUser);
     }
   }, []);
 
@@ -43,8 +44,7 @@ const LiveMeeting = ({ classId }) => {
             return;
           }
           const script = document.createElement("script");
-          script.src =
-            "https://8x8.vc/vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/external_api.js";
+          script.src = "https://meet.jit.si/external_api.js";
           script.async = true;
           script.onload = resolve;
           document.head.appendChild(script);
@@ -53,8 +53,8 @@ const LiveMeeting = ({ classId }) => {
 
       loadJitsiScript().then(() => {
         if (jitsiContainerRef.current && !jitsiApiRef.current) {
-          jitsiApiRef.current = new window.JitsiMeetExternalAPI("8x8.vc", {
-            roomName: `vpaas-magic-cookie-fcddaa8e4b2d44a2bf26f73b628c218d/class-${classId}`,
+          jitsiApiRef.current = new window.JitsiMeetExternalAPI("meet.jit.si", {
+            roomName: `AdhyanAI-Class-${classId}`,
             parentNode: jitsiContainerRef.current,
             userInfo: {
               displayName: user.name || "Teacher",
