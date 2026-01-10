@@ -185,7 +185,7 @@ const ClassDetail = () => {
           </>
         )}
 
-        <div className="mt-6">
+        <div className={!isLiveClassroom ? "mt-6" : ""}>
           <Outlet context={outletContext} />
         </div>
       </main>

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import api from "../api/axios";
 import { Video, Play, Square, Loader2, Signal } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getStoredUser } from "../utils/authStorage";
 
 import { getStoredUser } from "../utils/authStorage";
 
@@ -15,10 +14,7 @@ const LiveMeeting = ({ classId }) => {
   const isTeacherHostingRef = useRef(false); // Track if teacher is actively hosting
 
   useEffect(() => {
-    const storedUser = getStoredUser();
-    if (storedUser) {
-      setUser(storedUser);
-    }
+    setUser(getStoredUser());
   }, []);
 
   const fetchStatus = async () => {
