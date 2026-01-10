@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import TestPaper from "../models/TestPaper.js";
 import Note from "../models/Note.js";
-import { bucket } from "../config/gridfs.js";
+import { getBucket } from "../config/gridfs.js";
 import { generateTestPaperFromText } from "../config/geminiTestPaper.js";
 import {
   extractTextFromPDF,
@@ -15,6 +15,11 @@ import {
  */
 export const generateTestPaperWithAI = async (req, res) => {
   try {
+    const bucket = getBucket();
+    if (!bucket) {
+      console.error("GridFS bucket not ready");
+      return;
+    }
     const { noteIds, classroomId } = req.body;
 
     console.log("=== TEST PAPER GENERATION STARTED ===");
@@ -238,17 +243,19 @@ export const publishTestPaper = async (req, res) => {
 
     // Auto-create Calendar Event
     try {
-      const CalendarEvent = (await import("../models/CalendarEvent.js")).default;
+      const CalendarEvent = (await import("../models/CalendarEvent.js"))
+        .default;
       await CalendarEvent.create({
         title: `Test: ${testPaper.title}`,
-        type: 'test',
+        type: "test",
         classId: testPaper.classroomId,
         teacherId: req.user._id, // Assuming auth middleware
         startDate: startTime || new Date(),
-        endDate: calculatedEndTime || new Date(Date.now() + (duration || 60) * 60000),
+        endDate:
+          calculatedEndTime || new Date(Date.now() + (duration || 60) * 60000),
         description: `Test duration: ${duration} minutes`,
         relatedId: testPaper._id,
-        onModel: 'TestPaper'
+        onModel: "TestPaper",
       });
       console.log("Calendar event created for Test Paper");
     } catch (calError) {
