@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getStoredToken } from "../utils/authStorage";
+import { getStoredToken, clearAuth } from "../utils/authStorage";
 
 
 const api = axios.create({
@@ -23,9 +23,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.error("Unauthorized! Check your token or login again.");
-      // Optionally, redirect to login page
-      // window.location.href = "/login";
+      console.error("Unauthorized! Session expired. Redirecting to login...");
+      clearAuth();
+      window.location.href = "/login";
     }
     return Promise.reject(error);
   }

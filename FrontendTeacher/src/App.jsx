@@ -111,16 +111,6 @@ export default function App() {
         }
       />
       <Route
-        path="/class/:classId/live-classroom"
-        element={
-          <ProtectedRoute requiredRole="teacher">
-            <LiveClassroom />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Class Detail Routes - Main Layout */}
-      <Route
         path="/class/:classId"
         element={
           <ProtectedRoute requiredRole="teacher">
@@ -129,6 +119,7 @@ export default function App() {
         }
       >
         <Route index element={<Navigate to="notes" replace />} />
+        <Route path="live-classroom" element={<LiveClassroom />} />
         <Route path="notes" element={<NotesPage />} />
         <Route path="quizzes" element={<QuizzesPage />} />
         <Route path="test-papers" element={<TestPapersPage />} />

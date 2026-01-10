@@ -47,18 +47,23 @@ const LiveVideoUpload = ({ classId, role }) => {
   // ---------------- FETCH VIDEOS ----------------
   const fetchVideos = async () => {
     try {
+      console.log("Fetching live videos for class:", classId);
       const res = await api.get(`/live/videos/${classId}`);
-      // Standardize response handling
-      if (res.data?.success) {
-        setVideos(Array.isArray(res.data.data) ? res.data.data : []);
-      } else if (Array.isArray(res.data)) {
-        // Fallback for non-standardized responses
-        setVideos(res.data);
-      } else {
-        setVideos([]);
-      }
+      console.log("Videos API Response:", res);
+
+      const parsedVideos = res.data?.success && Array.isArray(res.data.data)
+        ? res.data.data
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
+      
+      console.log("Parsed Videos:", parsedVideos);
+      setVideos(parsedVideos);
     } catch (err) {
-      console.error("Fetch failed:", err);
+      console.error("Fetch Live Videos failed:", err);
+      if (err.response) {
+        console.error("Error Response:", err.response.status, err.response.data);
+      }
     }
   };
 
