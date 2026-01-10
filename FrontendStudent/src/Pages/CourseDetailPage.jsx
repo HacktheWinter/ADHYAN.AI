@@ -196,7 +196,7 @@ export default function CourseDetailPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                  {className || 'Course Material'}
+                  {className}
                 </h1>
                 <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, quizzes, assignments, tests and doubts</p>
               </div>
