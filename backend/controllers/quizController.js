@@ -2,7 +2,7 @@
 import mongoose from "mongoose";
 import Quiz from "../models/Quiz.js";
 import Note from "../models/Note.js";
-import { bucket } from "../config/gridfs.js";
+import { getBucket } from "../config/gridfs.js";
 import { generateQuizFromText } from "../config/gemini.js";
 import {
   extractTextFromPDF,
@@ -18,6 +18,12 @@ import {
 export const generateQuizWithAI = async (req, res) => {
   try {
     const { noteIds, classroomId } = req.body;
+
+    const bucket = getBucket();
+    if (!bucket) {
+      console.error("GridFS bucket not ready");
+      return;
+    }
 
     console.log("=== QUIZ GENERATION STARTED ===");
     console.log(" Request body:", { noteIds, classroomId });
@@ -349,17 +355,19 @@ export const publishQuizWithTiming = async (req, res) => {
 
     // Auto-create Calendar Event
     try {
-      const CalendarEvent = (await import("../models/CalendarEvent.js")).default;
+      const CalendarEvent = (await import("../models/CalendarEvent.js"))
+        .default;
       await CalendarEvent.create({
         title: `Quiz: ${quiz.title}`,
-        type: 'quiz',
+        type: "quiz",
         classId: quiz.classroomId,
         teacherId: req.user._id, // Assuming auth middleware populates req.user
         startDate: startTime || new Date(),
-        endDate: calculatedEndTime || new Date(Date.now() + (duration || 60) * 60000),
+        endDate:
+          calculatedEndTime || new Date(Date.now() + (duration || 60) * 60000),
         description: `Quiz duration: ${duration} minutes`,
         relatedId: quiz._id,
-        onModel: 'Quiz'
+        onModel: "Quiz",
       });
       console.log("Calendar event created for Quiz");
     } catch (calError) {
