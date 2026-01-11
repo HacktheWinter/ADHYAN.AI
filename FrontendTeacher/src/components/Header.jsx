@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, LogOut, Settings, User, UserPlus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { clearAuth, getStoredUser } from '../utils/authStorage';
 
 const Header = () => {
@@ -47,10 +48,10 @@ const Header = () => {
 
   return (
     <>
-      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50 ">
+      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
-            <a 
+            <motion.a 
               href="https://adhyanai-5eum.onrender.com/"
               className="flex items-center space-x-1"
             >
@@ -63,10 +64,12 @@ const Header = () => {
                 <h1 className="text-xl font-bold text-gray-900">ADHYAN.AI</h1>
                 <p className="text-sm text-gray-500">Teacher Panel</p>
               </div>
-            </a>
+            </motion.a>
 
             <div className="relative" ref={dropdownRef}>
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 cursor-pointer overflow-hidden"
               >
@@ -79,71 +82,79 @@ const Header = () => {
                 ) : (
                   <span className="text-sm">{user ? getInitials(user.name) : 'T'}</span>
                 )}
-              </button>
+              </motion.button>
 
-              {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
-                  {user ? (
-                    <>
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-semibold text-gray-900">{user.name}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
-                      </div>
+              <AnimatePresence>
+                {isDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50"
+                  >
+                    {user ? (
+                      <>
+                        <div className="px-4 py-3 border-b border-gray-100">
+                          <p className="text-sm font-semibold text-gray-900">{user.name}</p>
+                          <p className="text-xs text-gray-500">{user.email}</p>
+                        </div>
 
+                        <div className="py-2">
+                          <button
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              navigate('/profile');
+                            }}
+                            className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors text-left cursor-pointer"
+                          >
+                            <User className="w-4 h-4 mr-3" /> My Profile
+                          </button>
+                          <button
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              navigate('/settings');
+                            }}
+                            className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors text-left cursor-pointer"
+                          >
+                            <Settings className="w-4 h-4 mr-3" /> Settings
+                          </button>
+                        </div>
+
+                        <div className="border-t border-gray-100 py-2">
+                          <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
+                          >
+                            <LogOut className="w-4 h-4 mr-3" /> Logout
+                          </button>
+                        </div>
+                      </>
+                    ) : (
                       <div className="py-2">
                         <button
                           onClick={() => {
                             setIsDropdownOpen(false);
-                            navigate('/profile');
+                            navigate('/login');
                           }}
-                          className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors text-left cursor-pointer"
+                          className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors text-left"
                         >
-                          <User className="w-4 h-4 mr-3" /> My Profile
+                          <LogIn className="w-4 h-4 mr-3" /> Login
                         </button>
                         <button
                           onClick={() => {
                             setIsDropdownOpen(false);
-                            navigate('/settings');
+                            navigate('/signup');
                           }}
-                          className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors text-left cursor-pointer"
+                          className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors text-left"
                         >
-                          <Settings className="w-4 h-4 mr-3" /> Settings
+                          <UserPlus className="w-4 h-4 mr-3" /> Sign Up
                         </button>
                       </div>
-
-                      <div className="border-t border-gray-100 py-2">
-                        <button
-                          onClick={handleLogout}
-                          className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
-                        >
-                          <LogOut className="w-4 h-4 mr-3" /> Logout
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="py-2">
-                      <button
-                        onClick={() => {
-                          setIsDropdownOpen(false);
-                          navigate('/login');
-                        }}
-                        className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors text-left"
-                      >
-                        <LogIn className="w-4 h-4 mr-3" /> Login
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsDropdownOpen(false);
-                          navigate('/signup');
-                        }}
-                        className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors text-left"
-                      >
-                        <UserPlus className="w-4 h-4 mr-3" /> Sign Up
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>

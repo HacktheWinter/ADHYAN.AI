@@ -116,7 +116,6 @@ export default function App() {
           <Route path="assignment" element={<Assignments />} />
           <Route path="test" element={<TestPapers />} />
           <Route path="doubt" element={<DoubtPage />} />
-          <Route path="classes" element={<ClassesPage />} />
         </Route>
 
         {/* Standalone Course Announcement Route (with navbar) */}
@@ -129,6 +128,16 @@ export default function App() {
         element={
           <ProtectedRoute requiredRole="student">
             <StudentCalendarPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Classes Route (Fullscreen - No Navbar) */}
+      <Route
+        path="/course/:id/classes"
+        element={
+          <ProtectedRoute requiredRole="student">
+            <ClassesPage />
           </ProtectedRoute>
         }
       />
