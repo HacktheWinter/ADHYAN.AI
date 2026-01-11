@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Share2, MoreVertical, Trash2, Edit3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ClassCodeModal from './ClassCodeModal';
+import { getAllThemes } from '../data/themeData';
 
 const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
   const [showCodeModal, setShowCodeModal] = useState(false);
@@ -56,8 +57,25 @@ const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
   
   // Check if we have an image (either from themeImage or colorTheme containing an image URL)
   const isImageUrl = (str) => str && (str.startsWith('data:') || str.includes('.jpg') || str.includes('.jpeg') || str.includes('.png') || str.includes('.webp'));
-  const hasImage = Boolean(classData.themeImage) || isImageUrl(headerColor);
-  const imageUrl = classData.themeImage || (isImageUrl(headerColor) ? headerColor : null);
+  // Resolve effective theme image
+  let resolvedImage = classData.themeImage; // Start with custom upload if any
+
+  // If no custom upload, try to resolve from themeId
+  if (!resolvedImage && classData.themeId) {
+    const allThemes = getAllThemes();
+    const foundTheme = allThemes.find(t => t.id === classData.themeId);
+    if (foundTheme) {
+      resolvedImage = foundTheme.value;
+    }
+  }
+
+  // Fallback: Check if colorTheme itself is an image URL (legacy support)
+  if (!resolvedImage && classData.colorTheme && isImageUrl(classData.colorTheme)) {
+    resolvedImage = classData.colorTheme;
+  }
+
+  const hasImage = Boolean(resolvedImage);
+  const imageUrl = resolvedImage;
   
   const headerStyle = hasImage
     ? {

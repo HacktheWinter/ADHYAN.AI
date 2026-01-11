@@ -18,6 +18,7 @@ const classroomSchema = new mongoose.Schema({
     default: "bg-gradient-to-br from-purple-500 to-purple-700",
   },
   themeImage: { type: String, default: "" },
+  themeId: { type: String, default: null },
   isLive: { type: Boolean, default: false },
 }, { timestamps: true });
 

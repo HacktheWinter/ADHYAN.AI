@@ -14,6 +14,7 @@ import axios from "axios";
 import UpcomingEventsSidebar from "../components/UpcomingEventsSidebar";
 import { getStoredUser } from "../utils/authStorage";
 import API_BASE_URL from "../config";
+import { getAllThemes } from "../data/themeData";
 
 export default function NoteCraftsDashboard() {
   const navigate = useNavigate();
@@ -65,6 +66,7 @@ export default function NoteCraftsDashboard() {
           teacher: cls.teacherId?.name || "Teacher",
           colorTheme: cls.colorTheme || "",
           themeImage: cls.themeImage || "",
+          themeId: cls.themeId || null,
           fallbackColor: getGradientColor(idx),
           courseId: cls._id,
           classCode: cls.classCode,
@@ -130,6 +132,7 @@ export default function NoteCraftsDashboard() {
         teacher: "Teacher",
         colorTheme: response.data.classroom.colorTheme || "",
         themeImage: response.data.classroom.themeImage || "",
+        themeId: response.data.classroom.themeId || null,
         fallbackColor: getGradientColor(myCourses.length),
         courseId: response.data.classroom._id,
         classCode: response.data.classroom.classCode,
@@ -185,11 +188,25 @@ export default function NoteCraftsDashboard() {
         str.includes(".jpeg") ||
         str.includes(".png") ||
         str.includes(".webp"));
-    const hasImage =
-      Boolean(course.themeImage) || isImageUrl(course.colorTheme);
-    const imageUrl =
-      course.themeImage ||
-      (isImageUrl(course.colorTheme) ? course.colorTheme : null);
+
+    // Resolve effective theme image
+    let resolvedImage = course.themeImage;
+
+    if (!resolvedImage && course.themeId) {
+      const allThemes = getAllThemes();
+      const foundTheme = allThemes.find((t) => t.id === course.themeId);
+      if (foundTheme) {
+        resolvedImage = foundTheme.value;
+      }
+    }
+
+    // Fallback legacy support
+    if (!resolvedImage && course.colorTheme && isImageUrl(course.colorTheme)) {
+      resolvedImage = course.colorTheme;
+    }
+
+    const hasImage = Boolean(resolvedImage);
+    const imageUrl = resolvedImage;
 
     const headerClass = hasImage ? "bg-gray-900" : course.colorTheme || "";
     const headerStyle = hasImage
