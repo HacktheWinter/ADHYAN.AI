@@ -44,6 +44,7 @@ export const createClassroom = async (req, res) => {
       classCode,
       colorTheme,
       themeImage,
+      themeId: req.body.themeId || null,
     });
 
     res.status(201).json({
@@ -236,6 +237,7 @@ export const updateClassroom = async (req, res) => {
     if (subject !== undefined) classroom.subject = subject;
     if (colorTheme !== undefined) classroom.colorTheme = colorTheme;
     if (themeImage !== undefined) classroom.themeImage = themeImage;
+    if (req.body.themeId !== undefined) classroom.themeId = req.body.themeId;
 
     await classroom.save();
 

@@ -55,7 +55,7 @@ const Dashboard = () => {
 
   const handleCreateClass = async (newClassData) => {
     try {
-      const { name, subject, colorTheme, themeImage } = newClassData;
+      const { name, subject, colorTheme, themeImage, themeId } = newClassData;
 
       const response = await createClassroom({
         teacherId,
@@ -63,6 +63,7 @@ const Dashboard = () => {
         subject,
         colorTheme,
         themeImage,
+        themeId,
       });
 
       if (response && response.classroom) {
@@ -196,6 +197,7 @@ const Dashboard = () => {
                     color: classItem.colorTheme || classItem.color || "bg-gradient-to-br from-purple-500 to-purple-700",
                     colorTheme: classItem.colorTheme,
                     themeImage: classItem.themeImage,
+                    themeId: classItem.themeId, // Pass themeId
                   }}
                   onClick={() => handleClassClick(classItem)}
                   onDelete={handleDeleteClass}
