@@ -1,70 +1,95 @@
-# ADHYAN.AI Design Diagrams
+# ADHYAN.AI – Design Diagrams
 
-This document details the architectural design and logical flow of the ADHYAN.AI platform, specifically focusing on the AI-driven educational features.
+This section explains the three core design diagrams used in the ADHYAN.AI system. Together, these diagrams describe how the platform is structured, how data moves, and how information is stored.
 
-## 1. Context Diagram
-![Context Diagram](./images/design01.png)
 
-**Diagram Overview:**
-This Context Diagram provides the highest-level view of the ADHYAN.AI system boundary. It identifies the **ADHYAN.AI Platform** as the core system and maps its interactions with external entities:
-- **Teachers:** Who input lecture notes and manage assessments.
-- **Students:** Who take assessments and receive feedback.
-- **External AI Services (Gemini/OpenAI):** Which the system queries for question generation and grading logic.
-- **Administrators:** Who oversee system health and user management.
-This diagram establishes the scope of the project and clarifies what lies inside versus outside the automation boundary.
+## 1. High-Level System Architecture Diagram
+![High-Level System Architecture Diagram](./images/diagram-1.png)
 
----
+**Purpose:**
+This diagram shows the overall structure of the **ADHYAN.AI** platform and how its major components interact.
 
-## 2. Data Flow Diagram
-![Data Flow Diagram](./images/design02.png)
+**Explanation:**
+ADHYAN.AI consists of two main user interfaces:
+- **Student Web App**
+- **Teacher Web App**
+Both applications are built using React and connect to a centralized backend server built using Node.js and Express.
 
-**Diagram Overview:**
-This Data Flow Diagram (DFD) illustrates how information moves through the ADHYAN.AI system.
-- **Input:** Lecture PDF/Text flows from the Teacher to the "Content Processing Module".
-- **Process:** The data is transformed into structured JSON Quizzes by the "AI Generation Engine".
-- **Storage:** Generated quizzes are stored in the "Assessments Database".
-- **Output:** Student answers flow back into the "Grading Module", which retrieves answer keys from storage, compares them, and outputs a "Performance Report".
-It highlights the transformation of unstructured data (notes) into structured actionable data (graded results).
+# The backend acts as the brain of the system. It handles:
+- Authentication and role management
+- Class creation and joining
+- Notes, quizzes, tests, and assignments
+- Student submissions
+- AI-based evaluation
+- Result publishing
+- Real-time doubts and classroom interactions
 
----
+# The backend communicates with:
+- MongoDB to store all system data
+- File Storage to store notes, videos, and uploaded answer files
+- AI Evaluation Engine to perform semantic analysis of student answers
+- Socket.IO to provide real-time features like live doubts and replies
 
-## 3. Activity Diagram
-![Activity Diagram](./images/design03.png)
-
-**Diagram Overview:**
-This Activity Diagram details the step-by-step workflow for the **"AI Question Generation"** process.
-- **Start:** Teacher initiates a request.
-- **Action:** System validates the file format and user quota.
-- **Action:** System extracts text from the uploaded document.
-- **Decision:** If text is sufficient -> Send to AI Model; Else -> Return Error.
-- **Action:** AI Model generates questions.
-- **Action:** System parses and displays questions for review.
-- **End:** Teacher saves the quiz.
-This specifically models the operational logic and decision points involved in creating a new assessment.
+This architecture ensures that both teachers and students use a single, consistent backend while maintaining separate interfaces.
 
 ---
 
-## 4. Sequence Diagram
-![Sequence Diagram](./images/design04.png)
 
-**Diagram Overview:**
-The Sequence Diagram captures the runtime interaction between the system's objects during the **"Student Assignment Submission"** scenario.
-1. **StudentUI** sends `uploadSubmission()` to the **BackendAPI**.
-2. **BackendAPI** calls `OCRService` to `extractText()`.
-3. **OCRService** returns raw text.
-4. **BackendAPI** calls `AIService` with `evaluate(text, answerKey)`.
-5. **AIService** returns `grade` and `feeback`.
-6. **BackendAPI** saves the result to **Database** and returns success to **StudentUI**.
-This visualization is critical for understanding the API call chains and latency dependencies.
+## 2. Data Flow Diagram (DFD)
+![Data Flow Diagram](./images/diagram-2.png)
+
+**Purpose:**
+This diagram shows how data moves through ADHYAN.AI when users interact with the system.
+
+**Explanation:**
+Students and teachers send data into the system through their web applications.
+This data flows into different processes such as:
+- Authentication
+- Class management
+- Notes management
+- Quiz, test, and assignment handling
+- Submission processing
+- AI evaluation
+- Result publishing
+- Doubts and discussions
+
+1. When a teacher creates a class, quiz, or assignment, the information is stored in the respective databases.
+2. When a student submits answers, the data is stored in the Submission Database and sent to the AI Evaluation Engine.
+3. The AI analyzes the answers and returns scores, which are saved in the Result Database.
+
+**Teachers** can review or modify these results and then publish them.
+**Students** can later view their final results and feedback.
+
+- Doubts raised by students are stored in the Doubts Database and shared in real-time with teachers and classmates.
+
+This diagram clearly shows how information flows from users, through processing units, into storage, and back to users.
 
 ---
 
-## 5. Class Diagram
-![Class Diagram](./images/design05.png)
 
-**Diagram Overview:**
-The Class Diagram defines the static structure of the ADHYAN.AI application code.
-- **User Hierarchy:** Shows a base `User` class extended by `Student` and `Teacher` classes with specific permissions.
-- **Core Models:** `Course`, `Quiz`, `Question`, and `Submission` classes are depicted with their attributes (e.g., `difficultyLevel`, `marks`) and methods (e.g., `calculateScore()`).
-- **Relationships:** Illustrates that a `Course` *has many* `Quizzes`, and a `Student` *creates many* `Submissions` for those quizzes.
-This blueprint guides the database schema design and object-oriented programming implementation.
+## 3. Database Schema
+![Database Schema (ER Diagram)](./images/diagram-3.png)
+
+**Purpose:**
+This diagram shows how data is organized and related inside the ADHYAN.AI database.
+
+**Explanation:**
+The database contains multiple entities that represent real-world objects in the system:
+- User stores student and teacher accounts
+- Classroom stores class information and enrolled users
+- Note, Video, Announcement, CalendarEvent store learning content
+- Quiz, TestPaper, Assignment store assessments
+- QuizSubmission, TestSubmission, AssignmentSubmission store student answers
+- Feedback stores final evaluated results
+- Doubt stores student questions and teacher replies
+
+
+# Relationships between these entities show:
+- Teachers create classrooms
+- Students join classrooms
+- Classrooms contain quizzes, tests, assignments, notes, and doubts
+- Students submit answers for assessments
+- Each submission produces feedback
+- Doubts belong to a classroom and a student
+
+This schema ensures that all academic activities are properly connected and traceable.

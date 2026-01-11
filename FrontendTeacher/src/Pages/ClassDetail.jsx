@@ -156,7 +156,7 @@ const ClassDetail = () => {
             <div className="relative">
               <ClassHeader classData={classData} onBack={handleBack} />
 
-              <div className="absolute top-0 right-0 dropdown-container z-50">
+              <div className="absolute top-0 right-0 dropdown-container">
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="px-5 py-2 bg-purple-600 text-white rounded-xl"
@@ -165,7 +165,7 @@ const ClassDetail = () => {
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute right-0 mt-3 w-56 bg-white rounded-xl shadow-lg border z-50">
+                  <div className="absolute right-0 mt-3 w-56 bg-white rounded-xl shadow-lg border z-1">
                     {["announcement", "calendar", "classes", "feedback"].map(
                       (opt) => (
                         <button
