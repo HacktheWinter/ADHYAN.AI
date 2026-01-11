@@ -5,6 +5,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import API_BASE_URL from '../config';
 import { ArrowLeft, Plus, X, CalendarDays, Loader, Clock, AlignLeft, Trash2, MapPin } from 'lucide-react';
 
 const CalendarPage = () => {
@@ -37,7 +38,7 @@ const CalendarPage = () => {
     const fetchEvents = async () => {
         try {
             setLoading(true);
-            const response = await axios.get(`http://localhost:5000/api/calendar/teacher/${teacherId}`);
+            const response = await axios.get(`${API_BASE_URL}/calendar/teacher/${teacherId}`);
             if (response.data.success) {
                 const formattedEvents = response.data.events.map(event => ({
                     id: event._id,
@@ -97,7 +98,7 @@ const CalendarPage = () => {
 
         setDeleting(true);
         try {
-            await axios.delete(`http://localhost:5000/api/calendar/${selectedEvent.id}`);
+            await axios.delete(`${API_BASE_URL}/calendar/${selectedEvent.id}`);
             await fetchEvents();
             setSelectedEvent(null);
         } catch (error) {
@@ -142,7 +143,7 @@ const CalendarPage = () => {
                 description: newEvent.description
             };
 
-            await axios.post('http://localhost:5000/api/calendar/create', payload);
+            await axios.post(`${API_BASE_URL}/calendar/create`, payload);
             await fetchEvents();
             setIsModalOpen(false);
             setNewEvent({

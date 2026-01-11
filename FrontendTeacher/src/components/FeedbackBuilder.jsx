@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Star, Send, ClipboardList } from "lucide-react";
+import API_BASE_URL from "../config";
 
 const FeedbackBuilder = ({ classId, onClose, onSuccess }) => {
   const [questions, setQuestions] = useState([]);
@@ -33,7 +34,7 @@ const FeedbackBuilder = ({ classId, onClose, onSuccess }) => {
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/feedback/create", {
+      const res = await fetch(`${API_BASE_URL}/feedback/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

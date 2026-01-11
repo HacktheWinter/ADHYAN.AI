@@ -1,7 +1,8 @@
 // FrontendTeacher/src/api/notesApi.js
 import axios from "axios";
+import API_BASE_URL from "../config";
 
-const BASE_URL = "http://localhost:5000/api/notes";
+const BASE_URL = `${API_BASE_URL}/notes`;
 
 // Fetch all notes (admin)
 export const getAllNotes = async () => {

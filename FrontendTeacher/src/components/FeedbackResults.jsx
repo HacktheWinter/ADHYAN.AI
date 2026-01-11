@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, MessageSquare, History, ChevronDown, Trash2 } from "lucide-react";
+import API_BASE_URL from "../config";
 
 const FeedbackResults = ({ classId }) => {
   const [responses, setResponses] = useState([]);
@@ -17,7 +18,7 @@ const FeedbackResults = ({ classId }) => {
   const fetchResults = async () => {
     try {
       const res = await fetch(
-        `http://localhost:5000/api/feedback/results/${classId}`,
+        `${API_BASE_URL}/feedback/results/${classId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -46,7 +47,7 @@ const FeedbackResults = ({ classId }) => {
       setHistoryLoading(true);
 
       const res = await fetch(
-        `http://localhost:5000/api/feedback/results/all/${classId}`,
+        `${API_BASE_URL}/feedback/results/all/${classId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -71,7 +72,7 @@ const FeedbackResults = ({ classId }) => {
     if (!window.confirm("Are you sure you want to delete this entire feedback session? This cannot be undone.")) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/feedback/delete/${feedbackId}`, {
+      const res = await fetch(`${API_BASE_URL}/feedback/delete/${feedbackId}`, {
          method: 'DELETE',
          headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -132,7 +133,7 @@ const FeedbackResults = ({ classId }) => {
   useEffect(() => {
      const getActiveId = async () => {
         try {
-           const res = await fetch(`http://localhost:5000/api/feedback/active/${classId}`, {
+           const res = await fetch(`${API_BASE_URL}/feedback/active/${classId}`, {
               headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
            });
            const data = await res.json();
@@ -148,7 +149,7 @@ const FeedbackResults = ({ classId }) => {
       if (!window.confirm("Delete this response?")) return;
 
       try {
-        const res = await fetch(`http://localhost:5000/api/feedback/response/${activeFeedbackId}/${studentId}`, {
+        const res = await fetch(`${API_BASE_URL}/feedback/response/${activeFeedbackId}/${studentId}`, {
            method: 'DELETE',
            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
         });

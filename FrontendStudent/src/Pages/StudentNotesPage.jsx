@@ -4,6 +4,7 @@ import { FileText, Download, Eye, X, Loader } from "lucide-react";
 import axios from "axios";
 
 import PdfPreview from "../components/PdfPreview";
+import API_BASE_URL from "../config";
 
 const StudentNotesPage = () => {
   const { id: classId } = useParams();
@@ -25,7 +26,7 @@ const StudentNotesPage = () => {
       setError(null);
 
       const response = await axios.get(
-        `http://localhost:5000/api/notes/classroom/${classId}`
+        `${API_BASE_URL}/notes/classroom/${classId}`
       );
 
       setNotes(response.data.notes || []);
@@ -46,7 +47,7 @@ const StudentNotesPage = () => {
   };
 
   const handleDownload = (note) => {
-    const url = `http://localhost:5000/api/notes/file/${note.fileId}`;
+    const url = `${API_BASE_URL}/notes/file/${note.fileId}`;
     window.open(url, "_blank");
   };
 
@@ -154,7 +155,7 @@ const StudentNotesPage = () => {
       {previewNote && (
 
         <PdfPreview
-          url={`http://localhost:5000/api/notes/file/${previewNote.fileId}`}
+          url={`${API_BASE_URL}/notes/file/${previewNote.fileId}`}
           title={previewNote.title}
           onClose={closePreview}
         />

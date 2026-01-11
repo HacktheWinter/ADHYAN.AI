@@ -4,6 +4,7 @@ import { LogIn, LogOut, Settings, User, UserPlus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import NotificationDropdown from './NotificationDropdown';
 import { clearAuth, getStoredUser } from '../utils/authStorage';
+import API_BASE_URL from '../config';
 
 export default function StudentNavbar({ searchQuery = '', onSearchChange = () => {} }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -62,7 +63,8 @@ export default function StudentNavbar({ searchQuery = '', onSearchChange = () =>
 
   const getProfilePhotoUrl = () => {
     if (user?.profilePhoto) {
-      return `http://localhost:5000/${user.profilePhoto}`;
+      const BASE_URL = API_BASE_URL.replace('/api', '');
+      return `${BASE_URL}/${user.profilePhoto}`;
     }
     return null;
   };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import API_BASE_URL from "../config";
 import { Bell, Clock, Calendar, CheckCircle, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -60,10 +61,10 @@ const NotificationDropdown = () => {
     try {
       const results = await Promise.allSettled([
         axios.get(
-          `http://localhost:5000/api/calendar/student/all/${studentId}`
+          `${API_BASE_URL}/calendar/student/all/${studentId}`
         ),
         axios.get(
-          `http://localhost:5000/api/announcement/student/${studentId}`
+          `${API_BASE_URL}/announcement/student/${studentId}`
         ),
       ]);
 

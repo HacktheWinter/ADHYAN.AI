@@ -1,6 +1,7 @@
 import axios from "axios";
+import API_BASE_URL from "../config";
 
-const BASE_URL = "http://localhost:5000/api/announcement";
+const BASE_URL = `${API_BASE_URL}/announcement`;
 
 // Get all announcements for a classroom
 export const getAnnouncements = async (classroomId) => {
