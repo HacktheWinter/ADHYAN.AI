@@ -62,7 +62,6 @@ export default function NoteCraftsDashboard() {
           id: cls._id,
           title: cls.name,
           teacher: cls.teacherId?.name || "Teacher",
-          // Prefer teacher-set theme; fallback to existing rotating gradient
           colorTheme: cls.colorTheme || "",
           themeImage: cls.themeImage || "",
           fallbackColor: getGradientColor(idx),
@@ -159,7 +158,6 @@ export default function NoteCraftsDashboard() {
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef(null);
 
-    // Close dropdown when clicking outside
     useEffect(() => {
       const handleClickOutside = (event) => {
         if (
@@ -179,7 +177,6 @@ export default function NoteCraftsDashboard() {
       };
     }, [showDropdown]);
 
-    // Check if colorTheme or themeImage contains an image URL
     const isImageUrl = (str) =>
       str &&
       (str.startsWith("data:") ||
@@ -220,7 +217,6 @@ export default function NoteCraftsDashboard() {
             { studentId }
           );
 
-          // Remove class from the list
           setMyCourses((prev) => prev.filter((c) => c.id !== course.id));
           setSuccess(`Successfully left ${course.title}`);
           setTimeout(() => setSuccess(""), 3000);
@@ -249,7 +245,6 @@ export default function NoteCraftsDashboard() {
             {course.title}
           </h3>
 
-          {/* Three Dots Menu */}
           <div
             className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20"
             ref={dropdownRef}
@@ -262,7 +257,6 @@ export default function NoteCraftsDashboard() {
               <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
             </button>
 
-            {/* Dropdown Menu */}
             {showDropdown && (
               <div className="absolute right-0 mt-2 w-40 sm:w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
                 <button
@@ -390,11 +384,10 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
-        {/* Upcoming Events Section (Collapsible) */}
-        {!loading && <UpcomingEventsSidebar />}
+        {/* FIXED: Show Upcoming Events only once, when user has courses */}
+        {!loading && myCourses.length > 0 && <UpcomingEventsSidebar />}
 
         {/* No Search Results */}
-        {/* Has courses but search returned no results */}
         {!loading && myCourses.length > 0 && filteredCourses.length === 0 && (
           <div className="text-center mt-12 sm:mt-16 px-4">
             <AlertCircle
@@ -410,26 +403,13 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
-        {/* Courses Grid */}
-        {/* {!loading && filteredCourses.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+        {/* Courses Grid - Only show when there are filtered courses */}
+        {!loading && filteredCourses.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-6">
             {filteredCourses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
-          </div> */}
-        {/* Courses Grid - Only show when there are filtered courses */}
-        {!loading && filteredCourses.length > 0 && (
-          <>
-            {/* Upcoming Events Sidebar */}
-            <UpcomingEventsSidebar />
-
-            {/* My Courses Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-6">
-              {filteredCourses.map((course) => (
-                <CourseCard key={course.id} course={course} />
-              ))}
-            </div>
-          </>
+          </div>
         )}
       </div>
 
@@ -468,7 +448,6 @@ export default function NoteCraftsDashboard() {
               </p>
             </div>
 
-            {/* Error Message */}
             {error && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 text-xs sm:text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -476,7 +455,6 @@ export default function NoteCraftsDashboard() {
               </div>
             )}
 
-            {/* Success Message */}
             {success && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 text-green-700 text-xs sm:text-sm">
                 <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />

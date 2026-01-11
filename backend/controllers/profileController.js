@@ -42,7 +42,7 @@ export const getProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     const user = await User.findById(userId).select("-password");
-    
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -165,14 +165,14 @@ export const changePassword = async (req, res) => {
 
     // Get user with password field
     const user = await User.findById(userId);
-    
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
     // Verify current password
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
-    
+
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Current password is incorrect" });
     }

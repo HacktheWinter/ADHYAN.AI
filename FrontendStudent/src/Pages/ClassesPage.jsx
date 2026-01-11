@@ -23,7 +23,7 @@ export default function ClassesPage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigate(-1)}
-                className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors md:flex hidden"
+                className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors md:flex hidden cursor-pointer"
               >
                 <ArrowLeft size={20} />
               </motion.button>
@@ -43,7 +43,7 @@ export default function ClassesPage() {
             <motion.button
               whileHover={{ x: -2 }}
               onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+              className="flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
             >
               <span className="md:inline hidden">Exit Classroom</span>
               <ArrowLeft size={18} className="md:hidden" />
@@ -63,7 +63,7 @@ export default function ClassesPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center gap-2 px-4 py-2.5 sm:px-8 sm:py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                className={`relative flex items-center gap-2 px-4 py-2.5 sm:px-8 sm:py-3.5 rounded-xl text-sm font-bold transition-all duration-300 cursor-pointer ${
                   activeTab === tab.id
                     ? "text-white"
                     : "text-slate-600 hover:text-slate-900"
