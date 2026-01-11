@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { UserPlus, FileText, Edit, BarChart, PlusCircle, Upload, Award } from 'lucide-react';
+import { UserPlus, FileText, Edit, BarChart, PlusCircle, Upload, Award, Video, Megaphone } from 'lucide-react';
 
 const HowItWorks = () => {
   const [activeTab, setActiveTab] = useState('teacher');
@@ -13,15 +13,27 @@ const HowItWorks = () => {
       color: "bg-blue-100 text-blue-600"
     },
     {
+      icon: Video,
+      title: "Attend Live Class",
+      description: "Join interactive sessions, ask doubts in real-time, and access recordings later.",
+      color: "bg-red-100 text-red-600"
+    },
+    {
       icon: FileText,
       title: "Access Materials",
       description: "View notes, assignments, and study materials organized by your teacher.",
       color: "bg-purple-100 text-purple-600"
     },
     {
+      icon: Megaphone,
+      title: "Stay Updated",
+      description: "Receive instant notifications for announcements, deadlines, and important alerts.",
+      color: "bg-yellow-100 text-yellow-600"
+    },
+    {
       icon: Edit,
       title: "Take Assessments",
-      description: "Complete quizzes and tests in a secure, AI-priveleged environment.",
+      description: "Complete quizzes and tests in a secure, AI-privileged environment.",
       color: "bg-indigo-100 text-indigo-600"
     },
     {
@@ -40,10 +52,22 @@ const HowItWorks = () => {
       color: "bg-orange-100 text-orange-600"
     },
     {
+      icon: Video,
+      title: "Go Live",
+      description: "Start interactive live classes with integrated whiteboard and recording capabilities.",
+      color: "bg-red-100 text-red-600"
+    },
+    {
       icon: Upload,
       title: "Upload Content",
       description: "Simply upload your notes or textbooks. Our AI analyzes everything.",
       color: "bg-pink-100 text-pink-600"
+    },
+    {
+      icon: Megaphone,
+      title: "Announcements",
+      description: "Keep students informed with rich-text announcements and file attachments.",
+      color: "bg-blue-100 text-blue-600"
     },
     {
       icon: Sparkles, 
