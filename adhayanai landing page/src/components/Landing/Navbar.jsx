@@ -41,9 +41,9 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={(e) => scrollToSection(e, 'hero')}>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white">
-              <span className="font-bold text-lg">A</span>
+          <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={(e) => scrollToSection(e, 'hero')}>
+            <div className="w-14 to-indigo-600 flex items-center justify-center text-white">
+              <img src="/logo02.png" alt="ADHYAN.AI" />
             </div>
             <span className="font-bold text-gray-900 text-xl tracking-tight">ADHYAN.AI</span>
           </div>
