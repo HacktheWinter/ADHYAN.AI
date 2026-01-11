@@ -1,44 +1,62 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, CheckCircle, MessageCircle, TrendingUp, Shield, Smartphone, FileQuestion, ClipboardList } from 'lucide-react';
+import { Video, Megaphone, Calendar, MessageSquareMore, Sparkles, CheckCircle, MessageCircle, TrendingUp, Shield, Smartphone, FileQuestion, ClipboardList } from 'lucide-react';
 
 const Features = () => {
   const features = [
     {
+      icon: Video,
+      title: "Live Classes",
+      description: "Conduct interactive live sessions with integrated whiteboard, screen sharing, and automatic recording for later review.",
+      color: "from-blue-500 to-indigo-500"
+    },
+    {
+      icon: Megaphone,
+      title: "Smart Announcements",
+      description: "Keep everyone aligned with rich-text announcements, important alerts, and file attachments delivered instantly.",
+      color: "from-yellow-500 to-orange-500"
+    },
+    {
+      icon: Calendar,
+      title: "Interactive Calendar",
+      description: "Stay organized with a centralized academic calendar for scheduling classes, exams, and tracking deadlines.",
+      color: "from-purple-500 to-pink-500"
+    },
+    {
       icon: FileQuestion,
       title: "Generate Question Paper",
-      description: "Create comprehensive exams instantly. \nExample Questions:\n1. Explain the theory of relativity.\n2. Describe the process of photosynthesis.\n3. Solve for x: 2x + 5 = 15.",
+      description: "Create comprehensive exams instantly. \nExample Questions:\n1. Explain the theory of relativity.\n2. Describe the process of photosynthesis.",
       color: "from-rose-500 to-red-500"
     },
     {
       icon: ClipboardList,
       title: "Generate Assignments",
-      description: "Design engaging homework. \nExample Tasks:\n1. Write a 500-word essay on climate change.\n2. Analyze the character arc of Hamlet.\n3. Complete the attached thermodynamics problems.",
+      description: "Design engaging homework. \nExample Tasks:\n1. Write a 500-word essay on climate change.\n2. Analyze the character arc of Hamlet.",
       color: "from-cyan-500 to-teal-500"
     },
     {
-      icon: MessageCircle,
-      title: "Real-Time Collaboration",
-      description: "Interactive doubt-solving with live chat and instant notifications for seamless communication.",
-      color: "from-emerald-500 to-green-500"
+      icon: MessageSquareMore,
+      title: "Instant Feedback",
+      description: "Provide personalized feedback on assignments and assessments to guide student improvement effectively.",
+      color: "from-teal-500 to-emerald-500"
     },
     {
       icon: TrendingUp,
       title: "Progress Tracking",
-      description: "Comprehensive analytics and insights for students and teachers to identify learning gaps.",
+      description: "Comprehensive analytics and insights for students and teachers to identify learning gaps and track growth.",
       color: "from-orange-500 to-amber-500"
+    },
+    {
+      icon: MessageCircle,
+      title: "Real-Time Collaboration",
+      description: "Interactive learning with live chat, doubt solving, and peer-to-peer discussions.",
+      color: "from-emerald-500 to-green-500"
     },
     {
       icon: Shield,
       title: "Secure & Private",
-      description: "Protected assessments with anti-cheat proctoring features and secure data handling.",
+      description: "Protected assessments with anti-cheat proctoring features and enterprise-grade data security.",
       color: "from-red-500 to-pink-500"
-    },
-    {
-      icon: Smartphone,
-      title: "Cross-Platform Access",
-      description: "Seamless experience across desktop, tablet, and mobile devices.",
-      color: "from-indigo-500 to-violet-500"
     }
   ];
 
