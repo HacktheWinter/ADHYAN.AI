@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Star, MessageSquare, Send, CheckCircle, AlertCircle, Loader, ArrowLeft } from "lucide-react";
+import API_BASE_URL from "../config";
 
 const StudentFeedbackPage = () => {
   const { id: classId } = useParams();
@@ -46,7 +47,7 @@ const StudentFeedbackPage = () => {
         }
 
         const activeRes = await fetch(
-          `http://localhost:5000/api/feedback/active/${classId}`,
+          `${API_BASE_URL}/feedback/active/${classId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -64,7 +65,7 @@ const StudentFeedbackPage = () => {
 
         // Fetch feedback form (questions)
         const formRes = await fetch(
-          `http://localhost:5000/api/feedback/form/${classId}`,
+          `${API_BASE_URL}/feedback/form/${classId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -119,7 +120,7 @@ const StudentFeedbackPage = () => {
     try {
       const token = localStorage.getItem("token");
 
-      const res = await fetch("http://localhost:5000/api/feedback/submit", {
+      const res = await fetch(`${API_BASE_URL}/feedback/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

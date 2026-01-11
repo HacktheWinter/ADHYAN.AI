@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Mail, ArrowLeft, CheckCircle } from "lucide-react";
 import axios from "axios";
+import API_BASE_URL, { STUDENT_FRONTEND_URL, TEACHER_FRONTEND_URL } from "../config";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -10,10 +11,8 @@ export default function ForgotPassword() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const TEACHER_URL =
-    import.meta.env.VITE_TEACHER_URL || "http://localhost:5174/forgot-password";
-  const STUDENT_URL =
-    import.meta.env.VITE_STUDENT_URL || "http://localhost:5173/forgot-password";
+  const TEACHER_URL = `${TEACHER_FRONTEND_URL}/forgot-password`;
+  const STUDENT_URL = `${STUDENT_FRONTEND_URL}/forgot-password`;
 
   const handleRoleClick = (selectedRole) => {
     const target = selectedRole === "student" ? STUDENT_URL : TEACHER_URL;
@@ -35,7 +34,7 @@ export default function ForgotPassword() {
     setSuccess(false);
 
     try {
-      const endpoint = `http://localhost:5000/api/${role}/forgot-password`;
+      const endpoint = `${API_BASE_URL}/${role}/forgot-password`;
       
       await axios.post(endpoint, { email });
       

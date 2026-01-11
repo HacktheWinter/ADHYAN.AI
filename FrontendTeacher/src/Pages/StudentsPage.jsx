@@ -11,6 +11,7 @@ import {
   Check,
   UserMinus
 } from 'lucide-react';
+import API_BASE_URL from '../config';
 
 const StudentsPage = () => {
   const { classData } = useOutletContext();
@@ -270,7 +271,7 @@ const StudentsPage = () => {
                   {/* Profile Icon */}
                   {student.profilePhoto ? (
                     <img 
-                      src={`http://localhost:5000/${student.profilePhoto}`}
+                      src={`${API_BASE_URL.replace('/api', '')}/${student.profilePhoto}`}
                       alt={student.name}
                       className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover flex-shrink-0 border-2 border-purple-200 shadow-md"
                       onError={(e) => {
@@ -346,7 +347,7 @@ const StudentsPage = () => {
                   {/* Profile Icon */}
                   {student.profilePhoto ? (
                     <img 
-                      src={`http://localhost:5000/${student.profilePhoto}`}
+                      src={`${API_BASE_URL.replace('/api', '')}/${student.profilePhoto}`}
                       alt={student.name}
                       className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover flex-shrink-0 border-2 border-gray-300 shadow-md opacity-60"
                       onError={(e) => {
