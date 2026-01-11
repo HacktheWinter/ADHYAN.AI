@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { getStoredUser } from "../utils/authStorage";
+import API_BASE_URL from "../config";
 
 export default function TeacherDoubts({ classId, user }) {
   const [doubts, setDoubts] = useState([]);
@@ -16,7 +17,7 @@ export default function TeacherDoubts({ classId, user }) {
     try {
       setLoading(true);
       const res = await axios.get(
-        `http://localhost:5000/api/doubts?classId=${classId}`
+        `${API_BASE_URL}/doubts?classId=${classId}`
       );
       setDoubts(res.data);
     } catch (err) {
@@ -39,7 +40,7 @@ export default function TeacherDoubts({ classId, user }) {
 
     try {
       const res = await axios.post(
-        `http://localhost:5000/api/doubts/reply/${doubtId}`,
+        `${API_BASE_URL}/doubts/reply/${doubtId}`,
         {
           authorId: teacher.id || teacher._id,
           authorName: teacher.name,
@@ -65,7 +66,7 @@ export default function TeacherDoubts({ classId, user }) {
     if (!confirm("Are you sure you want to delete this doubt?")) return;
 
     try {
-      await axios.delete(`http://localhost:5000/api/doubts/${doubtId}`);
+      await axios.delete(`${API_BASE_URL}/doubts/${doubtId}`);
       setDoubts(doubts.filter((d) => d._id !== doubtId));
     } catch (err) {
       console.error("Failed to delete doubt", err);
@@ -79,7 +80,7 @@ export default function TeacherDoubts({ classId, user }) {
 
     try {
       await axios.put(
-        `http://localhost:5000/api/doubts/delete-reply/${doubtId}`,
+        `${API_BASE_URL}/doubts/delete-reply/${doubtId}`,
         { index }
       );
 
@@ -106,7 +107,7 @@ export default function TeacherDoubts({ classId, user }) {
 
     try {
       await axios.put(
-        `http://localhost:5000/api/doubts/edit-reply/${doubtId}`,
+        `${API_BASE_URL}/doubts/edit-reply/${doubtId}`,
         { index, message }
       );
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Calendar, Clock, ChevronRight, Loader, ChevronDown, ChevronUp } from 'lucide-react';
 import EventDetailModal from './EventDetailModal';
+import API_BASE_URL from '../config';
 
 const UpcomingEventsSidebar = () => {
     const [events, setEvents] = useState([]);
@@ -17,7 +18,7 @@ const UpcomingEventsSidebar = () => {
 
         const fetchUpcomingEvents = async () => {
             try {
-                const response = await axios.get(`http://localhost:5000/api/calendar/student/all/${studentId}`);
+                const response = await axios.get(`${API_BASE_URL}/calendar/student/all/${studentId}`);
                 if (response.data.success) {
                     const allEvents = response.data.events;
                     const now = new Date();

@@ -1,8 +1,9 @@
 // FrontendTeacher/src/api/classroomApi.js
 import axios from "axios";
+import API_BASE_URL from "../config";
 
 const API = axios.create({
-  baseURL: "http://localhost:5000/api/classroom",
+  baseURL: `${API_BASE_URL}/classroom`,
 });
 
 // Create new classroom
@@ -42,7 +43,7 @@ export const getClassrooms = async (userId, role) => {
 export const getClassroomDetails = async (classId) => {
   try {
     const response = await axios.get(
-      `http://localhost:5000/api/classroom/${classId}`
+      `${API_BASE_URL}/classroom/${classId}`
     );
     return response.data;
   } catch (error) {

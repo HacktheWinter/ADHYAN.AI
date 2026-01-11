@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
+import API_BASE_URL from '../config';
 import { getStoredToken } from '../utils/authStorage';
 
 export default function ChangePasswordModal({ isOpen, onClose, currentPage = 'dashboard' }) {
@@ -64,7 +65,7 @@ export default function ChangePasswordModal({ isOpen, onClose, currentPage = 'da
     try {
       const token = getStoredToken();
       await axios.post(
-        'http://localhost:5000/api/profile/change-password',
+        `${API_BASE_URL}/profile/change-password`,
         {
           currentPassword,
           newPassword,

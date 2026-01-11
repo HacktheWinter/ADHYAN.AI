@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { X, Clock, Calendar, AlertCircle, CheckCircle } from "lucide-react";
 import axios from "axios";
+import API_BASE_URL from "../config";
 
 export default function PublishQuizModal({ quiz, onClose, onPublished }) {
   const [timingOption, setTimingOption] = useState("no-limit"); // 'no-limit', 'duration', 'schedule'
@@ -64,7 +65,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
       console.log("Publishing quiz with timing:", payload);
 
       const response = await axios.put(
-        `http://localhost:5000/api/quiz/${quiz._id}/publish`,
+        `${API_BASE_URL}/quiz/${quiz._id}/publish`,
         payload
       );
 
