@@ -11,14 +11,13 @@ const LiveMeeting = ({ classId }) => {
   const [user, setUser] = useState(null);
   const jitsiContainerRef = useRef(null);
   const jitsiApiRef = useRef(null);
-  const isTeacherHostingRef = useRef(false); // Track if teacher is actively hosting
+  const isTeacherHostingRef = useRef(false);
 
   useEffect(() => {
     setUser(getStoredUser());
   }, []);
 
   const fetchStatus = async () => {
-    // NEVER override state when teacher is actively hosting
     if (isTeacherHostingRef.current) {
       console.log('[LiveMeeting] Skipping polling - teacher is hosting');
       return;
@@ -84,7 +83,6 @@ const LiveMeeting = ({ classId }) => {
             },
           });
 
-          // Monitor Jitsi events
           jitsiApiRef.current.addEventListener('videoConferenceJoined', () => {
             console.log('[LiveMeeting] Teacher joined conference');
             isTeacherHostingRef.current = true;
@@ -92,7 +90,6 @@ const LiveMeeting = ({ classId }) => {
 
           jitsiApiRef.current.addEventListener('videoConferenceLeft', () => {
             console.log('[LiveMeeting] Teacher left conference');
-            // Don't immediately end - let teacher control via button
           });
 
           jitsiApiRef.current.addEventListener('readyToClose', () => {
@@ -122,7 +119,7 @@ const LiveMeeting = ({ classId }) => {
         teacherId,
       });
       console.log('[LiveMeeting] Meeting started on backend:', response.data);
-      isTeacherHostingRef.current = true; // Mark as hosting immediately
+      isTeacherHostingRef.current = true;
       setIsLive(true);
     } catch (err) {
       console.error("Failed to start meeting", err);
@@ -145,8 +142,8 @@ const LiveMeeting = ({ classId }) => {
         teacherId,
       });
       console.log('[LiveMeeting] Meeting ended on backend:', response.data);
-      isTeacherHostingRef.current = false; // Clear hosting flag
-      setIsLive(false); // useEffect will handle Jitsi disposal
+      isTeacherHostingRef.current = false;
+      setIsLive(false);
     } catch (err) {
       console.error("Failed to end meeting", err);
       alert("Failed to end meeting");
@@ -156,36 +153,37 @@ const LiveMeeting = ({ classId }) => {
   };
 
   return (
-    <div className="bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white/40 shadow-2xl shadow-slate-200/40 overflow-hidden transition-all duration-700">
-      <div className="p-6 sm:p-8 border-b border-white/40 bg-white/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+      {/* Header - Keep existing design */}
+      <div className="p-6 border-b border-gray-200 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl text-white shadow-lg shadow-indigo-200">
+          <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-md">
             <Video size={24} />
           </div>
           <div>
-            <h2 className="text-xl font-black text-slate-800 tracking-tight">
+            <h2 className="text-xl font-bold text-gray-900">
               Broadcast Control
             </h2>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-1">
               {isLive ? (
-                <div className="flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1 rounded-full border border-red-100/50">
+                <div className="flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1 rounded-full border border-red-100">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
                   </span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">
+                  <span className="text-xs font-bold uppercase tracking-wider">
                     On Air
                   </span>
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5 bg-slate-100 text-slate-500 px-3 py-1 rounded-full border border-slate-200/50">
-                  <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">
+                <div className="flex items-center gap-1.5 bg-gray-100 text-gray-500 px-3 py-1 rounded-full border border-gray-200">
+                  <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                  <span className="text-xs font-bold uppercase tracking-wider">
                     Offline
                   </span>
                 </div>
               )}
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 • Class ID: {classId.slice(-6)}
               </span>
             </div>
@@ -194,12 +192,10 @@ const LiveMeeting = ({ classId }) => {
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
           {!isLive ? (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
+            <button
               onClick={handleStart}
               disabled={loading}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-8 py-3.5 rounded-2xl font-bold shadow-xl shadow-emerald-200/50 transition-all hover:shadow-emerald-300/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={20} />
@@ -207,14 +203,12 @@ const LiveMeeting = ({ classId }) => {
                 <Play fill="currentColor" size={20} />
               )}
               <span>{loading ? "Initializing..." : "Start Broadcast"}</span>
-            </motion.button>
+            </button>
           ) : (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.98 }}
+            <button
               onClick={handleEnd}
               disabled={loading}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-pink-600 text-white px-8 py-3.5 rounded-2xl font-bold shadow-xl shadow-rose-200/50 transition-all hover:shadow-rose-300/50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={20} />
@@ -222,77 +216,63 @@ const LiveMeeting = ({ classId }) => {
                 <Square fill="currentColor" size={20} />
               )}
               <span>{loading ? "Stopping..." : "End Session"}</span>
-            </motion.button>
+            </button>
           )}
         </div>
       </div>
 
-      <div className="p-4 sm:p-6 bg-slate-50/30">
+      {/* Video Container */}
+      <div className="p-6 bg-gray-50">
         <div
           ref={jitsiContainerRef}
-          style={{ height: isLive ? "70vh" : "45vh" }}
-          className={`w-full rounded-[2rem] border-2 transition-all duration-700 relative overflow-hidden ${!isLive
-            ? "bg-white/40 border-dashed border-slate-200 flex flex-col items-center justify-center group"
-            : "bg-black border-slate-900 shadow-2xl shadow-black/40"
-            }`}
+          style={{ height: isLive ? "70vh" : "50vh" }}
+          className={`w-full rounded-xl transition-all ${
+            !isLive
+              ? "bg-white border-2 border-dashed border-gray-300 flex flex-col items-center justify-center"
+              : "bg-black border border-gray-900"
+          }`}
         >
           <AnimatePresence mode="wait">
             {!isLive && (
               <motion.div
                 key="offline"
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.1 }}
-                className="text-center p-8 max-w-sm"
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="text-center p-8"
               >
-                <div className="relative mb-8">
-                  <div className="absolute inset-0 bg-indigo-200 blur-3xl opacity-30 rounded-full group-hover:opacity-50 transition-opacity"></div>
-                  <div className="relative w-24 h-24 bg-white rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-100 mx-auto transform rotate-3 group-hover:rotate-0 transition-transform duration-500">
-                    <Signal
-                      className="text-indigo-600 animate-pulse"
-                      size={40}
-                    />
-                  </div>
+                <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Signal className="text-indigo-600" size={40} />
                 </div>
-                <h3 className="text-2xl font-black text-slate-800 leading-tight">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
                   Ready to lead?
                 </h3>
-                <p className="mt-3 text-slate-500 font-medium leading-relaxed">
+                <p className="text-gray-600 max-w-md">
                   Your classroom platform is primed and ready.
                 </p>
-                <div className="mt-8 flex justify-center gap-2">
-                  <div
-                    className="w-1.5 h-1.5 rounded-full bg-indigo-200 animate-bounce"
-                    style={{ animationDelay: "0ms" }}
-                  ></div>
-                  <div
-                    className="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-bounce"
-                    style={{ animationDelay: "150ms" }}
-                  ></div>
-                  <div
-                    className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce"
-                    style={{ animationDelay: "300ms" }}
-                  ></div>
-                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
 
-      <div className="px-8 py-4 bg-white/20 border-t border-white/40 flex items-center justify-center gap-8 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-        <span className="flex items-center gap-2">
-          <div className="w-1 h-1 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></div>{" "}
-          Encrypted Stream
-        </span>
-        <span className="flex items-center gap-2">
-          <div className="w-1 h-1 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400/50"></div>{" "}
-          Global CDN
-        </span>
-        <span className="flex items-center gap-2">
-          <div className="w-1 h-1 rounded-full bg-purple-400 shadow-sm shadow-purple-400/50"></div>{" "}
-          Auto-Recording
-        </span>
+      {/* Footer */}
+      <div className="px-6 py-4 bg-white border-t border-gray-200">
+        <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-gray-500 font-semibold uppercase tracking-wider">
+          <span className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+            Encrypted Stream
+          </span>
+          <span className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+            Global CDN
+          </span>
+          <span className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+            Auto-Recording
+          </span>
+        </div>
       </div>
     </div>
   );

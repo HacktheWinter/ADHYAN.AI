@@ -1,6 +1,7 @@
 // FrontendTeacher/src/components/TestPapersPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Sparkles, Pencil, Trash2, CheckCircle, Eye, Loader, FileText, X } from 'lucide-react';
 import { 
   getTestPapersByClassroom, 
@@ -170,28 +171,27 @@ const TestPapersPage = () => {
       </div>
 
       {/* ------------------- DRAFT TEST PAPERS ------------------- */}
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-2 h-8 bg-yellow-500 rounded-full"></div>
-          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Draft Test Papers</h3>
-          <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs sm:text-sm rounded-full font-semibold">
-            {drafts.length}
-          </span>
-        </div>
+      {drafts.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-2 h-8 bg-yellow-500 rounded-full"></div>
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900">Draft Test Papers</h3>
+            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs sm:text-sm rounded-full font-semibold">
+              {drafts.length}
+            </span>
+          </div>
 
-        <div className="space-y-4">
-          {drafts.length === 0 ? (
-            <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-8 sm:p-12 text-center">
-              <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 font-medium">No drafts yet</p>
-              <p className="text-gray-400 text-sm mt-1">
-                Create your first test paper with AI!
-              </p>
-            </div>
-          ) : (
-            drafts.map(test => (
-              <div
+          <div className="space-y-4">
+            {drafts.map(test => (
+              <motion.div
                 key={test._id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
                 className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-all"
               >
                 <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
@@ -254,32 +254,34 @@ const TestPapersPage = () => {
                     </button>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* ------------------- PUBLISHED TEST PAPERS ------------------- */}
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-2 h-8 bg-green-500 rounded-full"></div>
-          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Published Test Papers</h3>
-          <span className="px-3 py-1 bg-green-100 text-green-800 text-xs sm:text-sm rounded-full font-semibold">
-            {published.length}
-          </span>
-        </div>
+      {published.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-2 h-8 bg-green-500 rounded-full"></div>
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900">Published Test Papers</h3>
+            <span className="px-3 py-1 bg-green-100 text-green-800 text-xs sm:text-sm rounded-full font-semibold">
+              {published.length}
+            </span>
+          </div>
 
-        <div className="space-y-4">
-          {published.length === 0 ? (
-            <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-8 sm:p-12 text-center">
-              <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 font-medium">No published test papers yet</p>
-            </div>
-          ) : (
-            published.map(test => (
-              <div
+          <div className="space-y-4">
+            {published.map(test => (
+              <motion.div
                 key={test._id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
                 className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-all"
               >
                 <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
@@ -333,11 +335,11 @@ const TestPapersPage = () => {
                     </button>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* ------------------- AI GENERATION MODAL ------------------- */}
       {showAIModal && (
