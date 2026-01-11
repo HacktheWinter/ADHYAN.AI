@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, Edit2, Save, X, Loader, Sparkles, Award } from 'lucide-react';
 import { getSubmissionById, updateMarksManually } from '../api/assignmentApi';
+import API_BASE_URL from '../config';
 
 const StudentAssignmentResult = () => {
   const { classId, assignmentId, studentId: _studentId } = useParams();
@@ -135,7 +136,7 @@ const StudentAssignmentResult = () => {
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
               {submission.studentId?.profilePhoto && !imageLoadError ? (
                 <img 
-                  src={`http://localhost:5000/${submission.studentId.profilePhoto}`}
+                  src={`${API_BASE_URL.replace('/api', '')}/${submission.studentId.profilePhoto}`}
                   alt={submission.studentName}
                   className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0 border-2 border-purple-200"
                   onError={() => setImageLoadError(true)}

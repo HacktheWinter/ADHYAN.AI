@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogIn, LogOut, Settings, User, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clearAuth, getStoredUser } from '../utils/authStorage';
+import API_BASE_URL from '../config';
 
 const Header = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -41,7 +42,7 @@ const Header = () => {
 
   const getProfilePhotoUrl = () => {
     if (user?.profilePhoto) {
-      return `http://localhost:5000/${user.profilePhoto}`;
+      return `${API_BASE_URL.replace('/api', '')}/${user.profilePhoto}`;
     }
     return null;
   };

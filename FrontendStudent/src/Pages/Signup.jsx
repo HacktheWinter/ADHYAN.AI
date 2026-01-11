@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, User, BookOpen } from "lucide-react";
 import axios from "axios";
+import API_BASE_URL from "../config";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -37,8 +38,8 @@ export default function Signup() {
     try {
       const endpoint =
         formData.role === "teacher"
-          ? "http://localhost:5000/api/teacher/register"
-          : "http://localhost:5000/api/student/register";
+          ? `${API_BASE_URL}/teacher/register`
+          : `${API_BASE_URL}/student/register`;
 
       await axios.post(endpoint, {
         name: formData.fullName,
