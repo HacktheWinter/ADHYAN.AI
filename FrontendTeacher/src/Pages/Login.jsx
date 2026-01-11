@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import axios from "axios";
 import { clearAuth, persistAuth } from "../utils/authStorage";
+import API_BASE_URL, { STUDENT_FRONTEND_URL, TEACHER_FRONTEND_URL } from "../config";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -16,10 +17,8 @@ export default function Login() {
   });
   const [rememberMe, setRememberMe] = useState(false);
 
-  const TEACHER_URL =
-    import.meta.env.VITE_TEACHER_URL || "http://localhost:5174";
-  const STUDENT_URL =
-    import.meta.env.VITE_STUDENT_URL || "http://localhost:5173";
+  const TEACHER_URL = TEACHER_FRONTEND_URL;
+  const STUDENT_URL = STUDENT_FRONTEND_URL;
 
   const handleRoleClick = (role) => {
     // If target origin is this origin, just toggle role locally
@@ -48,13 +47,12 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError("");
-
     try {
       // Call actual backend API based on role
       const endpoint =
         formData.role === "teacher"
-          ? "http://localhost:5000/api/teacher/login"
-          : "http://localhost:5000/api/student/login";
+          ? `${API_BASE_URL}/teacher/login`
+          : `${API_BASE_URL}/student/login`;
 
       const response = await axios.post(endpoint, {
         email: formData.email,

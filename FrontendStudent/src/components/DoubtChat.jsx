@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useOutletContext } from "react-router-dom";
+import API_BASE_URL from "../config";
 
 export default function DoubtChat() {
   const { classInfo } = useOutletContext();
@@ -14,7 +15,7 @@ export default function DoubtChat() {
   const loadDoubts = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/doubts/${classInfo.classId}`
+        `${API_BASE_URL}/doubts/${classInfo.classId}`
       );
       setDoubts(res.data);
     } catch (err) {
@@ -29,7 +30,7 @@ export default function DoubtChat() {
   // Post doubt
   const postDoubt = async () => {
     try {
-      const res = await axios.post("http://localhost:5000/api/doubts", {
+      const res = await axios.post(`${API_BASE_URL}/doubts`, {
         classId: classInfo.classId,
         authorId: classInfo.studentId,
         authorName: classInfo.studentName,
@@ -50,7 +51,7 @@ export default function DoubtChat() {
   const postReply = async (id) => {
     try {
       const res = await axios.post(
-        `http://localhost:5000/api/doubts/reply/${id}`,
+        `${API_BASE_URL}/doubts/reply/${id}`,
         {
           classId: classInfo.classId,
           authorId: classInfo.studentId,
@@ -75,7 +76,7 @@ export default function DoubtChat() {
 
   // Delete doubt
   const deleteDoubt = async (id) => {
-    await axios.delete(`http://localhost:5000/api/doubts/${id}`);
+    await axios.delete(`${API_BASE_URL}/doubts/${id}`);
     setDoubts(doubts.filter((d) => d._id !== id));
   };
 
@@ -83,7 +84,7 @@ export default function DoubtChat() {
   const saveEdit = async (id) => {
     try {
       const res = await axios.put(
-        `http://localhost:5000/api/doubts/edit/${id}`,
+        `${API_BASE_URL}/doubts/edit/${id}`,
         { description: editText }
       );
 

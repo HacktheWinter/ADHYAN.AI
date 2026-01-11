@@ -13,6 +13,7 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import axios from "axios";
 import UpcomingEventsSidebar from "../components/UpcomingEventsSidebar";
 import { getStoredUser } from "../utils/authStorage";
+import API_BASE_URL from "../config";
 
 export default function NoteCraftsDashboard() {
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ export default function NoteCraftsDashboard() {
       try {
         setLoading(true);
         const response = await axios.get(
-          "http://localhost:5000/api/classroom",
+          `${API_BASE_URL}/classroom`,
           {
             params: { userId: studentId, role: "student" },
           }
@@ -113,7 +114,7 @@ export default function NoteCraftsDashboard() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/classroom/join",
+        `${API_BASE_URL}/classroom/join`,
         {
           studentId: studentId,
           classCode: classCode.trim().toUpperCase(),
@@ -213,7 +214,7 @@ export default function NoteCraftsDashboard() {
       if (window.confirm(`Are you sure you want to leave "${course.title}"?`)) {
         try {
           await axios.post(
-            `http://localhost:5000/api/classroom/${course.courseId}/leave`,
+            `${API_BASE_URL}/classroom/${course.courseId}/leave`,
             { studentId }
           );
 

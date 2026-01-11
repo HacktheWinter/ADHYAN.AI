@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import StudentNavbar from '../components/StudentNavbar';
 import { getStoredToken } from '../utils/authStorage';
+import API_BASE_URL from '../config';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ export default function SettingsPage() {
     try {
       const token = getStoredToken();
       await axios.post(
-        'http://localhost:5000/api/profile/change-password',
+        `${API_BASE_URL}/profile/change-password`,
         { currentPassword, newPassword },
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
       );

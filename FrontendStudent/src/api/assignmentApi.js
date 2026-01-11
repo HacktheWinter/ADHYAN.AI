@@ -1,7 +1,8 @@
 // FrontendStudent/src/api/assignmentApi.js
 import axios from "axios";
+import API_BASE_URL from "../config";
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = API_BASE_URL;
 
 // Get active assignments for classroom
 export const getActiveAssignments = async (classroomId) => {

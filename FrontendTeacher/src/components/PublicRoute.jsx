@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { clearAuth, getStoredUser } from "../utils/authStorage";
+import { STUDENT_FRONTEND_URL, TEACHER_FRONTEND_URL } from "../config";
 
 export default function PublicRoute({ children, currentRole }) {
   const user = getStoredUser();
@@ -10,8 +11,8 @@ export default function PublicRoute({ children, currentRole }) {
   const shouldRedirect = user && user.role !== currentRole;
   const target = shouldRedirect
     ? user.role === "teacher"
-      ? import.meta.env.VITE_TEACHER_URL || "http://localhost:5174"
-      : import.meta.env.VITE_STUDENT_URL || "http://localhost:5173"
+      ? TEACHER_FRONTEND_URL
+      : STUDENT_FRONTEND_URL
     : null;
 
   useEffect(() => {

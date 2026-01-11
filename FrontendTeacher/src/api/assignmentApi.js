@@ -1,6 +1,7 @@
 import axios from "axios";
+import API_BASE_URL from "../config";
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = API_BASE_URL;
 
 // Generate assignment with AI
 export const generateAssignmentWithAI = async (noteIds, classroomId) => {

@@ -7,6 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, CalendarDays, Loader, RefreshCw, Clock } from 'lucide-react';
 import EventDetailModal from '../components/EventDetailModal';
+import API_BASE_URL from '../config';
 
 const StudentCalendarPage = () => {
     const { id: classId } = useParams();
@@ -22,7 +23,7 @@ const StudentCalendarPage = () => {
     const fetchEvents = async () => {
         try {
             setLoading(true);
-            const response = await axios.get(`http://localhost:5000/api/calendar/student/${classId}`);
+            const response = await axios.get(`${API_BASE_URL}/calendar/student/${classId}`);
             if (response.data.success) {
                 const formattedEvents = response.data.events.map(event => ({
                     id: event._id,
