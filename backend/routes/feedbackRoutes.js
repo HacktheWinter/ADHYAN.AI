@@ -8,6 +8,8 @@ import {
   submitFeedback,
   getFeedbackResults,
   getAllFeedbackResults,
+  deleteFeedback,
+  deleteResponse,
 } from "../controllers/feedbackController.js";
 
 
@@ -52,6 +54,7 @@ router.get(
   getFeedbackResults
 );
 
+
 // Teacher views ALL feedback history (old + new)
 router.get(
   "/results/all/:classId",
@@ -60,5 +63,20 @@ router.get(
   getAllFeedbackResults
 );
 
+/* Teacher deletes a feedback session */
+router.delete(
+  "/delete/:feedbackId",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  deleteFeedback
+);
+
+/* Teacher deletes a specific student response */
+router.delete(
+  "/response/:feedbackId/:studentId",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  deleteResponse
+);
 
 export default router;
