@@ -6,6 +6,7 @@ import Header from "../components/Header";
 import FeedbackBuilder from "../components/FeedbackBuilder";
 import FeedbackResults from "../components/FeedbackResults";
 import * as XLSX from "xlsx";
+import API_BASE_URL from "../config";
 
 const TeacherFeedbackPage = () => {
   const location = useLocation();
@@ -51,7 +52,7 @@ const TeacherFeedbackPage = () => {
       const token = localStorage.getItem("token");
       
       const res = await fetch(
-        `http://localhost:5000/api/feedback/results/all/${classId}`,
+        `${API_BASE_URL}/feedback/results/all/${classId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

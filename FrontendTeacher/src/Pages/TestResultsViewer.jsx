@@ -10,6 +10,7 @@ import {
   getTestPaperById,
   publishResults
 } from '../api/testPaperApi';
+import API_BASE_URL from '../config';
 
 const TestResultsViewer = () => {
   const { classId, testId } = useParams();
@@ -308,7 +309,7 @@ const TestResultsViewer = () => {
                         <div className="flex items-center gap-2 sm:gap-3">
                           {submission.studentId?.profilePhoto ? (
                             <img 
-                              src={`http://localhost:5000/${submission.studentId.profilePhoto}`}
+                              src={`${API_BASE_URL.replace('/api', '')}/${submission.studentId.profilePhoto}`}
                               alt={submission.studentName}
                               className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0 border border-purple-200"
                               onError={(e) => {

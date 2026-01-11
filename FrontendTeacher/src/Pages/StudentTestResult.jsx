@@ -35,19 +35,19 @@ const StudentTestResult = () => {
       let response;
       if (submissionId) {
         response = await axios.get(
-          `http://localhost:5000/api/test-submission/submission/${submissionId}`
+          `${API_BASE_URL}/test-submission/submission/${submissionId}`
         );
       } else {
         // Fallback: get all submissions and find by studentId
         const allSubs = await axios.get(
-          `http://localhost:5000/api/test-submission/test/${testId}`
+          `${API_BASE_URL}/test-submission/test/${testId}`
         );
         const found = allSubs.data.submissions.find(
           (s) => (s.studentId._id || s.studentId) === studentId
         );
         if (found) {
           response = await axios.get(
-            `http://localhost:5000/api/test-submission/submission/${found._id}`
+            `${API_BASE_URL}/test-submission/submission/${found._id}`
           );
         }
       }
@@ -96,7 +96,7 @@ const StudentTestResult = () => {
       );
 
       await axios.put(
-        `http://localhost:5000/api/test-submission/update-marks/${submission._id}`,
+        `${API_BASE_URL}/test-submission/update-marks/${submission._id}`,
         {
           answers: updatedAnswers,
         }
@@ -181,7 +181,7 @@ const StudentTestResult = () => {
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
               {submission.studentId?.profilePhoto ? (
                 <img 
-                  src={`http://localhost:5000/${submission.studentId.profilePhoto}`}
+                  src={`${API_BASE_URL.replace('/api', '')}/${submission.studentId.profilePhoto}`}
                   alt={submission.studentName}
                   className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0 border-2 border-purple-200"
                 />

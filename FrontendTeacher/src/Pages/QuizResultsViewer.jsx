@@ -5,6 +5,7 @@ import {
   FileText, Loader, Trophy, RefreshCw
 } from 'lucide-react';
 import axios from 'axios';
+import API_BASE_URL from '../config';
 
 const QuizResultsViewer = () => {
   const { classId, quizId } = useParams();
@@ -27,7 +28,7 @@ const QuizResultsViewer = () => {
       let quizData = null;
       
       try {
-        const submissionsResponse = await axios.get(`http://localhost:5000/api/quiz-submission/quiz/${quizId}`);
+        const submissionsResponse = await axios.get(`${API_BASE_URL}/quiz-submission/quiz/${quizId}`);
         submissionsData = submissionsResponse.data.submissions || [];
         
         // Extract quiz info from first submission if available
@@ -41,7 +42,7 @@ const QuizResultsViewer = () => {
       // If quiz data not available from submissions, try direct fetch
       if (!quizData) {
         try {
-          const quizResponse = await axios.get(`http://localhost:5000/api/quiz/${quizId}`);
+          const quizResponse = await axios.get(`${API_BASE_URL}/quiz/${quizId}`);
           quizData = quizResponse.data.quiz;
         } catch (quizError) {
           console.error('Error fetching quiz details:', quizError);
@@ -208,7 +209,7 @@ const QuizResultsViewer = () => {
                         <div className="flex items-center gap-2 sm:gap-3">
                           {submission.studentId?.profilePhoto ? (
                             <img 
-                              src={`http://localhost:5000/${submission.studentId.profilePhoto}`}
+                              src={`${API_BASE_URL.replace('/api', '')}/${submission.studentId.profilePhoto}`}
                               alt={submission.studentId?.name}
                               className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0 border border-purple-200"
                               onError={(e) => {
