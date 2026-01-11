@@ -19,7 +19,7 @@ const LiveClassroom = () => {
           {/* Back */}
           <button
             onClick={() => navigate(`/class/${classId}`)}
-            className="flex items-center gap-2 text-gray-600 hover:text-purple-600 transition font-medium"
+            className="flex items-center gap-2 text-gray-600 hover:text-purple-600 transition font-medium cursor-pointer"
           >
             <ArrowLeft size={18} />
             <span className="hidden sm:inline">
@@ -47,7 +47,7 @@ const LiveClassroom = () => {
           <div className="inline-flex bg-gray-200 rounded-full p-1 shadow-inner">
             <button
               onClick={() => setActiveTab("videos")}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition cursor-pointer
                 ${
                   activeTab === "videos"
                     ? "bg-white text-purple-600 shadow"
@@ -60,7 +60,7 @@ const LiveClassroom = () => {
 
             <button
               onClick={() => setActiveTab("meeting")}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition cursor-pointer
                 ${
                   activeTab === "meeting"
                     ? "bg-white text-purple-600 shadow"

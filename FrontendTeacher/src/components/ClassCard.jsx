@@ -1,6 +1,7 @@
 // FrontendTeacher/src/components/ClassCard.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Share2, MoreVertical, Trash2, Edit3 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ClassCodeModal from './ClassCodeModal';
 
 const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
@@ -83,42 +84,52 @@ const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
             
             {/* Three Dots Menu */}
             <div className="absolute top-3 right-3 z-20" ref={dropdownRef}>
-              <button
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={handleDropdownToggle}
                 className="p-2 bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-all cursor-pointer relative z-20"
                 title="More options"
               >
                 <MoreVertical className="w-4 h-4 text-white" />
-              </button>
+              </motion.button>
 
               {/* Dropdown Menu */}
-              {showDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
-                  <button
-                    onClick={handleShareClick}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors cursor-pointer"
+              <AnimatePresence>
+                {showDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.98, y: -2 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.98, y: -2 }}
+                    transition={{ duration: 0.1 }}
+                    className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50 origin-top-right"
                   >
-                    <Share2 className="w-4 h-4" />
-                    Share Class Code
-                  </button>
+                    <button
+                      onClick={handleShareClick}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors cursor-pointer"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      Share Class Code
+                    </button>
 
-                  <button
-                    onClick={handleEditClick}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                    Edit Class
-                  </button>
-                  
-                  <button
-                    onClick={handleDeleteClick}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete Class
-                  </button>
-                </div>
-              )}
+                    <button
+                      onClick={handleEditClick}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                      Edit Class
+                    </button>
+                    
+                    <button
+                      onClick={handleDeleteClick}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete Class
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
           

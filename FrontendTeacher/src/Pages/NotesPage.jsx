@@ -18,6 +18,23 @@ import {
 } from "../api/notesApi";
 
 import PdfPreview from "../components/PdfPreview";
+import { motion, AnimatePresence } from "framer-motion";
+import PageTransition from "../components/PageTransition";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 }
+};
 
 const NotesPage = () => {
   const { classId } = useParams();
@@ -190,7 +207,7 @@ const NotesPage = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <PageTransition className="space-y-6">
       {/* Upload Form */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="p-4 sm:p-6">
@@ -250,8 +267,10 @@ const NotesPage = () => {
               </p>
             </div>
 
-            <button
+            <motion.button
               type="submit"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
               disabled={
                 uploading || !uploadForm.title.trim() || !uploadForm.file
               }
@@ -268,7 +287,7 @@ const NotesPage = () => {
                   Upload Note
                 </>
               )}
-            </button>
+            </motion.button>
           </form>
         </div>
       </div>
@@ -288,10 +307,17 @@ const NotesPage = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-3"
+          >
             {notes.map((note) => (
-              <div
+              <motion.div
                 key={note._id}
+                variants={itemVariants}
+                whileHover={{ scale: 1.005 }}
                 className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
               >
                 <div className="p-4 sm:p-6">
@@ -312,56 +338,66 @@ const NotesPage = () => {
                     </div>
 
                     <div className="relative flex-shrink-0" ref={openMenuId === note._id ? menuRef : null}>
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => toggleMenu(note._id)}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
                       >
                         <MoreVertical className="w-5 h-5 text-gray-600" />
-                      </button>
+                      </motion.button>
 
-                      {openMenuId === note._id && (
-                        <div className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-                          <button
-                            onClick={() => handlePreview(note)}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                      <AnimatePresence>
+                        {openMenuId === note._id && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.98, y: -2 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.98, y: -2 }}
+                            transition={{ duration: 0.1 }}
+                            className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
                           >
-                            <Eye className="w-4 h-4 text-purple-600" />
-                            <span>Preview</span>
-                          </button>
+                            <button
+                              onClick={() => handlePreview(note)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                            >
+                              <Eye className="w-4 h-4 text-purple-600" />
+                              <span>Preview</span>
+                            </button>
 
-                          <button
-                            onClick={() => handleDownload(note)}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-                          >
-                            <Download className="w-4 h-4 text-blue-600" />
-                            <span>Download</span>
-                          </button>
+                            <button
+                              onClick={() => handleDownload(note)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                            >
+                              <Download className="w-4 h-4 text-blue-600" />
+                              <span>Download</span>
+                            </button>
 
-                          <button
-                            onClick={() => handleDelete(note._id, note.title)}
-                            disabled={deleting === note._id}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                          >
-                            {deleting === note._id ? (
-                              <>
-                                <Loader className="w-4 h-4 animate-spin" />
-                                <span>Deleting...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Trash2 className="w-4 h-4" />
-                                <span>Delete</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      )}
+                            <button
+                              onClick={() => handleDelete(note._id, note.title)}
+                              disabled={deleting === note._id}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                            >
+                              {deleting === note._id ? (
+                                <>
+                                  <Loader className="w-4 h-4 animate-spin" />
+                                  <span>Deleting...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="w-4 h-4" />
+                                  <span>Delete</span>
+                                </>
+                              )}
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
 
@@ -373,7 +409,7 @@ const NotesPage = () => {
           onClose={closePreview}
         />
       )}
-    </div>
+    </PageTransition>
   );
 };
 

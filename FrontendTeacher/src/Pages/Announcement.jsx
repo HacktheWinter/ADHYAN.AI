@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useOutletContext, useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import PageTransition from "../components/PageTransition";
 import {
   Send,
   Upload,
@@ -173,9 +175,24 @@ const Announcement = () => {
     );
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   return (
     <div className="w-full bg-transparent">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+      <PageTransition className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
           <div className="flex items-center gap-3 sm:gap-4">
@@ -195,13 +212,15 @@ const Announcement = () => {
             </div>
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setIsModalOpen(true)}
             className="px-4 sm:px-6 py-2 sm:py-2.5 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer text-sm sm:text-base w-full sm:w-auto"
           >
             <Send className="w-4 h-4" />
             Create Announcement
-          </button>
+          </motion.button>
         </div>
 
         {/* List */}
@@ -213,7 +232,12 @@ const Announcement = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-4 sm:space-y-6 max-w-4xl mx-auto">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-4 sm:space-y-6 max-w-4xl mx-auto"
+          >
             {announcements.length === 0 ? (
               <div className="text-center py-12 sm:py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
                 <div className="w-14 h-14 sm:w-16 sm:h-16 bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -228,8 +252,9 @@ const Announcement = () => {
               </div>
             ) : (
               announcements.map((announcement) => (
-                <div
+                <motion.div
                   key={announcement._id}
+                  variants={itemVariants}
                   className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
                 >
                   <div className="p-4 sm:p-6">
@@ -283,12 +308,12 @@ const Announcement = () => {
                         )}
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))
             )}
-          </div>
+          </motion.div>
         )}
-      </main>
+      </PageTransition>
 
       {/* Create Modal */}
       {isModalOpen && (

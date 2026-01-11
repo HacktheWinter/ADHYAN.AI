@@ -177,3 +177,34 @@ export const getAllFeedbackResults = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const deleteFeedback = async (req, res) => {
+  try {
+    const { feedbackId } = req.params;
+    await Feedback.findByIdAndDelete(feedbackId);
+    res.json({ message: "Feedback deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const deleteResponse = async (req, res) => {
+  try {
+    const { feedbackId, studentId } = req.params;
+
+    const feedback = await Feedback.findById(feedbackId);
+    if (!feedback) {
+      return res.status(404).json({ message: "Feedback not found" });
+    }
+
+    feedback.responses = feedback.responses.filter(
+      (r) => r.studentId.toString() !== studentId
+    );
+
+    await feedback.save();
+
+    res.json({ message: "Response deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
