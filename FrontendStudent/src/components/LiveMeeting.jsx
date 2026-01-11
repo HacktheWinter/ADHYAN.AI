@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import API from "../api/axios";
-import { Video } from "lucide-react";
-import { motion } from "framer-motion";
+import { Video, Clock, Wifi } from "lucide-react";
 
 import { getStoredUser } from "../utils/authStorage";
 
@@ -43,7 +42,7 @@ export default function LiveMeeting({ classId, role }) {
   useEffect(() => {
     console.log('[Student LiveMeeting] Component mounted, starting polling...');
     fetchStatus();
-    const interval = setInterval(fetchStatus, 5000); // Poll every 5s
+    const interval = setInterval(fetchStatus, 5000);
     return () => {
       console.log('[Student LiveMeeting] Component unmounting, stopping polling');
       clearInterval(interval);
@@ -92,7 +91,6 @@ export default function LiveMeeting({ classId, role }) {
             },
           });
 
-          // Monitor Jitsi events
           jitsiApiRef.current.addEventListener('videoConferenceJoined', () => {
             console.log('[Student LiveMeeting] Student joined conference');
           });
@@ -103,7 +101,6 @@ export default function LiveMeeting({ classId, role }) {
         }
       });
     } else if (!isLive && jitsiApiRef.current) {
-      // Only dispose when meeting actually ends (isLive becomes false)
       console.log('[Student LiveMeeting] Disposing Jitsi instance');
       jitsiApiRef.current.dispose();
       jitsiApiRef.current = null;
@@ -111,64 +108,65 @@ export default function LiveMeeting({ classId, role }) {
   }, [isLive, user, classId]);
 
   return (
-    <div className="bg-white/50 backdrop-blur-sm rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
-      <div className="p-4 sm:p-6 border-b border-slate-100 bg-white/30 flex items-center justify-between">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-purple-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600">
+          <div className="p-2 bg-white rounded-lg text-indigo-600 shadow-sm">
             <Video size={20} />
           </div>
-          <h2 className="font-bold text-slate-800 text-lg">Class Stream</h2>
+          <h2 className="font-semibold text-slate-800">Live Class</h2>
         </div>
         {isLive && (
-          <div className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-1.5 rounded-full animate-pulse border border-red-100">
-            <span className="w-2 h-2 bg-red-600 rounded-full"></span>
-            <span className="text-xs font-black uppercase tracking-wider">
-              Live Now
-            </span>
+          <div className="flex items-center gap-2 bg-red-500 text-white px-3 py-1.5 rounded-full">
+            <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+            <span className="text-xs font-semibold">LIVE</span>
           </div>
         )}
       </div>
 
-      <div className="p-2 sm:p-4">
+      <div className="p-4">
         <div
           ref={jitsiContainerRef}
           style={{ height: "65vh" }}
-          className={`w-full rounded-2xl border overflow-hidden transition-all duration-500 ${!isLive
-            ? "bg-slate-50 flex flex-col items-center justify-center border-dashed border-slate-300"
-            : "bg-black shadow-inner shadow-black/20"
-            }`}
+          className={`w-full rounded-xl border overflow-hidden ${
+            !isLive
+              ? "bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center border-slate-200"
+              : "bg-black"
+          }`}
         >
           {!isLive && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center p-8 max-w-sm"
-            >
-              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mx-auto mb-6">
-                <Video className="text-slate-300" size={32} />
+            <div className="text-center p-8 max-w-md">
+              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-md mx-auto mb-5 border border-slate-200">
+                <Clock className="text-slate-400" size={28} />
               </div>
-              <h3 className="text-xl font-bold text-slate-900">
-                Waiting for Teacher
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">
+                Class Not Started Yet
               </h3>
-              <p className="mt-2 text-sm text-slate-500 leading-relaxed font-medium">
-                The session hasn't started yet.
+              <p className="text-sm text-slate-500 mb-6">
+                Your teacher will start the session shortly. Please wait here.
               </p>
-              <div className="mt-8 relative">
-                <div className="absolute inset-0 bg-indigo-400 blur-xl opacity-20 rounded-full animate-pulse"></div>
-                <div className="relative animate-spin rounded-full h-10 w-10 border-[3px] border-indigo-100 border-t-indigo-600 mx-auto"></div>
+              
+              <div className="inline-flex items-center gap-2 bg-white px-4 py-2.5 rounded-lg shadow-sm border border-slate-200">
+                <Wifi className="text-indigo-600" size={16} />
+                <span className="text-xs font-medium text-slate-600">
+                  Checking for updates...
+                </span>
               </div>
-              {/* Debug info */}
-              <div className="mt-6 p-3 bg-slate-100 rounded-lg text-left">
-                <p className="text-xs font-mono text-slate-600">
-                  <strong>Debug Info:</strong><br />
-                  Class ID: {classId}<br />
-                  Status: {isLive ? 'LIVE' : 'OFFLINE'}<br />
-                  User: {user ? user.name : 'Not loaded'}<br />
-                  Jitsi: {jitsiApiRef.current ? 'Initialized' : 'Not initialized'}<br />
-                  <span className="text-xs text-slate-500">Check browser console (F12) for detailed logs</span>
-                </p>
+
+              <div className="mt-8 pt-6 border-t border-slate-200">
+                <p className="text-xs text-slate-400 mb-3">While you wait</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                    <p className="text-xs font-medium text-slate-700">Make sure</p>
+                    <p className="text-xs text-slate-500 mt-1">Camera & mic ready</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-slate-200">
+                    <p className="text-xs font-medium text-slate-700">Stable</p>
+                    <p className="text-xs text-slate-500 mt-1">Internet connection</p>
+                  </div>
+                </div>
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
       </div>

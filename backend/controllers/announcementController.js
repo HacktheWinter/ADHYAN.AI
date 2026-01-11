@@ -3,7 +3,7 @@ import multer from "multer";
 import Announcement from "../models/Announcement.js";
 import Classroom from "../models/Classroom.js";
 import User from "../models/User.js";
-import { bucket } from "../config/gridfs.js";
+import { getBucket } from "../config/gridfs.js";
 
 // Multer setup for GridFS (memory storage for streaming to bucket)
 const storage = multer.memoryStorage();
@@ -22,6 +22,13 @@ export const createAnnouncement = [
   async (req, res) => {
     try {
       const { teacherId, classroomId, message } = req.body;
+      const bucket = getBucket();
+
+      if (!bucket) {
+        return res
+          .status(503)
+          .json({ message: "Database connection not ready" });
+      }
 
       if (!teacherId || !classroomId || !message) {
         return res.status(400).json({ error: "All fields are required" });
@@ -73,7 +80,7 @@ export const createAnnouncement = [
         message,
         fileId,
         fileName,
-        mimeType
+        mimeType,
       });
 
       res.status(201).json({
@@ -104,7 +111,9 @@ export const getAnnouncements = async (req, res) => {
     res.status(200).json({ announcements });
   } catch (error) {
     console.error("Get Announcements Error:", error);
-    res.status(500).json({ error: "Server error while fetching announcements" });
+    res
+      .status(500)
+      .json({ error: "Server error while fetching announcements" });
   }
 };
 
@@ -116,6 +125,11 @@ export const deleteAnnouncement = async (req, res) => {
   try {
     const { id } = req.params;
     const { teacherId } = req.body;
+    const bucket = getBucket();
+
+    if (!bucket) {
+      return res.status(503).json({ message: "Database connection not ready" });
+    }
 
     const announcement = await Announcement.findById(id);
     if (!announcement)
@@ -140,7 +154,9 @@ export const deleteAnnouncement = async (req, res) => {
     res.status(200).json({ message: "Announcement deleted successfully" });
   } catch (error) {
     console.error("Delete Announcement Error:", error);
-    res.status(500).json({ error: "Server error while deleting announcement" });
+    res
+      .status(500)
+      .json({ error: "Server error while deleting announcement" });
   }
 };
 
@@ -151,6 +167,12 @@ export const deleteAnnouncement = async (req, res) => {
 export const getAnnouncementFile = async (req, res) => {
   try {
     const { fileId } = req.params;
+    const bucket = getBucket();
+
+    if (!bucket) {
+      return res.status(503).json({ message: "Database connection not ready" });
+    }
+
     const _id = new mongoose.Types.ObjectId(fileId);
 
     const readStream = bucket.openDownloadStream(_id);

@@ -73,21 +73,11 @@ export default function Signup() {
         <div className="hidden md:block">
           <div className="text-center space-y-6">
             <div className="flex items-center justify-center space-x-3 mb-8">
-              <div className="w-16 h-16 bg-purple-700 rounded-2xl flex items-center justify-center shadow-lg">
-                <svg
-                  className="w-10 h-10 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
+              <img 
+                src="/logo02.png" 
+                alt="ADHYAN.AI Logo" 
+                className="w-20 h-20 object-contain"
+              />
               <h1 className="text-4xl font-bold text-gray-900">ADHYAN.AI</h1>
             </div>
 
@@ -158,21 +148,11 @@ export default function Signup() {
           <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10">
             <div className="md:hidden text-center mb-6">
               <div className="flex items-center justify-center space-x-2 mb-4">
-                <div className="w-10 h-10 bg-purple-700 rounded-lg flex items-center justify-center">
-                  <svg
-                    className="w-6 h-6 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
+                <img 
+                  src="/logo02.png" 
+                  alt="ADHYAN.AI Logo" 
+                  className="w-12 h-12 object-contain"
+                />
                 <span className="text-2xl font-bold text-gray-900">
                   ADHYAN.AI
                 </span>

@@ -24,7 +24,6 @@ import DoubtsPage from "./Pages/DoubtsPage";
 
 import LiveClassroom from "./Pages/LiveClassroom";
 
-
 import Announcement from "./Pages/Announcement";
 import CalendarPage from "./Pages/CalendarPage";
 import SettingsPage from "./Pages/SettingsPage";
@@ -54,7 +53,7 @@ export default function App() {
         }
       />
       <Route path="/forgot-password" element={<ForgotPassword />} />
-
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* Protected Routes */}
       <Route
@@ -93,7 +92,24 @@ export default function App() {
         }
       />
 
-      {/* Class Detail Routes - Main Layout */}
+      {/* Full Screen Routes for Announcement and Calendar */}
+      <Route
+        path="/class/:classId/announcement"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <Announcement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/class/:classId/calendar"
+        element={
+          <ProtectedRoute requiredRole="teacher">
+            <CalendarPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/class/:classId"
         element={
@@ -103,32 +119,14 @@ export default function App() {
         }
       >
         <Route index element={<Navigate to="notes" replace />} />
+        <Route path="live-classroom" element={<LiveClassroom />} />
         <Route path="notes" element={<NotesPage />} />
         <Route path="quizzes" element={<QuizzesPage />} />
         <Route path="test-papers" element={<TestPapersPage />} />
         <Route path="assignments" element={<AssignmentsPage />} />
         <Route path="students" element={<StudentsPage />} />
-
         <Route path="doubts" element={<DoubtsPage />} />
-        <Route path="live-classroom" element={<LiveClassroom />} />
       </Route>
-
-      <Route
-        path="/class/:classId/announcement"
-        element={
-          <ProtectedRoute requiredRole="teacher">
-            <Announcement />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/class/:classId/calendar"
-        element={
-          <ProtectedRoute requiredRole="teacher">
-            <CalendarPage />
-          </ProtectedRoute>
-        }
-      />
 
       {/* Test Results Routes */}
       <Route
