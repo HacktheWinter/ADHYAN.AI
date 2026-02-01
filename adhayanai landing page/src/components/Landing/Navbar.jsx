@@ -51,7 +51,7 @@ const Navbar = () => {
           {/* Desktop Links */}
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-8">
-              {['Features', 'How It Works', 'Pricing'].map((item) => (
+              {['Features', 'How It Works', 'Pricing', 'Our Team'].map((item) => (
                 <a
                   key={item}
                   href={`#${item.toLowerCase().replace(/\s+/g, '-')}`}
