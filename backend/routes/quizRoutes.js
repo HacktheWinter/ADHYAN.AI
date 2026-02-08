@@ -2,6 +2,7 @@
 import express from "express";
 import {
   generateQuizWithAI,
+  generateQuizFromTopicsAPI,
   getQuiz,
   getQuizzesByClassroom,
   updateQuiz,
@@ -12,8 +13,11 @@ import {
 
 const router = express.Router();
 
-// AI Generation route
+// AI Generation route from notes
 router.post("/generate-ai", generateQuizWithAI);
+
+// NEW - AI Generation route from topics (no notes required)
+router.post("/generate-from-topics", generateQuizFromTopicsAPI);
 
 // Get quiz by ID
 router.get("/:quizId", getQuiz);
@@ -21,10 +25,10 @@ router.get("/:quizId", getQuiz);
 // Get quizzes by classroom
 router.get("/classroom/:classroomId", getQuizzesByClassroom);
 
-// NEW - Get active quizzes for students (must be before /:quizId to avoid route conflict)
+// Get active quizzes for students (must be before /:quizId to avoid route conflict)
 router.get("/active/classroom/:classroomId", getActiveQuizzesForStudent);
 
-// NEW - Publish quiz with timing
+// Publish quiz with timing
 router.put("/:quizId/publish", publishQuizWithTiming);
 
 // Update quiz
