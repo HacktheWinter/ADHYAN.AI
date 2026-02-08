@@ -17,6 +17,12 @@ export default function Quiz() {
   const [showTakingModal, setShowTakingModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
 
+  // Helper function to truncate title
+  const truncateTitle = (title, maxLength = 40) => {
+    if (title.length <= maxLength) return title;
+    return title.substring(0, maxLength) + "...";
+  };
+
   useEffect(() => {
     fetchQuizzes();
   }, [classId]);
@@ -145,10 +151,13 @@ export default function Quiz() {
               className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow"
             >
               <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-900 flex-1">
-                  {quiz.title}
+                <h3 
+                  className="text-lg font-semibold text-gray-900 flex-1 mr-2"
+                  title={quiz.title}
+                >
+                  {truncateTitle(quiz.title, 40)}
                 </h3>
-                <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${status.color}`}>
+                <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${status.color} flex-shrink-0`}>
                   <StatusIcon className="w-3 h-3" />
                   {status.text}
                 </span>

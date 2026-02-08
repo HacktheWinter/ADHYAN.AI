@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const TestimonialCard = ({ member, index }) => {
   const [isFlipped, setIsFlipped] = useState(false);
@@ -75,26 +76,67 @@ const Testimonials = () => {
   const teamMembers = [
     {
       name: "Lucky Singh Panwar",
-      role: "Idea, Documentation & UI Design",
-      content: "Crafted the core vision, managed comprehensive documentation, and designed an intuitive, user-centric interface.",
+      role: "Concept Designer & Rnd Lead",
+      content: "Worked on concept design and research & development of the project, focusing on idea validation and strategic execution.",
       image: "/lucky.jpeg",
       color: "from-purple-500 to-indigo-500"
     },
     {
       name: "Deepak Singh Rawat",
-      role: "Backend API, Live Class & AI Integration",
-      content: "Built robust backend architectures, implemented real-time live class features, and integrated advanced AI capabilities.",
+      role: "Backend API, Live Class & AI Features",
+      content: "Built scalable backend features and data models, implemented real-time live class functionality, and integrated AI features into the application",
       image: "/deepak.jpeg",
       color: "from-blue-500 to-cyan-500"
     },
     {
       name: "Harikesh Kumar",
-      role: "Frontend & AI Features",
-      content: "Developed the responsive frontend, seamlessly connected it with the backend, and implemented interactive AI features.",
+      role: "Full Stack & AI Integration",
+      content: "Worked on both frontend and backend development, integrated AI features into the application, and ensured seamless communication between system components.",
       image: "/harikesh.jpg",
       color: "from-emerald-500 to-green-500"
+    },
+    {
+      name: "Lalit Nandan",
+      role: "Simulation & Testing Analyst",
+      content: "Conducted thorough testing and analysis of the application to ensure its functionality and reliability, covering user interaction flows.",
+      image: "/lalit.jpeg",
+      color: "from-orange-500 to-amber-500"
     }
   ];
+
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      handleNext();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [activeIndex]); // Restart timer on manual interaction
+
+  const getPosition = (index) => {
+    const offset = (index - activeIndex + 4) % 4;
+    // 0 = Center
+    // 1 = Right
+    // 2 = Back
+    // 3 = Left
+
+    if (offset === 0) return { x: "-50%", scale: 1, zIndex: 30, opacity: 1 };
+    if (offset === 1) return { x: "50%", scale: 0.85, zIndex: 20, opacity: 1 }; // Blur removed
+    if (offset === 2) return { x: "-50%", scale: 0.6, zIndex: 10, opacity: 0 }; 
+    if (offset === 3) return { x: "-150%", scale: 0.85, zIndex: 20, opacity: 1 }; // Blur removed
+  };
+
+  const handleDotClick = (index) => {
+    setActiveIndex(index);
+  };
+
+  const handleNext = () => {
+    setActiveIndex((prev) => (prev + 1) % teamMembers.length);
+  };
+
+  const handlePrev = () => {
+    setActiveIndex((prev) => (prev - 1 + teamMembers.length) % teamMembers.length);
+  };
 
   return (
     <section id='our-team' className="py-24 bg-gray-50 relative overflow-hidden">
@@ -113,9 +155,68 @@ const Testimonials = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 px-4">
-          {teamMembers.map((member, index) => (
-            <TestimonialCard key={index} member={member} index={index} />
+        {/* Carousel Container */}
+        <div className="relative h-[450px] flex items-center justify-center">
+            
+          {/* Left Arrow */}
+          <button 
+            onClick={handlePrev}
+            className="absolute left-0 md:left-[-50px] z-40 p-3 rounded-full bg-white/80 hover:bg-white shadow-lg text-indigo-600 hover:text-indigo-800 transition-all duration-300 backdrop-blur-sm transform hover:scale-110 cursor-pointer"
+            aria-label="Previous"
+          >
+            <ChevronLeft size={28} />
+          </button>
+
+          <AnimatePresence>
+            {teamMembers.map((member, index) => {
+              const style = getPosition(index);
+              return (
+                <motion.div
+                  key={index}
+                  className="absolute w-[350px] md:w-[400px]"
+                  animate={{
+                    x: style.x,
+                    scale: style.scale,
+                    opacity: style.opacity,
+                    zIndex: style.zIndex,
+                    // filter removed
+                  }}
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                  style={{ 
+                    // Centering the absolute elements
+                    left: "50%", 
+                    // We handle x offset in animate for positioning
+                  }}
+                >
+                   <div className="w-full">
+                     <TestimonialCard member={member} index={index} />
+                   </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+
+          {/* Right Arrow */}
+          <button 
+            onClick={handleNext}
+            className="absolute right-0 md:right-[-50px] z-40 p-3 rounded-full bg-white/80 hover:bg-white shadow-lg text-indigo-600 hover:text-indigo-800 transition-all duration-300 backdrop-blur-sm transform hover:scale-110 cursor-pointer"
+            aria-label="Next"
+          >
+            <ChevronRight size={28} />
+          </button>
+
+        </div>
+
+        {/* Navigation Dots */}
+        <div className="flex justify-center space-x-2 mt-8">
+          {teamMembers.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => handleDotClick(index)}
+              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                index === activeIndex ? "bg-indigo-600 w-8" : "bg-gray-300 hover:bg-gray-400"
+              }`}
+            />
           ))}
         </div>
       </div>
