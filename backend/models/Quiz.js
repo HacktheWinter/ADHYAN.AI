@@ -5,7 +5,7 @@ const quizSchema = new mongoose.Schema({
   noteId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Note",
-    required: true,
+    required: false, // Made optional for topic-based quizzes
   },
   classroomId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -20,6 +20,12 @@ const quizSchema = new mongoose.Schema({
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Note",
+    },
+  ],
+  // NEW FIELD - Store topics when quiz is generated from topics
+  generatedFromTopics: [
+    {
+      type: String,
     },
   ],
   questions: [

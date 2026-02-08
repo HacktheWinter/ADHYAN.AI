@@ -3,12 +3,110 @@ import mongoose from "mongoose";
 import Quiz from "../models/Quiz.js";
 import Note from "../models/Note.js";
 import { getBucket } from "../config/gridfs.js";
-import { generateQuizFromText } from "../config/gemini.js";
+import { generateQuizFromText, generateQuizFromTopics } from "../config/gemini.js";
 import {
   extractTextFromPDF,
   cleanText,
   validateTextContent,
 } from "../utils/pdfExtractor.js";
+
+/**
+ * Generate quiz from topics (NEW FEATURE)
+ * POST /api/quiz/generate-from-topics
+ * Body: { topics: string[], classroomId: string }
+ */
+export const generateQuizFromTopicsAPI = async (req, res) => {
+  try {
+    const { topics, classroomId } = req.body;
+
+    console.log("=== QUIZ GENERATION FROM TOPICS STARTED ===");
+    console.log(" Request body:", { topics, classroomId });
+
+    // Validation
+    if (!topics || (Array.isArray(topics) && topics.length === 0) || (!Array.isArray(topics) && !topics.trim())) {
+      console.log(" No topics provided");
+      return res.status(400).json({
+        error: "Please provide at least one topic",
+      });
+    }
+
+    if (!classroomId) {
+      console.log(" No classroomId provided");
+      return res.status(400).json({
+        error: "classroomId is required",
+      });
+    }
+
+    // Convert topics to array if string
+    const topicsArray = Array.isArray(topics) ? topics : [topics];
+    
+    console.log(` Generating quiz from ${topicsArray.length} topic(s)`);
+
+    // Generate quiz using Gemini AI
+    console.log("\n Calling Gemini API for topic-based quiz...");
+    let questions;
+
+    try {
+      questions = await generateQuizFromTopics(topicsArray);
+      console.log(`Generated ${questions.length} questions`);
+    } catch (error) {
+      console.error("Gemini API Error:", error);
+      return res.status(500).json({
+        error: "Failed to generate quiz from AI. Please try again.",
+        details: error.message,
+      });
+    }
+
+    // Validate questions
+    if (!questions || questions.length === 0) {
+      return res.status(500).json({
+        error:
+          "AI could not generate questions from the topics provided. Please try with different topics.",
+      });
+    }
+
+    // Create quiz title
+    const quizTitle = topicsArray.length > 2
+      ? `Quiz: ${topicsArray.slice(0, 2).join(", ")} and ${topicsArray.length - 2} more`
+      : `Quiz: ${topicsArray.join(", ")}`;
+
+    // Save to database
+    const quiz = await Quiz.create({
+      noteId: null, // No note for topic-based quiz
+      classroomId,
+      title: quizTitle,
+      generatedFrom: [], // Empty array since no notes used
+      generatedFromTopics: topicsArray, // Store topics used
+      questions: questions.map((q) => ({
+        question: q.question,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+      })),
+      status: "draft",
+    });
+
+    console.log("Quiz saved to database:", quiz._id);
+    console.log("=== QUIZ GENERATION FROM TOPICS COMPLETED ===\n");
+
+    res.status(201).json({
+      success: true,
+      message: `Generated ${questions.length} questions successfully from ${topicsArray.length} topic(s)`,
+      quiz,
+      stats: {
+        topics: topicsArray,
+        questionsGenerated: questions.length,
+      },
+    });
+  } catch (error) {
+    console.error("QUIZ GENERATION FROM TOPICS FAILED:", error);
+    console.error("Stack trace:", error.stack);
+
+    res.status(500).json({
+      error: "Failed to generate quiz from topics",
+      details: error.message,
+    });
+  }
+};
 
 /**
  * Generate quiz using AI from selected notes
@@ -318,7 +416,6 @@ export const deleteQuiz = async (req, res) => {
   }
 };
 
-// NEW FUNCTION - Publish quiz with timing
 /**
  * Publish quiz with timing
  * PUT /api/quiz/:quizId/publish
@@ -339,7 +436,7 @@ export const publishQuizWithTiming = async (req, res) => {
     let calculatedEndTime = endTime;
     if (startTime && duration && !endTime) {
       const start = new Date(startTime);
-      calculatedEndTime = new Date(start.getTime() + duration * 60000); // Convert minutes to milliseconds
+      calculatedEndTime = new Date(start.getTime() + duration * 60000);
     }
 
     // Update quiz
@@ -361,7 +458,7 @@ export const publishQuizWithTiming = async (req, res) => {
         title: `Quiz: ${quiz.title}`,
         type: "quiz",
         classId: quiz.classroomId,
-        teacherId: req.user._id, // Assuming auth middleware populates req.user
+        teacherId: req.user._id,
         startDate: startTime || new Date(),
         endDate:
           calculatedEndTime || new Date(Date.now() + (duration || 60) * 60000),
@@ -372,7 +469,6 @@ export const publishQuizWithTiming = async (req, res) => {
       console.log("Calendar event created for Quiz");
     } catch (calError) {
       console.error("Failed to create calendar event:", calError);
-      // Don't fail the request if calendar creation fails
     }
 
     res.status(200).json({
@@ -389,7 +485,6 @@ export const publishQuizWithTiming = async (req, res) => {
   }
 };
 
-//  NEW FUNCTION - Get active quizzes for students
 /**
  * Get active quizzes for student (filters by time)
  * GET /api/quiz/active/classroom/:classroomId
