@@ -12,6 +12,7 @@ const ClassDetail = lazy(() => import("./Pages/ClassDetail"));
 const TestResultsViewer = lazy(() => import("./Pages/TestResultsViewer"));
 const StudentTestResult = lazy(() => import("./Pages/StudentTestResult"));
 const QuizResultsViewer = lazy(() => import("./Pages/QuizResultsViewer"));
+const ClassDashboard = lazy(() => import("./Pages/ClassDashboard"));
 const StudentQuizResult = lazy(() => import("./Pages/StudentQuizResult"));
 const AssignmentResultsViewer = lazy(() => import("./Pages/AssignmentResultsViewer"));
 const StudentAssignmentResult = lazy(() => import("./Pages/StudentAssignmentResult"));
@@ -161,6 +162,16 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="teacher">
               <StudentQuizResult />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Class Dashboard Route */}
+        <Route
+          path="/class/:classId/dashboard"
+          element={
+            <ProtectedRoute requiredRole="teacher">
+              <ClassDashboard />
             </ProtectedRoute>
           }
         />
