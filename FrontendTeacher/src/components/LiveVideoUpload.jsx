@@ -175,13 +175,13 @@ const LiveVideoUpload = ({ classId, role }) => {
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 py-4 sm:py-8">
       {/* ---------------- HEADER SECTION ---------------- */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-200">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 sm:p-6 border border-indigo-200">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
-              <Video className="w-6 h-6" />
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 flex items-center justify-center sm:justify-start gap-2">
+              <Video className="w-5 h-5 sm:w-6 sm:h-6" />
               Video Lectures
             </h2>
             <p className="text-gray-600 text-sm">
@@ -220,8 +220,8 @@ const LiveVideoUpload = ({ classId, role }) => {
             transition={{ duration: 0.2 }}
             className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden"
           >
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white">
-              <h3 className="text-xl font-bold flex items-center gap-2">
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 sm:p-6 text-white">
+              <h3 className="text-lg sm:text-xl font-bold flex items-center gap-2">
                 <Video className="w-5 h-5" />
                 Upload New Video
               </h3>
@@ -230,9 +230,9 @@ const LiveVideoUpload = ({ classId, role }) => {
               </p>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
               {/* Title and Topic */}
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Title *
@@ -275,7 +275,7 @@ const LiveVideoUpload = ({ classId, role }) => {
               </div>
 
               {/* Video Upload or URL */}
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 {/* File Upload */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -334,7 +334,7 @@ const LiveVideoUpload = ({ classId, role }) => {
                       <Link2 className="w-5 h-5 text-gray-400" />
                       <input
                         type="url"
-                        className="flex-1 outline-none"
+                        className="flex-1 outline-none min-w-0"
                         placeholder="https://youtube.com/watch?v=..."
                         value={videoUrl}
                         onChange={(e) => {
@@ -392,10 +392,10 @@ const LiveVideoUpload = ({ classId, role }) => {
               )}
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
                 <button
                   onClick={() => setShowUploadForm(false)}
-                  className="px-6 py-2 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition-colors"
+                  className="w-full sm:w-auto px-6 py-2 text-gray-700 font-semibold hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
                   disabled={loading}
                 >
                   Cancel
@@ -403,7 +403,7 @@ const LiveVideoUpload = ({ classId, role }) => {
                 <button
                   onClick={uploadVideoHandler}
                   disabled={loading || (!title || (!videoFile && !videoUrl))}
-                  className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                  className="w-full sm:w-auto px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {loading ? (
                     <>
@@ -432,8 +432,8 @@ const LiveVideoUpload = ({ classId, role }) => {
         </div>
 
         {videos.length === 0 ? (
-          <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-12 text-center">
-            <Video className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-8 sm:p-12 text-center">
+            <Video className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 font-medium">No videos uploaded yet</p>
             <p className="text-gray-400 text-sm mt-1">
               {effectiveRole === "teacher"
@@ -442,7 +442,7 @@ const LiveVideoUpload = ({ classId, role }) => {
             </p>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {videos.map((v, index) => (
               <motion.div
                 key={v._id}
@@ -489,7 +489,7 @@ const LiveVideoUpload = ({ classId, role }) => {
                         e.stopPropagation();
                         deleteVideo(v._id);
                       }}
-                      className="absolute top-3 right-3 bg-white hover:bg-red-500 text-red-500 hover:text-white p-2.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 shadow-lg z-10"
+                      className="absolute top-3 right-3 bg-white hover:bg-red-500 text-red-500 hover:text-white p-2.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 shadow-lg z-10 cursor-pointer"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -508,7 +508,7 @@ const LiveVideoUpload = ({ classId, role }) => {
                   {/* Top shadow for depth */}
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-b from-gray-200/50 to-transparent"></div>
                   
-                  <div className="p-5 bg-gradient-to-b from-gray-50 to-white">
+                  <div className="p-4 sm:p-5 bg-gradient-to-b from-gray-50 to-white">
                     <h4 className="text-lg font-bold text-gray-900 mb-2 line-clamp-1">
                       {v.title}
                     </h4>

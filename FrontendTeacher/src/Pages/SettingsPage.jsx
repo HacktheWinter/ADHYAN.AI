@@ -63,7 +63,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-purple-700"
+            className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-purple-700 cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5" /> Back to Dashboard
           </button>
