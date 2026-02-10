@@ -154,17 +154,17 @@ const LiveMeeting = ({ classId }) => {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
-      {/* Header - Keep existing design */}
-      <div className="p-6 border-b border-gray-200 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-md">
-            <Video size={24} />
+      {/* Header */}
+      <div className="p-4 sm:p-6 border-b border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+        <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
+          <div className="p-2 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-md">
+            <Video size={20} className="sm:w-6 sm:h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">
               Broadcast Control
             </h2>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex flex-wrap justify-center sm:justify-start items-center gap-2 mt-1">
               {isLive ? (
                 <div className="flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1 rounded-full border border-red-100">
                   <span className="relative flex h-2 w-2">
@@ -190,12 +190,12 @@ const LiveMeeting = ({ classId }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
           {!isLive ? (
             <button
               onClick={handleStart}
               disabled={loading}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full sm:w-auto flex flex-1 items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={20} />
@@ -208,7 +208,7 @@ const LiveMeeting = ({ classId }) => {
             <button
               onClick={handleEnd}
               disabled={loading}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full sm:w-auto flex flex-1 items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={20} />
@@ -222,14 +222,14 @@ const LiveMeeting = ({ classId }) => {
       </div>
 
       {/* Video Container */}
-      <div className="p-6 bg-gray-50">
+      <div className="p-4 sm:p-6 bg-gray-50">
         <div
           ref={jitsiContainerRef}
-          style={{ height: isLive ? "70vh" : "50vh" }}
+          style={{ height: isLive ? "60vh" : "40vh" }} // Slightly reduced for mobile
           className={`w-full rounded-xl transition-all ${
             !isLive
-              ? "bg-white border-2 border-dashed border-gray-300 flex flex-col items-center justify-center"
-              : "bg-black border border-gray-900"
+              ? "bg-white border-2 border-dashed border-gray-300 flex flex-col items-center justify-center min-h-[300px]"
+              : "bg-black border border-gray-900 min-h-[400px]"
           }`}
         >
           <AnimatePresence mode="wait">
@@ -240,15 +240,15 @@ const LiveMeeting = ({ classId }) => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                className="text-center p-8"
+                className="text-center p-6 sm:p-8"
               >
-                <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Signal className="text-indigo-600" size={40} />
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Signal className="text-indigo-600" size={32} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
                   Ready to lead?
                 </h3>
-                <p className="text-gray-600 max-w-md">
+                <p className="text-sm sm:text-base text-gray-600 max-w-sm mx-auto">
                   Your classroom platform is primed and ready.
                 </p>
               </motion.div>
@@ -258,18 +258,18 @@ const LiveMeeting = ({ classId }) => {
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-4 bg-white border-t border-gray-200">
-        <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-gray-500 font-semibold uppercase tracking-wider">
+      <div className="px-4 sm:px-6 py-3 sm:py-4 bg-white border-t border-gray-200">
+        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wider">
           <span className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500"></div>
             Encrypted Stream
           </span>
           <span className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-indigo-500"></div>
             Global CDN
           </span>
           <span className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-purple-500"></div>
             Auto-Recording
           </span>
         </div>

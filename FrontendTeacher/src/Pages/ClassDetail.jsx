@@ -54,6 +54,9 @@ const ClassDetail = () => {
             });
           }
           break;
+        case "dashboard":
+          navigate(`/class/${classId}/dashboard`);
+          break;
         default:
           break;
       }
@@ -180,6 +183,7 @@ const ClassDetail = () => {
                       className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
                     >
                       {[
+                        { name: "Dashboard", icon: "M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", highlight: true },
                         { name: "Announcement", icon: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" },
                         { name: "Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
                         { name: "Classes", icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
@@ -188,12 +192,16 @@ const ClassDetail = () => {
                         <button
                           key={idx}
                           onClick={() => handleDropdownOption(item.name.toLowerCase())}
-                          className="w-full flex items-center gap-3 px-5 py-3.5 text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 hover:text-purple-700 transition-all duration-150 cursor-pointer group border-b border-gray-50 last:border-b-0"
+                          className={`w-full flex items-center gap-3 px-5 py-3.5 transition-all duration-150 cursor-pointer group border-b border-gray-50 last:border-b-0 ${
+                            item.highlight 
+                              ? "bg-purple-50 text-purple-700 hover:bg-purple-100 font-semibold" 
+                              : "text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 hover:text-purple-700"
+                          }`}
                         >
-                          <svg className="w-5 h-5 group-hover:scale-110 transition-transform duration-150" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className={`w-5 h-5 group-hover:scale-110 transition-transform duration-150 ${item.highlight ? "text-purple-600" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                           </svg>
-                          <span className="font-medium">{item.name}</span>
+                          <span className={item.highlight ? "font-bold" : "font-medium"}>{item.name}</span>
                         </button>
                       ))}
                     </motion.div>
