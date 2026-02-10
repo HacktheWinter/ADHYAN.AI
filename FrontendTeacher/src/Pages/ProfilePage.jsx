@@ -266,7 +266,7 @@ export default function ProfilePage() {
         {/* Back to Dashboard Button */}
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-gray-600 hover:text-purple-600 mb-4 transition-colors group"
+          className="flex items-center gap-2 text-gray-600 hover:text-purple-600 mb-4 transition-colors group cursor-pointer"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="font-medium">Back to Dashboard</span>

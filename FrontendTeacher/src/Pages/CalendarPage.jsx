@@ -465,7 +465,7 @@ const CalendarPage = () => {
                     <div className="flex items-center gap-2 md:gap-4 min-w-0">
                         <button
                             onClick={() => navigate(`/class/${classId}`)}
-                            className="group p-2 hover:bg-gray-100 rounded-xl transition-all duration-200 flex-shrink-0"
+                            className="group p-2 hover:bg-gray-100 rounded-xl transition-all duration-200 flex-shrink-0 cursor-pointer"
                         >
                             <ArrowLeft className="w-4 h-4 md:w-5 md:h-5 text-gray-600 group-hover:text-gray-900 transition-colors" />
                         </button>
