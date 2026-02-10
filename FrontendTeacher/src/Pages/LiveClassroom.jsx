@@ -15,7 +15,7 @@ const LiveClassroom = () => {
     <div className="min-h-screen bg-gray-100">
       {/* ================= NAVBAR ================= */}
       <header className="sticky top-0 z-50 bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
           {/* Back */}
           <button
             onClick={() => navigate(`/class/${classId}`)}
@@ -29,25 +29,25 @@ const LiveClassroom = () => {
 
           {/* Title */}
           <div className="text-center">
-            <h1 className="text-base sm:text-lg font-semibold text-gray-900">
+            <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate max-w-[200px] sm:max-w-xs mx-auto">
               Live Classroom
             </h1>
-            <p className="text-xs text-gray-500">{classData?.subject}</p>
+            <p className="text-xs text-gray-500 truncate max-w-[200px] mx-auto">{classData?.subject}</p>
           </div>
 
-          {/* Right Spacer */}
+          {/* Right Spacer (for balance) or small placeholder */}
           <div className="w-8" />
         </div>
       </header>
 
       {/* ================= CONTENT ================= */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* ---------- TAB SWITCHER ---------- */}
-        <div className="flex justify-center mb-8">
-          <div className="inline-flex bg-gray-200 rounded-full p-1 shadow-inner">
+        <div className="flex justify-center mb-6 sm:mb-8">
+          <div className="inline-flex bg-gray-200 rounded-full p-1 shadow-inner w-full max-w-md sm:w-auto">
             <button
               onClick={() => setActiveTab("videos")}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition cursor-pointer
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 rounded-full text-sm font-semibold transition cursor-pointer
                 ${
                   activeTab === "videos"
                     ? "bg-white text-purple-600 shadow"
@@ -55,12 +55,12 @@ const LiveClassroom = () => {
                 }`}
             >
               <Upload size={16} />
-              Live Videos
+              <span className="whitespace-nowrap">Live Videos</span>
             </button>
 
             <button
               onClick={() => setActiveTab("meeting")}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition cursor-pointer
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 rounded-full text-sm font-semibold transition cursor-pointer
                 ${
                   activeTab === "meeting"
                     ? "bg-white text-purple-600 shadow"
@@ -68,13 +68,13 @@ const LiveClassroom = () => {
                 }`}
             >
               <Video size={16} />
-              Live Meeting
+              <span className="whitespace-nowrap">Live Meeting</span>
             </button>
           </div>
         </div>
 
         {/* ---------- TAB CONTENT ---------- */}
-        <section className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
+        <section className="bg-white rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-6 md:p-8">
           {activeTab === "videos" && (
             <div className="animate-fadeIn">
               <LiveVideoUpload classId={classId} role={currentUser?.role} />
