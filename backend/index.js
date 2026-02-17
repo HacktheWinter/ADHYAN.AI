@@ -26,11 +26,13 @@ import forgotPasswordRoutes from './routes/forgotPassword.js';
 import profileRoutes from "./routes/profileRoutes.js";
 
 import videoRoutes from "./routes/video.routes.js";
+import attendanceRoutes from "./routes/attendanceRoutes.js";
 
 const app = express();
 
 dotenv.config();
 connectDB();
+
 
 const server = http.createServer(app);
 
@@ -107,6 +109,8 @@ app.use("/api/calendar", calendarRoutes);
 app.use('/api', forgotPasswordRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api", videoRoutes);
+app.use("/api/attendance", attendanceRoutes);
+
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
