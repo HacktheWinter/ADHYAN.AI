@@ -31,6 +31,8 @@ const Announcement = lazy(() => import("./Pages/Announcement"));
 const CalendarPage = lazy(() => import("./Pages/CalendarPage"));
 const SettingsPage = lazy(() => import("./Pages/SettingsPage"));
 const TeacherFeedbackPage = lazy(() => import("./Pages/TeacherFeedbackPage"));
+const AttendancePage = lazy(() => import("./Pages/AttendancePage"));
+
 
 export default function App() {
   return (
@@ -110,6 +112,16 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/class/:classId/attendance"
+          element={
+            <ProtectedRoute requiredRole="teacher">
+              <AttendancePage />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/class/:classId"
           element={
@@ -118,6 +130,7 @@ export default function App() {
             </ProtectedRoute>
           }
         >
+
           <Route index element={<Navigate to="notes" replace />} />
           <Route path="live-classroom" element={<LiveClassroom />} />
           <Route path="notes" element={<NotesPage />} />
