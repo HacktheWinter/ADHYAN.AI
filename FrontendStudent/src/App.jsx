@@ -10,6 +10,7 @@ import Loader from "./components/Loader";
 // Lazy loaded components
 const NoteCraftsDashboard = lazy(() => import("./Pages/NoteCraftsDashboard"));
 const CourseDetailPage = lazy(() => import("./Pages/CourseDetailPage"));
+const StudentAttendancePage = lazy(() => import("./Pages/StudentAttendancePage"));
 const StudentNotesPage = lazy(() => import("./Pages/StudentNotesPage"));
 const ProfilePage = lazy(() => import("./Pages/ProfilePage"));
 const Login = lazy(() => import("./Pages/Login"));
@@ -124,6 +125,8 @@ export default function App() {
           {/* Standalone Course Announcement Route (with navbar) */}
           <Route path="course/:id/announcement" element={<StudentAnnouncement />} />
         </Route>
+          
+        <Route path="course/:id/attendance" element={<StudentAttendancePage />} />
 
         {/* Calendar Route (Fullscreen - No Navbar) */}
         <Route

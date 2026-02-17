@@ -21,12 +21,11 @@ export default function CourseDetailPage() {
   const [className, setClassName] = useState("");
 
   const menuOptions = [
-
-
     { name: "Announcement", icon: "📢" },
     { name: "Calendar", icon: "📅" },
     { name: "Classes", icon: "📚" },
     { name: "Feedback", icon: "💬" },
+    { name: "Attendance", icon: "📷" },
   ];
 
 
@@ -170,6 +169,10 @@ export default function CourseDetailPage() {
     navigate("classes");
   }
     if (option === "feedback"){ navigate("feedback");}
+    
+    if (option === "attendance") {
+        navigate(`/course/${id}/attendance`);
+    }
   };
 
 
