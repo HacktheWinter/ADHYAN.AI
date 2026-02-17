@@ -36,9 +36,12 @@ export default function socketHandler(io) {
 
     // Student scans QR
     socket.on("mark_attendance", async ({ classId, studentId, token, studentName }) => {
+      console.log(`[Socket] Received mark_attendance for class ${classId} from ${studentName} (${studentId})`);
+      
       // 1. Validate session
       const session = activeSessions[classId];
       if (!session) {
+        console.log(`[Socket] No active session for class ${classId}`);
         socket.emit("attendance_error", { message: "No active attendance session." });
         return;
       }
@@ -46,6 +49,7 @@ export default function socketHandler(io) {
       // 2. Validate token (simple check matches current token)
       // In a more robust system, you might check if token is "recent enough"
       if (session.token !== token) {
+        console.log(`[Socket] Invalid token. Expected: ${session.token}, Got: ${token}`);
         socket.emit("attendance_error", { message: "Invalid or expired QR code." });
         return;
       }
@@ -74,6 +78,9 @@ export default function socketHandler(io) {
         if (!alreadyPresent) {
              attendanceRecord.studentsPresent.push({ studentId });
              await attendanceRecord.save();
+             console.log(`[Socket] Saved attendance for ${studentName}`);
+        } else {
+             console.log(`[Socket] Student ${studentName} already marked present`);
         }
 
         // 4. Notify Teacher (and specific student)
@@ -84,9 +91,10 @@ export default function socketHandler(io) {
         });
 
         socket.emit("attendance_success", { message: "Attendance marked successfully!" });
+        console.log(`[Socket] Sent success to student ${studentId}`);
 
       } catch (err) {
-        console.error("Attendance socket error:", err);
+        console.error("[Socket] Attendance socket error:", err);
         socket.emit("attendance_error", { message: "Server error marking attendance." });
       }
     });
