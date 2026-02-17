@@ -62,6 +62,13 @@ const StudentAttendancePage = () => {
       setScanResult(token);
       setStatus("processing");
       
+      console.log("Attempting to emit mark_attendance:", {
+          classId,
+          studentId: user.id || user._id,
+          studentName: user.name,
+          token
+      });
+
       // Emit mark_attendance event
       if (socketRef.current && user) {
         socketRef.current.emit("mark_attendance", {
@@ -70,6 +77,8 @@ const StudentAttendancePage = () => {
           studentName: user.name,
           token: token
         });
+      } else {
+        console.error("Socket or User missing", { socket: !!socketRef.current, user });
       }
     }
   };
