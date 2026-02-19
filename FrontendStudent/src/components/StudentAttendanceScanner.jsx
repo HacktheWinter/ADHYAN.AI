@@ -75,7 +75,7 @@ const StudentAttendanceScanner = ({ classId, student, onClose }) => {
       >
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 bg-black/20 hover:bg-black/40 rounded-full text-white transition-colors"
+          className="absolute top-4 right-4 z-10 p-2 bg-black/20 hover:bg-black/40 rounded-full text-white transition-colors cursor-pointer"
         >
           <X size={20} />
         </button>
