@@ -5,7 +5,7 @@ import { X, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Adjust URL based on environment
-const SOCKET_URL = "http://localhost:5000";
+const SOCKET_URL = "http://localhost:5000" || "https://adhyan-ai-backend.onrender.com";
 
 const StudentAttendanceScanner = ({ classId, student, onClose }) => {
   const [scanResult, setScanResult] = useState(null);
