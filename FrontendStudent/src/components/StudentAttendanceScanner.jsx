@@ -3,9 +3,9 @@ import { Scanner } from "@yudiel/react-qr-scanner";
 import io from "socket.io-client";
 import { X, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { SOCKET_URL } from "../config";
 
 // Adjust URL based on environment
-const SOCKET_URL = "http://localhost:5000" || "https://adhyanai-backend.onrender.com/";
 
 const StudentAttendanceScanner = ({ classId, student, onClose }) => {
   const [scanResult, setScanResult] = useState(null);
