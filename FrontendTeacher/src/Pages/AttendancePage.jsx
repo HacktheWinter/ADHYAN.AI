@@ -8,7 +8,7 @@ import { X } from "lucide-react";
 
 // Initialize socket outside component to avoid multiple connections
 // Adjust URL based on environment if needed, defaulting to port 5000 as per other files
-const SOCKET_URL = "http://localhost:5000" || "https://adhyan-ai-backend.onrender.com"; 
+const SOCKET_URL = "http://localhost:5000" || "https://adhyanai-backend.onrender.com/"; 
 
 const AttendancePage = () => {
   const { classId } = useParams();
