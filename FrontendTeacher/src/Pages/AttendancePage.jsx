@@ -41,20 +41,32 @@ const AttendancePage = () => {
 
   // Setup Socket
   useEffect(() => {
+    console.log("Initializing socket for class:", classId);
     const newSocket = io(SOCKET_URL);
     setSocket(newSocket);
 
-    newSocket.emit("join_class", classId);
+    newSocket.on("connect", () => {
+        console.log("Socket connected:", newSocket.id);
+        newSocket.emit("join_class", classId);
+        console.log("Emitted join_class for:", classId);
+    });
 
-    newSocket.on("attendance_update", ({ studentId }) => {
-      setPresentStudentIds((prev) => new Set(prev).add(studentId));
+    newSocket.on("attendance_update", ({ studentId, studentName }) => {
+      console.log("Received attendance_update:", { studentId, studentName });
+      setPresentStudentIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.add(studentId);
+          return newSet;
+      });
     });
     
     newSocket.on("active_users_update", ({ count }) => {
+        // console.log("Active active_users_update:", count);
         setActiveUsersCount(count);
     });
 
     return () => {
+      console.log("Cleaning up socket");
       newSocket.emit("leave_class", classId);
       newSocket.disconnect();
     };
@@ -92,8 +104,8 @@ const AttendancePage = () => {
       // Initial fetch when opened
       fetchToken();
 
-      // Set interval to refresh every 3 seconds
-      intervalId = setInterval(fetchToken, 3000);
+      // Set interval to refresh every 20 seconds
+      intervalId = setInterval(fetchToken, 20000);
     } else {
       setToken(""); // Clear token when closed
       if (socket) {
@@ -117,7 +129,7 @@ const AttendancePage = () => {
       <div className="max-w-7xl mx-auto w-full flex justify-between items-center mb-6">
           <button
             onClick={() => navigate(`/class/${classId}`)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
           >
              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -129,7 +141,7 @@ const AttendancePage = () => {
               <div className="text-sm text-gray-500 hidden sm:block">Active Users: {activeUsersCount}</div>
               <button 
                 onClick={() => setShowQrModal(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium shadow-md transition-colors flex items-center gap-2"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium shadow-md transition-colors flex items-center gap-2 cursor-pointer"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 8v4M6 12v4M6 16v4M6 8H4m2 0h2m-2 4H4m2 0h2m-2 4H4m2 0h2m12-16v4m0 4v4m0 4v4m0-12h-2m2 0h2m-2 4h-2m2 0h2m-2 4h-2m2 0h2m-2 4h-2m2 0h2" />
@@ -211,7 +223,7 @@ const AttendancePage = () => {
                 <div className="p-6">
                     <button 
                         onClick={() => setShowQrModal(false)}
-                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 bg-gray-100 rounded-full transition-colors"
+                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 bg-gray-100 rounded-full transition-colors cursor-pointer"
                     >
                         <X size={20} />
                     </button>
@@ -248,7 +260,7 @@ const AttendancePage = () => {
                             <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            QR updates every 3 seconds
+                            QR updates every 20 seconds
                         </div>
                         )}
 
