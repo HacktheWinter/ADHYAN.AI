@@ -15,8 +15,12 @@ router.get(
       const { classId } = req.params;
       const qrSecretKey = process.env.QR_SECRET_KEY || "default_secret_key"; // fallback for safety, but should be in env
 
-      // 3-second time window
-      const timeWindow = Math.floor(Date.now() / 3000);
+      // 20-second time window
+      // Note: This logic assumes the token is valid ONLY within this specific 20s window.
+      // Since the socket handler validates against the CURRENTLY ACTIVE session token, 
+      // this route mainly serves to generate a unique token that changes every 20s.
+      // The socket handler's in-memory validation is the primary check.
+      const timeWindow = Math.floor(Date.now() / 20000);
 
       // Generate SHA256 token
       const token = crypto
