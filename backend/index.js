@@ -27,6 +27,7 @@ import profileRoutes from "./routes/profileRoutes.js";
 
 import videoRoutes from "./routes/video.routes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
+import socketHandler from "./socket/socketHandler.js";
 
 const app = express();
 
@@ -48,6 +49,9 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
   },
 });
+
+// Initialize Socket Handler for Attendance and other features
+socketHandler(io);
 
 // Socket.IO connection
 io.on("connection", (socket) => {

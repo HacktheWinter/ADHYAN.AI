@@ -62,6 +62,13 @@ const StudentAttendancePage = () => {
       setScanResult(token);
       setStatus("processing");
       
+      console.log("Attempting to emit mark_attendance:", {
+          classId,
+          studentId: user.id || user._id,
+          studentName: user.name,
+          token
+      });
+
       // Emit mark_attendance event
       if (socketRef.current && user) {
         socketRef.current.emit("mark_attendance", {
@@ -70,6 +77,8 @@ const StudentAttendancePage = () => {
           studentName: user.name,
           token: token
         });
+      } else {
+        console.error("Socket or User missing", { socket: !!socketRef.current, user });
       }
     }
   };
@@ -84,7 +93,7 @@ const StudentAttendancePage = () => {
       <div className="bg-white shadow-sm p-4 flex items-center gap-4 sticky top-0 z-10">
         <button 
             onClick={() => navigate(-1)}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
         >
             <ArrowLeft size={24} className="text-gray-700" />
         </button>
@@ -147,7 +156,7 @@ const StudentAttendancePage = () => {
                                 <p className="text-green-600 font-medium">{message}</p>
                                 <button 
                                     onClick={() => navigate(-1)}
-                                    className="mt-8 px-6 py-2 bg-green-500 text-white rounded-lg font-medium shadow-lg shadow-green-200 hover:bg-green-600 transition-colors"
+                                    className="mt-8 px-6 py-2 bg-green-500 text-white rounded-lg font-medium shadow-lg shadow-green-200 hover:bg-green-600 transition-colors cursor-pointer"
                                 >
                                     Done
                                 </button>
@@ -164,7 +173,7 @@ const StudentAttendancePage = () => {
                                 <p className="text-red-600 px-6 text-center">{message}</p>
                                 <button 
                                     onClick={() => { setStatus("idle"); setScanResult(null); }}
-                                    className="mt-8 px-6 py-2 bg-white border border-red-200 text-red-600 rounded-lg font-medium shadow-sm hover:bg-red-50 transition-colors"
+                                    className="mt-8 px-6 py-2 bg-white border border-red-200 text-red-600 rounded-lg font-medium shadow-sm hover:bg-red-50 transition-colors cursor-pointer"
                                 >
                                     Try Again
                                 </button>
