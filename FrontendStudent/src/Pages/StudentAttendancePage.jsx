@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { getStoredUser } from "../utils/authStorage";
 
 // Adjust URL based on environment
-const SOCKET_URL = "http://localhost:5000" || "https://adhyan-ai-backend.onrender.com";
+const SOCKET_URL = "http://localhost:5000" || "https://adhyanai-backend.onrender.com/";
 
 const StudentAttendancePage = () => {
   const { id: classId } = useParams(); // Note: route is /course/:id/attendance so param is id
