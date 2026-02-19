@@ -5,10 +5,9 @@ import api from "../api/axios";
 import { motion, AnimatePresence } from "framer-motion";
 import io from "socket.io-client";
 import { X } from "lucide-react";
+import { SOCKET_URL } from "../config";
 
-// Initialize socket outside component to avoid multiple connections
-// Adjust URL based on environment if needed, defaulting to port 5000 as per other files
-const SOCKET_URL = "http://localhost:5000" || "https://adhyanai-backend.onrender.com/"; 
+// Initialize socket outside component to avoid multiple connections 
 
 const AttendancePage = () => {
   const { classId } = useParams();
