@@ -1,6 +1,7 @@
 import axios from "axios";
+import API_BASE_URL_CONFIG from "../config";
 
-const API_BASE_URL = "http://localhost:5000/api/doubts";
+const API_BASE_URL = `${API_BASE_URL_CONFIG}/doubts`;
 
 export const getDoubts = async (classId) => {
   try {

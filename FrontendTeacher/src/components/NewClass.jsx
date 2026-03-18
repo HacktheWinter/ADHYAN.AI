@@ -87,6 +87,7 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
       subject: formData.subject,
       colorTheme: formData.color,
       themeImage: formData.themeType === "image" ? formData.themeImage : "",
+      themeId: formData.selectedTheme ? formData.selectedTheme.id : null,
     };
 
     if (mode === "edit" && onUpdate) {

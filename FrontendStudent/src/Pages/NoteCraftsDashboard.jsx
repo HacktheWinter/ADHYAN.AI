@@ -11,7 +11,10 @@ import {
 } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import axios from "axios";
+import UpcomingEventsSidebar from "../components/UpcomingEventsSidebar";
 import { getStoredUser } from "../utils/authStorage";
+import API_BASE_URL from "../config";
+import { getAllThemes } from "../data/themeData";
 
 export default function NoteCraftsDashboard() {
   const navigate = useNavigate();
@@ -48,7 +51,7 @@ export default function NoteCraftsDashboard() {
       try {
         setLoading(true);
         const response = await axios.get(
-          "http://localhost:5000/api/classroom",
+          `${API_BASE_URL}/classroom`,
           {
             params: { userId: studentId, role: "student" },
           }
@@ -61,9 +64,9 @@ export default function NoteCraftsDashboard() {
           id: cls._id,
           title: cls.name,
           teacher: cls.teacherId?.name || "Teacher",
-          // Prefer teacher-set theme; fallback to existing rotating gradient
           colorTheme: cls.colorTheme || "",
           themeImage: cls.themeImage || "",
+          themeId: cls.themeId || null,
           fallbackColor: getGradientColor(idx),
           courseId: cls._id,
           classCode: cls.classCode,
@@ -113,7 +116,7 @@ export default function NoteCraftsDashboard() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/classroom/join",
+        `${API_BASE_URL}/classroom/join`,
         {
           studentId: studentId,
           classCode: classCode.trim().toUpperCase(),
@@ -129,10 +132,12 @@ export default function NoteCraftsDashboard() {
         teacher: "Teacher",
         colorTheme: response.data.classroom.colorTheme || "",
         themeImage: response.data.classroom.themeImage || "",
+        themeId: response.data.classroom.themeId || null,
         fallbackColor: getGradientColor(myCourses.length),
         courseId: response.data.classroom._id,
         classCode: response.data.classroom.classCode,
-        subject: response.data.classroom.subject || response.data.classroom.name,
+        subject:
+          response.data.classroom.subject || response.data.classroom.name,
       };
 
       setMyCourses((prev) => [...prev, newClass]);
@@ -157,28 +162,52 @@ export default function NoteCraftsDashboard() {
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef(null);
 
-    // Close dropdown when clicking outside
     useEffect(() => {
       const handleClickOutside = (event) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        if (
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target)
+        ) {
           setShowDropdown(false);
         }
       };
 
       if (showDropdown) {
-        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener("mousedown", handleClickOutside);
       }
 
       return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener("mousedown", handleClickOutside);
       };
     }, [showDropdown]);
 
-    // Check if colorTheme or themeImage contains an image URL
-    const isImageUrl = (str) => str && (str.startsWith('data:') || str.includes('.jpg') || str.includes('.jpeg') || str.includes('.png') || str.includes('.webp'));
-    const hasImage = Boolean(course.themeImage) || isImageUrl(course.colorTheme);
-    const imageUrl = course.themeImage || (isImageUrl(course.colorTheme) ? course.colorTheme : null);
-    
+    const isImageUrl = (str) =>
+      str &&
+      (str.startsWith("data:") ||
+        str.includes(".jpg") ||
+        str.includes(".jpeg") ||
+        str.includes(".png") ||
+        str.includes(".webp"));
+
+    // Resolve effective theme image
+    let resolvedImage = course.themeImage;
+
+    if (!resolvedImage && course.themeId) {
+      const allThemes = getAllThemes();
+      const foundTheme = allThemes.find((t) => t.id === course.themeId);
+      if (foundTheme) {
+        resolvedImage = foundTheme.value;
+      }
+    }
+
+    // Fallback legacy support
+    if (!resolvedImage && course.colorTheme && isImageUrl(course.colorTheme)) {
+      resolvedImage = course.colorTheme;
+    }
+
+    const hasImage = Boolean(resolvedImage);
+    const imageUrl = resolvedImage;
+
     const headerClass = hasImage ? "bg-gray-900" : course.colorTheme || "";
     const headerStyle = hasImage
       ? {
@@ -202,18 +231,18 @@ export default function NoteCraftsDashboard() {
       if (window.confirm(`Are you sure you want to leave "${course.title}"?`)) {
         try {
           await axios.post(
-            `http://localhost:5000/api/classroom/${course.courseId}/leave`,
+            `${API_BASE_URL}/classroom/${course.courseId}/leave`,
             { studentId }
           );
-          
-          // Remove class from the list
+
           setMyCourses((prev) => prev.filter((c) => c.id !== course.id));
           setSuccess(`Successfully left ${course.title}`);
           setTimeout(() => setSuccess(""), 3000);
         } catch (err) {
           console.error("Error leaving class:", err);
           setError(
-            err.response?.data?.error || "Failed to leave class. Please try again."
+            err.response?.data?.error ||
+              "Failed to leave class. Please try again."
           );
           setTimeout(() => setError(""), 5000);
         }
@@ -234,8 +263,10 @@ export default function NoteCraftsDashboard() {
             {course.title}
           </h3>
 
-          {/* Three Dots Menu */}
-          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20" ref={dropdownRef}>
+          <div
+            className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20"
+            ref={dropdownRef}
+          >
             <button
               onClick={handleDropdownToggle}
               className="p-1.5 sm:p-2 bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-all cursor-pointer relative z-20"
@@ -244,7 +275,6 @@ export default function NoteCraftsDashboard() {
               <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
             </button>
 
-            {/* Dropdown Menu */}
             {showDropdown && (
               <div className="absolute right-0 mt-2 w-40 sm:w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
                 <button
@@ -320,6 +350,21 @@ export default function NoteCraftsDashboard() {
           </button>
         </div>
 
+        {/* Global Success/Error Messages */}
+        {success && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 text-green-700 text-xs sm:text-sm">
+            <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{success}</span>
+          </div>
+        )}
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 text-xs sm:text-sm">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center min-h-[400px]">
@@ -332,7 +377,7 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Empty State - No courses at all */}
         {!loading && myCourses.length === 0 && (
           <div className="text-center mt-12 sm:mt-20 px-4">
             <BookOpen
@@ -357,6 +402,10 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
+        {/* FIXED: Show Upcoming Events only once, when user has courses */}
+        {!loading && myCourses.length > 0 && <UpcomingEventsSidebar />}
+
+        {/* No Search Results */}
         {!loading && myCourses.length > 0 && filteredCourses.length === 0 && (
           <div className="text-center mt-12 sm:mt-16 px-4">
             <AlertCircle
@@ -372,9 +421,9 @@ export default function NoteCraftsDashboard() {
           </div>
         )}
 
-        {/* My Courses Grid */}
+        {/* Courses Grid - Only show when there are filtered courses */}
         {!loading && filteredCourses.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6 justify-items-stretch height-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-6">
             {filteredCourses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
@@ -417,7 +466,6 @@ export default function NoteCraftsDashboard() {
               </p>
             </div>
 
-            {/* Error Message */}
             {error && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700 text-xs sm:text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
@@ -425,7 +473,6 @@ export default function NoteCraftsDashboard() {
               </div>
             )}
 
-            {/* Success Message */}
             {success && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2 text-green-700 text-xs sm:text-sm">
                 <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />

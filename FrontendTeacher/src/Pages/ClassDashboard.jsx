@@ -37,7 +37,11 @@ const ClassDashboard = () => {
       const classRes = await axios.get(`${API_BASE_URL}/classroom/${classId}`);
       const classData = classRes.data.classroom;
       setClassroom(classData);
+<<<<<<< HEAD
       setStudents([...(classData.students || [])].sort((a, b) => a.name.localeCompare(b.name)));
+=======
+      setStudents(classData.students || []);
+>>>>>>> 786e7dbcf778788824e5794f0258d50511a322af
 
       // 2. Fetch Items based on View Mode
       if (viewMode === 'quiz') {
