@@ -4,6 +4,7 @@ import Announcement from "../models/Announcement.js";
 import Classroom from "../models/Classroom.js";
 import User from "../models/User.js";
 import { getBucket } from "../config/gridfs.js";
+import { logActivity } from "../utils/activityTracker.js";
 
 // Multer setup for GridFS (memory storage for streaming to bucket)
 const storage = multer.memoryStorage();
@@ -21,7 +22,8 @@ export const createAnnouncement = [
   upload.single("file"),
   async (req, res) => {
     try {
-      const { teacherId, classroomId, message } = req.body;
+      const teacherId = req.user?._id?.toString() || req.body.teacherId;
+      const { classroomId, message } = req.body;
       const bucket = getBucket();
 
       if (!bucket) {
@@ -83,6 +85,19 @@ export const createAnnouncement = [
         mimeType,
       });
 
+      void logActivity({
+        actorId: req.user?._id,
+        actorRole: "teacher",
+        classroomId,
+        action: "announcement_created",
+        entityType: "announcement",
+        entityId: announcement._id,
+        meta: {
+          className: classroom.subject?.trim() || classroom.name,
+          messagePreview: message.slice(0, 120),
+        },
+      });
+
       res.status(201).json({
         message: "Announcement created successfully",
         announcement,
@@ -124,7 +139,7 @@ export const getAnnouncements = async (req, res) => {
 export const deleteAnnouncement = async (req, res) => {
   try {
     const { id } = req.params;
-    const { teacherId } = req.body;
+    const teacherId = req.user?._id?.toString() || req.body.teacherId;
     const bucket = getBucket();
 
     if (!bucket) {
