@@ -15,8 +15,14 @@ import API_BASE_URL from '../config';
 
 const StudentsPage = () => {
   const { classData } = useOutletContext();
-  const students = classData?.students || [];
-  const leftStudents = classData?.leftStudents || [];
+  const students = [...(classData?.students || [])].sort((a, b) => 
+    a.name.localeCompare(b.name)
+  );
+  const leftStudents = [...(classData?.leftStudents || [])].sort((a, b) => {
+    const nameA = a.studentId?.name || '';
+    const nameB = b.studentId?.name || '';
+    return nameA.localeCompare(nameB);
+  });
 
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
