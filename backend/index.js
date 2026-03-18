@@ -35,62 +35,56 @@ const app = express();
 dotenv.config();
 connectDB();
 
+const staticAllowedOrigins = [
+  "https://adhyanai-teacher.onrender.com",
+  "https://adhyanai-student.onrender.com",
+  "https://adhyanai-principal.onrender.com",
+  ...(process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(",").map((origin) => origin.trim())
+    : []),
+].filter(Boolean);
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+
+  const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(
+    origin
+  );
+  if (isLocalhost) return true;
+
+  return staticAllowedOrigins.includes(origin);
+};
+
+const corsOriginHandler = (origin, callback) => {
+  if (isAllowedOrigin(origin)) {
+    callback(null, true);
+    return;
+  }
+
+  callback(new Error(`CORS blocked for origin: ${origin}`));
+};
+
 
 const server = http.createServer(app);
 
 // Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175",
-      "https://adhyanai-teacher.onrender.com",
-      "https://adhyanai-student.onrender.com",
-      "https://adhyanai-principal.onrender.com",
-    ],
+    origin: corsOriginHandler,
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
 // Initialize Socket Handler for Attendance and other features
 socketHandler(io);
 
-// Socket.IO connection
-io.on("connection", (socket) => {
-  console.log("New client connected:", socket.id);
-
-  socket.on("join_class", (classId) => {
-    socket.join(classId);
-    console.log(`🔹 Socket ${socket.id} joined class ${classId}`);
-  });
-
-  socket.on("new_doubt", (doubt) => {
-    io.to(doubt.classId).emit("doubt_added", doubt);
-  });
-
-  socket.on("new_reply", ({ classId, doubtId, reply }) => {
-    io.to(classId).emit("reply_added", { doubtId, reply });
-  });
-
-  socket.on("disconnect", () => {
-    console.log("Client disconnected:", socket.id);
-  });
-});
-
 app.set("io", io);
 
 // Middleware
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175",
-      "https://adhyanai-teacher.onrender.com",
-      "https://adhyanai-student.onrender.com",
-      "https://adhyanai-principal.onrender.com",
-    ],
+    origin: corsOriginHandler,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })

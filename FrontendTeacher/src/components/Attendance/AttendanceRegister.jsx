@@ -5,6 +5,7 @@ import {
   Search, TrendingUp, AlertTriangle, LayoutGrid, LayoutList,
   CalendarOff, Plus, X, Trash2
 } from "lucide-react";
+import api from "../../api/axios";
 
 // ─── Holiday Manager ──────────────────────────────────────────────────────────
 const HOLIDAY_KEY_PREFIX = "holidays_";
@@ -17,6 +18,15 @@ const getHolidays = (classId) => {
 
 const saveHolidays = (classId, holidays) => {
   localStorage.setItem(`${HOLIDAY_KEY_PREFIX}${classId}`, JSON.stringify(holidays));
+};
+
+const toLocalDateKey = (value) => {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -58,61 +68,101 @@ const AttendanceRegister = ({ classId, students }) => {
 
   const loadRegisterData = useCallback(async () => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 600));
+    try {
+      const [year, month] = selectedMonth.split('-');
+      const daysInMonth = new Date(year, month, 0).getDate();
 
-    const existingKey = `attendance_${classId}`;
-    const localHistory = JSON.parse(localStorage.getItem(existingKey) || "{}");
+      const monthDates = [];
+      for (let i = 1; i <= daysInMonth; i++) {
+        monthDates.push(`${year}-${month}-${String(i).padStart(2, '0')}`);
+      }
+      setDates(monthDates);
 
-    // Clean legacy Sunday records
-    let cleaned = false;
-    Object.keys(localHistory).forEach(dateStr => {
-      if (new Date(dateStr + 'T00:00:00').getDay() === 0) { delete localHistory[dateStr]; cleaned = true; }
-    });
-    if (cleaned) localStorage.setItem(existingKey, JSON.stringify(localHistory));
+      // Fetch attendance records from backend
+      const response = await api.get(`/attendance/sessions/${classId}`);
+      const sessions = Array.isArray(response.data?.attendance) ? response.data.attendance : [response.data?.attendance].filter(Boolean);
 
-    const [year, month] = selectedMonth.split('-');
-    const daysInMonth = new Date(year, month, 0).getDate();
-
-    const monthDates = [];
-    for (let i = 1; i <= daysInMonth; i++) {
-      monthDates.push(`${year}-${month}-${String(i).padStart(2, '0')}`);
-    }
-    setDates(monthDates);
-
-    const tableData = students.map(student => {
-      const studentRow = {
-        id: student._id,
-        name: student.name,
-        email: student.email,
-        attendance: {},
-        totalPresent: 0,
-        totalAbsent: 0,
-        markedDays: 0,   // days where P or A was actually saved
-      };
-
-      monthDates.forEach(date => {
-        const { isHol } = isHoliday(date);
-
-        if (isHol) {
-          studentRow.attendance[date] = 'H'; // holiday
-          return;
-        }
-
-        if (localHistory[date]?.attendance[student._id]) {
-          const status = localHistory[date].attendance[student._id];
-          studentRow.attendance[date] = status;
-          if (status === 'P') { studentRow.totalPresent++; studentRow.markedDays++; }
-          if (status === 'A') { studentRow.totalAbsent++; studentRow.markedDays++; }
-        } else {
-          studentRow.attendance[date] = '-';
+      // Build a map of date -> attendance data
+      const attendanceMap = {};
+      sessions.forEach(session => {
+        const sessionDate = toLocalDateKey(session.date);
+        if (monthDates.includes(sessionDate)) {
+          attendanceMap[sessionDate] = session.attendanceEntries || [];
         }
       });
 
-      return studentRow;
-    });
+      const tableData = students.map(student => {
+        const studentRow = {
+          id: student._id,
+          name: student.name,
+          email: student.email,
+          attendance: {},
+          totalPresent: 0,
+          totalAbsent: 0,
+          markedDays: 0,
+        };
 
-    setRegisterData(tableData);
-    setIsLoading(false);
+        monthDates.forEach(date => {
+          const { isHol } = isHoliday(date);
+
+          if (isHol) {
+            studentRow.attendance[date] = 'H';
+            return;
+          }
+
+          // Look up student's attendance for this date
+          const dayEntries = attendanceMap[date] || [];
+          const studentEntry = dayEntries.find(e => e.studentId === student._id);
+          
+          if (studentEntry) {
+            const status = studentEntry.status === 'present' ? 'P' : studentEntry.status === 'late' ? 'L' : 'A';
+            studentRow.attendance[date] = status;
+            if (status === 'P' || status === 'L') { 
+              studentRow.totalPresent++; 
+              studentRow.markedDays++; 
+            }
+            if (status === 'A') { 
+              studentRow.totalAbsent++; 
+              studentRow.markedDays++; 
+            }
+          } else {
+            studentRow.attendance[date] = '-';
+          }
+        });
+
+        return studentRow;
+      });
+
+      setRegisterData(tableData);
+    } catch (error) {
+      console.error("Error loading attendance register data:", error);
+      // Fallback to empty register if backend fails
+      const [year, month] = selectedMonth.split('-');
+      const daysInMonth = new Date(year, month, 0).getDate();
+
+      const monthDates = [];
+      for (let i = 1; i <= daysInMonth; i++) {
+        monthDates.push(`${year}-${month}-${String(i).padStart(2, '0')}`);
+      }
+      setDates(monthDates);
+
+      const tableData = students.map(student => ({
+        id: student._id,
+        name: student.name,
+        email: student.email,
+        attendance: monthDates.reduce((acc, date) => {
+          const { isHol } = isHoliday(date);
+          acc[date] = isHol ? 'H' : '-';
+          return acc;
+        }, {}),
+        totalPresent: 0,
+        totalAbsent: 0,
+        markedDays: 0,
+      }));
+      setRegisterData(tableData);
+    } finally {
+      setIsLoading(false);
+    }
   }, [classId, selectedMonth, students, isHoliday]);
 
   useEffect(() => { loadRegisterData(); }, [loadRegisterData]);

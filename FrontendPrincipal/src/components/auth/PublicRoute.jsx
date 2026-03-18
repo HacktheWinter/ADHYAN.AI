@@ -21,7 +21,12 @@ export default function PublicRoute({ children }) {
   }
 
   const target = resolveTarget(user.role);
-  const targetUrl = new URL(target, window.location.origin);
+  let targetUrl;
+  try {
+    targetUrl = new URL(target, window.location.origin);
+  } catch {
+    return <Navigate to="/" replace />;
+  }
 
   if (targetUrl.origin !== window.location.origin) {
     window.location.replace(targetUrl.toString());

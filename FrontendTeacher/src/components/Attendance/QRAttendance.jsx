@@ -1,12 +1,19 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence } from "framer-motion";
-import io from "socket.io-client";
 import { X, Users, UserCheck, QrCode, Save, CheckCircle, XCircle, Check } from "lucide-react";
-import { SOCKET_URL } from "../../config";
 import api from "../../api/axios";
 
-const QRAttendance = ({ classId, students }) => {
+// Helper to get local date in YYYY-MM-DD format (not UTC)
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const QRAttendance = ({ classId, students, socket }) => {
   const MotionDiv = motion.div;
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,7 +21,6 @@ const QRAttendance = ({ classId, students }) => {
   const [isQrActive, setIsQrActive] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [presentStudentIds, setPresentStudentIds] = useState(new Set());
-  const [socket, setSocket] = useState(null);
   const [activeUsersCount, setActiveUsersCount] = useState(0);
 
   // ── Save-to-register state ──────────────────────────────────────
@@ -25,30 +31,48 @@ const QRAttendance = ({ classId, students }) => {
   const [savedSuccess, setSavedSuccess] = useState(false);
   // ───────────────────────────────────────────────────────────────
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
 
+  // Socket event listeners - use socket passed from parent
   useEffect(() => {
-    const newSocket = io(SOCKET_URL);
-    setSocket(newSocket);
 
-    newSocket.on("connect", () => { newSocket.emit("join_class", classId); });
+    if (!socket) {
+      console.log("[QRAttendance] Socket not available yet");
+      return;
+    }
 
-    newSocket.on("attendance_update", ({ studentId }) => {
+    console.log("[QRAttendance] Setting up socket listeners");
+
+    const handleAttendanceUpdate = ({ studentId }) => {
+      console.log("[QRAttendance] attendance_update received for:", studentId);
       setPresentStudentIds((prev) => {
         const newSet = new Set(prev);
         newSet.add(studentId);
         return newSet;
       });
-    });
-
-    newSocket.on("active_users_update", ({ count }) => { setActiveUsersCount(count); });
-
-    return () => {
-      newSocket.emit("leave_class", classId);
-      newSocket.disconnect();
     };
-  }, [classId]);
 
+    const handleActiveUsersUpdate = ({ count }) => {
+      console.log("[QRAttendance] active_users_update:", count);
+      setActiveUsersCount(count);
+    };
+
+    const handleDisconnect = () => {
+      console.log("[QRAttendance] Socket disconnected");
+    };
+
+    socket.on("attendance_update", handleAttendanceUpdate);
+    socket.on("active_users_update", handleActiveUsersUpdate);
+    socket.on("disconnect", handleDisconnect);
+
+    // Cleanup old listeners when component remounts or socket changes
+    return () => {
+      console.log("[QRAttendance] Cleaning up socket listeners (not disconnecting socket)");
+      socket.off("attendance_update", handleAttendanceUpdate);
+      socket.off("active_users_update", handleActiveUsersUpdate);
+      socket.off("disconnect", handleDisconnect);
+    };
+  }, [socket]);
   const fetchToken = useCallback(async () => {
     try {
       const response = await api.get(`/attendance/generate-token/${classId}`);
@@ -111,15 +135,31 @@ const QRAttendance = ({ classId, students }) => {
   const handleSaveToRegister = async () => {
     setIsSavingRecord(true);
     try {
-      const record = { classId, date: today, attendance: manualOverrides };
-      const existingKey = `attendance_${classId}`;
-      let history = JSON.parse(localStorage.getItem(existingKey) || "{}");
-      history[today] = record;
-      localStorage.setItem(existingKey, JSON.stringify(history));
-      await new Promise(r => setTimeout(r, 700));
-      setSavedSuccess(true);
-    } catch {
-      alert("Failed to save attendance.");
+      console.log("[QRAttendance] Saving record with:", {
+        classId,
+        date: today,
+        attendance: Object.keys(manualOverrides).length,
+      });
+
+      const response = await api.post(`/attendance/save-record/${classId}`, {
+        date: today,
+        attendance: manualOverrides,
+      });
+
+      console.log("[QRAttendance] Save response:", response.data);
+
+      if (response.data?.success) {
+        await new Promise(r => setTimeout(r, 700));
+        setSavedSuccess(true);
+      } else {
+        const errorMsg = response.data?.error || "Unknown error";
+        console.error("[QRAttendance] Save failed:", errorMsg);
+        alert("Failed to save attendance: " + errorMsg);
+      }
+    } catch (error) {
+      console.error("[QRAttendance] Save error:", error.response?.data || error.message);
+      const errorMsg = error.response?.data?.error || error.message || "Network error";
+      alert("Failed to save attendance: " + errorMsg);
     } finally {
       setIsSavingRecord(false);
     }

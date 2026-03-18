@@ -1,6 +1,17 @@
 import express from "express";
 import crypto from "crypto";
 import { authMiddleware, authorizeRoles } from "../middleware/authMiddleware.js";
+import {
+  startAttendanceSession,
+  endAttendanceSession,
+  markAttendance,
+  getAttendanceSessionsByClass,
+  getAttendanceSessionById,
+  getStudentAttendanceSummary,
+  getMyAttendanceSummary,
+  getActiveAttendanceSession,
+  saveAttendanceRecord,
+} from "../controllers/attendanceController.js";
 
 const router = express.Router();
 
@@ -34,6 +45,76 @@ router.get(
       res.status(500).json({ message: "Server Error", error: error.message });
     }
   }
+);
+
+router.post(
+  "/session/start/:classId",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  startAttendanceSession
+);
+
+router.post(
+  "/session/end/:classId",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  endAttendanceSession
+);
+
+router.post(
+  "/session/:attendanceId/mark/:studentId",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  markAttendance
+);
+
+router.post(
+  "/session/:attendanceId/mark",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  markAttendance
+);
+
+router.get(
+  "/sessions/:classId",
+  authMiddleware,
+  authorizeRoles("teacher", "student", "principal"),
+  getAttendanceSessionsByClass
+);
+
+router.get(
+  "/session/:attendanceId",
+  authMiddleware,
+  authorizeRoles("teacher", "student", "principal"),
+  getAttendanceSessionById
+);
+
+router.get(
+  "/active/:classId",
+  authMiddleware,
+  authorizeRoles("teacher", "student", "principal"),
+  getActiveAttendanceSession
+);
+
+router.get(
+  "/summary/:classId/student/:studentId",
+  authMiddleware,
+  authorizeRoles("teacher", "student", "principal"),
+  getStudentAttendanceSummary
+);
+
+router.get(
+  "/summary/:classId/me",
+  authMiddleware,
+  authorizeRoles("student"),
+  getMyAttendanceSummary
+);
+
+router.post(
+  "/save-record/:classId",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  saveAttendanceRecord
 );
 
 export default router;

@@ -484,7 +484,7 @@ export const getAttendanceSessionsByClass = async (req, res) => {
     return res.status(200).json({
       success: true,
       count: attendances.length,
-      attendances,
+      attendance: attendances,
     });
   } catch (error) {
     console.error("Get Attendance Sessions Error:", error);
@@ -532,78 +532,77 @@ export const getAttendanceSessionById = async (req, res) => {
   }
 };
 
-export const getStudentAttendanceSummary = async (req, res) => {
-  try {
-    const classId = extractClassId(req);
-    const studentId = req.params?.studentId || req.query?.studentId || req.body?.studentId;
+const buildStudentAttendanceSummary = async ({ classId, studentId }) => {
+  const [classroom, student, attendanceSessions] = await Promise.all([
+    Classroom.findById(classId).select("name subject classCode students teacherId"),
+    User.findById(studentId).select("name email role"),
+    Attendance.find({ classId }).sort({ date: -1, startedAt: -1 }),
+  ]);
 
-    if (!classId || !isValidObjectId(classId) || !studentId || !isValidObjectId(studentId)) {
-      return res.status(400).json({
-        success: false,
-        error: "Valid classId and studentId are required",
-      });
-    }
+  if (!classroom) {
+    return {
+      errorStatus: 404,
+      error: "Classroom not found",
+    };
+  }
 
-    const [classroom, student, attendanceSessions] = await Promise.all([
-      Classroom.findById(classId).select("name subject classCode students teacherId"),
-      User.findById(studentId).select("name email role"),
-      Attendance.find({ classId }).sort({ date: -1, startedAt: -1 }),
-    ]);
+  if (!student || student.role !== "student") {
+    return {
+      errorStatus: 404,
+      error: "Student not found",
+    };
+  }
 
-    if (!classroom) {
-      return res.status(404).json({
-        success: false,
-        error: "Classroom not found",
-      });
-    }
+  const isStudentEnrolled = classroom.students.some(
+    (enrolledStudentId) => enrolledStudentId.toString() === studentId.toString()
+  );
 
-    if (!student || student.role !== "student") {
-      return res.status(404).json({
-        success: false,
-        error: "Student not found",
-      });
-    }
+  if (!isStudentEnrolled) {
+    return {
+      errorStatus: 400,
+      error: "Student is not enrolled in this classroom",
+    };
+  }
 
-    const records = attendanceSessions.map((session) => {
-      const entry = session.attendanceEntries.find(
-        (attendanceEntry) =>
-          attendanceEntry.studentId.toString() === studentId.toString()
-      );
-
-      return {
-        attendanceId: session._id,
-        attendanceDate: session.attendanceDate || session.date,
-        sessionLabel: session.sessionLabel,
-        status: entry?.status || "absent",
-        markedAt: entry?.markedAt || null,
-        method: entry?.method || null,
-        remarks: entry?.remarks || "",
-        isActive: session.isActive,
-      };
-    });
-
-    const summary = records.reduce(
-      (accumulator, record) => {
-        if (record.status === "present") accumulator.present += 1;
-        else if (record.status === "late") accumulator.late += 1;
-        else if (record.status === "excused") accumulator.excused += 1;
-        else accumulator.absent += 1;
-        return accumulator;
-      },
-      {
-        present: 0,
-        absent: 0,
-        late: 0,
-        excused: 0,
-      }
+  const records = attendanceSessions.map((session) => {
+    const entry = session.attendanceEntries.find(
+      (attendanceEntry) =>
+        attendanceEntry.studentId.toString() === studentId.toString()
     );
 
-    const attendedCount =
-      summary.present + summary.late + summary.excused;
-    const totalSessions = records.length;
+    return {
+      attendanceId: session._id,
+      attendanceDate: session.attendanceDate || session.date,
+      sessionLabel: session.sessionLabel,
+      status: entry?.status || "absent",
+      markedAt: entry?.markedAt || null,
+      method: entry?.method || null,
+      remarks: entry?.remarks || "",
+      isActive: session.isActive,
+    };
+  });
 
-    return res.status(200).json({
-      success: true,
+  const summary = records.reduce(
+    (accumulator, record) => {
+      if (record.status === "present") accumulator.present += 1;
+      else if (record.status === "late") accumulator.late += 1;
+      else if (record.status === "excused") accumulator.excused += 1;
+      else accumulator.absent += 1;
+      return accumulator;
+    },
+    {
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+    }
+  );
+
+  const attendedCount = summary.present + summary.late + summary.excused;
+  const totalSessions = records.length;
+
+  return {
+    data: {
       classroom: {
         _id: classroom._id,
         name: classroom.name,
@@ -622,9 +621,76 @@ export const getStudentAttendanceSummary = async (req, res) => {
           totalSessions > 0 ? roundMetric((attendedCount / totalSessions) * 100) : 0,
       },
       records,
+    },
+  };
+};
+
+export const getStudentAttendanceSummary = async (req, res) => {
+  try {
+    const classId = extractClassId(req);
+    const studentId = req.params?.studentId || req.query?.studentId || req.body?.studentId;
+
+    if (!classId || !isValidObjectId(classId) || !studentId || !isValidObjectId(studentId)) {
+      return res.status(400).json({
+        success: false,
+        error: "Valid classId and studentId are required",
+      });
+    }
+
+    const summaryPayload = await buildStudentAttendanceSummary({ classId, studentId });
+    if (summaryPayload.error) {
+      return res.status(summaryPayload.errorStatus).json({
+        success: false,
+        error: summaryPayload.error,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      ...summaryPayload.data,
     });
   } catch (error) {
     console.error("Get Student Attendance Summary Error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Server error while fetching student attendance summary",
+    });
+  }
+};
+
+export const getMyAttendanceSummary = async (req, res) => {
+  try {
+    const classId = extractClassId(req);
+    const studentId = req.user?._id?.toString();
+
+    if (!classId || !isValidObjectId(classId)) {
+      return res.status(400).json({
+        success: false,
+        error: "A valid classId is required",
+      });
+    }
+
+    if (!studentId || !isValidObjectId(studentId)) {
+      return res.status(401).json({
+        success: false,
+        error: "Valid student session is required",
+      });
+    }
+
+    const summaryPayload = await buildStudentAttendanceSummary({ classId, studentId });
+    if (summaryPayload.error) {
+      return res.status(summaryPayload.errorStatus).json({
+        success: false,
+        error: summaryPayload.error,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      ...summaryPayload.data,
+    });
+  } catch (error) {
+    console.error("Get My Attendance Summary Error:", error);
     return res.status(500).json({
       success: false,
       error: "Server error while fetching student attendance summary",
@@ -667,6 +733,184 @@ export const getActiveAttendanceSession = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Server error while fetching active attendance session",
+    });
+  }
+};
+
+export const saveAttendanceRecord = async (req, res) => {
+  try {
+    const classId = extractClassId(req);
+    const teacherId = extractTeacherId(req);
+    const { date, attendance: attendanceOverrides } = req.body;
+    
+    console.log("[AttendanceController] saveAttendanceRecord called with:", {
+      classId,
+      teacherId,
+      date,
+      attendanceOverrideKeys: attendanceOverrides ? Object.keys(attendanceOverrides).length : 0,
+    });
+
+    if (!classId || !teacherId) {
+      console.error("[AttendanceController] Missing classId or teacherId");
+      return res.status(400).json({
+        success: false,
+        error: "classId and teacherId are required",
+      });
+    }
+
+    if (!date) {
+      console.error("[AttendanceController] Missing date");
+      return res.status(400).json({
+        success: false,
+        error: "date is required",
+      });
+    }
+
+    if (!attendanceOverrides || typeof attendanceOverrides !== 'object') {
+      console.error("[AttendanceController] Invalid attendance data", attendanceOverrides);
+      return res.status(400).json({
+        success: false,
+        error: "attendance object is required",
+      });
+    }
+
+    const classroom = await getOwnedClassroom({ classId, teacherId });
+    if (classroom === false) {
+      console.error("[AttendanceController] Unauthorized - teacher doesn't own classroom");
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized: You are not the teacher of this classroom",
+      });
+    }
+
+    if (!classroom) {
+      console.error("[AttendanceController] Classroom not found:", classId);
+      return res.status(404).json({
+        success: false,
+        error: "Classroom not found",
+      });
+    }
+
+    const normalizedDate = normalizeAttendanceDate(date);
+    if (!normalizedDate) {
+      console.error("[AttendanceController] Invalid date format:", date);
+      return res.status(400).json({
+        success: false,
+        error: "Invalid date format",
+      });
+    }
+
+    // Find existing record for this class/date
+    let attendance = await Attendance.findOne({
+      classId,
+      date: normalizedDate,
+    });
+
+    console.log("[AttendanceController] Existing attendance record:", attendance ? attendance._id : "none");
+
+    const attendanceEntries = [];
+    let presentCount = 0, absentCount = 0;
+
+    // Process each student - ensure studentId is properly converted to ObjectId
+    for (const student of classroom.students) {
+      const studentId = student._id || student; // Get ObjectId directly
+      const studentIdStr = getIdString(studentId);
+      const status = attendanceOverrides[studentIdStr] === 'P' ? 'present' : 'absent';
+      
+      if (status === 'present') presentCount++;
+      else absentCount++;
+
+      attendanceEntries.push({
+        studentId: studentId, // Store as ObjectId, not string
+        status,
+        markedAt: new Date(),
+        markedBy: teacherId,
+        method: "manual",
+        remarks: "",
+      });
+    }
+
+    console.log("[AttendanceController] Created entries:", {
+      total: attendanceEntries.length,
+      presentCount,
+      absentCount,
+      sampleEntry: attendanceEntries[0],
+    });
+
+    if (attendance) {
+      // Update existing record
+      attendance.attendanceEntries = attendanceEntries;
+      attendance.studentsPresent = attendanceEntries
+        .filter(e => attendedStatuses.has(e.status))
+        .map(e => ({
+          studentId: e.studentId, // ObjectId
+          scannedAt: e.markedAt,
+          markedAt: e.markedAt,
+          method: e.method,
+        }));
+      attendance.summary = {
+        totalStudents: classroom.students.length,
+        presentCount,
+        absentCount,
+        lateCount: 0,
+        excusedCount: 0,
+      };
+      attendance.status = "completed";
+      attendance.endedAt = new Date();
+      attendance.isActive = false;
+      
+      console.log("[AttendanceController] Updating existing record:", attendance._id);
+    } else {
+      // Create new record
+      attendance = new Attendance({
+        classId,
+        teacherId,
+        date: normalizedDate,
+        attendanceDate: normalizedDate,
+        attendanceEntries,
+        studentsPresent: attendanceEntries
+          .filter(e => attendedStatuses.has(e.status))
+          .map(e => ({
+            studentId: e.studentId, // ObjectId
+            scannedAt: e.markedAt,
+            markedAt: e.markedAt,
+            method: e.method,
+          })),
+        summary: {
+          totalStudents: classroom.students.length,
+          presentCount,
+          absentCount,
+          lateCount: 0,
+          excusedCount: 0,
+        },
+        totalStudents: classroom.students.length,
+        status: "completed",
+        startedAt: new Date(),
+        endedAt: new Date(),
+        isActive: false,
+      });
+      
+      console.log("[AttendanceController] Creating new record for class:", classId);
+    }
+
+    const savedAttendance = await attendance.save();
+    console.log("[AttendanceController] Record saved successfully:", {
+      id: savedAttendance._id,
+      classId: savedAttendance.classId,
+      date: savedAttendance.date,
+      entries: savedAttendance.attendanceEntries.length,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Attendance record saved successfully",
+      attendance: savedAttendance,
+    });
+  } catch (error) {
+    console.error("[AttendanceController] Save Attendance Record Error:", error.message, error.stack);
+    return res.status(500).json({
+      success: false,
+      error: "Server error while saving attendance record: " + error.message,
     });
   }
 };
