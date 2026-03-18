@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import io from "socket.io-client";
 import { X } from "lucide-react";
 import { SOCKET_URL } from "../config";
+import { getStoredUser } from "../utils/authStorage";
 
 // Initialize socket outside component to avoid multiple connections 
 
@@ -21,6 +22,7 @@ const AttendancePage = () => {
   const [presentStudentIds, setPresentStudentIds] = useState(new Set());
   const [socket, setSocket] = useState(null);
   const [activeUsersCount, setActiveUsersCount] = useState(0);
+  const currentUser = getStoredUser();
 
   // Fetch Class Students
   useEffect(() => {
@@ -83,7 +85,11 @@ const AttendancePage = () => {
         
         // Notify backend that attendance is active with this token
         if (socket) {
-             socket.emit("start_attendance", { classId, token: response.data.token });
+             socket.emit("start_attendance", {
+               classId,
+               teacherId: currentUser?._id || currentUser?.id,
+               token: response.data.token,
+             });
         }
       }
     } catch (err) {
@@ -108,7 +114,10 @@ const AttendancePage = () => {
     } else {
       setToken(""); // Clear token when closed
       if (socket) {
-          socket.emit("stop_attendance", classId);
+          socket.emit("stop_attendance", {
+            classId,
+            teacherId: currentUser?._id || currentUser?.id,
+          });
       }
     }
 

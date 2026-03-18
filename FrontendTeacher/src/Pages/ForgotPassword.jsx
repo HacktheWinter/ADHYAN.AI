@@ -83,7 +83,7 @@ export default function ForgotPassword() {
               Forgot Password?
             </h2>
             <p className="text-gray-600">
-              Enter your email and we'll send you your password
+              Enter your email and we'll send you a secure password reset link
             </p>
           </div>
 
@@ -94,10 +94,10 @@ export default function ForgotPassword() {
                 <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-green-800">
-                    Email sent successfully!
+                    Reset link sent
                   </p>
                   <p className="text-sm text-green-700 mt-1">
-                    Please check your inbox for your password.
+                    If the account exists, check your inbox for the reset link.
                   </p>
                 </div>
               </div>
@@ -168,7 +168,7 @@ export default function ForgotPassword() {
               disabled={loading}
               className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Sending..." : "Send Password"}
+              {loading ? "Sending..." : "Send Reset Link"}
             </button>
           </form>
 

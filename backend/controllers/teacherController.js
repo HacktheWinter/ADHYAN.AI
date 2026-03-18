@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import User from "../models/User.js";
 import Document from "../models/Note.js";
+import { sendWelcomeEmail } from "../utils/emailNotifications.js";
 
 dotenv.config();
 
@@ -32,6 +33,12 @@ export const registerTeacher = async (req, res) => {
       password: hashedPassword,
       role: "teacher",
     });
+
+    // Welcome email (non-blocking)
+    void sendWelcomeEmail({ name: teacher.name, email: teacher.email, role: "teacher" })
+      .catch((emailError) =>
+        console.error("[Email] Teacher welcome email failed:", emailError.message)
+      );
 
     res.status(201).json({
       message: "Teacher registered successfully",
