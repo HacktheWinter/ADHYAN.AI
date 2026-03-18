@@ -1,6 +1,13 @@
+import mongoose from "mongoose";
 import Classroom from "../models/Classroom.js";
 import User from "../models/User.js";
 import { nanoid } from "nanoid";
+import { sendLiveClassStartedEmails } from "../utils/emailNotifications.js";
+import {
+  endClassSession,
+  logActivity,
+  startClassSession,
+} from "../utils/activityTracker.js";
 
 /**
  * Create Classroom (Teacher)
@@ -10,12 +17,12 @@ import { nanoid } from "nanoid";
 export const createClassroom = async (req, res) => {
   try {
     const {
-      teacherId,
       name,
       subject = "",
       colorTheme = "bg-gradient-to-br from-purple-500 to-purple-700",
       themeImage = "",
     } = req.body;
+    const teacherId = req.user?._id?.toString() || req.body.teacherId;
 
     if (!teacherId || !name) {
       return res
@@ -45,6 +52,19 @@ export const createClassroom = async (req, res) => {
       colorTheme,
       themeImage,
       themeId: req.body.themeId || null,
+    });
+
+    void logActivity({
+      actorId: teacher._id,
+      actorRole: "teacher",
+      classroomId: classroom._id,
+      action: "classroom_created",
+      entityType: "classroom",
+      entityId: classroom._id,
+      meta: {
+        className: classroom.subject?.trim() || classroom.name,
+        classCode: classroom.classCode,
+      },
     });
 
     res.status(201).json({
@@ -216,7 +236,8 @@ export const getClassroomById = async (req, res) => {
 export const updateClassroom = async (req, res) => {
   try {
     const { classId } = req.params;
-    const { teacherId, name, subject, colorTheme, themeImage } = req.body;
+    const teacherId = req.user?._id?.toString() || req.body.teacherId;
+    const { name, subject, colorTheme, themeImage } = req.body;
 
     if (!teacherId) {
       return res.status(400).json({ error: "teacherId is required" });
@@ -255,7 +276,7 @@ export const updateClassroom = async (req, res) => {
 export const deleteClassroom = async (req, res) => {
   try {
     const { classId } = req.params;
-    const { teacherId } = req.body;
+    const teacherId = req.user?._id?.toString() || req.body.teacherId;
 
     if (!teacherId) {
       return res
@@ -297,7 +318,7 @@ export const deleteClassroom = async (req, res) => {
 export const startMeeting = async (req, res) => {
   try {
     const { classId } = req.params;
-    const { teacherId } = req.body;
+    const teacherId = req.user?._id?.toString() || req.body.teacherId;
 
     console.log('[startMeeting] Request received:', { classId, teacherId });
 
@@ -347,6 +368,69 @@ export const startMeeting = async (req, res) => {
       console.warn('[startMeeting] Socket.io not available');
     }
 
+    // Email notification to students (non-blocking)
+    void (async () => {
+      try {
+        if (!classroom.students?.length) return;
+
+        const studentIds = classroom.students
+          .filter((id) => mongoose.Types.ObjectId.isValid(id));
+        if (studentIds.length === 0) {
+          console.log(
+            `[Email] Live class notification skipped - no valid student ids in class ${classroom._id}`
+          );
+          return;
+        }
+
+        const [students, teacher] = await Promise.all([
+          User.find({ _id: { $in: studentIds }, role: "student" }).select("name email"),
+          User.findById(classroom.teacherId).select("name"),
+        ]);
+
+        const studentsWithEmail = students.filter((student) => student?.email);
+        if (studentsWithEmail.length === 0) {
+          console.log(
+            `[Email] Live class notification skipped - no student emails in class ${classroom._id}`
+          );
+          return;
+        }
+
+        const className = classroom.subject?.trim() || classroom.name;
+        const result = await sendLiveClassStartedEmails({
+          students: studentsWithEmail,
+          className,
+          teacherName: teacher?.name || "Your teacher",
+        });
+
+        console.log(
+          `[Email] Live class notifications sent: ${result.sent}/${result.total} (failed: ${result.failed}, skipped: ${result.skipped || 0})`
+        );
+      } catch (emailError) {
+        console.error("[Email] Live class notification failed:", emailError.message);
+      }
+    })();
+
+    void startClassSession({
+      classroomId: classroom._id,
+      teacherId: classroom.teacherId,
+      source: "live",
+      meta: {
+        className: classroom.subject?.trim() || classroom.name,
+      },
+    });
+
+    void logActivity({
+      actorId: classroom.teacherId,
+      actorRole: "teacher",
+      classroomId: classroom._id,
+      action: "live_class_started",
+      entityType: "class_session",
+      entityId: classroom._id,
+      meta: {
+        className: classroom.subject?.trim() || classroom.name,
+      },
+    });
+
     console.log('[startMeeting] Sending success response');
     res
       .status(200)
@@ -366,7 +450,7 @@ export const startMeeting = async (req, res) => {
 export const endMeeting = async (req, res) => {
   try {
     const { classId } = req.params;
-    const { teacherId } = req.body;
+    const teacherId = req.user?._id?.toString() || req.body.teacherId;
 
     const classroom = await Classroom.findById(classId);
     if (!classroom) {
@@ -386,6 +470,27 @@ export const endMeeting = async (req, res) => {
     if (io) {
       io.to(classId).emit("meeting_status_changed", { isLive: false, classId });
     }
+
+    void endClassSession({
+      classroomId: classroom._id,
+      teacherId: classroom.teacherId,
+      source: "live",
+      meta: {
+        className: classroom.subject?.trim() || classroom.name,
+      },
+    });
+
+    void logActivity({
+      actorId: classroom.teacherId,
+      actorRole: "teacher",
+      classroomId: classroom._id,
+      action: "live_class_ended",
+      entityType: "class_session",
+      entityId: classroom._id,
+      meta: {
+        className: classroom.subject?.trim() || classroom.name,
+      },
+    });
 
     res
       .status(200)

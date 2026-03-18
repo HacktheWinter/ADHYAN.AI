@@ -1,5 +1,6 @@
 // Backend/routes/noteRoutes.js
 import express from "express";
+import { authMiddleware, authorizeRoles } from "../middleware/authMiddleware.js";
 import {
   uploadNote,
   getNotes,
@@ -10,10 +11,10 @@ import {
 
 const router = express.Router();
 
-router.post("/upload", uploadNote);
+router.post("/upload", authMiddleware, authorizeRoles("teacher"), uploadNote);
 router.get("/", getNotes);
 router.get("/classroom/:classroomId", getNotesByClassroom);
 router.get("/file/:fileId", getNoteFile);
-router.delete("/:noteId", deleteNote);
+router.delete("/:noteId", authMiddleware, authorizeRoles("teacher"), deleteNote);
 
 export default router;

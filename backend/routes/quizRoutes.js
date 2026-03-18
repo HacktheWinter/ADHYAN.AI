@@ -1,5 +1,6 @@
 // Backend/routes/quizRoutes.js
 import express from "express";
+import { authMiddleware, authorizeRoles } from "../middleware/authMiddleware.js";
 import {
   generateQuizWithAI,
   generateQuizFromTopicsAPI,
@@ -14,10 +15,15 @@ import {
 const router = express.Router();
 
 // AI Generation route from notes
-router.post("/generate-ai", generateQuizWithAI);
+router.post("/generate-ai", authMiddleware, authorizeRoles("teacher"), generateQuizWithAI);
 
 // NEW - AI Generation route from topics (no notes required)
-router.post("/generate-from-topics", generateQuizFromTopicsAPI);
+router.post(
+  "/generate-from-topics",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  generateQuizFromTopicsAPI
+);
 
 // Get quiz by ID
 router.get("/:quizId", getQuiz);
@@ -29,12 +35,12 @@ router.get("/classroom/:classroomId", getQuizzesByClassroom);
 router.get("/active/classroom/:classroomId", getActiveQuizzesForStudent);
 
 // Publish quiz with timing
-router.put("/:quizId/publish", publishQuizWithTiming);
+router.put("/:quizId/publish", authMiddleware, authorizeRoles("teacher"), publishQuizWithTiming);
 
 // Update quiz
-router.put("/:quizId", updateQuiz);
+router.put("/:quizId", authMiddleware, authorizeRoles("teacher"), updateQuiz);
 
 // Delete quiz
-router.delete("/:quizId", deleteQuiz);
+router.delete("/:quizId", authMiddleware, authorizeRoles("teacher"), deleteQuiz);
 
 export default router;
