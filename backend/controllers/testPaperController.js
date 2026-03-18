@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import TestPaper from "../models/TestPaper.js";
 import Note from "../models/Note.js";
+import Classroom from "../models/Classroom.js";
 import { getBucket } from "../config/gridfs.js";
 import { generateTestPaperFromText } from "../config/geminiTestPaper.js";
 import {
@@ -8,6 +9,7 @@ import {
   cleanText,
   validateTextContent,
 } from "../utils/pdfExtractor.js";
+import { logActivity } from "../utils/activityTracker.js";
 
 /**
  * Generate test paper using AI
@@ -21,6 +23,7 @@ export const generateTestPaperWithAI = async (req, res) => {
       return;
     }
     const { noteIds, classroomId } = req.body;
+    const teacherId = req.user?._id?.toString();
 
     console.log("=== TEST PAPER GENERATION STARTED ===");
     console.log("Request:", { noteIds, classroomId });
@@ -31,6 +34,16 @@ export const generateTestPaperWithAI = async (req, res) => {
 
     if (!classroomId) {
       return res.status(400).json({ error: "classroomId is required" });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(classroomId).select("teacherId");
+      if (!classroom) {
+        return res.status(404).json({ error: "Classroom not found" });
+      }
+      if (classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
     }
 
     // Fetch notes
@@ -193,6 +206,21 @@ export const updateTestPaper = async (req, res) => {
   try {
     const { testId } = req.params;
     const updateData = req.body;
+    const teacherId = req.user?._id?.toString();
+
+    const existingTestPaper = await TestPaper.findById(testId);
+    if (!existingTestPaper) {
+      return res.status(404).json({ error: "Test paper not found" });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(existingTestPaper.classroomId).select(
+        "teacherId"
+      );
+      if (!classroom || classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    }
 
     const testPaper = await TestPaper.findByIdAndUpdate(testId, updateData, {
       new: true,
@@ -221,10 +249,18 @@ export const publishTestPaper = async (req, res) => {
   try {
     const { testId } = req.params;
     const { duration, startTime, endTime } = req.body;
+    const teacherId = req.user?._id?.toString();
 
     const testPaper = await TestPaper.findById(testId);
     if (!testPaper) {
       return res.status(404).json({ error: "Test paper not found" });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(testPaper.classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
     }
 
     let calculatedEndTime = endTime;
@@ -240,6 +276,20 @@ export const publishTestPaper = async (req, res) => {
     testPaper.isActive = true;
 
     await testPaper.save();
+
+    void logActivity({
+      actorId: req.user?._id,
+      actorRole: "teacher",
+      classroomId: testPaper.classroomId,
+      action: "test_paper_published",
+      entityType: "test_paper",
+      entityId: testPaper._id,
+      meta: {
+        testTitle: testPaper.title,
+        startTime: testPaper.startTime,
+        endTime: testPaper.endTime,
+      },
+    });
 
     // Auto-create Calendar Event
     try {
@@ -279,12 +329,23 @@ export const publishTestPaper = async (req, res) => {
 export const deleteTestPaper = async (req, res) => {
   try {
     const { testId } = req.params;
+    const teacherId = req.user?._id?.toString();
 
-    const testPaper = await TestPaper.findByIdAndDelete(testId);
-
-    if (!testPaper) {
+    const existingTestPaper = await TestPaper.findById(testId);
+    if (!existingTestPaper) {
       return res.status(404).json({ error: "Test paper not found" });
     }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(existingTestPaper.classroomId).select(
+        "teacherId"
+      );
+      if (!classroom || classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    }
+
+    const testPaper = await TestPaper.findByIdAndDelete(testId);
 
     res.status(200).json({
       success: true,

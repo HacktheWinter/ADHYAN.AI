@@ -2,7 +2,11 @@
 import mongoose from "mongoose";
 import multer from "multer";
 import Note from "../models/Note.js";
+import Classroom from "../models/Classroom.js";
+import User from "../models/User.js";
 import { getBucket } from "../config/gridfs.js";
+import { sendNoteUploadedEmails } from "../utils/emailNotifications.js";
+import { logActivity } from "../utils/activityTracker.js";
 
 // Multer setup for GridFS (memory storage for streaming to bucket)
 const storage = multer.memoryStorage();
@@ -42,6 +46,25 @@ export const uploadNote = [
         return res.status(400).json({ message: "classroomId is required" });
       }
 
+      const teacherId = req.user?._id?.toString();
+      let classroom = null;
+
+      if (mongoose.Types.ObjectId.isValid(classroomId)) {
+        classroom = await Classroom.findById(classroomId);
+      }
+
+      if (!classroom) {
+        classroom = await Classroom.findOne({ classCode: classroomId });
+      }
+
+      if (!classroom) {
+        return res.status(404).json({ message: "Classroom not found" });
+      }
+
+      if (teacherId && classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ message: "Unauthorized to upload notes for this class" });
+      }
+
       // Upload file to GridFS
       const uploadStream = bucket.openUploadStream(req.file.originalname, {
         contentType: req.file.mimetype,
@@ -64,6 +87,101 @@ export const uploadNote = [
             message: "Note uploaded successfully",
             note,
           });
+
+          void logActivity({
+            actorId: req.user?._id,
+            actorRole: "teacher",
+            classroomId: classroom._id,
+            action: "note_uploaded",
+            entityType: "note",
+            entityId: note._id,
+            meta: {
+              className: classroom.subject?.trim() || classroom.name,
+              noteTitle: note.title,
+            },
+          });
+
+          // Email notification to students (non-blocking)
+          void (async () => {
+            try {
+              let populatedClassroom = null;
+
+              if (mongoose.Types.ObjectId.isValid(classroomId)) {
+                populatedClassroom = await Classroom.findById(classroomId)
+                  .populate("students", "name email")
+                  .populate("teacherId", "name");
+              }
+
+              if (!populatedClassroom) {
+                populatedClassroom = await Classroom.findOne({ classCode: classroomId })
+                  .populate("students", "name email")
+                  .populate("teacherId", "name");
+              }
+
+              if (!populatedClassroom) {
+                console.log(
+                  `[Email] Note notification skipped - classroom not found for ${classroomId}`
+                );
+                return;
+              }
+
+              let students = (populatedClassroom.students || [])
+                .filter((student) => student?.email)
+                .map((student) => ({ name: student.name, email: student.email }));
+
+              // Fallback: resolve users by raw ObjectIds if populate did not return docs.
+              if (students.length === 0 && Array.isArray(populatedClassroom.students) && populatedClassroom.students.length > 0) {
+                const studentIds = populatedClassroom.students
+                  .map((student) => student?._id || student)
+                  .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+                if (studentIds.length > 0) {
+                  const studentDocs = await User.find({
+                    _id: { $in: studentIds },
+                    role: "student",
+                  }).select("name email");
+
+                  students = studentDocs
+                    .filter((student) => student?.email)
+                    .map((student) => ({ name: student.name, email: student.email }));
+                }
+              }
+
+              if (students.length === 0) {
+                console.log(
+                  `[Email] Note notification skipped - no student emails in class ${populatedClassroom._id}. studentsCount=${populatedClassroom.students?.length || 0}`
+                );
+                return;
+              }
+
+              let teacherName = "Your teacher";
+
+              // Frontend currently sends uploadedBy as teacher name string.
+              if (uploadedBy && mongoose.Types.ObjectId.isValid(uploadedBy)) {
+                const uploader = await User.findById(uploadedBy).select("name");
+                teacherName = uploader?.name || teacherName;
+              } else if (uploadedBy && typeof uploadedBy === "string") {
+                teacherName = uploadedBy.trim() || teacherName;
+              } else if (populatedClassroom.teacherId?.name) {
+                teacherName = populatedClassroom.teacherId.name;
+              }
+
+              const className =
+                populatedClassroom.subject?.trim() || populatedClassroom.name;
+              const result = await sendNoteUploadedEmails({
+                students,
+                className,
+                noteTitle: title,
+                teacherName,
+              });
+
+              console.log(
+                `[Email] Note notifications sent: ${result.sent}/${result.total} (failed: ${result.failed}, skipped: ${result.skipped || 0})`
+              );
+            } catch (emailError) {
+              console.error("[Email] Note upload notification failed:", emailError.message);
+            }
+          })();
         } catch (dbError) {
           console.error("Database Error after GridFS upload:", dbError);
           res.status(500).json({ message: "File uploaded but database record failed" });

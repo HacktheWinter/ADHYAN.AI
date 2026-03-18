@@ -2,6 +2,7 @@
 import mongoose from "mongoose";
 import Quiz from "../models/Quiz.js";
 import Note from "../models/Note.js";
+import Classroom from "../models/Classroom.js";
 import { getBucket } from "../config/gridfs.js";
 import { generateQuizFromText, generateQuizFromTopics } from "../config/gemini.js";
 import {
@@ -9,6 +10,7 @@ import {
   cleanText,
   validateTextContent,
 } from "../utils/pdfExtractor.js";
+import { logActivity } from "../utils/activityTracker.js";
 
 /**
  * Generate quiz from topics (NEW FEATURE)
@@ -18,6 +20,7 @@ import {
 export const generateQuizFromTopicsAPI = async (req, res) => {
   try {
     const { topics, classroomId } = req.body;
+    const teacherId = req.user?._id?.toString();
 
     console.log("=== QUIZ GENERATION FROM TOPICS STARTED ===");
     console.log(" Request body:", { topics, classroomId });
@@ -35,6 +38,16 @@ export const generateQuizFromTopicsAPI = async (req, res) => {
       return res.status(400).json({
         error: "classroomId is required",
       });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(classroomId).select("teacherId");
+      if (!classroom) {
+        return res.status(404).json({ error: "Classroom not found" });
+      }
+      if (classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
     }
 
     // Convert topics to array if string
@@ -116,6 +129,7 @@ export const generateQuizFromTopicsAPI = async (req, res) => {
 export const generateQuizWithAI = async (req, res) => {
   try {
     const { noteIds, classroomId } = req.body;
+    const teacherId = req.user?._id?.toString();
 
     const bucket = getBucket();
     if (!bucket) {
@@ -139,6 +153,16 @@ export const generateQuizWithAI = async (req, res) => {
       return res.status(400).json({
         error: "classroomId is required",
       });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(classroomId).select("teacherId");
+      if (!classroom) {
+        return res.status(404).json({ error: "Classroom not found" });
+      }
+      if (classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
     }
 
     console.log(` Generating quiz from ${noteIds.length} notes`);
@@ -371,6 +395,19 @@ export const updateQuiz = async (req, res) => {
   try {
     const { quizId } = req.params;
     const updateData = req.body;
+    const teacherId = req.user?._id?.toString();
+
+    const existingQuiz = await Quiz.findById(quizId);
+    if (!existingQuiz) {
+      return res.status(404).json({ error: "Quiz not found" });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(existingQuiz.classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    }
 
     const quiz = await Quiz.findByIdAndUpdate(quizId, updateData, {
       new: true,
@@ -399,12 +436,21 @@ export const updateQuiz = async (req, res) => {
 export const deleteQuiz = async (req, res) => {
   try {
     const { quizId } = req.params;
+    const teacherId = req.user?._id?.toString();
 
-    const quiz = await Quiz.findByIdAndDelete(quizId);
-
-    if (!quiz) {
+    const existingQuiz = await Quiz.findById(quizId);
+    if (!existingQuiz) {
       return res.status(404).json({ error: "Quiz not found" });
     }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(existingQuiz.classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    }
+
+    const quiz = await Quiz.findByIdAndDelete(quizId);
 
     res.status(200).json({
       success: true,
@@ -424,12 +470,20 @@ export const publishQuizWithTiming = async (req, res) => {
   try {
     const { quizId } = req.params;
     const { duration, startTime, endTime } = req.body;
+    const teacherId = req.user?._id?.toString();
 
     console.log("Publishing quiz:", { quizId, duration, startTime, endTime });
 
     const quiz = await Quiz.findById(quizId);
     if (!quiz) {
       return res.status(404).json({ error: "Quiz not found" });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(quiz.classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
     }
 
     // Calculate endTime if not provided
@@ -449,6 +503,20 @@ export const publishQuizWithTiming = async (req, res) => {
     await quiz.save();
 
     console.log("Quiz published successfully");
+
+    void logActivity({
+      actorId: req.user?._id,
+      actorRole: "teacher",
+      classroomId: quiz.classroomId,
+      action: "quiz_published",
+      entityType: "quiz",
+      entityId: quiz._id,
+      meta: {
+        quizTitle: quiz.title,
+        startTime: quiz.startTime,
+        endTime: quiz.endTime,
+      },
+    });
 
     // Auto-create Calendar Event
     try {
