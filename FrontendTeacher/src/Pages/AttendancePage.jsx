@@ -1,77 +1,57 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { QRCodeCanvas } from "qrcode.react";
 import api from "../api/axios";
+import { ChevronLeft, QrCode, PenTool, CalendarDays } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import io from "socket.io-client";
 import { X } from "lucide-react";
 import { SOCKET_URL } from "../config";
 import { getStoredUser } from "../utils/authStorage";
 
-// Initialize socket outside component to avoid multiple connections 
+import QRAttendance from "../components/Attendance/QRAttendance";
+import ManualAttendance from "../components/Attendance/ManualAttendance";
+import AttendanceRegister from "../components/Attendance/AttendanceRegister";
 
 const AttendancePage = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
-  const [token, setToken] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [isQrActive, setIsQrActive] = useState(false);
-  const [showQrModal, setShowQrModal] = useState(false);
   const [students, setStudents] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Tabs: 'qr', 'manual', 'register'
+  const [activeTab, setActiveTab] = useState('qr');
+
   const [presentStudentIds, setPresentStudentIds] = useState(new Set());
   const [socket, setSocket] = useState(null);
   const [activeUsersCount, setActiveUsersCount] = useState(0);
   const currentUser = getStoredUser();
 
-  // Fetch Class Students
+
+  // Fetch Class Students once
   useEffect(() => {
     const fetchClassStudents = async () => {
       try {
+        setLoading(true);
         const response = await api.get(`/classroom/${classId}`);
         if (response.data && response.data.classroom) {
-          setStudents(response.data.classroom.students || []);
+          const fetchedStudents = response.data.classroom.students || [];
+          const sortedStudents = [...fetchedStudents].sort((a, b) => 
+            a.name.localeCompare(b.name)
+          );
+          setStudents(sortedStudents);
         }
       } catch (err) {
         console.error("Error fetching class students:", err);
         setError("Failed to load student list.");
+      } finally {
+        setLoading(false);
       }
     };
-    fetchClassStudents();
+    if (classId) fetchClassStudents();
   }, [classId]);
 
-  // Setup Socket
-  useEffect(() => {
-    console.log("Initializing socket for class:", classId);
-    const newSocket = io(SOCKET_URL);
-    setSocket(newSocket);
-
-    newSocket.on("connect", () => {
-        console.log("Socket connected:", newSocket.id);
-        newSocket.emit("join_class", classId);
-        console.log("Emitted join_class for:", classId);
-    });
-
-    newSocket.on("attendance_update", ({ studentId, studentName }) => {
-      console.log("Received attendance_update:", { studentId, studentName });
-      setPresentStudentIds((prev) => {
-          const newSet = new Set(prev);
-          newSet.add(studentId);
-          return newSet;
-      });
-    });
-    
-    newSocket.on("active_users_update", ({ count }) => {
-        // console.log("Active active_users_update:", count);
-        setActiveUsersCount(count);
-    });
-
-    return () => {
-      console.log("Cleaning up socket");
-      newSocket.emit("leave_class", classId);
-      newSocket.disconnect();
-    };
-  }, [classId]);
 
 
   const fetchToken = async () => {
@@ -132,162 +112,95 @@ const AttendancePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col p-4 relative">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto w-full flex justify-between items-center mb-6">
-          <button
-            onClick={() => navigate(`/class/${classId}`)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
-          >
-             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-             </svg>
-             Back to Class
-          </button>
-          
-          <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-500 hidden sm:block">Active Users: {activeUsersCount}</div>
-              <button 
-                onClick={() => setShowQrModal(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium shadow-md transition-colors flex items-center gap-2 cursor-pointer"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 8v4M6 12v4M6 16v4M6 8H4m2 0h2m-2 4H4m2 0h2m-2 4H4m2 0h2m12-16v4m0 4v4m0 4v4m0-12h-2m2 0h2m-2 4h-2m2 0h2m-2 4h-2m2 0h2m-2 4h-2m2 0h2" />
-                </svg>
-                QR Session
-              </button>
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col pt-6 pb-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto w-full space-y-6">
+        
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={() => navigate(`/class/${classId}`)}
+              className="flex items-center gap-1 text-sm font-medium text-purple-600 hover:text-purple-700 transition w-fit cursor-pointer bg-purple-50 px-3 py-1.5 rounded-lg"
+            >
+               <ChevronLeft className="w-4 h-4" />
+               Back to Class
+            </button>
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight mt-2">
+              Attendance Hub
+            </h1>
+            <p className="text-gray-500">Manage real-time, manual, and historical attendance seamlessly</p>
           </div>
-      </div>
+        </div>
 
-      <div className="max-w-7xl mx-auto w-full">
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-800">Student List</h2>
-                <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-                    Present: {presentStudentIds.size} / {students.length}
-                </div>
-            </div>
+        {/* Tabs */}
+        <div className="flex p-1 space-x-2 bg-white rounded-2xl shadow-sm border border-gray-100 max-w-2xl overflow-x-auto hide-scrollbar">
+            <button
+              onClick={() => setActiveTab('qr')}
+              className={`flex-1 flex justify-center items-center gap-2 py-3 px-4 text-sm font-bold rounded-xl whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                activeTab === 'qr'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <QrCode className="w-4 h-4" />
+              Live QR Scanner
+            </button>
+            <button
+              onClick={() => setActiveTab('manual')}
+              className={`flex-1 flex justify-center items-center gap-2 py-3 px-4 text-sm font-bold rounded-xl whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                activeTab === 'manual'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <PenTool className="w-4 h-4" />
+              Manual Entry
+            </button>
+            <button
+              onClick={() => setActiveTab('register')}
+              className={`flex-1 flex justify-center items-center gap-2 py-3 px-4 text-sm font-bold rounded-xl whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                activeTab === 'register'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              ERP Register
+            </button>
+        </div>
 
-            {students.length === 0 ? (
-                <div className="text-center py-10 text-gray-500">No students enrolled in this class.</div>
+        {/* Content Area */}
+        <div className="w-full relative">
+            {loading ? (
+                 <div className="flex flex-col justify-center items-center min-h-[400px] bg-white rounded-3xl border border-gray-100 shadow-sm">
+                    <div className="w-12 h-12 border-4 border-purple-100 border-t-purple-600 rounded-full animate-spin mb-4 shadow-sm" />
+                    <p className="text-gray-500 font-medium">Loading classroom data...</p>
+                 </div>
+            ) : error ? (
+                 <div className="bg-red-50 text-red-700 p-6 rounded-2xl shadow-sm font-medium border border-red-100">
+                     {error}
+                 </div>
             ) : (
-                <div className="flex flex-col gap-3">
-                    {students.map((student) => {
-                        const isPresent = presentStudentIds.has(student._id);
-                        return (
-                            <motion.div 
-                                key={student._id}
-                                layout
-                                className={`p-4 rounded-xl border flex items-center justify-between transition-colors ${
-                                    isPresent 
-                                        ? "bg-green-50 border-green-200 shadow-sm" 
-                                        : "bg-white border-gray-100 hover:bg-gray-50"
-                                }`}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-lg ${
-                                        isPresent ? "bg-green-500" : "bg-gray-400"
-                                    }`}>
-                                        {student.profilePhoto ? (
-                                            <img src={student.profilePhoto} alt={student.name} className="w-full h-full rounded-full object-cover" />
-                                        ) : (
-                                            student.name.charAt(0).toUpperCase()
-                                        )}
-                                    </div>
-                                    <div>
-                                        <div className={`text-lg font-semibold ${isPresent ? "text-gray-900" : "text-gray-600"}`}>
-                                            {student.name}
-                                        </div>
-                                        <div className="text-sm text-gray-500">{student.email}</div>
-                                    </div>
-                                </div>
-                                
-                                {isPresent && (
-                                    <div className="bg-green-100 text-green-700 px-4 py-1 rounded-full text-sm font-medium flex items-center gap-2">
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        Present
-                                    </div>
-                                )}
-                            </motion.div>
-                        );
-                    })}
+                <div className="transition-all duration-300">
+                    {activeTab === 'qr' && (
+                      <div className="animate-in fade-in duration-500">
+                            <QRAttendance classId={classId} students={students} />
+                        </div>
+                    )}
+                    {activeTab === 'manual' && (
+                      <div className="animate-in fade-in duration-500">
+                            <ManualAttendance classId={classId} students={students} />
+                        </div>
+                    )}
+                    {activeTab === 'register' && (
+                      <div className="animate-in fade-in duration-500">
+                            <AttendanceRegister classId={classId} students={students} />
+                        </div>
+                    )}
                 </div>
             )}
-          </div>
+        </div>
       </div>
-
-      {/* QR Modal Overlay */}
-      <AnimatePresence>
-        {showQrModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden"
-            >
-                <div className="p-6">
-                    <button 
-                        onClick={() => setShowQrModal(false)}
-                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 bg-gray-100 rounded-full transition-colors cursor-pointer"
-                    >
-                        <X size={20} />
-                    </button>
-
-                    <div className="text-center">
-                        <h2 className="text-xl font-bold text-gray-800 mb-2">QR Session</h2>
-                        <p className="text-gray-500 mb-6 text-sm">
-                        {isQrActive 
-                            ? "Scan with Student App to mark attendance" 
-                            : "Click 'Open QR' to start attendance session"}
-                        </p>
-
-                        <div className="flex justify-center items-center mb-6 h-64 bg-gray-100 rounded-lg overflow-hidden relative mx-auto max-w-[300px]">
-                        {!isQrActive ? (
-                            <div className="text-gray-400 flex flex-col items-center">
-                            <svg className="w-16 h-16 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 8v4M6 12v4M6 16v4M6 8H4m2 0h2m-2 4H4m2 0h2m-2 4H4m2 0h2m12-16v4m0 4v4m0 4v4m0-12h-2m2 0h2m-2 4h-2m2 0h2m-2 4h-2m2 0h2m-2 4h-2m2 0h2" />
-                            </svg>
-                            <span>QR is closed</span>
-                            </div>
-                        ) : loading && !token ? (
-                            <div className="animate-spin h-10 w-10 border-4 border-purple-500 border-t-transparent rounded-full"></div>
-                        ) : error ? (
-                            <div className="text-red-500 px-4">{error}</div>
-                        ) : (
-                            <div className="bg-white p-4 rounded-lg shadow-sm">
-                            <QRCodeCanvas value={token} size={200} level={"H"} includeMargin={true} />
-                            </div>
-                        )}
-                        </div>
-
-                        {isQrActive && (
-                        <div className="flex items-center justify-center gap-2 text-sm text-purple-600 font-medium bg-purple-50 py-2 px-4 rounded-full mx-auto w-fit mb-6">
-                            <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            QR updates every 20 seconds
-                        </div>
-                        )}
-
-                        <button
-                        onClick={handleToggleQr}
-                        className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
-                            isQrActive 
-                            ? "bg-red-500 hover:bg-red-600 shadow-red-200" 
-                            : "bg-purple-600 hover:bg-purple-700 shadow-purple-200"
-                        } shadow-lg`}
-                        >
-                        {isQrActive ? "Close QR Session" : "Open QR Session"}
-                        </button>
-                    </div>
-                </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
