@@ -1,8 +1,12 @@
 import mongoose from "mongoose";
 import Assignment from "../models/Assignment.js";
 import Note from "../models/Note.js";
+import Classroom from "../models/Classroom.js";
+import User from "../models/User.js";
 import { getBucket } from "../config/gridfs.js";
 import { generateAssignmentFromText } from "../config/geminiAssignment.js";
+import { sendAssignmentPublishedEmails } from "../utils/emailNotifications.js";
+import { logActivity } from "../utils/activityTracker.js";
 import {
   extractTextFromPDF,
   cleanText,
@@ -27,6 +31,19 @@ export const generateAssignmentWithAI = async (req, res) => {
 
     if (!classroomId) {
       return res.status(400).json({ error: "classroomId is required" });
+    }
+
+    const teacherId = req.user?._id?.toString();
+    if (teacherId) {
+      const classroom = await Classroom.findById(classroomId).select("teacherId");
+      if (!classroom) {
+        return res.status(404).json({ error: "Classroom not found" });
+      }
+      if (classroom.teacherId?.toString() !== teacherId) {
+        return res
+          .status(403)
+          .json({ error: "Unauthorized to generate assignments for this classroom" });
+      }
     }
 
     // Fetch notes
@@ -214,6 +231,19 @@ export const updateAssignment = async (req, res) => {
   try {
     const { assignmentId } = req.params;
     const updateData = req.body;
+    const teacherId = req.user?._id?.toString();
+
+    const existingAssignment = await Assignment.findById(assignmentId);
+    if (!existingAssignment) {
+      return res.status(404).json({ error: "Assignment not found" });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(existingAssignment.classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    }
 
     const assignment = await Assignment.findByIdAndUpdate(
       assignmentId,
@@ -243,10 +273,20 @@ export const publishAssignment = async (req, res) => {
   try {
     const { assignmentId } = req.params;
     const { dueDate } = req.body;
+    const teacherId = req.user?._id?.toString();
 
     const assignment = await Assignment.findById(assignmentId);
     if (!assignment) {
       return res.status(404).json({ error: "Assignment not found" });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(assignment.classroomId).select(
+        "teacherId name subject"
+      );
+      if (!classroom || classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
     }
 
     assignment.status = "published";
@@ -254,6 +294,73 @@ export const publishAssignment = async (req, res) => {
     assignment.isActive = true;
 
     await assignment.save();
+
+    void logActivity({
+      actorId: req.user?._id,
+      actorRole: "teacher",
+      classroomId: assignment.classroomId,
+      action: "assignment_published",
+      entityType: "assignment",
+      entityId: assignment._id,
+      meta: {
+        assignmentTitle: assignment.title,
+        dueDate: assignment.dueDate,
+      },
+    });
+
+    // Email notification to students (non-blocking)
+    void (async () => {
+      try {
+        const classroom = await Classroom.findById(assignment.classroomId)
+          .populate("students", "name email")
+          .populate("teacherId", "name");
+        if (!classroom) return;
+
+        let students = (classroom.students || [])
+          .filter((student) => student?.email)
+          .map((student) => ({ name: student.name, email: student.email }));
+
+        // Fallback: resolve users by raw ObjectIds if populate did not return docs.
+        if (students.length === 0 && Array.isArray(classroom.students) && classroom.students.length > 0) {
+          const studentIds = classroom.students
+            .map((student) => student?._id || student)
+            .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+          if (studentIds.length > 0) {
+            const studentDocs = await User.find({
+              _id: { $in: studentIds },
+              role: "student",
+            }).select("name email");
+
+            students = studentDocs
+              .filter((student) => student?.email)
+              .map((student) => ({ name: student.name, email: student.email }));
+          }
+        }
+
+        if (students.length === 0) {
+          console.log(
+            `[Email] Assignment notification skipped - no student emails in class ${classroom._id}. studentsCount=${classroom.students?.length || 0}`
+          );
+          return;
+        }
+
+        const className = classroom.subject?.trim() || classroom.name;
+        const result = await sendAssignmentPublishedEmails({
+          students,
+          className,
+          assignmentTitle: assignment.title,
+          dueDate: assignment.dueDate,
+          teacherName: classroom.teacherId?.name || "Your teacher",
+        });
+
+        console.log(
+          `[Email] Assignment notifications sent: ${result.sent}/${result.total} (failed: ${result.failed}, skipped: ${result.skipped || 0})`
+        );
+      } catch (emailError) {
+        console.error("[Email] Assignment publish notification failed:", emailError.message);
+      }
+    })();
 
     // Auto-create Calendar Event
     try {
@@ -292,12 +399,23 @@ export const publishAssignment = async (req, res) => {
 export const deleteAssignment = async (req, res) => {
   try {
     const { assignmentId } = req.params;
+    const teacherId = req.user?._id?.toString();
 
-    const assignment = await Assignment.findByIdAndDelete(assignmentId);
-
-    if (!assignment) {
+    const existingAssignment = await Assignment.findById(assignmentId);
+    if (!existingAssignment) {
       return res.status(404).json({ error: "Assignment not found" });
     }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(existingAssignment.classroomId).select(
+        "teacherId"
+      );
+      if (!classroom || classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    }
+
+    const assignment = await Assignment.findByIdAndDelete(assignmentId);
 
     res.status(200).json({
       success: true,

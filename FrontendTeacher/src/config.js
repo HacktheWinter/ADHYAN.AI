@@ -18,4 +18,9 @@ export const STUDENT_FRONTEND_URL =
     ? "http://localhost:5173"
     : "https://adhyanai-student.onrender.com";
 
+export const PRINCIPAL_FRONTEND_URL =
+  window.location.hostname === "localhost"
+    ? "http://localhost:5175"
+    : "https://adhyanai-principal.onrender.com";
+
 export default API_BASE_URL;

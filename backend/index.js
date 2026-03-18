@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 
 import teacherRoutes from "./routes/teacherRoutes.js";
 import studentRoutes from "./routes/studentRoutes.js";
+import principalRoutes from "./routes/principalRoutes.js";
 import classroomRoutes from "./routes/classroomRoutes.js";
 import announcementRoutes from "./routes/announcementRoutes.js";
 import noteRoutes from "./routes/noteRoutes.js";
@@ -43,8 +44,10 @@ const io = new Server(server, {
     origin: [
       "http://localhost:5173",
       "http://localhost:5174",
+      "http://localhost:5175",
       "https://adhyanai-teacher.onrender.com",
       "https://adhyanai-student.onrender.com",
+      "https://adhyanai-principal.onrender.com",
     ],
     methods: ["GET", "POST"],
   },
@@ -83,8 +86,10 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:5174",
+      "http://localhost:5175",
       "https://adhyanai-teacher.onrender.com",
       "https://adhyanai-student.onrender.com",
+      "https://adhyanai-principal.onrender.com",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -96,6 +101,7 @@ app.use(express.json({ limit: "10mb" }));
 // Routes
 app.use("/api/teacher", teacherRoutes);
 app.use("/api/student", studentRoutes);
+app.use("/api/principal", principalRoutes);
 app.use("/api/classroom", classroomRoutes);
 app.use("/api/notes", noteRoutes);
 app.use("/api/announcement", announcementRoutes);
