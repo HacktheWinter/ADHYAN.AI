@@ -3,8 +3,25 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import ClassCard from "../components/ClassCard";
 import NewClass from "../components/NewClass";
+import { motion } from "framer-motion";
+import PageTransition from "../components/PageTransition";
 import { getClassrooms, createClassroom, deleteClassroom, updateClassroom } from "../api/classroomApi";
 import { getStoredUser } from "../utils/authStorage";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 }
+};
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -38,7 +55,7 @@ const Dashboard = () => {
 
   const handleCreateClass = async (newClassData) => {
     try {
-      const { name, subject, colorTheme, themeImage } = newClassData;
+      const { name, subject, colorTheme, themeImage, themeId } = newClassData;
 
       const response = await createClassroom({
         teacherId,
@@ -46,6 +63,7 @@ const Dashboard = () => {
         subject,
         colorTheme,
         themeImage,
+        themeId,
       });
 
       if (response && response.classroom) {
@@ -109,7 +127,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header onLogoClick={handleLogoClick} />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+      <PageTransition className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">
@@ -120,7 +138,9 @@ const Dashboard = () => {
             </p>
           </div>
           {classes.length > 0 && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => {
                 setEditingClass(null);
                 setIsModalOpen(true);
@@ -128,7 +148,7 @@ const Dashboard = () => {
               className="w-full sm:w-auto px-4 py-2 sm:py-2.5 bg-blue-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-blue-700 transition cursor-pointer whitespace-nowrap"
             >
               + Create New Class
-            </button>
+            </motion.button>
           )}
         </div>
 
@@ -144,7 +164,9 @@ const Dashboard = () => {
             <h2 className="text-xl sm:text-2xl font-semibold text-gray-700 mb-4">
               You haven't created any classrooms yet.
             </h2>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => {
                 setEditingClass(null);
                 setIsModalOpen(true);
@@ -152,12 +174,17 @@ const Dashboard = () => {
               className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-blue-700 transition cursor-pointer"
             >
               + Create Your First Class
-            </button>
+            </motion.button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"
+          >
             {classes.map((classItem) => (
-              <div key={classItem._id} className="h-full">
+              <motion.div key={classItem._id} variants={itemVariants} className="h-full">
                 <ClassCard
                   classData={{
                     id: classItem._id,
@@ -170,6 +197,7 @@ const Dashboard = () => {
                     color: classItem.colorTheme || classItem.color || "bg-gradient-to-br from-purple-500 to-purple-700",
                     colorTheme: classItem.colorTheme,
                     themeImage: classItem.themeImage,
+                    themeId: classItem.themeId, // Pass themeId
                   }}
                   onClick={() => handleClassClick(classItem)}
                   onDelete={handleDeleteClass}
@@ -178,11 +206,11 @@ const Dashboard = () => {
                     setIsModalOpen(true);
                   }}
                 />
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
-      </main>
+      </PageTransition>
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50">

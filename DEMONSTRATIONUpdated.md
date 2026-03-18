@@ -1,14 +1,17 @@
 ## Live Demo
 
-- **Landing Page Live Link:** https://adhyanai-5eum.onrender.com/
-- **Teacher Live Link:** https://adhayan-teacher.onrender.com/
-- **Student Live Link:** https://adhayan-student.onrender.com/
---- ---------------------------------------------------------------------------------------------------------------------
+- **fully hosted link:** https://adhyan-ai.onrender.com/
+- **Teacher Live Link:** https://adhyanai-teacher.onrender.com/
+- **Student Live Link:** https://adhyanai-student.onrender.com/
+- - **livevideoDemonstration :**https://drive.google.com/file/d/1CD-aJT_uEAWpHO71NBhSgtEmCX1eDeHh/view?usp=drivesdk
+
+---
+
 # ADHYAN.AI — Local Demonstration Guide
 
 This document explains how to set up and run **ADHYAN.AI** locally, and how to demonstrate its core features.
 
----------------------------------------------------------------------------------------------------------------------------
+---
 
 ## 1. Clone the Repository
 
@@ -17,7 +20,7 @@ git clone https://github.com/AdhyanAi/ADHYAN.AI.git
 cd adhyan-ai
 ```
 
----------------------------------------------------------------------------------------------------------------------------
+---
 
 ## 2. Project Structure
 
@@ -29,7 +32,7 @@ adhyan-ai/
 └── README.md
 ```
 
----------------------------------------------------------------------------------------------------------------------------
+---
 
 ## 3. Prerequisites
 
@@ -49,7 +52,7 @@ npm -v
 git --version
 ```
 
----------------------------------------------------------------------------------------------------------------------------
+---
 
 ## 4. Environment Setup
 
@@ -71,7 +74,7 @@ nodemon server.js
 
 Backend runs at: `http://localhost:5000`
 
----------------------------------------------------------------------------------------------------------------------------
+---
 
 ### FrontendStudent
 
@@ -85,7 +88,7 @@ npm run dev
 
 Runs at: `http://localhost:5173`
 
--------------------------------------------------------------------------------------------------------------------------
+---
 
 ### FrontendTeacher
 
@@ -99,27 +102,27 @@ npm run dev
 
 Runs at: `http://localhost:5174`
 
--------------------------------------------------------------------------------------------------------------------------
+---
 
 ## 6. Accessing the Platform
 
 - **Student Panel:** `http://localhost:5173`
 - **Teacher Panel:** `http://localhost:5174`
 
-------------------------------------------------------------------------------------------------------------------------
+---
 
 ## 7. Demo Flow (What to Show)
 
 Follow this sequence for a smooth and logical demonstration.
 
--------------------------------------------------------------------------------------------------------------------------
+---
 
 ### Step 1 — Login / Signup
 
 - Login as **Teacher**
 - Or create a new teacher account
 
---------------------------------------------------------------------------------------------------------------------------
+---
 
 ### Step 2 — Create a Class (Teacher)
 
@@ -130,7 +133,7 @@ Follow this sequence for a smooth and logical demonstration.
 
 > This code is used by students to join the class.
 
----------------------------------------------------------------------------------------------------------------------------
+---
 
 ### Step 3 — Student Joins Class
 
@@ -139,7 +142,7 @@ Follow this sequence for a smooth and logical demonstration.
 - Enter the class code shared by the teacher
 - Student is now enrolled in the class
 
-----------------------------------------------------------------------------------------------------------------------------
+---
 
 ### Step 4 — Upload Content & Generate Assessment (Teacher)
 
@@ -147,14 +150,14 @@ Follow this sequence for a smooth and logical demonstration.
 - Click **Generate Quiz/Test Paper**
 - Show MCQs and SAQs auto-generated from the notes
 
------------------------------------------------------------------------------------------------------------------------------
+---
 
 ### Step 5 — Publish Assessment
 
 - Publish the quiz or test paper
 - Assign it to the created class
 
------------------------------------------------------------------------------------------------------------------------------
+---
 
 ### Step 6 — Student Attempts Assessment
 
@@ -163,14 +166,14 @@ Follow this sequence for a smooth and logical demonstration.
 - Attempt the questions
 - Highlight **Real Exam Mode** (tab-switch alert, focus tracking)
 
-------------------------------------------------------------------------------------------------------------------------------
+---
 
 ### Step 7 — Automated Grading
 
 - Submit the student answers
 - Show auto-generated scores and feedback
 
-------------------------------------------------------------------------------------------------------------------------------
+---
 
 ### Step 8 — Integrity & Analytics (Teacher)
 
@@ -178,7 +181,7 @@ Follow this sequence for a smooth and logical demonstration.
 - Show class performance charts
 - Display plagiarism / AI-detection status
 
--------------------------------------------------------------------------------------------------------------------------------
+---
 
 ## 8. Key Features to Highlight
 
@@ -201,16 +204,15 @@ Follow this sequence for a smooth and logical demonstration.
 | CORS issue           | Check backend CORS configuration         |
 | Class not visible    | Refresh page after joining class         |
 
--------------------------------------------------------------------------------------------------------------------------------
+---
 
 ## 10. Stopping the Servers
 
 Press `CTRL + C` in all three terminal windows to stop the servers.
 
---------------------------------------------------------------------------------------------------------------------------------
+---
 
 **Goal of Demo:**  
 Show how ADHYAN.AI enables teachers to easily manage classes, generate assessments, evaluate students fairly, and maintain academic integrity — all while significantly reducing manual effort.
 
----------------------------------------------------------------------------------------------------------------------------------
-
+---

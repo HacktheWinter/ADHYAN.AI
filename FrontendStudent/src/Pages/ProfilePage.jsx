@@ -3,6 +3,7 @@ import { Camera, X, Save, Calendar, User as UserIcon, Building2, ArrowLeft, Imag
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getStoredToken, updateStoredUser } from '../utils/authStorage';
+import API_BASE_URL from '../config';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const API_URL = 'http://localhost:5000/api';
+  const API_URL = API_BASE_URL;
 
   useEffect(() => {
     fetchProfile();

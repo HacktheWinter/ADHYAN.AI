@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import axios from "axios";
 import { clearAuth, persistAuth } from "../utils/authStorage";
+import API_BASE_URL, { STUDENT_FRONTEND_URL, TEACHER_FRONTEND_URL } from "../config";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -16,10 +17,8 @@ export default function Login() {
   });
   const [rememberMe, setRememberMe] = useState(false);
 
-  const TEACHER_URL =
-    import.meta.env.VITE_TEACHER_URL || "http://localhost:5174";
-  const STUDENT_URL =
-    import.meta.env.VITE_STUDENT_URL || "http://localhost:5173";
+  const TEACHER_URL = TEACHER_FRONTEND_URL;
+  const STUDENT_URL = STUDENT_FRONTEND_URL;
 
   const handleRoleClick = (role) => {
     const target = role === "student" ? STUDENT_URL : TEACHER_URL;
@@ -49,8 +48,8 @@ export default function Login() {
       // Call actual backend API based on role
       const endpoint =
         formData.role === "teacher"
-          ? "http://localhost:5000/api/teacher/login"
-          : "http://localhost:5000/api/student/login";
+          ? `${API_BASE_URL}/teacher/login`
+          : `${API_BASE_URL}/student/login`;
 
       const response = await axios.post(endpoint, {
         email: formData.email,
@@ -66,10 +65,8 @@ export default function Login() {
       persistAuth(response.data.token, userData, rememberMe);
 
       // Check if need to redirect to different frontend
-      const TEACHER_URL =
-        import.meta.env.VITE_TEACHER_URL || "http://localhost:5174";
-      const STUDENT_URL =
-        import.meta.env.VITE_STUDENT_URL || "http://localhost:5173";
+      const TEACHER_URL = TEACHER_FRONTEND_URL;
+      const STUDENT_URL = STUDENT_FRONTEND_URL;
 
       const targetUrl = formData.role === "teacher" ? TEACHER_URL : STUDENT_URL;
 
@@ -104,23 +101,13 @@ export default function Login() {
           <div className="text-center space-y-6">
             <a
               href="https://adhyanai-5eum.onrender.com/"
-              className="flex items-center justify-center space-x-3 mb-8"
+              className="flex items-center justify-center space-x-1 mb-8"
             >
-              <div className="w-16 h-16 bg-purple-700 rounded-2xl flex items-center justify-center shadow-lg">
-                <svg
-                  className="w-10 h-10 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
+              <img 
+                src="/logo02.png" 
+                alt="ADHYAN.AI Logo" 
+                className="w-20 h-20 object-contain"
+              />
               <h1 className="text-4xl font-bold text-gray-900">ADHYAN.AI</h1>
             </a>
 
@@ -182,21 +169,11 @@ export default function Login() {
                 href="https://adhyanai-5eum.onrender.com/"
                 className="flex items-center justify-center space-x-2 mb-4"
               >
-                <div className="w-10 h-10 bg-purple-700 rounded-lg flex items-center justify-center">
-                  <svg
-                    className="w-6 h-6 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
+                <img 
+                  src="/logo02.png" 
+                  alt="ADHYAN.AI Logo" 
+                  className="w-12 h-12 object-contain"
+                />
                 <span className="text-2xl font-bold text-gray-900">
                   ADHYAN.AI
                 </span>
