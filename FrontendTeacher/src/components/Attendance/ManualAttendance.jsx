@@ -1,9 +1,28 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Users, Calendar, Save, CheckCircle, XCircle, MoreVertical, RefreshCw, X, CircleCheckBig, CalendarOff, CheckCheck, XSquare } from "lucide-react";
+import api from "../../api/axios";
+
+// Helper to get local date in YYYY-MM-DD format (not UTC)
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toLocalDateKey = (value) => {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const ManualAttendance = ({ classId, students }) => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
   const todayIsSunday = new Date().getDay() === 0;
   const [selectedDate, setSelectedDate] = useState(today);
 
@@ -15,32 +34,41 @@ const ManualAttendance = ({ classId, students }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [todaySaved, setTodaySaved] = useState(false);
   const [savedStats, setSavedStats] = useState({ present: 0, absent: 0 });
+  const [backendRecords, setBackendRecords] = useState({});
   const menuRef = useRef(null);
   const modalRef = useRef(null);
 
   useEffect(() => {
-    const existingKey = `attendance_${classId}`;
-    const history = JSON.parse(localStorage.getItem(existingKey) || "{}");
-
-    let cleaned = false;
-    Object.keys(history).forEach(dateStr => {
-      if (new Date(dateStr + 'T00:00:00').getDay() === 0) {
-        delete history[dateStr];
-        cleaned = true;
+    // Fetch today's attendance from backend to check if it's already saved
+    const fetchTodayAttendance = async () => {
+      try {
+        setTodaySaved(false);
+        setSavedStats({ present: 0, absent: 0 });
+        const response = await api.get(`/attendance/sessions/${classId}`);
+        if (response.data?.success && response.data?.attendance) {
+          const sessions = Array.isArray(response.data.attendance) ? response.data.attendance : [response.data.attendance];
+          const todaySession = sessions.find(s => {
+            const sessionDate = toLocalDateKey(s.date);
+            return sessionDate === today;
+          });
+          
+          if (todaySession) {
+            setTodaySaved(true);
+            // Calculate stats from the attendance entries
+            let p = 0, a = 0;
+            (todaySession.attendanceEntries || []).forEach(entry => {
+              if (entry.status === 'present' || entry.status === 'late') p++;
+              else a++;
+            });
+            setSavedStats({ present: p, absent: a });
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching today's attendance:", error);
       }
-    });
-    if (cleaned) localStorage.setItem(existingKey, JSON.stringify(history));
+    };
 
-    if (history[today]) {
-      setTodaySaved(true);
-      const savedAttendance = history[today].attendance || {};
-      let p = 0, a = 0;
-      Object.values(savedAttendance).forEach(status => {
-        if (status === 'P') p++;
-        if (status === 'A') a++;
-      });
-      setSavedStats({ present: p, absent: a });
-    }
+    fetchTodayAttendance();
   }, [classId, today]);
 
   const getWeekDates = () => {
@@ -49,7 +77,7 @@ const ManualAttendance = ({ classId, students }) => {
       const d = new Date();
       d.setDate(d.getDate() - i);
       dates.push({
-        value: d.toISOString().split('T')[0],
+        value: toLocalDateKey(d),
         label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
         dayName: d.toLocaleDateString('en-US', { weekday: 'long' }),
       });
@@ -76,16 +104,39 @@ const ManualAttendance = ({ classId, students }) => {
   }, [showDatePicker]);
 
   useEffect(() => {
-    const existingKey = `attendance_${classId}`;
-    const history = JSON.parse(localStorage.getItem(existingKey) || "{}");
-
-    if (isUpdateMode && history[selectedDate]) {
-      setAttendanceData(history[selectedDate].attendance || {});
-    } else {
+    // Load attendance data for selected date
+    const loadDateAttendance = async () => {
+      try {
+        // Always try to load from backend for any date
+        const response = await api.get(`/attendance/sessions/${classId}`);
+        if (response.data?.success && response.data?.attendance) {
+          const sessions = Array.isArray(response.data.attendance) ? response.data.attendance : [response.data.attendance];
+          const session = sessions.find(s => {
+            const sessionDate = toLocalDateKey(s.date);
+            return sessionDate === selectedDate;
+          });
+          
+          if (session) {
+            // Convert attendance entries to override format
+            const overrides = {};
+            (session.attendanceEntries || []).forEach(entry => {
+              overrides[entry.studentId] = (entry.status === 'present' || entry.status === 'late') ? 'P' : 'A';
+            });
+            setAttendanceData(overrides);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Error loading attendance:", error);
+      }
+      
+      // Default: initialize all as present
       const initialData = {};
       students.forEach(student => { initialData[student._id] = 'P'; });
       setAttendanceData(initialData);
-    }
+    };
+
+    loadDateAttendance();
   }, [students, selectedDate, isUpdateMode, classId]);
 
   const toggleAttendance = (studentId, status) => {
@@ -108,31 +159,82 @@ const ManualAttendance = ({ classId, students }) => {
 
   const handleSave = async () => {
     setIsSaving(true);
+    console.log("[ManualAttendance] ========== SAVE START ==========");
+    console.log("[ManualAttendance] Current state:", { todaySaved, isUpdateMode, selectedDate, today });
+    
     try {
-      const record = { classId, date: selectedDate, attendance: attendanceData };
-      const existingKey = `attendance_${classId}`;
-      let history = JSON.parse(localStorage.getItem(existingKey) || "{}");
-      history[selectedDate] = record;
-      localStorage.setItem(existingKey, JSON.stringify(history));
+      console.log("[ManualAttendance] Saving record with:", {
+        classId,
+        date: selectedDate,
+        attendance: Object.keys(attendanceData).length,
+        isUpdateMode,
+      });
 
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const response = await api.post(`/attendance/save-record/${classId}`, {
+        date: selectedDate,
+        attendance: attendanceData,
+      });
 
-      if (isUpdateMode) {
-        setIsUpdateMode(false);
-        setSelectedDate(today);
+      console.log("[ManualAttendance] Save response:", response.data);
+      console.log("[ManualAttendance] Response success?:", response.data?.success);
+      console.log("[ManualAttendance] selectedDate === today?:", selectedDate === today);
+
+      if (response.data?.success) {
+        console.log("[ManualAttendance] Save successful!");
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        if (isUpdateMode) {
+          console.log("[ManualAttendance] In update mode - exiting...");
+          // When updating a past date, exit update mode and return to today
+          setIsUpdateMode(false);
+          setSelectedDate(today);
+          setTodaySaved(false); // Reset to let normal flow take over
+        } else if (selectedDate === today) {
+          console.log("[ManualAttendance] Setting done screen - todaySaved=true");
+          // When saving today's attendance, show done screen
+          setTodaySaved(true);
+          setIsUpdateMode(false);
+          setSavedStats({ ...getStats() });
+          console.log("[ManualAttendance] Done screen state updated");
+        } else {
+          console.log("[ManualAttendance] Save successful but not today's date and not update mode");
+        }
       } else {
-        setTodaySaved(true);
-        setSavedStats({ ...getStats() });
+        console.log("[ManualAttendance] Save failed - success is false or undefined");
+        const errorMsg = response.data?.error || "Unknown error";
+        console.error("[ManualAttendance] Save failed:", errorMsg);
+        alert("Failed to save attendance: " + errorMsg);
       }
     } catch (error) {
-      console.error("Error saving attendance:", error);
-      alert("Failed to save attendance.");
+      console.error("[ManualAttendance] Save error:", error.response?.data || error.message);
+      const errorMsg = error.response?.data?.error || error.message || "Network error";
+      alert("Failed to save attendance: " + errorMsg);
     } finally {
       setIsSaving(false);
+      console.log("[ManualAttendance] ========== SAVE END ==========");
     }
   };
 
-  const handleUpdateAttendance = () => { setShowMenu(false); setShowDatePicker(true); };
+  const handleUpdateAttendance = async () => {
+    setShowMenu(false);
+    // Fetch records from backend before opening date picker
+    try {
+      const response = await api.get(`/attendance/sessions/${classId}`);
+      if (response.data?.success && response.data?.attendance) {
+        const sessions = Array.isArray(response.data.attendance) ? response.data.attendance : [response.data.attendance];
+        const recordsMap = {};
+        sessions.forEach(s => {
+          const sessionDate = toLocalDateKey(s.date);
+          recordsMap[sessionDate] = true;
+        });
+        setBackendRecords(recordsMap);
+      }
+    } catch (error) {
+      console.error("Error fetching attendance records:", error);
+      setBackendRecords({});
+    }
+    setShowDatePicker(true);
+  };
   const handleDateSelect = (dateValue) => { setSelectedDate(dateValue); setIsUpdateMode(true); setShowDatePicker(false); };
   const handleCancelUpdate = () => { setIsUpdateMode(false); setSelectedDate(today); };
 
@@ -149,7 +251,8 @@ const ManualAttendance = ({ classId, students }) => {
     return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
-  const showDoneScreen = todaySaved && !isUpdateMode;
+  // Show done screen only when: (1) today's attendance is saved, (2) not in update mode, (3) viewing today's date
+  const showDoneScreen = todaySaved && !isUpdateMode && selectedDate === today;
 
   const DatePickerModal = () => (
     <div className="fixed inset-0 w-screen h-dvh min-h-screen bg-black/40 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 overflow-y-auto">
@@ -167,9 +270,7 @@ const ManualAttendance = ({ classId, students }) => {
           {weekDates.map((dateItem) => {
             const dateIsSunday = isSunday(dateItem.value);
             const isTodayDate = dateItem.value === today;
-            const existingKey = `attendance_${classId}`;
-            const history = JSON.parse(localStorage.getItem(existingKey) || "{}");
-            const hasRecord = !!history[dateItem.value];
+            const hasRecord = backendRecords[dateItem.value] || false;
             return (
               <button
                 key={dateItem.value}

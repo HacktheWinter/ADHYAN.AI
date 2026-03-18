@@ -5,7 +5,7 @@ const API_BASE_URL =
 
 export const PRINCIPAL_FRONTEND_URL =
   window.location.hostname === "localhost"
-    ? "http://localhost:5175"
+    ? window.location.origin
     : "https://adhyanai-principal.onrender.com";
 
 export const TEACHER_FRONTEND_URL =

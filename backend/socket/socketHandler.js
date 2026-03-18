@@ -1,177 +1,428 @@
-export default function socketHandler(io) {
-  let activeUsers = 0;
-  // Store active attendance sessions: { classId: { token: "...", startTime: ... } }
-  // In a real production app, use Redis. For now, in-memory is okay for single instance.
-  const activeSessions = {};
+import Attendance from "../models/Attendance.js";
+import Classroom from "../models/Classroom.js";
+import User from "../models/User.js";
+import mongoose from "mongoose";
 
+// Keep track of active attendance sessions: classId -> { attendanceId, teacherSocket, createdAt }
+const activeSessions = new Map();
+
+const ATTENDANCE_ENTRY_STATUSES = ["absent", "present", "late", "excused"];
+const ATTENDANCE_MARKING_METHODS = ["qr", "manual", "system"];
+
+const normalizeAttendanceDate = (value) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const getIdString = (value) => {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (value?._id) return value._id.toString();
+  return value.toString();
+};
+
+export const setupSocketHandler = (io) => {
   io.on("connection", (socket) => {
-    activeUsers++;
-    io.emit("active_users_update", { count: activeUsers });
+    console.log(`[Socket] Client ${socket.id} connected`);
 
-    socket.on("join_class", (classId) => {
-      socket.join(classId);
+    // ────────────────────────────────────────────────────────────────
+    // Classroom & Attendance Session Management
+    // ────────────────────────────────────────────────────────────────
+
+    /**
+     * join_class: Student/Teacher joins a class
+     * Payload: { classId, studentId, studentName }
+     */
+    socket.on("join_class", ({ classId, studentId, studentName }) => {
+      if (!classId) return socket.emit("error", "classId required");
+
+      socket.join(`class:${classId}`);
+      console.log(`[Socket] ${socket.id} joined class ${classId}`);
+
+      // Notify others in the class about active users
+      io.to(`class:${classId}`).emit("active_users_update", {
+        count: io.sockets.adapter.rooms.get(`class:${classId}`)?.size || 0,
+      });
     });
 
-    socket.on("leave_class", (classId) => {
-      socket.leave(classId);
+    /**
+     * leave_class: Student/Teacher leaves a class
+     * Payload: { classId }
+     */
+    socket.on("leave_class", ({ classId }) => {
+      if (!classId) return;
+
+      socket.leave(`class:${classId}`);
+      console.log(`[Socket] ${socket.id} left class ${classId}`);
+
+      io.to(`class:${classId}`).emit("active_users_update", {
+        count: io.sockets.adapter.rooms.get(`class:${classId}`)?.size || 0,
+      });
     });
 
-    // --- Attendance Events ---
+    // ────────────────────────────────────────────────────────────────
+    // Attendance Session Events (Real-time QR/Manual)
+    // ────────────────────────────────────────────────────────────────
 
-    // Teacher starts attendance
-    socket.on("start_attendance", async ({ classId, teacherId, token }) => {
-      activeSessions[classId] = { token, startTime: Date.now() };
-      io.to(classId).emit("attendance_started", { isActive: true });
-      console.log(`Attendance started for class ${classId}`);
-
+    /**
+     * start_attendance: Teacher starts an attendance session (QR mode)
+     * Payload: { classId, token }
+     */
+    socket.on("start_attendance", async ({ classId, token }) => {
       try {
-        const { default: Classroom } = await import("../models/Classroom.js");
-        const classroom = await Classroom.findById(classId).select("name subject teacherId");
-        if (!classroom) return;
+        if (!classId) {
+          return socket.emit(
+            "attendance_error",
+            "classId required"
+          );
+        }
 
-        const resolvedTeacherId = teacherId || classroom.teacherId;
-        const { logActivity, startClassSession } = await import(
-          "../utils/activityTracker.js"
+        // Find the active attendance session for this class
+        const attendance = await Attendance.findOne({
+          classId,
+          isActive: true,
+        }).sort({ startedAt: -1 });
+
+        if (!attendance) {
+          // Log warning but don't fail - frontend will have called /session/start before this
+          console.warn(
+            `[Socket] No active attendance session found for class ${classId}`
+          );
+          // Still store the session tracker so we know QR is active
+          activeSessions.set(classId, {
+            attendanceId: null,
+            token,
+            teacherSocketId: socket.id,
+            createdAt: new Date(),
+          });
+          return socket.emit("attendance_started", {
+            classId,
+            token,
+            message: "QR attendance mode active (no DB session yet)",
+          });
+        }
+
+        // Store active session info
+        activeSessions.set(classId, {
+          attendanceId: attendance._id.toString(),
+          token,
+          teacherSocketId: socket.id,
+          createdAt: new Date(),
+        });
+
+        // Notify all users in the class that attendance has started
+        io.to(`class:${classId}`).emit("attendance_started", {
+          classId,
+          token,
+          sessionId: attendance._id.toString(),
+          message: "Attendance session is now active - begin scanning",
+        });
+
+        console.log(
+          `[Socket] Attendance started for class ${classId}, session ${attendance._id}`
+        );
+      } catch (error) {
+        console.error("[Socket] Error in start_attendance:", error);
+        socket.emit("attendance_error", `Failed to start attendance: ${error.message}`);
+      }
+    });
+
+    /**
+     * stop_attendance: Teacher ends an attendance session
+     * Payload: { classId }
+     */
+    socket.on("stop_attendance", async ({ classId }) => {
+      try {
+        if (!classId) {
+          return socket.emit(
+            "attendance_error",
+            "classId required"
+          );
+        }
+
+        const sessionData = activeSessions.get(classId);
+        if (!sessionData || !sessionData.attendanceId) {
+          // Session wasn't tracked, find it from DB
+          const attendance = await Attendance.findOne({
+            classId,
+            isActive: true,
+          }).sort({ startedAt: -1 });
+
+          if (attendance) {
+            // Mark absent all students who didn't mark present
+            const classroom = await Classroom.findById(classId);
+            if (classroom) {
+              const presentIds = new Set(
+                attendance.attendanceEntries
+                  .filter((e) => e.status !== "absent")
+                  .map((e) => getIdString(e.studentId))
+              );
+
+              for (const studentId of classroom.students) {
+                const studentKey = getIdString(studentId);
+                if (!presentIds.has(studentKey)) {
+                  const existingEntry = attendance.attendanceEntries.find(
+                    (e) => getIdString(e.studentId) === studentKey
+                  );
+                  if (!existingEntry) {
+                    attendance.attendanceEntries.push({
+                      studentId,
+                      status: "absent",
+                      markedAt: new Date(),
+                      markedBy: null,
+                      method: "system",
+                      remarks: "Marked absent when session ended",
+                    });
+                  }
+                }
+              }
+            }
+
+            attendance.isActive = false;
+            attendance.status = "completed";
+            attendance.endedAt = new Date();
+            await attendance.save();
+
+            activeSessions.delete(classId);
+
+            io.to(`class:${classId}`).emit("attendance_stopped", {
+              classId,
+              sessionId: attendance._id.toString(),
+              message: "Attendance session ended",
+            });
+
+            console.log(
+              `[Socket] Attendance stopped for class ${classId}, session ${attendance._id}`
+            );
+          }
+        } else {
+          // We have the session data, update the DB record
+          const attendance = await Attendance.findById(sessionData.attendanceId);
+          if (attendance) {
+            // Mark absent all students who didn't mark present
+            const classroom = await Classroom.findById(classId);
+            if (classroom) {
+              const presentIds = new Set(
+                attendance.attendanceEntries
+                  .filter((e) => e.status !== "absent")
+                  .map((e) => getIdString(e.studentId))
+              );
+
+              for (const studentId of classroom.students) {
+                const studentKey = getIdString(studentId);
+                if (!presentIds.has(studentKey)) {
+                  const existingEntry = attendance.attendanceEntries.find(
+                    (e) => getIdString(e.studentId) === studentKey
+                  );
+                  if (!existingEntry) {
+                    attendance.attendanceEntries.push({
+                      studentId,
+                      status: "absent",
+                      markedAt: new Date(),
+                      markedBy: null,
+                      method: "system",
+                      remarks: "Marked absent when session ended",
+                    });
+                  }
+                }
+              }
+            }
+
+            attendance.isActive = false;
+            attendance.status = "completed";
+            attendance.endedAt = new Date();
+            await attendance.save();
+
+            activeSessions.delete(classId);
+
+            io.to(`class:${classId}`).emit("attendance_stopped", {
+              classId,
+              sessionId: attendance._id.toString(),
+              message: "Attendance session ended",
+            });
+
+            console.log(
+              `[Socket] Attendance stopped for class ${classId}, session ${attendance._id}`
+            );
+          }
+        }
+      } catch (error) {
+        console.error("[Socket] Error in stop_attendance:", error);
+        socket.emit("attendance_error", `Failed to stop attendance: ${error.message}`);
+      }
+    });
+
+    socket.on("mark_attendance", async ({ classId, studentId, studentName, token }) => {
+      try {
+        if (!classId || !studentId) {
+          return socket.emit(
+            "attendance_error",
+            "classId and studentId required"
+          );
+        }
+
+        // Ensure studentId is a valid ObjectId string
+        if (!mongoose.Types.ObjectId.isValid(studentId)) {
+          return socket.emit("attendance_error", "Invalid studentId format");
+        }
+
+        // Find or get active session
+        let sessionData = activeSessions.get(classId);
+        let attendance = null;
+
+        if (sessionData?.attendanceId) {
+          // Use cached session ID
+          attendance = await Attendance.findById(sessionData.attendanceId);
+        } else {
+          // Look up active attendance in DB
+          attendance = await Attendance.findOne({
+            classId,
+            isActive: true,
+          }).sort({ startedAt: -1 });
+        }
+
+        if (!attendance || !attendance.isActive) {
+          return socket.emit("attendance_error", "No active attendance session");
+        }
+
+        // Verify student is in the class
+        const classroom = await Classroom.findById(classId).select("students");
+        if (!classroom) {
+          return socket.emit("attendance_error", "Classroom not found");
+        }
+
+        const studentIds = classroom.students.map((s) => getIdString(s));
+        if (!studentIds.includes(getIdString(studentId))) {
+          return socket.emit("attendance_error", "Student not enrolled in this class");
+        }
+
+        // Find or create attendance entry for this student
+        const existingEntryIndex = attendance.attendanceEntries.findIndex(
+          (e) => getIdString(e.studentId) === getIdString(studentId)
         );
 
-        await startClassSession({
-          classroomId: classId,
-          teacherId: resolvedTeacherId,
-          source: "attendance",
-          meta: {
-            className: classroom.subject?.trim() || classroom.name,
-          },
-        });
+        // Convert studentId to ObjectId for storage
+        const studentObjectId = new mongoose.Types.ObjectId(studentId);
 
-        await logActivity({
-          actorId: resolvedTeacherId,
-          actorRole: "teacher",
-          classroomId: classId,
-          action: "attendance_started",
-          entityType: "class_session",
-          entityId: classId,
-          meta: {
-            className: classroom.subject?.trim() || classroom.name,
-            source: "attendance",
-          },
-        });
-      } catch (error) {
-        console.error("[Socket] Failed to log attendance start:", error.message);
-      }
-    });
-
-    // Teacher stops attendance
-    socket.on("stop_attendance", async ({ classId, teacherId }) => {
-        if (activeSessions[classId]) {
-            delete activeSessions[classId];
-        }
-        io.to(classId).emit("attendance_stopped", { isActive: false });
-        console.log(`Attendance stopped for class ${classId}`);
-
-        try {
-          const { default: Classroom } = await import("../models/Classroom.js");
-          const classroom = await Classroom.findById(classId).select("name subject teacherId");
-          if (!classroom) return;
-
-          const resolvedTeacherId = teacherId || classroom.teacherId;
-          const { endClassSession, logActivity } = await import(
-            "../utils/activityTracker.js"
-          );
-
-          await endClassSession({
-            classroomId: classId,
-            teacherId: resolvedTeacherId,
-            source: "attendance",
-            meta: {
-              className: classroom.subject?.trim() || classroom.name,
-            },
-          });
-
-          await logActivity({
-            actorId: resolvedTeacherId,
-            actorRole: "teacher",
-            classroomId: classId,
-            action: "attendance_ended",
-            entityType: "class_session",
-            entityId: classId,
-            meta: {
-              className: classroom.subject?.trim() || classroom.name,
-              source: "attendance",
-            },
-          });
-        } catch (error) {
-          console.error("[Socket] Failed to log attendance end:", error.message);
-        }
-    });
-
-    // Student scans QR
-    socket.on("mark_attendance", async ({ classId, studentId, token, studentName }) => {
-      console.log(`[Socket] Received mark_attendance for class ${classId} from ${studentName} (${studentId})`);
-      
-      // 1. Validate session
-      const session = activeSessions[classId];
-      if (!session) {
-        console.log(`[Socket] No active session for class ${classId}`);
-        socket.emit("attendance_error", { message: "No active attendance session." });
-        return;
-      }
-
-      // 2. Validate token (simple check matches current token)
-      // In a more robust system, you might check if token is "recent enough"
-      if (session.token !== token) {
-        console.log(`[Socket] Invalid token. Expected: ${session.token}, Got: ${token}`);
-        socket.emit("attendance_error", { message: "Invalid or expired QR code." });
-        return;
-      }
-
-      try {
-        // 3. Update Database
-        // Dynamic import to avoid circular dependency issues if any, or just to keep it clean
-        const { default: Attendance } = await import("../models/Attendance.js");
-        
-        // Find today's active attendance record for this class
-        let attendanceRecord = await Attendance.findOne({ 
-          classId, 
-          isActive: true 
-        }).sort({ date: -1 });
-
-        // If no active session found in DB, create one (or handle error)
-        // Since we have in-memory session, we should probably have a DB record.
-        // For simplicity, if not found, create new.
-        if (!attendanceRecord) {
-             attendanceRecord = new Attendance({ classId, isActive: true, studentsPresent: [] });
-        }
-        
-        // Check if already present
-        const alreadyPresent = attendanceRecord.studentsPresent.some(s => s.studentId.toString() === studentId);
-        
-        if (!alreadyPresent) {
-             attendanceRecord.studentsPresent.push({ studentId });
-             await attendanceRecord.save();
-             console.log(`[Socket] Saved attendance for ${studentName}`);
+        if (existingEntryIndex >= 0) {
+          // Update existing entry
+          const entry = attendance.attendanceEntries[existingEntryIndex];
+          entry.status = "present";
+          entry.markedAt = new Date();
+          entry.method = "qr";
+          entry.markedBy = studentObjectId;
         } else {
-             console.log(`[Socket] Student ${studentName} already marked present`);
+          // Create new entry with ObjectId
+          attendance.attendanceEntries.push({
+            studentId: studentObjectId,
+            status: "present",
+            markedAt: new Date(),
+            markedBy: studentObjectId,
+            method: "qr",
+            remarks: "",
+          });
         }
 
-        // 4. Notify Teacher (and specific student)
-        io.to(classId).emit("attendance_update", {
+        // Update studentsPresent array
+        const presentEntry = {
+          studentId: studentObjectId,
+          scannedAt: new Date(),
+          markedAt: new Date(),
+          method: "qr",
+        };
+
+        const existingPresentIndex = attendance.studentsPresent.findIndex(
+          (p) => getIdString(p.studentId) === getIdString(studentId)
+        );
+
+        if (existingPresentIndex >= 0) {
+          attendance.studentsPresent[existingPresentIndex] = presentEntry;
+        } else {
+          attendance.studentsPresent.push(presentEntry);
+        }
+
+        // Save to DB
+        const savedAttendance = await attendance.save();
+        console.log(`[Socket] Attendance saved for student ${studentId} in class ${classId}`);
+
+        // Update cache
+        if (sessionData) {
+          sessionData.lastUpdate = new Date();
+        }
+
+        // Broadcast to classroom that student marked attendance
+        io.to(`class:${classId}`).emit("attendance_update", {
+          classId,
           studentId,
           studentName,
-          status: "Present",
+          status: "present",
+          timestamp: new Date(),
+          message: `${studentName} marked present`,
         });
 
-        socket.emit("attendance_success", { message: "Attendance marked successfully!" });
-        console.log(`[Socket] Sent success to student ${studentId}`);
+        // Confirm to the student
+        socket.emit("attendance_success", {
+          message: "Attendance marked successfully",
+          studentId,
+          timestamp: new Date(),
+        });
 
-      } catch (err) {
-        console.error("[Socket] Attendance socket error:", err);
-        socket.emit("attendance_error", { message: "Server error marking attendance." });
+        console.log(
+          `[Socket] ${studentName} (${studentId}) marked present in class ${classId}`
+        );
+      } catch (error) {
+        console.error("[Socket] Error in mark_attendance:", error);
+        socket.emit(
+          "attendance_error",
+          `Failed to mark attendance: ${error.message}`
+        );
       }
     });
 
-    socket.on("disconnect", () => {
-      activeUsers--;
-      io.emit("active_users_update", { count: activeUsers });
+    // ────────────────────────────────────────────────────────────────
+    // Doubt Management Events
+    // ────────────────────────────────────────────────────────────────
+
+    socket.on("new_doubt", (doubt) => {
+      if (doubt?.classId) {
+        io.to(doubt.classId).emit("doubt_added", doubt);
+        console.log(`[Socket] New doubt in class ${doubt.classId}`);
+      }
+    });
+
+    socket.on("new_reply", ({ classId, doubtId, reply }) => {
+      if (classId && doubtId && reply) {
+        io.to(classId).emit("reply_added", { doubtId, reply });
+        console.log(`[Socket] New reply to doubt ${doubtId} in class ${classId}`);
+      }
+    });
+
+    // ────────────────────────────────────────────────────────────────
+    // Cleanup on disconnect
+    // ────────────────────────────────────────────────────────────────
+
+    socket.on("disconnect", (reason) => {
+      // Clean up any active sessions started by this socket
+      for (const [classId, sessionData] of activeSessions) {
+        if (sessionData.teacherSocketId === socket.id) {
+          console.log(`[Socket] Teacher disconnected, ending session for class ${classId}`);
+          activeSessions.delete(classId);
+          // Could emit a notification that teacher disconnected
+        }
+      }
+
+      // Avoid noisy logs for expected client-side disconnects (tab switch/navigation)
+      if (reason !== "client namespace disconnect") {
+        console.log(`[Socket] Client ${socket.id} disconnected (${reason})`);
+      }
+    });
+
+    socket.on("error", (error) => {
+      console.error(`[Socket] Client ${socket.id} error:`, error);
     });
   });
-}
+};
+
+export default setupSocketHandler;

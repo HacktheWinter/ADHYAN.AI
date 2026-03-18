@@ -42,7 +42,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_26%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.12),_transparent_28%),linear-gradient(180deg,#f3f8fc_0%,#e8f2fb_100%)] px-4 py-8">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.12),transparent_28%),linear-gradient(180deg,#f3f8fc_0%,#e8f2fb_100%)] px-4 py-8">
       <div className="mx-auto grid max-w-6xl items-center gap-8 lg:grid-cols-[1.2fr_0.9fr]">
         <motion.div
           initial={{ opacity: 0, x: -24 }}
@@ -67,7 +67,7 @@ export default function LoginPage() {
           </p>
 
           <div className="mt-10 rounded-[28px] bg-white/6 p-4">
-            <img src={beacon} alt="Principal inspection analytics" className="w-full rounded-[24px]" />
+            <img src={beacon} alt="Principal inspection analytics" className="w-full rounded-3xl" />
           </div>
         </motion.div>
 

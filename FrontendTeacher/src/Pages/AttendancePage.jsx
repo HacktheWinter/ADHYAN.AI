@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import io from "socket.io-client";
 import api from "../api/axios";
 import { ChevronLeft, QrCode, PenTool, CalendarDays } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import io from "socket.io-client";
-import { X } from "lucide-react";
 import { SOCKET_URL } from "../config";
-import { getStoredUser } from "../utils/authStorage";
 
 import QRAttendance from "../components/Attendance/QRAttendance";
 import ManualAttendance from "../components/Attendance/ManualAttendance";
@@ -16,18 +13,42 @@ const AttendancePage = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
+  const [socket, setSocket] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
   // Tabs: 'qr', 'manual', 'register'
-  const [activeTab, setActiveTab] = useState('qr');
+  const [activeTab, setActiveTab] = useState('manual');
 
-  const [presentStudentIds, setPresentStudentIds] = useState(new Set());
-  const [socket, setSocket] = useState(null);
-  const [activeUsersCount, setActiveUsersCount] = useState(0);
-  const currentUser = getStoredUser();
 
+  // Initialize socket only when QR tab is active.
+  // Manual/Register tabs do not need a socket connection.
+  useEffect(() => {
+    if (activeTab !== "qr") {
+      setSocket(null);
+      return;
+    }
+
+    const newSocket = io(SOCKET_URL);
+    setSocket(newSocket);
+
+    newSocket.on("connect", () => {
+      console.log("[AttendancePage] Socket connected:", newSocket.id);
+      newSocket.emit("join_class", classId);
+    });
+
+    newSocket.on("disconnect", (reason) => {
+      console.log("[AttendancePage] Socket disconnected:", reason);
+    });
+
+    // Cleanup only when component unmounts
+    return () => {
+      console.log("[AttendancePage] Cleaning up socket");
+      newSocket.emit("leave_class", classId);
+      newSocket.disconnect();
+    };
+  }, [classId, activeTab]);
 
   // Fetch Class Students once
   useEffect(() => {
@@ -51,65 +72,6 @@ const AttendancePage = () => {
     };
     if (classId) fetchClassStudents();
   }, [classId]);
-
-
-
-  const fetchToken = async () => {
-    try {
-      // Don't set full page loading, just token loading if needed
-      // setLoading(true); 
-      const response = await api.get(`/attendance/generate-token/${classId}`);
-      if (response.data && response.data.token) {
-        setToken(response.data.token);
-        setError(null);
-        
-        // Notify backend that attendance is active with this token
-        if (socket) {
-             socket.emit("start_attendance", {
-               classId,
-               teacherId: currentUser?._id || currentUser?.id,
-               token: response.data.token,
-             });
-        }
-      }
-    } catch (err) {
-      console.error("Error fetching attendance token:", err);
-      // Only set error if we don't have a token effectively
-      if (!token) setError("Failed to load attendance token.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let intervalId;
-
-    if (isQrActive) {
-      setLoading(true);
-      // Initial fetch when opened
-      fetchToken();
-
-      // Set interval to refresh every 20 seconds
-      intervalId = setInterval(fetchToken, 20000);
-    } else {
-      setToken(""); // Clear token when closed
-      if (socket) {
-          socket.emit("stop_attendance", {
-            classId,
-            teacherId: currentUser?._id || currentUser?.id,
-          });
-      }
-    }
-
-    // Cleanup
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [isQrActive, classId, socket]); // Depend on socket to emit events
-
-  const handleToggleQr = () => {
-    setIsQrActive(!isQrActive);
-  };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col pt-6 pb-12 px-4 sm:px-6 lg:px-8">
@@ -184,7 +146,7 @@ const AttendancePage = () => {
                 <div className="transition-all duration-300">
                     {activeTab === 'qr' && (
                       <div className="animate-in fade-in duration-500">
-                            <QRAttendance classId={classId} students={students} />
+                            <QRAttendance classId={classId} students={students} socket={socket} />
                         </div>
                     )}
                     {activeTab === 'manual' && (
