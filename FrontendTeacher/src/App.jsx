@@ -19,6 +19,7 @@ const StudentAssignmentResult = lazy(() => import("./Pages/StudentAssignmentResu
 const ProfilePage = lazy(() => import("./Pages/ProfilePage"));
 const Login = lazy(() => import("./Pages/Login"));
 const ForgotPassword = lazy(() => import("./Pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./Pages/ResetPassword"));
 const Signup = lazy(() => import("./Pages/Signup"));
 const NotesPage = lazy(() => import("./Pages/NotesPage"));
 const QuizzesPage = lazy(() => import("./components/QuizzesPage"));
@@ -56,6 +57,7 @@ export default function App() {
           }
         />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Protected Routes */}
         <Route

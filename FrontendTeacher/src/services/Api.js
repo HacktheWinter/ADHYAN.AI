@@ -1,15 +1,10 @@
-import axios from "axios";
-import API_BASE_URL from "../config";
-
-const API = axios.create({
-  baseURL: `${API_BASE_URL}/quiz`,
-});
+import api from "../api/axios";
 
 // Quiz APIs
-export const generateQuiz = (noteId) => API.post("/generate", { noteId });
-export const getQuiz = (noteId) => API.get(`/${noteId}`);
-export const getAllQuizzes = () => API.get("/");
-export const updateQuiz = (quizId, data) => API.put(`/${quizId}`, data);
-export const deleteQuiz = (quizId) => API.delete(`/${quizId}`);
+export const generateQuiz = (noteId) => api.post("/quiz/generate", { noteId });
+export const getQuiz = (noteId) => api.get(`/quiz/${noteId}`);
+export const getAllQuizzes = () => api.get("/quiz");
+export const updateQuiz = (quizId, data) => api.put(`/quiz/${quizId}`, data);
+export const deleteQuiz = (quizId) => api.delete(`/quiz/${quizId}`);
 
-export default API;
+export default api;
