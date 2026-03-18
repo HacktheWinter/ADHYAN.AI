@@ -2,7 +2,11 @@
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { clearAuth, getStoredUser } from "../utils/authStorage";
-import { STUDENT_FRONTEND_URL, TEACHER_FRONTEND_URL } from "../config";
+import {
+  PRINCIPAL_FRONTEND_URL,
+  STUDENT_FRONTEND_URL,
+  TEACHER_FRONTEND_URL,
+} from "../config";
 
 export default function PublicRoute({ children, currentRole }) {
   const user = getStoredUser();
@@ -12,7 +16,9 @@ export default function PublicRoute({ children, currentRole }) {
   const target = shouldRedirect
     ? user.role === "teacher"
       ? TEACHER_FRONTEND_URL
-      : STUDENT_FRONTEND_URL
+      : user.role === "principal"
+        ? PRINCIPAL_FRONTEND_URL
+        : STUDENT_FRONTEND_URL
     : null;
 
   useEffect(() => {

@@ -15,6 +15,7 @@ const StudentNotesPage = lazy(() => import("./Pages/StudentNotesPage"));
 const ProfilePage = lazy(() => import("./Pages/ProfilePage"));
 const Login = lazy(() => import("./Pages/Login"));
 const ForgotPassword = lazy(() => import('./Pages/ForgotPassword'));
+const ResetPassword = lazy(() => import("./Pages/ResetPassword"));
 const Signup = lazy(() => import("./Pages/Signup"));
 const ClassesPage = lazy(() => import("./Pages/ClassesPage"));
 
@@ -71,6 +72,7 @@ export default function App() {
           element={<ForgotPassword />}
 
         />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Profile route without navbar */}
         <Route
