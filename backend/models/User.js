@@ -5,8 +5,10 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+  passwordResetToken: { type: String, default: null, select: false },
+  passwordResetExpiresAt: { type: Date, default: null, select: false },
 
-  role: { type: String, enum: ["teacher", "student"], required: true },
+  role: { type: String, enum: ["teacher", "student", "principal"], required: true },
   
   // Profile fields
   profilePhoto: { type: String, default: "" }, // URL or path to profile photo

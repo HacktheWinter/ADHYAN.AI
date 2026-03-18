@@ -19,19 +19,89 @@ export default function socketHandler(io) {
     // --- Attendance Events ---
 
     // Teacher starts attendance
-    socket.on("start_attendance", ({ classId, token }) => {
+    socket.on("start_attendance", async ({ classId, teacherId, token }) => {
       activeSessions[classId] = { token, startTime: Date.now() };
       io.to(classId).emit("attendance_started", { isActive: true });
       console.log(`Attendance started for class ${classId}`);
+
+      try {
+        const { default: Classroom } = await import("../models/Classroom.js");
+        const classroom = await Classroom.findById(classId).select("name subject teacherId");
+        if (!classroom) return;
+
+        const resolvedTeacherId = teacherId || classroom.teacherId;
+        const { logActivity, startClassSession } = await import(
+          "../utils/activityTracker.js"
+        );
+
+        await startClassSession({
+          classroomId: classId,
+          teacherId: resolvedTeacherId,
+          source: "attendance",
+          meta: {
+            className: classroom.subject?.trim() || classroom.name,
+          },
+        });
+
+        await logActivity({
+          actorId: resolvedTeacherId,
+          actorRole: "teacher",
+          classroomId: classId,
+          action: "attendance_started",
+          entityType: "class_session",
+          entityId: classId,
+          meta: {
+            className: classroom.subject?.trim() || classroom.name,
+            source: "attendance",
+          },
+        });
+      } catch (error) {
+        console.error("[Socket] Failed to log attendance start:", error.message);
+      }
     });
 
     // Teacher stops attendance
-    socket.on("stop_attendance", (classId) => {
+    socket.on("stop_attendance", async ({ classId, teacherId }) => {
         if (activeSessions[classId]) {
             delete activeSessions[classId];
         }
         io.to(classId).emit("attendance_stopped", { isActive: false });
         console.log(`Attendance stopped for class ${classId}`);
+
+        try {
+          const { default: Classroom } = await import("../models/Classroom.js");
+          const classroom = await Classroom.findById(classId).select("name subject teacherId");
+          if (!classroom) return;
+
+          const resolvedTeacherId = teacherId || classroom.teacherId;
+          const { endClassSession, logActivity } = await import(
+            "../utils/activityTracker.js"
+          );
+
+          await endClassSession({
+            classroomId: classId,
+            teacherId: resolvedTeacherId,
+            source: "attendance",
+            meta: {
+              className: classroom.subject?.trim() || classroom.name,
+            },
+          });
+
+          await logActivity({
+            actorId: resolvedTeacherId,
+            actorRole: "teacher",
+            classroomId: classId,
+            action: "attendance_ended",
+            entityType: "class_session",
+            entityId: classId,
+            meta: {
+              className: classroom.subject?.trim() || classroom.name,
+              source: "attendance",
+            },
+          });
+        } catch (error) {
+          console.error("[Socket] Failed to log attendance end:", error.message);
+        }
     });
 
     // Student scans QR

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 420" fill="none">
+  <rect width="540" height="420" rx="40" fill="#E7F6FF"/>
+  <circle cx="402" cy="110" r="68" fill="#0EA5E9" opacity=".14"/>
+  <circle cx="130" cy="300" r="88" fill="#10B981" opacity=".14"/>
+  <rect x="58" y="66" width="424" height="288" rx="28" fill="#fff"/>
+  <rect x="90" y="104" width="168" height="18" rx="9" fill="#0F172A"/>
+  <rect x="90" y="138" width="104" height="12" rx="6" fill="#94A3B8"/>
+  <rect x="90" y="194" width="110" height="112" rx="22" fill="#0EA5E9"/>
+  <rect x="216" y="194" width="110" height="112" rx="22" fill="#10B981"/>
+  <rect x="342" y="194" width="110" height="112" rx="22" fill="#F59E0B"/>
+  <path d="M126 254c8-16 19-27 34-33 8 11 12 22 12 35 0 19-16 34-35 34s-35-15-35-34c0-1 0-2 1-2 8 4 15 6 23 6Z" fill="#fff"/>
+  <path d="M255 286c-22 0-40-18-40-40 0-9 3-17 8-24 16 4 29 12 39 25 7-10 16-18 28-25 3 7 5 15 5 24 0 22-18 40-40 40Z" fill="#fff"/>
+  <path d="M395 230c14 0 25 11 25 25v31h-50v-31c0-14 11-25 25-25Zm0-19c-10 0-18 8-18 18s8 18 18 18 18-8 18-18-8-18-18-18Z" fill="#fff"/>
+</svg>
