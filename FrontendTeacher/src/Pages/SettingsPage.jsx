@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Header from '../components/Header';
 import { getStoredToken } from '../utils/authStorage';
+import API_BASE_URL from '../config';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ export default function SettingsPage() {
     try {
       const token = getStoredToken();
       await axios.post(
-        'http://localhost:5000/api/profile/change-password',
+        `${API_BASE_URL}/profile/change-password`,
         { currentPassword, newPassword },
         { headers: { Authorization: token ? `Bearer ${token}` : '' } }
       );
@@ -62,7 +63,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-purple-700"
+            className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-purple-700 cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5" /> Back to Dashboard
           </button>

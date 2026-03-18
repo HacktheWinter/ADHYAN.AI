@@ -19,23 +19,39 @@ import testPaperRoutes from "./routes/testPaperRoutes.js";
 import testSubmissionRoutes from "./routes/testSubmissionRoutes.js";
 import assignmentRoutes from "./routes/assignmentRoutes.js";
 import assignmentSubmissionRoutes from "./routes/assignmentSubmissionRoutes.js";
+import feedbackRoutes from "./routes/feedbackRoutes.js";
+
+import calendarRoutes from "./routes/calendarRoutes.js";
 import forgotPasswordRoutes from './routes/forgotPassword.js';
 import profileRoutes from "./routes/profileRoutes.js";
+
+import videoRoutes from "./routes/video.routes.js";
+import attendanceRoutes from "./routes/attendanceRoutes.js";
+import socketHandler from "./socket/socketHandler.js";
 
 const app = express();
 
 dotenv.config();
 connectDB();
 
+
 const server = http.createServer(app);
 
 // Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://adhyanai-teacher.onrender.com",
+      "https://adhyanai-student.onrender.com",
+    ],
     methods: ["GET", "POST"],
   },
 });
+
+// Initialize Socket Handler for Attendance and other features
+socketHandler(io);
 
 // Socket.IO connection
 io.on("connection", (socket) => {
@@ -64,7 +80,12 @@ app.set("io", io);
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://adhyanai-teacher.onrender.com",
+      "https://adhyanai-student.onrender.com",
+    ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
@@ -84,10 +105,16 @@ app.use("/api/doubts", doubtRoutes);
 app.use("/api/quiz-submission", quizSubmissionRoutes);
 app.use("/api/test-paper", testPaperRoutes);
 app.use("/api/test-submission", testSubmissionRoutes);
-app.use("/api/assignment", assignmentRoutes); //
+app.use("/api/assignment", assignmentRoutes);
 app.use("/api/assignment-submission", assignmentSubmissionRoutes);
+app.use("/api/feedback", feedbackRoutes);
+
+app.use("/api/calendar", calendarRoutes);
 app.use('/api', forgotPasswordRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api", videoRoutes);
+app.use("/api/attendance", attendanceRoutes);
+
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));

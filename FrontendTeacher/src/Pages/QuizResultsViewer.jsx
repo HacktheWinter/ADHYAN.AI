@@ -2,17 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, User, CheckCircle, AlertTriangle, 
-  FileText, Loader, Trophy, RefreshCw
+  FileText, Loader, Trophy, RefreshCw, MoreVertical,
+  BarChart2, Users
 } from 'lucide-react';
 import axios from 'axios';
+import API_BASE_URL from '../config';
 
 const QuizResultsViewer = () => {
   const { classId, quizId } = useParams();
   const navigate = useNavigate();
 
   const [quiz, setQuiz] = useState(null);
+  const [classroom, setClassroom] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -27,7 +31,7 @@ const QuizResultsViewer = () => {
       let quizData = null;
       
       try {
-        const submissionsResponse = await axios.get(`http://localhost:5000/api/quiz-submission/quiz/${quizId}`);
+        const submissionsResponse = await axios.get(`${API_BASE_URL}/quiz-submission/quiz/${quizId}`);
         submissionsData = submissionsResponse.data.submissions || [];
         
         // Extract quiz info from first submission if available
@@ -38,10 +42,18 @@ const QuizResultsViewer = () => {
         console.error('Error fetching submissions:', submissionError);
       }
 
+      // Always fetch classroom data to get total students count
+      try {
+        const classResponse = await axios.get(`${API_BASE_URL}/classroom/${classId}`);
+        setClassroom(classResponse.data.classroom);
+      } catch (classError) {
+        console.error('Error fetching classroom:', classError);
+      }
+
       // If quiz data not available from submissions, try direct fetch
       if (!quizData) {
         try {
-          const quizResponse = await axios.get(`http://localhost:5000/api/quiz/${quizId}`);
+          const quizResponse = await axios.get(`${API_BASE_URL}/quiz/${quizId}`);
           quizData = quizResponse.data.quiz;
         } catch (quizError) {
           console.error('Error fetching quiz details:', quizError);
@@ -108,6 +120,10 @@ const QuizResultsViewer = () => {
   const passCount = submissions.filter(sub => parseFloat(sub.percentage) >= 40).length;
   const failCount = submissions.filter(sub => parseFloat(sub.percentage) < 40).length;
 
+  const totalStudents = classroom?.students?.length || 0;
+  const submittedCount = submissions.length;
+  const pendingCount = Math.max(0, totalStudents - submittedCount);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
@@ -122,8 +138,41 @@ const QuizResultsViewer = () => {
             Back to Quizzes
           </button>
           
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{quiz.title}</h1>
-          <p className="text-sm sm:text-base text-gray-600">{quiz.questions?.length || 0} questions • {submissions.length} submissions</p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2" title={quiz.title}>
+                {quiz.title.length > 50 ? quiz.title.substring(0, 50) + '...' : quiz.title}
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600">{quiz.questions?.length || 0} questions • {submissions.length} submissions</p>
+            </div>
+
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+              >
+                <MoreVertical className="w-5 h-5 text-gray-600" />
+              </button>
+
+              {showMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowMenu(false)}
+                  ></div>
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 z-20 py-1">
+                    <button
+                      onClick={() => navigate(`/class/${classId}/dashboard`)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2"
+                    >
+                      <BarChart2 className="w-4 h-4" />
+                      Class Dashboard
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Stats Cards - Hidden on small screens */}
@@ -131,12 +180,18 @@ const QuizResultsViewer = () => {
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Total Submissions</p>
-                <p className="text-3xl font-bold text-gray-900">{submissions.length}</p>
+                <p className="text-sm text-gray-600 mb-1">Submission</p>
+                <div className="flex items-baseline gap-2">
+                    <p className="text-xl font-bold text-gray-900">
+                      {submissions.length} <span className="text-sm font-normal text-gray-500">out of {totalStudents} students</span>
+                    </p>
+                </div>
               </div>
               <FileText className="w-10 h-10 text-gray-300" />
             </div>
           </div>
+
+
 
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center justify-between">
@@ -208,7 +263,7 @@ const QuizResultsViewer = () => {
                         <div className="flex items-center gap-2 sm:gap-3">
                           {submission.studentId?.profilePhoto ? (
                             <img 
-                              src={`http://localhost:5000/${submission.studentId.profilePhoto}`}
+                              src={`${API_BASE_URL.replace('/api', '')}/${submission.studentId.profilePhoto}`}
                               alt={submission.studentId?.name}
                               className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0 border border-purple-200"
                               onError={(e) => {

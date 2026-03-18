@@ -9,6 +9,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import axios from "axios";
+import API_BASE_URL from "../config";
 
 const StudentQuizResult = () => {
   const { classId, quizId, studentId } = useParams();
@@ -34,12 +35,12 @@ const StudentQuizResult = () => {
       let response;
       if (submissionId) {
         response = await axios.get(
-          `http://localhost:5000/api/quiz-submission/submission/${submissionId}`
+          `${API_BASE_URL}/quiz-submission/submission/${submissionId}`
         );
       } else {
         // Fallback: get all submissions and find by studentId
         const allSubs = await axios.get(
-          `http://localhost:5000/api/quiz-submission/quiz/${quizId}`
+          `${API_BASE_URL}/quiz-submission/quiz/${quizId}`
         );
         const found = allSubs.data.submissions.find(
           (s) => (s.studentId._id || s.studentId) === studentId
@@ -57,7 +58,7 @@ const StudentQuizResult = () => {
         setQuiz(submissionData.quizId);
       } else {
         const quizResponse = await axios.get(
-          `http://localhost:5000/api/quiz/${quizId}`
+          `${API_BASE_URL}/quiz/${quizId}`
         );
         setQuiz(quizResponse.data.quiz);
       }
@@ -114,7 +115,7 @@ const StudentQuizResult = () => {
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
               {submission.studentId?.profilePhoto && !imageLoadError ? (
                 <img 
-                  src={`http://localhost:5000/${submission.studentId.profilePhoto}`}
+                  src={`${API_BASE_URL.replace('/api', '')}/${submission.studentId.profilePhoto}`}
                   alt={submission.studentId?.name}
                   className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0 border-2 border-purple-200"
                   onError={() => setImageLoadError(true)}

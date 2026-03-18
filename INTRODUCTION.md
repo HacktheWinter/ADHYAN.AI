@@ -65,7 +65,7 @@ All within a single, easy-to-use platform.
 
 ### AI & NLP
 
-- OpenAI / LLAMA APIs
+- Gemini-2.5-flash APIs
 - Retrieval-Augmented Generation (RAG)
 - Named Entity Recognition (NER)
 - Semantic Role Labeling (SRL)
@@ -130,18 +130,18 @@ Grades answers strictly based on the teacher’s provided material to ensure fai
 
 ## 👥 Team Members
 
-| Name               | Role                                    |
-| ------------------ | --------------------------------------- |
-| Deepak Singh Rawat | Backend & AI Integration                |
-| Harikesh Kumar     | Documentation & Deployment              |
-| Lalit Nandan       | Student Panel Frontend & UI Development |
-| Aman Singh Kunwar  | Teacher Panel Frontend & UI Development |
+| Name               | Role                     |
+| ------------------ | ------------------------ |
+| Deepak Singh Rawat | Backend & AI Integration |
+| Harikesh Kumar     | UI/UX & Deployment       |
+| Lalit Nandan       | Student Panel Frontend   |
+| Aman Singh Kunwar  | Teacher Panel Frontend   |
 
 ---
 
 ## 🙏 Acknowledgments
 
-- OpenAI / LLAMA APIs
+- Gemini 2.0 Flash APIs
 - MongoDB Atlas
 - React & Tailwind CSS
 - Vite

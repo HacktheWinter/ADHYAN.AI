@@ -3,6 +3,7 @@ import { Camera, X, Save, Calendar, User as UserIcon, Building2, ArrowLeft, Imag
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getStoredToken, updateStoredUser } from '../utils/authStorage';
+import API_BASE_URL from '../config';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -20,7 +21,7 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const API_URL = 'http://localhost:5000/api';
+  const API_URL = API_BASE_URL;
 
   useEffect(() => {
     fetchProfile();
@@ -265,7 +266,7 @@ export default function ProfilePage() {
         {/* Back to Dashboard Button */}
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-gray-600 hover:text-purple-600 mb-4 transition-colors group"
+          className="flex items-center gap-2 text-gray-600 hover:text-purple-600 mb-4 transition-colors group cursor-pointer"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="font-medium">Back to Dashboard</span>
