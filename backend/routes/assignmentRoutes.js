@@ -1,4 +1,5 @@
 import express from 'express';
+import { authMiddleware, authorizeRoles } from "../middleware/authMiddleware.js";
 import {
   generateAssignmentWithAI,
   getAssignment,
@@ -12,7 +13,7 @@ import {
 const router = express.Router();
 
 // Generate assignment with AI
-router.post('/generate-ai', generateAssignmentWithAI);
+router.post('/generate-ai', authMiddleware, authorizeRoles("teacher"), generateAssignmentWithAI);
 
 // Get assignment by ID
 router.get('/:assignmentId', getAssignment);
@@ -24,12 +25,12 @@ router.get('/classroom/:classroomId', getAssignmentsByClassroom);
 router.get('/active/classroom/:classroomId', getActiveAssignmentsForStudent);
 
 // Update assignment
-router.put('/:assignmentId', updateAssignment);
+router.put('/:assignmentId', authMiddleware, authorizeRoles("teacher"), updateAssignment);
 
 // Publish assignment
-router.put('/:assignmentId/publish', publishAssignment);
+router.put('/:assignmentId/publish', authMiddleware, authorizeRoles("teacher"), publishAssignment);
 
 // Delete assignment
-router.delete('/:assignmentId', deleteAssignment);
+router.delete('/:assignmentId', authMiddleware, authorizeRoles("teacher"), deleteAssignment);
 
 export default router;
