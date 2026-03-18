@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Download, Search, FileText, User } from 'lucide-react';
 import axios from 'axios';
 import API_BASE_URL from '../config';
-import { motion } from 'framer-motion';
 
 // Imports updated
 import { MoreVertical, Check } from 'lucide-react';
@@ -23,11 +22,7 @@ const ClassDashboard = () => {
   const [submissions, setSubmissions] = useState({});
   const [showMenu, setShowMenu] = useState(false);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [classId, viewMode]);
-
-  const fetchDashboardData = async () => {
+    const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setItems([]);
@@ -37,11 +32,7 @@ const ClassDashboard = () => {
       const classRes = await axios.get(`${API_BASE_URL}/classroom/${classId}`);
       const classData = classRes.data.classroom;
       setClassroom(classData);
-<<<<<<< HEAD
       setStudents([...(classData.students || [])].sort((a, b) => a.name.localeCompare(b.name)));
-=======
-      setStudents(classData.students || []);
->>>>>>> 786e7dbcf778788824e5794f0258d50511a322af
 
       // 2. Fetch Items based on View Mode
       if (viewMode === 'quiz') {
@@ -136,7 +127,11 @@ const ClassDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+    }, [classId, viewMode]);
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, [fetchDashboardData]);
 
   const filteredStudents = students.filter(student => 
     student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
