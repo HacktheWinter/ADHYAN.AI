@@ -10,6 +10,12 @@ const userSchema = new mongoose.Schema({
 
   role: { type: String, enum: ["teacher", "student", "principal"], required: true },
   
+  // Device binding (anti-proxy attendance) - 1 mobile, 1 desktop max
+  boundDevices: {
+    mobile: { type: String, default: null },
+    desktop: { type: String, default: null }
+  },
+  
   // Profile fields
   profilePhoto: { type: String, default: "" }, // URL or path to profile photo
   backgroundImage: { type: String, default: "" }, // URL or path to background image
