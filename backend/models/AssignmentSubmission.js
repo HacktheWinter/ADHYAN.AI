@@ -79,6 +79,19 @@ const assignmentSubmissionSchema = new mongoose.Schema(
       enum: ["pending", "checked"],
       default: "pending",
     },
+    submissionType: {
+      type: String,
+      enum: ["online", "pdf"],
+      default: "online",
+    },
+    pdfFileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    pdfFileName: {
+      type: String,
+      default: "",
+    },
     isResultPublished: {
       type: Boolean,
       default: false,
