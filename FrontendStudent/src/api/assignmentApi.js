@@ -28,6 +28,21 @@ export const submitAssignment = async (assignmentId, studentId, answers) => {
   return res.data;
 };
 
+// Submit PDF assignment
+export const submitAssignmentPDF = async (assignmentId, studentId, pdfFile) => {
+  const formData = new FormData();
+  formData.append("assignmentId", assignmentId);
+  formData.append("studentId", studentId);
+  formData.append("assignmentPdf", pdfFile);
+
+  const res = await axios.post(`${BASE_URL}/assignment-submission/submit-pdf`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return res.data;
+};
+
 // Check if student submitted
 export const checkSubmission = async (assignmentId, studentId) => {
   const res = await axios.get(
