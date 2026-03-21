@@ -1,7 +1,24 @@
 import AssignmentSubmission from "../models/AssignmentSubmission.js";
 import Assignment from "../models/Assignment.js";
 import User from "../models/User.js";
-import { checkAssignmentWithAI } from "../config/geminiAssignment.js";
+import { checkAssignmentWithAI, checkPDFSubmissionsBatch } from "../config/geminiAssignment.js";
+import multer from "multer";
+import mongoose from "mongoose";
+import { getBucket } from "../config/gridfs.js";
+
+// Multer configured for memory storage (max 4MB)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024 }, // 4MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "application/pdf") {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF files are allowed!"), false);
+    }
+  },
+});
+
 
 export const submitAssignment = async (req, res) => {
   try {
@@ -100,6 +117,94 @@ export const submitAssignment = async (req, res) => {
   }
 };
 
+export const submitAssignmentPDF = [
+  upload.single("assignmentPdf"),
+  async (req, res) => {
+    try {
+      const { assignmentId, studentId } = req.body;
+      const file = req.file;
+
+      if (!assignmentId || !studentId || !file) {
+        return res.status(400).json({ error: "assignmentId, studentId, and PDF file are required" });
+      }
+
+      const assignment = await Assignment.findById(assignmentId);
+      if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+
+      const student = await User.findById(studentId);
+      if (!student) return res.status(404).json({ error: "Student not found" });
+
+      const existingSubmission = await AssignmentSubmission.findOne({ assignmentId, studentId });
+      if (existingSubmission) {
+        return res.status(400).json({ error: "Assignment already submitted" });
+      }
+
+      if (assignment.dueDate && new Date() > new Date(assignment.dueDate)) {
+        return res.status(400).json({ error: "Assignment deadline has passed" });
+      }
+
+      // Upload file to GridFS
+      const bucket = getBucket();
+      const filename = `${student.name.replace(/\s+/g, "_")}_${Date.now()}.pdf`;
+
+      const uploadStream = bucket.openUploadStream(filename, {
+        contentType: "application/pdf",
+      });
+
+      uploadStream.end(file.buffer);
+
+      uploadStream.on("finish", async () => {
+        // Build Answers array using assignment questions
+        const submissionAnswers = assignment.questions.map((q) => ({
+          questionId: q._id.toString(),
+          question: q.question,
+          studentAnswer: "(PDF submission)",
+          answerKey: q.answerKey,
+          marks: q.marks,
+          marksAwarded: 0,
+          checkedBy: "pending",
+        }));
+
+        const submission = await AssignmentSubmission.create({
+          assignmentId,
+          studentId,
+          studentName: student.name,
+          answers: submissionAnswers,
+          totalMarks: assignment.totalMarks,
+          marksObtained: 0,
+          percentage: 0,
+          status: "pending",
+          isResultPublished: false,
+          submissionType: "pdf",
+          pdfFileId: uploadStream.id,
+          pdfFileName: filename,
+        });
+
+        res.status(201).json({
+          success: true,
+          message: "PDF Assignment submitted successfully. Awaiting results.",
+          submission: {
+            _id: submission._id,
+            status: submission.status,
+            submittedAt: submission.submittedAt,
+          },
+        });
+      });
+
+      uploadStream.on("error", (err) => {
+        throw err;
+      });
+
+    } catch (error) {
+      console.error("PDF assignment submission error:", error);
+      res.status(500).json({
+        error: "Failed to submit PDF assignment",
+        details: error.message,
+      });
+    }
+  }
+];
+
 export const checkAssignmentWithAI_Batch = async (req, res) => {
   try {
     const { assignmentId } = req.params;
@@ -133,14 +238,17 @@ export const checkAssignmentWithAI_Batch = async (req, res) => {
     let checkedCount = 0;
     let failedCount = 0;
 
-    // 🔹 BATCH SIZE = 1 (Process submissions one by one)
+    const onlineSubmissions = submissions.filter(s => !s.submissionType || s.submissionType === 'online');
+    const pdfSubmissions = submissions.filter(s => s.submissionType === 'pdf');
+
+    // 🔹 Process ONLINE Submissions
     const BATCH_SIZE = 1;
-    const DELAY = 2000; // 2 seconds delay between submissions
+    const DELAY = 2000;
 
-    for (let i = 0; i < submissions.length; i += BATCH_SIZE) {
-      const batch = submissions.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < onlineSubmissions.length; i += BATCH_SIZE) {
+      const batch = onlineSubmissions.slice(i, i + BATCH_SIZE);
 
-      console.log(`\n Processing submission ${i + 1}/${submissions.length}`);
+      console.log(`\n Processing online submission ${i + 1}/${onlineSubmissions.length}`);
 
       for (const submission of batch) {
         try {
@@ -151,31 +259,25 @@ export const checkAssignmentWithAI_Batch = async (req, res) => {
             studentAnswer: ans.studentAnswer,
           }));
 
-          // Call AI checking (which itself processes one by one)
           let aiResults;
           let retries = 3;
 
           while (retries > 0) {
             try {
-              aiResults = await checkAssignmentWithAI(
-                answerKeys,
-                studentAnswers
-              );
+              aiResults = await checkAssignmentWithAI(answerKeys, studentAnswers);
               break;
             } catch (error) {
               retries--;
               console.error(`Retry ${3 - retries}/3 failed:`, error.message);
               if (retries === 0) throw error;
-              await new Promise((resolve) => setTimeout(resolve, 2000)); // 2s retry delay
+              await new Promise((resolve) => setTimeout(resolve, 2000));
             }
           }
 
           let totalMarksObtained = 0;
 
           submission.answers = submission.answers.map((ans) => {
-            const aiResult = aiResults.find(
-              (r) => r.questionId === ans.questionId
-            );
+            const aiResult = aiResults.find((r) => r.questionId === ans.questionId);
 
             if (aiResult) {
               totalMarksObtained += aiResult.marksAwarded;
@@ -191,28 +293,109 @@ export const checkAssignmentWithAI_Batch = async (req, res) => {
           });
 
           submission.marksObtained = totalMarksObtained;
-          submission.percentage = parseFloat(
-            ((totalMarksObtained / submission.totalMarks) * 100).toFixed(2)
-          );
+          submission.percentage = parseFloat(((totalMarksObtained / submission.totalMarks) * 100).toFixed(2));
           submission.status = "checked";
           submission.checkedAt = new Date();
 
           await submission.save();
           checkedCount++;
 
-          console.log(
-            `Checked successfully - Marks: ${totalMarksObtained}/${submission.totalMarks}`
-          );
+          console.log(`Checked successfully - Marks: ${totalMarksObtained}/${submission.totalMarks}`);
         } catch (error) {
           failedCount++;
-          console.error(` Failed to check submission:`, error.message);
+          console.error(` Failed to check online submission:`, error.message);
         }
       }
 
-      // Delay between submissions
-      if (i + BATCH_SIZE < submissions.length) {
-        console.log(`Waiting ${DELAY / 1000}s before next submission...`);
+      if (i + BATCH_SIZE < onlineSubmissions.length) {
+        console.log(`Waiting ${DELAY / 1000}s before next online submission...`);
         await new Promise((resolve) => setTimeout(resolve, DELAY));
+      }
+    }
+
+    // 🔹 Process PDF Submissions
+    const bucket = getBucket();
+    const PDF_BATCH_SIZE = 5;
+    const PDF_DELAY = 3000;
+
+    for (let i = 0; i < pdfSubmissions.length; i += PDF_BATCH_SIZE) {
+      const batch = pdfSubmissions.slice(i, i + PDF_BATCH_SIZE);
+      console.log(`\n Processing PDF batch ${Math.floor(i / PDF_BATCH_SIZE) + 1} (${batch.length} submissions)`);
+
+      try {
+        const geminiSubmissions = await Promise.all(batch.map(sub => {
+          return new Promise((resolve, reject) => {
+            const downloadStream = bucket.openDownloadStream(sub.pdfFileId);
+            const chunks = [];
+            downloadStream.on('data', chunk => chunks.push(chunk));
+            downloadStream.on('end', () => {
+               const buffer = Buffer.concat(chunks);
+               resolve({
+                 submissionId: sub._id.toString(),
+                 studentName: sub.studentName,
+                 pdfBase64: buffer.toString('base64')
+               });
+            });
+            downloadStream.on('error', err => reject(err));
+          });
+        }));
+
+        let aiResults;
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            aiResults = await checkPDFSubmissionsBatch(geminiSubmissions, answerKeys);
+            break;
+          } catch (error) {
+            retries--;
+            console.error(`PDF checking retry ${3 - retries}/3 failed:`, error.message);
+            if (retries === 0) throw error;
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          }
+        }
+
+        for (const sub of batch) {
+          const resMap = aiResults.find(r => r.submissionId === sub._id.toString());
+          if (!resMap) {
+            console.warn(`No result mapped for PDF sub ${sub._id}`);
+            failedCount++;
+            continue;
+          }
+
+          let totalMarksObtained = 0;
+          sub.answers = sub.answers.map(ans => {
+            const aiAns = resMap.checkedAnswers && resMap.checkedAnswers.find(a => a.questionId === ans.questionId);
+            if (aiAns) {
+               totalMarksObtained += parseFloat(aiAns.marksAwarded) || 0;
+               return {
+                  ...ans,
+                  aiMarks: aiAns.marksAwarded,
+                  marksAwarded: aiAns.marksAwarded,
+                  aiFeedback: aiAns.feedback || "",
+                  checkedBy: "ai"
+               };
+            }
+            return { ...ans, checkedBy: "ai" };
+          });
+
+          sub.marksObtained = totalMarksObtained;
+          sub.percentage = parseFloat(((totalMarksObtained / sub.totalMarks) * 100).toFixed(2));
+          sub.status = "checked";
+          sub.checkedAt = new Date();
+
+          await sub.save();
+          checkedCount++;
+          console.log(`Checked PDF successfully: ${sub.studentName} - ${totalMarksObtained}/${sub.totalMarks}`);
+        }
+
+      } catch (error) {
+        failedCount += batch.length;
+        console.error("Failed to check PDF batch:", error.message);
+      }
+
+      if (i + PDF_BATCH_SIZE < pdfSubmissions.length) {
+         console.log(`Waiting ${PDF_DELAY / 1000}s before next PDF batch...`);
+         await new Promise(res => setTimeout(res, PDF_DELAY));
       }
     }
 
@@ -393,6 +576,36 @@ export const updateMarksManually = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating marks:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const getSubmissionPDF = async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const submission = await AssignmentSubmission.findById(submissionId);
+
+    if (!submission || !submission.pdfFileId) {
+       return res.status(404).json({ error: "Submission or PDF not found" });
+    }
+
+    const bucket = getBucket();
+    const downloadStream = bucket.openDownloadStream(submission.pdfFileId);
+
+    res.set("Content-Type", "application/pdf");
+    res.set("Content-Disposition", `inline; filename="${submission.pdfFileName}"`);
+
+    downloadStream.pipe(res);
+
+    downloadStream.on("error", (err) => {
+      console.error("Error streaming PDF:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Error streaming PDF" });
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fetching submission PDF:", error);
     res.status(500).json({ error: "Server error" });
   }
 };

@@ -307,9 +307,14 @@ const AssignmentResultsViewer = () => {
                               <User className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                             </div>
                           )}
-                          <div className="min-w-0">
-                            <p className="font-semibold text-gray-900 text-xs sm:text-base truncate">{submission.studentName}</p>
-                            <p className="text-xs text-gray-500 truncate hidden sm:block">{submission.studentId?.email}</p>
+                          <div className="min-w-0 flex items-center gap-2">
+                             <div>
+                               <p className="font-semibold text-gray-900 text-xs sm:text-base truncate">{submission.studentName}</p>
+                               <p className="text-xs text-gray-500 truncate hidden sm:block">{submission.studentId?.email}</p>
+                             </div>
+                             {submission.submissionType === 'pdf' && (
+                               <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-medium ml-2 border border-purple-200">PDF</span>
+                             )}
                           </div>
                         </div>
                       </td>
@@ -366,12 +371,23 @@ const AssignmentResultsViewer = () => {
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
-                        <button
-                          onClick={() => handleViewStudent(submission)}
-                          className="px-2 sm:px-4 py-2 bg-purple-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors cursor-pointer whitespace-nowrap"
-                        >
-                          View
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleViewStudent(submission)}
+                            className="px-2 sm:px-4 py-2 bg-purple-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors cursor-pointer whitespace-nowrap"
+                          >
+                            View
+                          </button>
+                          {submission.submissionType === 'pdf' && submission.pdfFileId && (
+                            <button
+                              onClick={() => window.open(`${API_BASE_URL.replace('/api', '')}/api/assignment-submission/pdf/${submission._id}`, "_blank")}
+                              className="px-2 sm:px-4 py-2 bg-white text-purple-700 border border-purple-200 text-xs sm:text-sm font-medium rounded-lg hover:bg-purple-50 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1"
+                            >
+                              <FileText className="w-4 h-4" />
+                              <span className="hidden sm:inline">PDF</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))

@@ -148,9 +148,14 @@ const StudentAssignmentResult = () => {
               )}
 
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 mb-1 truncate">
-                  {submission.studentName}
-                </h1>
+                <div className="flex items-center gap-3 mb-1">
+                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
+                    {submission.studentName}
+                  </h1>
+                  {submission.submissionType === 'pdf' && (
+                    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-medium border border-purple-200">PDF</span>
+                  )}
+                </div>
                 <p className="text-xs sm:text-sm text-gray-500 break-words">
                   Submitted: {new Date(submission.submittedAt).toLocaleString()}
                 </p>
@@ -196,6 +201,24 @@ const StudentAssignmentResult = () => {
           )}
         </div>
 
+        {submission.submissionType === 'pdf' && submission.pdfFileId && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-between">
+            <div>
+              <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span className="text-purple-600">📄</span>
+                Submitted PDF
+              </h4>
+              <p className="text-gray-500 text-sm mt-1">Review the student's original uploaded document.</p>
+            </div>
+            <button
+              onClick={() => window.open(`${API_BASE_URL.replace('/api', '')}/api/assignment-submission/pdf/${submission._id}`, "_blank")}
+              className="px-4 py-2 bg-purple-50 text-purple-700 font-medium rounded-lg border border-purple-200 hover:bg-purple-100 transition-colors cursor-pointer"
+            >
+              View Document
+            </button>
+          </div>
+        )}
+
         {/* QUESTIONS SECTION */}
         <div className="space-y-4 sm:space-y-6">
           {submission.answers.map((answer, index) => {
@@ -221,12 +244,20 @@ const StudentAssignmentResult = () => {
                 {/* Student Answer */}
                 <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
                   <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">Student's Answer:</h4>
-                  <textarea
-                    value={answer.studentAnswer}
-                    readOnly
-                    rows={6}
-                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-300 rounded-lg text-sm sm:text-base text-gray-900 resize-none"
-                  />
+                  {answer.studentAnswer === '(PDF submission)' ? (
+                    <div className="w-full px-3 sm:px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg">
+                      <p className="text-gray-500 italic text-sm">
+                        Answer submitted via PDF — see PDF document for the written answer
+                      </p>
+                    </div>
+                  ) : (
+                    <textarea
+                      value={answer.studentAnswer || ""}
+                      readOnly
+                      rows={6}
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-300 rounded-lg text-sm sm:text-base text-gray-900 resize-none"
+                    />
+                  )}
                 </div>
 
                 {/* Answer Key */}
