@@ -473,4 +473,152 @@ IMPORTANT: marksAwarded must be a number between 0 and 2.
   throw new Error("All API keys exhausted for assignment checking.");
 };
 
-export default { generateAssignmentFromText, checkAssignmentWithAI };
+/**
+ * Check Multiple PDF Submissions using Gemini Context Window
+ */
+export const checkPDFSubmissionsBatch = async (submissions, answerKeys) => {
+  let attempts = 0;
+
+  while (attempts < MAX_RETRIES) {
+    try {
+      console.log(`Checking ${submissions.length} PDF submissions in a batch...`);
+
+      const model = getModel();
+
+      // Ensure that there are no more than 5 submissions
+      if (submissions.length > 5) {
+         throw new Error("Maximum 5 PDFs per batch allowed.");
+      }
+
+      // Build the prompt parts array
+      const promptParts = [];
+
+      // 1. Add PDFs with student identifiers
+      for (let i = 0; i < submissions.length; i++) {
+        const sub = submissions[i];
+        promptParts.push({ text: `STUDENT ${i + 1}: ${sub.studentName || 'Unknown'} (submissionId: ${sub.submissionId})` });
+        promptParts.push({
+          inlineData: {
+            mimeType: 'application/pdf',
+            data: sub.pdfBase64
+          }
+        });
+      }
+
+      // 2. Format Answer Keys
+      const answerKeysText = answerKeys.map(k => `
+Question ID: ${k.questionId}
+Question: ${k.question}
+Answer Key: ${k.answerKey}
+Guidelines: ${k.answerGuidelines || "Evaluate fairly"}
+Max Marks: ${k.marks}
+`).join('\n');
+
+      // 3. Add formatting instructions
+      const formattingInstruction = `
+You are an expert examiner. Read the provided student PDF submissions and evaluate their answers against the provided answer key.
+We have provided ${submissions.length} student PDFs above.
+Match the student's written answers to the questions based on question numbers or content.
+
+ANSWER KEYS FOR EVALUATION:
+${answerKeysText}
+
+CRITICAL RULES:
+1. Return ONLY valid JSON, no markdown, no extra text formatting.
+2. Read EACH student's PDF and evaluate EACH question.
+3. Award marks from 0 to the maximum marks (you can give partial points like 0.5, 1.0, 1.5, 2.0).
+4. Keep feedback brief (under 15 words per question) and constructive.
+5. If a student skipped a question or left it blank, award 0.
+6. The exact output format MUST be:
+{
+  "results": [
+    {
+      "submissionId": "xxx",
+      "checkedAnswers": [
+        {
+          "questionId": "yyy",
+          "marksAwarded": 1.5,
+          "feedback": "brief feedback"
+        }
+      ]
+    }
+  ]
+}
+
+Return ONLY this JSON. Ensure EVERY submission ID is present, and EVERY question from the answer key has an evaluation for each student.
+`;
+      promptParts.push({ text: formattingInstruction });
+
+      const chatSession = model.startChat({
+        generationConfig: {
+          ...generationConfig,
+          maxOutputTokens: 32000, // May need more output tokens for multiple students
+        },
+        history: [],
+      });
+
+      const result = await chatSession.sendMessage(promptParts);
+      const response = result.response.text();
+
+      console.log("PDF Batch Checking Response received");
+
+      // Clean JSON
+      let cleaned = response.trim();
+      cleaned = cleaned.replace(/```json\n?/gi, "").replace(/```/g, "");
+
+      const firstBrace = cleaned.indexOf("{");
+      const lastBrace = cleaned.lastIndexOf("}");
+
+      if (firstBrace === -1 || lastBrace === -1) {
+        throw new Error("No valid JSON object found in PDF eval response");
+      }
+
+      cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+
+      const parsed = JSON.parse(cleaned);
+
+      if (!parsed || !Array.isArray(parsed.results)) {
+        throw new Error("Invalid format: 'results' array missing or wrongly formatted");
+      }
+
+      console.log("PDF Batch Assignment Checked Successfully");
+      return parsed.results;
+
+    } catch (error) {
+      console.error(
+        `PDF Batch Assignment Checking Error (Key #${currentKeyIndex + 1}):`,
+        error.message
+      );
+      attempts++;
+
+      if (
+        error.message.includes("quota") ||
+        error.message.includes("429") ||
+        error.message.includes("RESOURCE_EXHAUSTED") ||
+        error.message.includes("rate limit")
+      ) {
+        console.log("Quota exceeded — rotating API key...");
+        rotateApiKey();
+
+        if (attempts < MAX_RETRIES) {
+          console.log(
+            `Retrying with next key (attempt ${attempts + 1}/${MAX_RETRIES})...`
+          );
+          continue;
+        }
+      }
+
+      if (attempts >= MAX_RETRIES) {
+        throw new Error(
+          `Failed after ${MAX_RETRIES} attempts: ${error.message}`
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error("All API keys exhausted for assignment checking.");
+};
+
+export default { generateAssignmentFromText, checkAssignmentWithAI, checkPDFSubmissionsBatch };
