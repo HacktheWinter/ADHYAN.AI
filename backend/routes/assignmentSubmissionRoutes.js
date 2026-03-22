@@ -7,13 +7,21 @@ import {
   getAssignmentSubmissions,
   updateMarksManually,
   getSubmissionById,
-  publishResults
+  publishResults,
+  submitAssignmentPDF,
+  getSubmissionPDF
 } from '../controllers/assignmentSubmissionController.js';
 
 const router = express.Router();
 
 // Submit assignment
 router.post('/submit', submitAssignment);
+
+// Submit PDF assignment
+router.post('/submit-pdf', submitAssignmentPDF);
+
+// Get submission PDF
+router.get('/pdf/:submissionId', getSubmissionPDF);
 
 // Check assignment with AI (BATCH PROCESSING)
 router.post('/check-with-ai/:assignmentId', checkAssignmentWithAI_Batch);
