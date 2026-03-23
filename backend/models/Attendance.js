@@ -12,7 +12,13 @@ export const ATTENDANCE_MARKING_METHODS = ["qr", "manual", "system"];
 const attendedStatuses = new Set(["present", "late", "excused"]);
 
 const normalizeAttendanceDate = (value) => {
-  const date = value ? new Date(value) : new Date();
+  const isDateOnlyString =
+    typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+  const date = isDateOnlyString
+    ? new Date(`${value.trim()}T00:00:00`)
+    : value
+      ? new Date(value)
+      : new Date();
   if (Number.isNaN(date.getTime())) return new Date();
   date.setHours(0, 0, 0, 0);
   return date;
