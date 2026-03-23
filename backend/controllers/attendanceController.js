@@ -11,7 +11,13 @@ const validStatuses = new Set(ATTENDANCE_ENTRY_STATUSES);
 const validMethods = new Set(ATTENDANCE_MARKING_METHODS);
 
 const normalizeAttendanceDate = (value) => {
-  const date = value ? new Date(value) : new Date();
+  const isDateOnlyString =
+    typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+  const date = isDateOnlyString
+    ? new Date(`${value.trim()}T00:00:00`)
+    : value
+      ? new Date(value)
+      : new Date();
   if (Number.isNaN(date.getTime())) return null;
   date.setHours(0, 0, 0, 0);
   return date;
@@ -28,6 +34,19 @@ const getIdString = (value) => {
 };
 
 const isValidObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
+
+const toDateKey = (value) => {
+  if (!value) return "";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return value.trim();
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const extractTeacherId = (req) =>
   req.user?._id?.toString() ||
@@ -533,10 +552,17 @@ export const getAttendanceSessionById = async (req, res) => {
 };
 
 const buildStudentAttendanceSummary = async ({ classId, studentId }) => {
-  const [classroom, student, attendanceSessions] = await Promise.all([
-    Classroom.findById(classId).select("name subject classCode students teacherId"),
-    User.findById(studentId).select("name email role"),
-    Attendance.find({ classId }).sort({ date: -1, startedAt: -1 }),
+  const studentObjectId = new mongoose.Types.ObjectId(studentId);
+
+  const [classroom, isStudentEnrolled, student, attendanceSessions] = await Promise.all([
+    Classroom.findById(classId).select("name subject classCode").lean(),
+    Classroom.exists({ _id: classId, students: studentObjectId }),
+    User.findById(studentId).select("name email role").lean(),
+    Attendance.find({ classId })
+      .sort({ date: -1, startedAt: -1 })
+      .select("attendanceDate date sessionLabel isActive status createdAt updatedAt startedAt")
+      .select("attendanceEntries.studentId attendanceEntries.status attendanceEntries.markedAt attendanceEntries.method attendanceEntries.remarks")
+      .lean(),
   ]);
 
   if (!classroom) {
@@ -553,10 +579,6 @@ const buildStudentAttendanceSummary = async ({ classId, studentId }) => {
     };
   }
 
-  const isStudentEnrolled = classroom.students.some(
-    (enrolledStudentId) => enrolledStudentId.toString() === studentId.toString()
-  );
-
   if (!isStudentEnrolled) {
     return {
       errorStatus: 400,
@@ -564,22 +586,52 @@ const buildStudentAttendanceSummary = async ({ classId, studentId }) => {
     };
   }
 
-  const records = attendanceSessions.map((session) => {
-    const entry = session.attendanceEntries.find(
-      (attendanceEntry) =>
-        attendanceEntry.studentId.toString() === studentId.toString()
-    );
+  const records = [];
 
-    return {
+  for (const session of attendanceSessions) {
+    const entry = Array.isArray(session.attendanceEntries)
+      ? session.attendanceEntries.find(
+          (item) => getIdString(item?.studentId) === studentId.toString()
+        ) || null
+      : null;
+
+    const attendanceDateValue = session.attendanceDate || session.date;
+    const attendanceDateKey = toDateKey(attendanceDateValue);
+    if (!attendanceDateKey) continue;
+
+    // Avoid false "absent" for the currently running session only.
+    // Past sessions should still be visible even if their status was left active.
+    const todayKey = toDateKey(new Date());
+    if (
+      session.isActive &&
+      session.status === "active" &&
+      !entry &&
+      attendanceDateKey === todayKey
+    ) {
+      continue;
+    }
+
+    records.push({
       attendanceId: session._id,
-      attendanceDate: session.attendanceDate || session.date,
+      attendanceDate: attendanceDateValue,
       sessionLabel: session.sessionLabel,
       status: entry?.status || "absent",
       markedAt: entry?.markedAt || null,
       method: entry?.method || null,
       remarks: entry?.remarks || "",
       isActive: session.isActive,
-    };
+    });
+  }
+
+  records.sort((a, b) => {
+    const dateDiff =
+      new Date(b.attendanceDate || 0).getTime() -
+      new Date(a.attendanceDate || 0).getTime();
+    if (dateDiff !== 0) return dateDiff;
+
+    const aTime = new Date(a.markedAt || 0).getTime() || 0;
+    const bTime = new Date(b.markedAt || 0).getTime() || 0;
+    return bTime - aTime;
   });
 
   const summary = records.reduce(
@@ -627,6 +679,11 @@ const buildStudentAttendanceSummary = async ({ classId, studentId }) => {
 
 export const getStudentAttendanceSummary = async (req, res) => {
   try {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+    res.set("Surrogate-Control", "no-store");
+
     const classId = extractClassId(req);
     const studentId = req.params?.studentId || req.query?.studentId || req.body?.studentId;
 
@@ -660,6 +717,11 @@ export const getStudentAttendanceSummary = async (req, res) => {
 
 export const getMyAttendanceSummary = async (req, res) => {
   try {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+    res.set("Surrogate-Control", "no-store");
+
     const classId = extractClassId(req);
     const studentId = req.user?._id?.toString();
 
@@ -742,16 +804,8 @@ export const saveAttendanceRecord = async (req, res) => {
     const classId = extractClassId(req);
     const teacherId = extractTeacherId(req);
     const { date, attendance: attendanceOverrides } = req.body;
-    
-    console.log("[AttendanceController] saveAttendanceRecord called with:", {
-      classId,
-      teacherId,
-      date,
-      attendanceOverrideKeys: attendanceOverrides ? Object.keys(attendanceOverrides).length : 0,
-    });
 
     if (!classId || !teacherId) {
-      console.error("[AttendanceController] Missing classId or teacherId");
       return res.status(400).json({
         success: false,
         error: "classId and teacherId are required",
@@ -759,15 +813,13 @@ export const saveAttendanceRecord = async (req, res) => {
     }
 
     if (!date) {
-      console.error("[AttendanceController] Missing date");
       return res.status(400).json({
         success: false,
         error: "date is required",
       });
     }
 
-    if (!attendanceOverrides || typeof attendanceOverrides !== 'object') {
-      console.error("[AttendanceController] Invalid attendance data", attendanceOverrides);
+    if (!attendanceOverrides || typeof attendanceOverrides !== "object") {
       return res.status(400).json({
         success: false,
         error: "attendance object is required",
@@ -776,7 +828,6 @@ export const saveAttendanceRecord = async (req, res) => {
 
     const classroom = await getOwnedClassroom({ classId, teacherId });
     if (classroom === false) {
-      console.error("[AttendanceController] Unauthorized - teacher doesn't own classroom");
       return res.status(403).json({
         success: false,
         error: "Unauthorized: You are not the teacher of this classroom",
@@ -784,7 +835,6 @@ export const saveAttendanceRecord = async (req, res) => {
     }
 
     if (!classroom) {
-      console.error("[AttendanceController] Classroom not found:", classId);
       return res.status(404).json({
         success: false,
         error: "Classroom not found",
@@ -793,113 +843,122 @@ export const saveAttendanceRecord = async (req, res) => {
 
     const normalizedDate = normalizeAttendanceDate(date);
     if (!normalizedDate) {
-      console.error("[AttendanceController] Invalid date format:", date);
       return res.status(400).json({
         success: false,
         error: "Invalid date format",
       });
     }
 
-    // Find existing record for this class/date
+    const nextDay = new Date(normalizedDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    // Always prefer the session that belongs to the selected date.
     let attendance = await Attendance.findOne({
       classId,
-      date: normalizedDate,
-    });
+      date: { $gte: normalizedDate, $lt: nextDay },
+    }).sort({ isActive: -1, updatedAt: -1, createdAt: -1 });
 
-    console.log("[AttendanceController] Existing attendance record:", attendance ? attendance._id : "none");
-
-    const attendanceEntries = [];
-    let presentCount = 0, absentCount = 0;
-
-    // Process each student - ensure studentId is properly converted to ObjectId
-    for (const student of classroom.students) {
-      const studentId = student._id || student; // Get ObjectId directly
-      const studentIdStr = getIdString(studentId);
-      const status = attendanceOverrides[studentIdStr] === 'P' ? 'present' : 'absent';
-      
-      if (status === 'present') presentCount++;
-      else absentCount++;
-
-      attendanceEntries.push({
-        studentId: studentId, // Store as ObjectId, not string
-        status,
-        markedAt: new Date(),
-        markedBy: teacherId,
-        method: "manual",
-        remarks: "",
-      });
+    // Only fall back to an active session when saving today's attendance
+    // and no session exists yet for today.
+    if (!attendance && toDateKey(normalizedDate) === toDateKey(new Date())) {
+      attendance = await Attendance.findOne({
+        classId,
+        isActive: true,
+      }).sort({ startedAt: -1, updatedAt: -1, createdAt: -1 });
     }
 
-    console.log("[AttendanceController] Created entries:", {
-      total: attendanceEntries.length,
+    const existingEntryByStudent = new Map(
+      (attendance?.attendanceEntries || []).map((entry) => [
+        getIdString(entry.studentId),
+        entry,
+      ])
+    );
+
+    const attendanceEntries = [];
+    const studentsPresent = [];
+    let presentCount = 0;
+    let absentCount = 0;
+
+    for (const student of classroom.students) {
+      const studentId = student._id || student;
+      const studentIdStr = getIdString(studentId);
+      const isPresent = attendanceOverrides[studentIdStr] === "P";
+      const status = isPresent ? "present" : "absent";
+      const existingEntry = existingEntryByStudent.get(studentIdStr);
+
+      // Preserve original QR method for students already marked through QR.
+      const method =
+        isPresent && validMethods.has(existingEntry?.method)
+          ? existingEntry.method
+          : "manual";
+
+      const markedAt =
+        isPresent && existingEntry?.method === "qr" && existingEntry?.markedAt
+          ? existingEntry.markedAt
+          : new Date();
+
+      if (isPresent) presentCount += 1;
+      else absentCount += 1;
+
+      attendanceEntries.push({
+        studentId,
+        status,
+        markedAt,
+        markedBy: teacherId,
+        method,
+        remarks: "",
+      });
+
+      if (isPresent) {
+        studentsPresent.push({
+          studentId,
+          scannedAt: method === "qr" ? markedAt : new Date(),
+          markedAt,
+          method,
+        });
+      }
+    }
+
+    const summary = {
+      totalStudents: classroom.students.length,
       presentCount,
       absentCount,
-      sampleEntry: attendanceEntries[0],
-    });
+      lateCount: 0,
+      excusedCount: 0,
+    };
 
     if (attendance) {
-      // Update existing record
+      attendance.classId = classId;
+      attendance.teacherId = teacherId;
+      attendance.date = normalizedDate;
+      attendance.attendanceDate = normalizedDate;
       attendance.attendanceEntries = attendanceEntries;
-      attendance.studentsPresent = attendanceEntries
-        .filter(e => attendedStatuses.has(e.status))
-        .map(e => ({
-          studentId: e.studentId, // ObjectId
-          scannedAt: e.markedAt,
-          markedAt: e.markedAt,
-          method: e.method,
-        }));
-      attendance.summary = {
-        totalStudents: classroom.students.length,
-        presentCount,
-        absentCount,
-        lateCount: 0,
-        excusedCount: 0,
-      };
+      attendance.studentsPresent = studentsPresent;
+      attendance.summary = summary;
+      attendance.totalStudents = classroom.students.length;
+      attendance.isActive = false;
       attendance.status = "completed";
       attendance.endedAt = new Date();
-      attendance.isActive = false;
-      
-      console.log("[AttendanceController] Updating existing record:", attendance._id);
     } else {
-      // Create new record
       attendance = new Attendance({
         classId,
         teacherId,
         date: normalizedDate,
         attendanceDate: normalizedDate,
         attendanceEntries,
-        studentsPresent: attendanceEntries
-          .filter(e => attendedStatuses.has(e.status))
-          .map(e => ({
-            studentId: e.studentId, // ObjectId
-            scannedAt: e.markedAt,
-            markedAt: e.markedAt,
-            method: e.method,
-          })),
-        summary: {
-          totalStudents: classroom.students.length,
-          presentCount,
-          absentCount,
-          lateCount: 0,
-          excusedCount: 0,
-        },
+        studentsPresent,
+        summary,
         totalStudents: classroom.students.length,
-        status: "completed",
-        startedAt: new Date(),
-        endedAt: new Date(),
         isActive: false,
+        startedAt: new Date(),
+        status: "completed",
+        endedAt: new Date(),
       });
-      
-      console.log("[AttendanceController] Creating new record for class:", classId);
     }
 
+    attendance.markModified("attendanceEntries");
+
     const savedAttendance = await attendance.save();
-    console.log("[AttendanceController] Record saved successfully:", {
-      id: savedAttendance._id,
-      classId: savedAttendance.classId,
-      date: savedAttendance.date,
-      entries: savedAttendance.attendanceEntries.length,
-    });
 
     return res.status(200).json({
       success: true,
@@ -907,10 +966,10 @@ export const saveAttendanceRecord = async (req, res) => {
       attendance: savedAttendance,
     });
   } catch (error) {
-    console.error("[AttendanceController] Save Attendance Record Error:", error.message, error.stack);
+    console.error("[AttendanceController] Save Attendance Record Error:", error);
     return res.status(500).json({
       success: false,
-      error: "Server error while saving attendance record: " + error.message,
+      error: "Server error while saving attendance record",
     });
   }
 };

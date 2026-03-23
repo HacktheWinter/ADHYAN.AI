@@ -28,8 +28,21 @@ const StudentAttendanceScanner = ({ classId, student, onClose }) => {
     });
 
     socket.on("attendance_error", ({ message }) => {
+      const nextMessage = message || "Failed to mark attendance.";
+      const normalizedMessage = String(nextMessage).toLowerCase();
+      const isAlreadyMarked = normalizedMessage.includes("already marked");
+
+      if (isAlreadyMarked) {
+        setStatus("success");
+        setMessage(nextMessage);
+        setTimeout(() => {
+          onClose();
+        }, 2000);
+        return;
+      }
+
       setStatus("error");
-      setMessage(message || "Failed to mark attendance.");
+      setMessage(nextMessage);
       // Reset after error to allow retry
       setTimeout(() => {
         setStatus("idle"); // Go back to scanning
