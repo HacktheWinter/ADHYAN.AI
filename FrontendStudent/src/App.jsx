@@ -129,6 +129,7 @@ export default function App() {
         </Route>
           
         <Route path="course/:id/attendance" element={<StudentAttendancePage />} />
+        <Route path="course/:id/attendance/:panel" element={<StudentAttendancePage />} />
 
         {/* Calendar Route (Fullscreen - No Navbar) */}
         <Route
