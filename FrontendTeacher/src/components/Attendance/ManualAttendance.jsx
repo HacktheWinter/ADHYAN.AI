@@ -13,12 +13,41 @@ const getLocalDateString = () => {
 };
 
 const toLocalDateKey = (value) => {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return value.trim();
+  }
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const selectBestSessionForDate = (sessions, targetDateKey) => {
+  const sameDateSessions = (Array.isArray(sessions) ? sessions : []).filter((session) => {
+    const sessionDate = toLocalDateKey(session.date || session.attendanceDate);
+    return sessionDate === targetDateKey;
+  });
+
+  if (!sameDateSessions.length) return null;
+
+  const scoreSession = (session) => {
+    let score = 0;
+    if (session.status === "completed") score += 100;
+    if (session.isActive === false) score += 10;
+    score += Array.isArray(session.attendanceEntries) ? session.attendanceEntries.length : 0;
+    return score;
+  };
+
+  return sameDateSessions.sort((a, b) => {
+    const scoreDiff = scoreSession(b) - scoreSession(a);
+    if (scoreDiff !== 0) return scoreDiff;
+
+    const aTime = new Date(a.createdAt || a.startedAt || a.date || 0).getTime() || 0;
+    const bTime = new Date(b.createdAt || b.startedAt || b.date || 0).getTime() || 0;
+    return bTime - aTime;
+  })[0];
 };
 
 const ManualAttendance = ({ classId, students }) => {
@@ -47,12 +76,9 @@ const ManualAttendance = ({ classId, students }) => {
         const response = await api.get(`/attendance/sessions/${classId}`);
         if (response.data?.success && response.data?.attendance) {
           const sessions = Array.isArray(response.data.attendance) ? response.data.attendance : [response.data.attendance];
-          const todaySession = sessions.find(s => {
-            const sessionDate = toLocalDateKey(s.date);
-            return sessionDate === today;
-          });
+          const todaySession = selectBestSessionForDate(sessions, today);
           
-          if (todaySession) {
+          if (todaySession && todaySession.status === 'completed') {
             setTodaySaved(true);
             // Calculate stats from the attendance entries
             let p = 0, a = 0;
@@ -111,14 +137,14 @@ const ManualAttendance = ({ classId, students }) => {
         const response = await api.get(`/attendance/sessions/${classId}`);
         if (response.data?.success && response.data?.attendance) {
           const sessions = Array.isArray(response.data.attendance) ? response.data.attendance : [response.data.attendance];
-          const session = sessions.find(s => {
-            const sessionDate = toLocalDateKey(s.date);
-            return sessionDate === selectedDate;
-          });
+          const session = selectBestSessionForDate(sessions, selectedDate);
           
           if (session) {
-            // Convert attendance entries to override format
+            // Convert attendance entries to override format and always prefill all students.
             const overrides = {};
+            students.forEach((student) => {
+              overrides[student._id] = 'A';
+            });
             (session.attendanceEntries || []).forEach(entry => {
               overrides[entry.studentId] = (entry.status === 'present' || entry.status === 'late') ? 'P' : 'A';
             });
@@ -181,20 +207,21 @@ const ManualAttendance = ({ classId, students }) => {
 
       if (response.data?.success) {
         console.log("[ManualAttendance] Save successful!");
-        await new Promise(resolve => setTimeout(resolve, 800));
+
+        const isTodaySelected = selectedDate === today;
+
+        // If today's attendance was saved/updated, keep the done screen visible.
+        if (isTodaySelected) {
+          setTodaySaved(true);
+          setSavedStats({ ...getStats() });
+        }
 
         if (isUpdateMode) {
           console.log("[ManualAttendance] In update mode - exiting...");
-          // When updating a past date, exit update mode and return to today
+          // Exit update mode and return to today's view.
           setIsUpdateMode(false);
           setSelectedDate(today);
-          setTodaySaved(false); // Reset to let normal flow take over
-        } else if (selectedDate === today) {
-          console.log("[ManualAttendance] Setting done screen - todaySaved=true");
-          // When saving today's attendance, show done screen
-          setTodaySaved(true);
-          setIsUpdateMode(false);
-          setSavedStats({ ...getStats() });
+        } else if (isTodaySelected) {
           console.log("[ManualAttendance] Done screen state updated");
         } else {
           console.log("[ManualAttendance] Save successful but not today's date and not update mode");
