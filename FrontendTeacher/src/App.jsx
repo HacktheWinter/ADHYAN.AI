@@ -33,6 +33,9 @@ const CalendarPage = lazy(() => import("./Pages/CalendarPage"));
 const SettingsPage = lazy(() => import("./Pages/SettingsPage"));
 const TeacherFeedbackPage = lazy(() => import("./Pages/TeacherFeedbackPage"));
 const AttendancePage = lazy(() => import("./Pages/AttendancePage"));
+const PhysicalTestUploadPage = lazy(() => import("./Pages/PhysicalTestUploadPage"));
+const PhysicalTestResultsPage = lazy(() => import("./Pages/PhysicalTestResultsPage"));
+const PhysicalTestStudentResult = lazy(() => import("./Pages/PhysicalTestStudentResult"));
 
 
 export default function App() {
@@ -167,6 +170,31 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="teacher">
               <StudentTestResult />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/class/:classId/test-papers/upload-physical"
+          element={
+            <ProtectedRoute requiredRole="teacher">
+              <PhysicalTestUploadPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/class/:classId/test-papers/physical-results"
+          element={
+            <ProtectedRoute requiredRole="teacher">
+              <PhysicalTestResultsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/class/:classId/test-papers/physical-results/:submissionId"
+          element={
+            <ProtectedRoute requiredRole="teacher">
+              <PhysicalTestStudentResult />
             </ProtectedRoute>
           }
         />
