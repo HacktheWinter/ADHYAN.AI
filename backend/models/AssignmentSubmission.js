@@ -14,6 +14,10 @@ const answerSchema = new mongoose.Schema({
     default: "",
     required: false,
   },
+  studentAnswerPoints: {
+    type: String,
+    default: "", // key bullet points from student's handwritten answer (AI-extracted)
+  },
   answerKey: {
     type: String,
     required: true,
@@ -44,6 +48,7 @@ const answerSchema = new mongoose.Schema({
     default: "pending",
   },
 });
+
 
 const assignmentSubmissionSchema = new mongoose.Schema(
   {

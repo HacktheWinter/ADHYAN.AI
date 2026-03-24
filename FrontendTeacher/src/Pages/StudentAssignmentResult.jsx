@@ -244,10 +244,17 @@ const StudentAssignmentResult = () => {
                 {/* Student Answer */}
                 <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
                   <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">Student's Answer:</h4>
-                  {answer.studentAnswer === '(PDF submission)' ? (
+                  {answer.studentAnswerPoints ? (
+                    <div className="w-full px-3 sm:px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                      <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-1">Key Points Written by Student</p>
+                      <p className="text-sm text-indigo-900 whitespace-pre-line leading-relaxed">
+                        {answer.studentAnswerPoints}
+                      </p>
+                    </div>
+                  ) : answer.studentAnswer === '(PDF submission)' ? (
                     <div className="w-full px-3 sm:px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg">
-                      <p className="text-gray-500 italic text-sm">
-                        Answer submitted via PDF — see PDF document for the written answer
+                      <p className="text-gray-400 italic text-sm">
+                        Answer submitted via PDF — see PDF document above
                       </p>
                     </div>
                   ) : (

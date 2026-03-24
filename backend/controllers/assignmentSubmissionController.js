@@ -315,7 +315,7 @@ export const checkAssignmentWithAI_Batch = async (req, res) => {
 
     // 🔹 Process PDF Submissions
     const bucket = getBucket();
-    const PDF_BATCH_SIZE = 5;
+    const PDF_BATCH_SIZE = 1;
     const PDF_DELAY = 3000;
 
     for (let i = 0; i < pdfSubmissions.length; i += PDF_BATCH_SIZE) {
@@ -369,6 +369,7 @@ export const checkAssignmentWithAI_Batch = async (req, res) => {
                totalMarksObtained += parseFloat(aiAns.marksAwarded) || 0;
                return {
                   ...ans,
+                  studentAnswerPoints: aiAns.studentAnswerPoints || "",
                   aiMarks: aiAns.marksAwarded,
                   marksAwarded: aiAns.marksAwarded,
                   aiFeedback: aiAns.feedback || "",

@@ -21,6 +21,7 @@ import testSubmissionRoutes from "./routes/testSubmissionRoutes.js";
 import assignmentRoutes from "./routes/assignmentRoutes.js";
 import assignmentSubmissionRoutes from "./routes/assignmentSubmissionRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
+import physicalTestSubmissionRoutes from "./routes/physicalTestSubmissionRoutes.js";
 
 import calendarRoutes from "./routes/calendarRoutes.js";
 import forgotPasswordRoutes from './routes/forgotPassword.js';
@@ -108,6 +109,7 @@ app.use("/api/test-submission", testSubmissionRoutes);
 app.use("/api/assignment", assignmentRoutes);
 app.use("/api/assignment-submission", assignmentSubmissionRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/physical-test-submission", physicalTestSubmissionRoutes);
 
 app.use("/api/calendar", calendarRoutes);
 app.use('/api', forgotPasswordRoutes);

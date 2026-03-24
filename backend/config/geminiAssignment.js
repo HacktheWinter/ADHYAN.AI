@@ -477,148 +477,110 @@ IMPORTANT: marksAwarded must be a number between 0 and 2.
  * Check Multiple PDF Submissions using Gemini Context Window
  */
 export const checkPDFSubmissionsBatch = async (submissions, answerKeys) => {
-  let attempts = 0;
+  const results = [];
 
-  while (attempts < MAX_RETRIES) {
-    try {
-      console.log(`Checking ${submissions.length} PDF submissions in a batch...`);
+  for (const sub of submissions) {
+    let attempts = 0;
+    let subResult = null;
 
-      const model = getModel();
-
-      // Ensure that there are no more than 5 submissions
-      if (submissions.length > 5) {
-         throw new Error("Maximum 5 PDFs per batch allowed.");
-      }
-
-      // Build the prompt parts array
-      const promptParts = [];
-
-      // 1. Add PDFs with student identifiers
-      for (let i = 0; i < submissions.length; i++) {
-        const sub = submissions[i];
-        promptParts.push({ text: `STUDENT ${i + 1}: ${sub.studentName || 'Unknown'} (submissionId: ${sub.submissionId})` });
-        promptParts.push({
-          inlineData: {
-            mimeType: 'application/pdf',
-            data: sub.pdfBase64
-          }
-        });
-      }
-
-      // 2. Format Answer Keys
-      const answerKeysText = answerKeys.map(k => `
+    const answerKeysText = answerKeys.map(k => `
 Question ID: ${k.questionId}
 Question: ${k.question}
 Answer Key: ${k.answerKey}
 Guidelines: ${k.answerGuidelines || "Evaluate fairly"}
 Max Marks: ${k.marks}
-`).join('\n');
+`).join('\n---\n');
 
-      // 3. Add formatting instructions
-      const formattingInstruction = `
-You are an expert examiner. Read the provided student PDF submissions and evaluate their answers against the provided answer key.
-We have provided ${submissions.length} student PDFs above.
-Match the student's written answers to the questions based on question numbers or content.
+    const promptParts = [
+      { text: `STUDENT: ${sub.studentName || 'Unknown'} (submissionId: ${sub.submissionId})` },
+      { inlineData: { mimeType: 'application/pdf', data: sub.pdfBase64 } },
+      { text: `
+You are an expert examiner. Read this student's handwritten PDF and evaluate their answers.
 
 ANSWER KEYS FOR EVALUATION:
 ${answerKeysText}
 
 CRITICAL RULES:
-1. Return ONLY valid JSON, no markdown, no extra text formatting.
-2. Read EACH student's PDF and evaluate EACH question.
-3. Award marks from 0 to the maximum marks (you can give partial points like 0.5, 1.0, 1.5, 2.0).
-4. Keep feedback brief (under 15 words per question) and constructive.
-5. If a student skipped a question or left it blank, award 0.
-6. The exact output format MUST be:
+1. Return ONLY valid JSON, no markdown, no extra text.
+2. Read the student's PDF carefully and identify what they wrote for each question.
+3. For studentAnswerPoints: write a concise bullet-point summary (• Point 1 • Point 2 ...) of what the student actually wrote — NOT the expected answer.
+4. Award marks from 0 to max marks (partial points like 0.5, 1.0, 1.5 allowed).
+5. Keep feedback to 1-2 sentences.
+6. If a student left a question blank, set studentAnswerPoints to "Not attempted" and marksAwarded to 0.
+
+EXACT OUTPUT FORMAT (return only this JSON):
 {
   "results": [
     {
-      "submissionId": "xxx",
+      "submissionId": "${sub.submissionId}",
       "checkedAnswers": [
         {
-          "questionId": "yyy",
-          "marksAwarded": 1.5,
-          "feedback": "brief feedback"
+          "questionId": "<exact questionId>",
+          "studentAnswerPoints": "<bullet-point summary of student's actual answer>",
+          "marksAwarded": <number>,
+          "feedback": "<1-2 sentence feedback>"
         }
       ]
     }
   ]
 }
 
-Return ONLY this JSON. Ensure EVERY submission ID is present, and EVERY question from the answer key has an evaluation for each student.
-`;
-      promptParts.push({ text: formattingInstruction });
+Ensure EVERY questionId from the answer keys appears in checkedAnswers.
+` }
+    ];
 
-      const chatSession = model.startChat({
-        generationConfig: {
-          ...generationConfig,
-          maxOutputTokens: 32000, // May need more output tokens for multiple students
-        },
-        history: [],
-      });
+    while (attempts < MAX_RETRIES) {
+      try {
+        console.log(`Checking PDF for: ${sub.studentName} (attempt ${attempts + 1})`);
 
-      const result = await chatSession.sendMessage(promptParts);
-      const response = result.response.text();
+        const model = getModel();
+        const chatSession = model.startChat({
+          generationConfig: {
+            ...generationConfig,
+            temperature: 0.2,
+            maxOutputTokens: 8192,
+          },
+          history: [],
+        });
 
-      console.log("PDF Batch Checking Response received");
+        const result = await chatSession.sendMessage(promptParts);
+        const response = result.response.text();
 
-      // Clean JSON
-      let cleaned = response.trim();
-      cleaned = cleaned.replace(/```json\n?/gi, "").replace(/```/g, "");
+        let cleaned = response.trim().replace(/```json\n?/gi, "").replace(/```/g, "");
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("No valid JSON found");
+        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
 
-      const firstBrace = cleaned.indexOf("{");
-      const lastBrace = cleaned.lastIndexOf("}");
+        const parsed = JSON.parse(cleaned);
+        if (!parsed || !Array.isArray(parsed.results)) throw new Error("Invalid format: 'results' array missing");
 
-      if (firstBrace === -1 || lastBrace === -1) {
-        throw new Error("No valid JSON object found in PDF eval response");
-      }
-
-      cleaned = cleaned.substring(firstBrace, lastBrace + 1);
-
-      const parsed = JSON.parse(cleaned);
-
-      if (!parsed || !Array.isArray(parsed.results)) {
-        throw new Error("Invalid format: 'results' array missing or wrongly formatted");
-      }
-
-      console.log("PDF Batch Assignment Checked Successfully");
-      return parsed.results;
-
-    } catch (error) {
-      console.error(
-        `PDF Batch Assignment Checking Error (Key #${currentKeyIndex + 1}):`,
-        error.message
-      );
-      attempts++;
-
-      if (
-        error.message.includes("quota") ||
-        error.message.includes("429") ||
-        error.message.includes("RESOURCE_EXHAUSTED") ||
-        error.message.includes("rate limit")
-      ) {
-        console.log("Quota exceeded — rotating API key...");
-        rotateApiKey();
-
-        if (attempts < MAX_RETRIES) {
-          console.log(
-            `Retrying with next key (attempt ${attempts + 1}/${MAX_RETRIES})...`
-          );
-          continue;
+        subResult = parsed.results[0];
+        console.log(`PDF checked successfully: ${sub.studentName}`);
+        break;
+      } catch (error) {
+        console.error(`PDF check error (Key #${currentKeyIndex + 1}):`, error.message);
+        attempts++;
+        if (error.message.includes("quota") || error.message.includes("429") || error.message.includes("RESOURCE_EXHAUSTED")) {
+          rotateApiKey();
         }
+        if (attempts >= MAX_RETRIES) {
+          console.error(`Failed to check PDF for ${sub.studentName} after ${MAX_RETRIES} attempts`);
+          break;
+        }
+        await new Promise(r => setTimeout(r, 3000));
       }
+    }
 
-      if (attempts >= MAX_RETRIES) {
-        throw new Error(
-          `Failed after ${MAX_RETRIES} attempts: ${error.message}`
-        );
-      }
-
-      throw error;
+    if (subResult) results.push(subResult);
+    // Small delay between students
+    if (submissions.indexOf(sub) < submissions.length - 1) {
+      await new Promise(r => setTimeout(r, 2000));
     }
   }
 
-  throw new Error("All API keys exhausted for assignment checking.");
+  return results;
 };
+
 
 export default { generateAssignmentFromText, checkAssignmentWithAI, checkPDFSubmissionsBatch };
