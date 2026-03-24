@@ -234,20 +234,24 @@ export default function AssignmentResultModal({
                       </div>
                     </div>
 
-                    {/* Student Answer */}
+                    {/* Student Answer Points (for PDF submissions) or written answer */}
                     <div className="mb-4">
                       <h5 className="text-sm font-semibold text-gray-700 mb-2">
                         Your Answer
                       </h5>
                       <div className="bg-white rounded-lg p-4 border border-gray-200">
-                        {answer.studentAnswer === '(PDF submission)' ? (
-                           <p className="text-gray-500 italic text-sm">
-                             Answer submitted via PDF — see PDF above for your written answer
-                           </p>
+                        {answer.studentAnswerPoints ? (
+                          <p className="text-gray-900 whitespace-pre-line text-sm leading-relaxed">
+                            {answer.studentAnswerPoints}
+                          </p>
+                        ) : answer.studentAnswer === '(PDF submission)' ? (
+                          <p className="text-gray-400 italic text-sm">
+                            Answer submitted via PDF — see PDF above
+                          </p>
                         ) : (
-                           <p className="text-gray-900 whitespace-pre-wrap text-sm">
-                             {answer.studentAnswer || "Not answered"}
-                           </p>
+                          <p className="text-gray-900 whitespace-pre-wrap text-sm">
+                            {answer.studentAnswer || "Not answered"}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -277,6 +281,7 @@ export default function AssignmentResultModal({
                         )}
                       </div>
                     )}
+
                   </div>
                 );
               })}
