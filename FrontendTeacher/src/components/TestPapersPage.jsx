@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Pencil, Trash2, CheckCircle, Eye, Loader, FileText, X } from 'lucide-react';
+import { Sparkles, Pencil, Trash2, CheckCircle, Eye, Loader, FileText, X, MoreVertical, Upload } from 'lucide-react';
 import { 
   getTestPapersByClassroom, 
   deleteTestPaper,
@@ -26,6 +26,7 @@ const TestPapersPage = () => {
   const [publishingTest, setPublishingTest] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
 
   const [availableNotes, setAvailableNotes] = useState([]);
   const [selectedNotes, setSelectedNotes] = useState([]);
@@ -35,6 +36,12 @@ const TestPapersPage = () => {
       fetchTestPapers();
     }
   }, [classData?.id]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setShowHeaderMenu(false);
+    if (showHeaderMenu) document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showHeaderMenu]);
 
   const fetchTestPapers = async () => {
     try {
@@ -160,13 +167,52 @@ const TestPapersPage = () => {
             </p>
           </div>
 
-          <button
-            onClick={handleOpenAIModal}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer"
-          >
-            <Sparkles className="w-5 h-5" />
-            <span>Create with AI</span>
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={handleOpenAIModal}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer"
+            >
+              <Sparkles className="w-5 h-5" />
+              <span>Create with AI</span>
+            </button>
+
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowHeaderMenu(!showHeaderMenu);
+                }}
+                className="flex items-center justify-center w-12 h-[3.2rem] bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer shadow-sm"
+              >
+                <MoreVertical className="w-5 h-5 text-indigo-700" />
+              </button>
+
+              {showHeaderMenu && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                  <button
+                    onClick={() => {
+                      setShowHeaderMenu(false);
+                      navigate(`/class/${classData.id}/test-papers/upload-physical`);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Upload Copies
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowHeaderMenu(false);
+                      navigate(`/class/${classData.id}/test-papers/physical-results`);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4" />
+                    See Results
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -317,7 +363,7 @@ const TestPapersPage = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto relative">
                     <button
                       onClick={() => handleViewResults(test._id)}
                       className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors cursor-pointer"
@@ -327,12 +373,13 @@ const TestPapersPage = () => {
                     </button>
 
                     <button
-                      onClick={() => handleDelete(test._id, 'published')}
+                      onClick={() => handleDelete(test._id, "published")}
                       className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                       <span>Delete</span>
                     </button>
+
                   </div>
                 </div>
               </motion.div>
@@ -481,6 +528,7 @@ const TestPapersPage = () => {
           }}
         />
       )}
+
     </div>
   );
 };
