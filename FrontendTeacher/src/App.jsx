@@ -128,6 +128,15 @@ export default function App() {
         />
 
         <Route
+          path="/class/:classId/attendance/:panel"
+          element={
+            <ProtectedRoute requiredRole="teacher">
+              <AttendancePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/class/:classId"
           element={
             <ProtectedRoute requiredRole="teacher">
