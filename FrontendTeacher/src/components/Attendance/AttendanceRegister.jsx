@@ -21,6 +21,9 @@ const saveHolidays = (classId, holidays) => {
 };
 
 const toLocalDateKey = (value) => {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return value.trim();
+  }
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   const year = d.getFullYear();
@@ -84,10 +87,28 @@ const AttendanceRegister = ({ classId, students }) => {
 
       // Build a map of date -> attendance data
       const attendanceMap = {};
-      sessions.forEach(session => {
+      sessions.forEach((session) => {
         const sessionDate = toLocalDateKey(session.date);
         if (monthDates.includes(sessionDate)) {
-          attendanceMap[sessionDate] = session.attendanceEntries || [];
+          if (!attendanceMap[sessionDate]) {
+            attendanceMap[sessionDate] = [];
+          }
+          const entries = session.attendanceEntries || [];
+          entries.forEach((entry) => {
+            const existing = attendanceMap[sessionDate].find((e) => {
+              const sId1 = (e.studentId?._id || e.studentId)?.toString();
+              const sId2 = (entry.studentId?._id || entry.studentId)?.toString();
+              return sId1 === sId2;
+            });
+            if (existing) {
+              // Priority: Present/Late over Absent
+              if (entry.status === "present" || entry.status === "late") {
+                existing.status = entry.status;
+              }
+            } else {
+              attendanceMap[sessionDate].push({ ...entry });
+            }
+          });
         }
       });
 
@@ -112,7 +133,10 @@ const AttendanceRegister = ({ classId, students }) => {
 
           // Look up student's attendance for this date
           const dayEntries = attendanceMap[date] || [];
-          const studentEntry = dayEntries.find(e => e.studentId === student._id);
+          const studentEntry = dayEntries.find((e) => {
+            const sId = (e.studentId?._id || e.studentId)?.toString();
+            return sId === student._id?.toString();
+          });
           
           if (studentEntry) {
             const status = studentEntry.status === 'present' ? 'P' : studentEntry.status === 'late' ? 'L' : 'A';
