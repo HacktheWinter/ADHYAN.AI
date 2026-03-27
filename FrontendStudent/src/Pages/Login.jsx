@@ -20,19 +20,9 @@ export default function Login() {
   const TEACHER_URL = TEACHER_FRONTEND_URL;
   const STUDENT_URL = STUDENT_FRONTEND_URL;
 
-  const handleRoleClick = (role) => {
-    const target = role === "student" ? STUDENT_URL : TEACHER_URL;
-    try {
-      const targetOrigin = new URL(target).origin;
-      if (window.location.origin === targetOrigin) {
-        setFormData((p) => ({ ...p, role }));
-        return;
-      }
-    } catch {}
-
-    clearAuth();
-    window.location.replace(target);
-  };
+const handleRoleClick = (role) => {
+  setFormData((p) => ({ ...p, role }));
+};
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -45,12 +35,6 @@ export default function Login() {
     setError("");
 
     try {
-      // Get or generate device ID
-      let deviceId = localStorage.getItem("deviceId");
-      if (!deviceId) {
-        deviceId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : "dev_" + Math.random().toString(36).substring(2, 15);
-        localStorage.setItem("deviceId", deviceId);
-      }
 
       // Call actual backend API based on role
       const endpoint =
@@ -60,8 +44,7 @@ export default function Login() {
 
       const response = await axios.post(endpoint, {
         email: formData.email,
-        password: formData.password,
-        deviceId: deviceId,
+        password: formData.password
       });
 
       // Store token and user data from backend response

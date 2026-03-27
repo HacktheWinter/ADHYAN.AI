@@ -23,10 +23,12 @@ export const AuthProvider = ({ children }) => {
     const storedUser = getStoredUser();
     
     if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(storedUser);
-    }
-    setLoading(false);
+  setToken(storedToken);
+  setUser(storedUser);
+} else {
+  clearAuth(); // clean any partial broken state
+}
+setLoading(false);
   }, []);
 
   const login = (userData, authToken, rememberMe = true) => {
