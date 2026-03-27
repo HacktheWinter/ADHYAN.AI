@@ -20,19 +20,9 @@ export default function Login() {
   const TEACHER_URL = TEACHER_FRONTEND_URL;
   const STUDENT_URL = STUDENT_FRONTEND_URL;
 
-  const handleRoleClick = (role) => {
-    const target = role === "student" ? STUDENT_URL : TEACHER_URL;
-    try {
-      const targetOrigin = new URL(target).origin;
-      if (window.location.origin === targetOrigin) {
-        setFormData((p) => ({ ...p, role }));
-        return;
-      }
-    } catch {}
-
-    clearAuth();
-    window.location.replace(target);
-  };
+ const handleRoleClick = (role) => {
+  setFormData((p) => ({ ...p, role }));
+};
 
   const handleChange = (e) => {
     const { name, value } = e.target;

@@ -11,15 +11,10 @@ const safeParse = (value) => {
 };
 
 const resolveStorage = () => {
-  const hasLocalUser = localStorage.getItem(USER_KEY);
-  const hasLocalToken = localStorage.getItem(TOKEN_KEY);
-  const hasSessionUser = sessionStorage.getItem(USER_KEY);
-  const hasSessionToken = sessionStorage.getItem(TOKEN_KEY);
-
-  if (hasLocalUser && hasLocalToken) return localStorage;
-  if (hasSessionUser && hasSessionToken) return sessionStorage;
-  if (hasLocalToken || hasLocalUser) return localStorage;
-  if (hasSessionToken || hasSessionUser) return sessionStorage;
+  const hasLocal = localStorage.getItem(USER_KEY) && localStorage.getItem(TOKEN_KEY);
+  const hasSession = sessionStorage.getItem(USER_KEY) && sessionStorage.getItem(TOKEN_KEY);
+  if (hasLocal) return localStorage;
+  if (hasSession) return sessionStorage;
   return null;
 };
 
