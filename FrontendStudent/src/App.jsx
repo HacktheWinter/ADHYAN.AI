@@ -128,8 +128,22 @@ export default function App() {
           <Route path="course/:id/announcement" element={<StudentAnnouncement />} />
         </Route>
           
-        <Route path="course/:id/attendance" element={<StudentAttendancePage />} />
-        <Route path="course/:id/attendance/:panel" element={<StudentAttendancePage />} />
+        <Route
+          path="course/:id/attendance"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <StudentAttendancePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="course/:id/attendance/:panel"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <StudentAttendancePage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Calendar Route (Fullscreen - No Navbar) */}
         <Route

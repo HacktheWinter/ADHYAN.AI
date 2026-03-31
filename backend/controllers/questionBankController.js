@@ -1,108 +1,144 @@
 import mongoose from "mongoose";
 import Note from "../models/Note.js";
 import QuestionBank from "../models/QuestionBank.js";
-import { bucket } from "../config/gridfs.js"; // your GridFSBucket
+import { getBucket } from "../config/gridfs.js";
+import { cleanText, extractTextFromPDF } from "../utils/pdfExtractor.js";
+import {
+  createHttpError,
+  getAuthorizedClassroomForTeacher,
+} from "../utils/accessControl.js";
+
+const readFileFromGridFS = (bucket, fileId) =>
+  new Promise((resolve, reject) => {
+    const chunks = [];
+    const readstream = bucket.openDownloadStream(fileId);
+
+    readstream.on("data", (chunk) => chunks.push(chunk));
+    readstream.on("error", reject);
+    readstream.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+
+const buildQuestionSegments = (text) => {
+  const sentenceSegments = text
+    .split(/(?<=[.!?])\s+/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length >= 40);
+
+  if (sentenceSegments.length >= 30) {
+    return sentenceSegments;
+  }
+
+  const words = text.split(/\s+/).filter(Boolean);
+  const chunkSize = Math.max(35, Math.ceil(words.length / 30));
+  const chunks = [];
+
+  for (let index = 0; index < words.length; index += chunkSize) {
+    const chunk = words.slice(index, index + chunkSize).join(" ").trim();
+    if (chunk.length >= 40) {
+      chunks.push(chunk);
+    }
+  }
+
+  return chunks;
+};
+
+const toQuestionText = (segment, index) => {
+  const promptPrefix =
+    index < 10
+      ? "Explain"
+      : index < 20
+      ? "Describe in detail"
+      : "Analyse";
+
+  return `${promptPrefix}: ${segment.replace(/\s+/g, " ").trim()}`;
+};
 
 export const generateQuestionBank = async (req, res) => {
   try {
     const { noteId } = req.body;
-    if (!noteId) return res.status(400).json({ error: "noteId is required" });
+    if (!noteId) {
+      throw createHttpError(400, "noteId is required");
+    }
 
-    // Fetch the note from DB
     const note = await Note.findById(noteId);
-    if (!note) return res.status(404).json({ error: "Note not found" });
+    if (!note) {
+      throw createHttpError(404, "Note not found");
+    }
 
-    // Read PDF from GridFS
-    const _id = new mongoose.Types.ObjectId(note.fileId);
-    const chunks = [];
-    const readstream = bucket.openDownloadStream(_id);
+    await getAuthorizedClassroomForTeacher(req, note.classroomId);
 
-    readstream.on("data", (chunk) => chunks.push(chunk));
-    readstream.on("error", (err) => {
-      console.error(err);
-      return res.status(500).json({ error: "Error reading PDF from GridFS" });
-    });
+    const bucket = getBucket();
+    if (!bucket) {
+      return res
+        .status(503)
+        .json({ error: "Database connection not ready. Please try again." });
+    }
 
-    readstream.on("end", async () => {
-      const buffer = Buffer.concat(chunks);
-      const text = buffer.toString("utf-8"); // simple text extraction
+    if (!mongoose.Types.ObjectId.isValid(note.fileId)) {
+      throw createHttpError(400, "Invalid note file reference");
+    }
 
-      if (!text || text.length < 300) {
-        return res.status(400).json({
-          error: "Not enough content in PDF to generate 30 questions",
-        });
-      }
+    const buffer = await readFileFromGridFS(
+      bucket,
+      new mongoose.Types.ObjectId(note.fileId)
+    );
+    const extractedText = await extractTextFromPDF(buffer);
+    const cleanedText = cleanText(extractedText, 25000);
+    const segments = buildQuestionSegments(cleanedText);
 
-      // Split text into sentences/paragraphs
-      let paragraphs = text
-        .split(/\n|\r\n|\.|:/)
-        .map((p) => p.trim())
-        .filter((p) => p.length > 20);
+    if (segments.length < 30) {
+      throw createHttpError(
+        400,
+        "Not enough content in PDF to generate 30 questions"
+      );
+    }
 
-      if (paragraphs.length < 30) {
-        return res.status(400).json({
-          error: "Not enough content in PDF to generate 30 questions",
-        });
-      }
+    const questions = segments.slice(0, 30).map((segment, index) => ({
+      question: `Q${index + 1}: ${toQuestionText(segment, index)}?`,
+      type: index < 10 ? "easy" : index < 20 ? "medium" : "hard",
+      marks: index < 10 ? 2 : index < 20 ? 3 : 5,
+    }));
 
-      // Shuffle paragraphs
-      paragraphs = paragraphs.sort(() => 0.5 - Math.random());
+    const questionBank = await QuestionBank.findOneAndUpdate(
+      { noteId },
+      { noteId, questions },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
 
-      // Generate 30 questions
-      const questions = [];
-
-      // Easy questions (short, 2 marks)
-      for (let i = 0; i < 10; i++) {
-        questions.push({
-          question: `Q${i + 1}: ${paragraphs[i].slice(0, 50)}?`,
-          type: "easy",
-          marks: 2,
-        });
-      }
-
-      // Medium questions (medium, 3 marks)
-      for (let i = 10; i < 20; i++) {
-        questions.push({
-          question: `Q${i + 1}: ${paragraphs[i].slice(0, 100)}?`,
-          type: "medium",
-          marks: 3,
-        });
-      }
-
-      // Hard questions (long, 5 marks)
-      for (let i = 20; i < 30; i++) {
-        questions.push({
-          question: `Q${i + 1}: ${paragraphs[i].slice(0, 200)}?`,
-          type: "hard",
-          marks: 5,
-        });
-      }
-
-      // Save to DB
-      const questionBank = await QuestionBank.create({ noteId, questions });
-
-      res.status(201).json({
-        success: true,
-        message: "Question bank generated successfully (30 questions)",
-        questionBank,
-      });
+    res.status(201).json({
+      success: true,
+      message: "Question bank generated successfully (30 questions)",
+      questionBank,
     });
   } catch (error) {
     console.error("Question Bank Generation Error:", error);
-    res.status(500).json({ error: "Server error" });
+    res
+      .status(error.statusCode || 500)
+      .json({ error: error.message || "Server error" });
   }
 };
 
 export const getQuestionBank = async (req, res) => {
   try {
     const { noteId } = req.params;
+    const note = await Note.findById(noteId);
+
+    if (!note) {
+      throw createHttpError(404, "Note not found");
+    }
+
+    await getAuthorizedClassroomForTeacher(req, note.classroomId);
+
     const questionBank = await QuestionBank.findOne({ noteId });
-    if (!questionBank)
+    if (!questionBank) {
       return res.status(404).json({ error: "No questions found" });
+    }
 
     res.status(200).json(questionBank);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Server error" });
+    res
+      .status(error.statusCode || 500)
+      .json({ error: error.message || "Server error" });
   }
 };

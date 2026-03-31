@@ -1,7 +1,48 @@
 // Backend/controllers/quizSubmissionController.js
 import QuizSubmission from "../models/QuizSubmission.js";
 import Quiz from "../models/Quiz.js";
-import User from "../models/User.js";
+import {
+  createHttpError,
+  ensureUserMatchesId,
+  getAuthorizedClassroomForStudent,
+  getAuthorizedClassroomForTeacher,
+  getRequestUserId,
+} from "../utils/accessControl.js";
+
+const getAuthorizedQuizForStudent = async (req, quizId) => {
+  const quiz = await Quiz.findById(quizId);
+
+  if (!quiz) {
+    throw createHttpError(404, "Quiz not found");
+  }
+
+  await getAuthorizedClassroomForStudent(req, quiz.classroomId);
+  return quiz;
+};
+
+const getAuthorizedQuizForTeacher = async (req, quizId) => {
+  const quiz = await Quiz.findById(quizId);
+
+  if (!quiz) {
+    throw createHttpError(404, "Quiz not found");
+  }
+
+  await getAuthorizedClassroomForTeacher(req, quiz.classroomId);
+  return quiz;
+};
+
+const getAuthorizedQuizSubmissionForTeacher = async (req, submissionId) => {
+  const submission = await QuizSubmission.findById(submissionId)
+    .populate("studentId", "name email profilePhoto")
+    .populate("quizId", "title questions classroomId");
+
+  if (!submission) {
+    throw createHttpError(404, "Submission not found");
+  }
+
+  await getAuthorizedClassroomForTeacher(req, submission.quizId.classroomId);
+  return submission;
+};
 
 /**
  * Submit quiz answers and auto-grade
@@ -9,7 +50,8 @@ import User from "../models/User.js";
  */
 export const submitQuiz = async (req, res) => {
   try {
-    const { quizId, studentId, answers } = req.body;
+    const { quizId, studentId: requestedStudentId, answers } = req.body;
+    const studentId = getRequestUserId(req);
 
     console.log(" Quiz submission received:", {
       quizId,
@@ -18,23 +60,20 @@ export const submitQuiz = async (req, res) => {
     });
 
     // Validation
-    if (!quizId || !studentId || !answers || !Array.isArray(answers)) {
+    if (!quizId || !answers || !Array.isArray(answers)) {
       return res.status(400).json({
-        error: "quizId, studentId, and answers array are required",
+        error: "quizId and answers array are required",
       });
     }
 
-    // Check if quiz exists
-    const quiz = await Quiz.findById(quizId);
-    if (!quiz) {
-      return res.status(404).json({ error: "Quiz not found" });
-    }
+    ensureUserMatchesId(
+      requestedStudentId,
+      studentId,
+      "You can only submit quizzes for your own account."
+    );
 
-    // Check if student exists
-    const student = await User.findById(studentId);
-    if (!student) {
-      return res.status(404).json({ error: "Student not found" });
-    }
+    const quiz = await getAuthorizedQuizForStudent(req, quizId);
+    const student = req.user;
 
     // Check if already submitted
     const existingSubmission = await QuizSubmission.findOne({
@@ -122,9 +161,9 @@ export const submitQuiz = async (req, res) => {
     });
   } catch (error) {
     console.error("Quiz submission error:", error);
-    res.status(500).json({
-      error: "Failed to submit quiz",
-      details: error.message,
+    res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : "Failed to submit quiz",
+      details: error.statusCode ? undefined : error.message,
     });
   }
 };
@@ -135,7 +174,16 @@ export const submitQuiz = async (req, res) => {
  */
 export const getQuizResult = async (req, res) => {
   try {
-    const { quizId, studentId } = req.params;
+    const { quizId, studentId: requestedStudentId } = req.params;
+    const studentId = getRequestUserId(req);
+
+    ensureUserMatchesId(
+      requestedStudentId,
+      studentId,
+      "You can only access your own quiz results."
+    );
+
+    await getAuthorizedQuizForStudent(req, quizId);
 
     const submission = await QuizSubmission.findOne({
       quizId,
@@ -152,7 +200,7 @@ export const getQuizResult = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching result:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
@@ -162,7 +210,16 @@ export const getQuizResult = async (req, res) => {
  */
 export const checkSubmission = async (req, res) => {
   try {
-    const { quizId, studentId } = req.params;
+    const { quizId, studentId: requestedStudentId } = req.params;
+    const studentId = getRequestUserId(req);
+
+    ensureUserMatchesId(
+      requestedStudentId,
+      studentId,
+      "You can only check submissions for your own account."
+    );
+
+    await getAuthorizedQuizForStudent(req, quizId);
 
     const submission = await QuizSubmission.findOne({ quizId, studentId });
 
@@ -172,7 +229,7 @@ export const checkSubmission = async (req, res) => {
     });
   } catch (error) {
     console.error("Error checking submission:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
@@ -183,10 +240,11 @@ export const checkSubmission = async (req, res) => {
 export const getQuizSubmissions = async (req, res) => {
   try {
     const { quizId } = req.params;
+    await getAuthorizedQuizForTeacher(req, quizId);
 
     const submissions = await QuizSubmission.find({ quizId })
       .populate("studentId", "name email profilePhoto")
-      .populate("quizId", "title questions status")
+      .populate("quizId", "title questions status classroomId")
       .sort({ submittedAt: -1 });
 
     res.status(200).json({
@@ -196,24 +254,18 @@ export const getQuizSubmissions = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching submissions:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 export const getSubmissionById = async (req, res) => {
   try {
     const { submissionId } = req.params;
 
-    const submission = await QuizSubmission.findById(submissionId)
-      .populate("studentId", "name email profilePhoto")
-      .populate("quizId", "title questions");
-
-    if (!submission) {
-      return res.status(404).json({ error: "Submission not found" });
-    }
+    const submission = await getAuthorizedQuizSubmissionForTeacher(req, submissionId);
 
     res.status(200).json({ submission });
   } catch (error) {
     console.error("Error fetching submission:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };

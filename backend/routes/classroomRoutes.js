@@ -16,9 +16,9 @@ import {
 const router = express.Router();
 
 router.post("/create", authMiddleware, authorizeRoles("teacher"), createClassroom);
-router.post("/join", joinClassroom);
-router.get("/", getClassrooms);
-router.get("/:classId", getClassroomById);
+router.post("/join", authMiddleware, authorizeRoles("student"), joinClassroom);
+router.get("/", authMiddleware, authorizeRoles("teacher", "student"), getClassrooms);
+router.get("/:classId", authMiddleware, authorizeRoles("teacher", "student"), getClassroomById);
 router.put("/:classId", authMiddleware, authorizeRoles("teacher"), updateClassroom);
 router.delete("/:classId", authMiddleware, authorizeRoles("teacher"), deleteClassroom);
 router.put(
@@ -34,6 +34,6 @@ router.put(
   endMeeting
 );
 
-router.post("/:classId/leave", leaveClassroom);
+router.post("/:classId/leave", authMiddleware, authorizeRoles("student"), leaveClassroom);
 
 export default router;

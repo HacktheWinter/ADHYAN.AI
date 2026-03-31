@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Star, MessageSquare, Send, CheckCircle, AlertCircle, Loader, ArrowLeft } from "lucide-react";
 import API_BASE_URL from "../config";
+import { getStoredToken, getStoredUser } from "../utils/authStorage";
 
 const StudentFeedbackPage = () => {
   const { id: classId } = useParams();
@@ -22,7 +23,7 @@ const StudentFeedbackPage = () => {
   const [answers, setAnswers] = useState({});
 
   const student = useMemo(() => {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const user = getStoredUser() || {};
     return {
       name: user.name || "",
       email: user.email || "",
@@ -38,7 +39,7 @@ const StudentFeedbackPage = () => {
     const fetchFeedback = async () => {
       try {
         // Check active feedback
-        const token = localStorage.getItem("token");
+        const token = getStoredToken();
 
         if (!token) {
           alert("Please login again");
@@ -118,7 +119,13 @@ const StudentFeedbackPage = () => {
     );
 
     try {
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
+
+      if (!token) {
+        alert("Please login again");
+        navigate("/login");
+        return;
+      }
 
       const res = await fetch(`${API_BASE_URL}/feedback/submit`, {
         method: "POST",

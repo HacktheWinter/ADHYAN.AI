@@ -1,17 +1,33 @@
 import CalendarEvent from "../models/CalendarEvent.js";
 import Classroom from "../models/Classroom.js";
+import {
+  createHttpError,
+  ensureUserMatchesId,
+  getAuthorizedClassroomForStudent,
+  getAuthorizedClassroomForTeacher,
+  getRequestUserId,
+} from "../utils/accessControl.js";
 
 // @desc    Create a new calendar event (Manual)
 // @route   POST /api/calendar/create
 // @access  Teacher
 export const createEvent = async (req, res) => {
     try {
-        const { title, type, classId, teacherId, startDate, endDate, description } = req.body;
+        const { title, type, classId, teacherId: requestedTeacherId, startDate, endDate, description } = req.body;
+        const teacherId = getRequestUserId(req);
+
+        ensureUserMatchesId(
+            requestedTeacherId,
+            teacherId,
+            "You can only create calendar events for your own account."
+        );
+
+        const classroom = await getAuthorizedClassroomForTeacher(req, classId);
 
         const newEvent = new CalendarEvent({
             title,
             type,
-            classId,
+            classId: classroom._id,
             teacherId,
             startDate,
             endDate: endDate || startDate, // Default to same day if not provided
@@ -22,7 +38,7 @@ export const createEvent = async (req, res) => {
         res.status(201).json({ success: true, event: newEvent });
     } catch (error) {
         console.error("Error creating event:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+        res.status(error.statusCode || 500).json({ message: "Server Error", error: error.message });
     }
 };
 
@@ -31,21 +47,29 @@ export const createEvent = async (req, res) => {
 // @access  Teacher
 export const getTeacherEvents = async (req, res) => {
     try {
-        const { teacherId } = req.params;
+        const { teacherId: requestedTeacherId } = req.params;
+        const teacherId = getRequestUserId(req);
+
+        ensureUserMatchesId(
+            requestedTeacherId,
+            teacherId,
+            "You can only access your own calendar events."
+        );
 
         // Optional: Filter by specific class if query param provided
         const { classId } = req.query;
 
         let query = { teacherId };
         if (classId) {
-            query.classId = classId;
+            const classroom = await getAuthorizedClassroomForTeacher(req, classId);
+            query.classId = classroom._id;
         }
 
         const events = await CalendarEvent.find(query).populate('classId', 'name');
         res.status(200).json({ success: true, events });
     } catch (error) {
         console.error("Error fetching teacher events:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+        res.status(error.statusCode || 500).json({ message: "Server Error", error: error.message });
     }
 };
 
@@ -55,12 +79,13 @@ export const getTeacherEvents = async (req, res) => {
 export const getStudentEvents = async (req, res) => {
     try {
         const { classId } = req.params;
+        const classroom = await getAuthorizedClassroomForStudent(req, classId);
 
-        const events = await CalendarEvent.find({ classId });
+        const events = await CalendarEvent.find({ classId: classroom._id });
         res.status(200).json({ success: true, events });
     } catch (error) {
         console.error("Error fetching student events:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+        res.status(error.statusCode || 500).json({ message: "Server Error", error: error.message });
     }
 };
 
@@ -69,7 +94,14 @@ export const getStudentEvents = async (req, res) => {
 // @access  Student
 export const getAllStudentEvents = async (req, res) => {
     try {
-        const { studentId } = req.params;
+        const { studentId: requestedStudentId } = req.params;
+        const studentId = getRequestUserId(req);
+
+        ensureUserMatchesId(
+            requestedStudentId,
+            studentId,
+            "You can only access your own calendar events."
+        );
 
         // 1. Find all classrooms where the student is enrolled
         const enrolledClassrooms = await Classroom.find({ students: studentId }).select('_id name');
@@ -92,7 +124,7 @@ export const getAllStudentEvents = async (req, res) => {
         res.status(200).json({ success: true, events });
     } catch (error) {
         console.error("Error fetching all student events:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+        res.status(error.statusCode || 500).json({ message: "Server Error", error: error.message });
     }
 };
 
@@ -108,13 +140,17 @@ export const deleteEvent = async (req, res) => {
             return res.status(404).json({ success: false, message: "Event not found" });
         }
 
-        // Optional: Check if the user is the teacher who created it (if strict ownership is needed)
-        // if (event.teacherId.toString() !== req.user.id) { ... }
+        const teacherId = getRequestUserId(req);
+        if (event.teacherId.toString() !== teacherId) {
+            throw createHttpError(403, "You are not authorized to delete this event.");
+        }
+
+        await getAuthorizedClassroomForTeacher(req, event.classId);
 
         await CalendarEvent.findByIdAndDelete(id);
         res.status(200).json({ success: true, message: "Event deleted" });
     } catch (error) {
         console.error("Error deleting event:", error);
-        res.status(500).json({ message: "Server Error", error: error.message });
+        res.status(error.statusCode || 500).json({ message: "Server Error", error: error.message });
     }
 };

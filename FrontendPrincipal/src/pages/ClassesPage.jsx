@@ -51,7 +51,7 @@ export default function ClassesPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search class, code, or teacher"
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-400"
+            className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-transparent focus:ring-2 focus:ring-purple-500"
           />
         }
       />
@@ -61,7 +61,7 @@ export default function ClassesPage() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-left">
               <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase tracking-[0.24em] text-slate-400">
+                <tr className="border-b border-gray-200 text-xs uppercase tracking-[0.24em] text-gray-400">
                   <th className="px-4 py-3">Class</th>
                   <th className="px-4 py-3">Teacher</th>
                   <th className="px-4 py-3">Students</th>
@@ -72,12 +72,15 @@ export default function ClassesPage() {
               </thead>
               <tbody>
                 {filteredClasses.map((classroom) => (
-                  <tr key={classroom._id} className="border-b border-slate-100 text-sm text-slate-700">
+                  <tr
+                    key={classroom._id}
+                    className="border-b border-gray-100 text-sm text-gray-700 transition hover:bg-purple-50/40"
+                  >
                     <td className="px-4 py-4">
-                      <p className="font-semibold text-slate-900">
+                      <p className="font-semibold text-gray-900">
                         {classroom.subject || classroom.name}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">{classroom.classCode}</p>
+                      <p className="mt-1 text-xs text-gray-500">{classroom.classCode}</p>
                     </td>
                     <td className="px-4 py-4">{classroom.teacher?.name || "Unassigned"}</td>
                     <td className="px-4 py-4">{classroom.studentCount}</td>
@@ -86,7 +89,7 @@ export default function ClassesPage() {
                     <td className="px-4 py-4">
                       <Link
                         to={`/classes/${classroom._id}`}
-                        className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white"
+                        className="rounded-full bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md transition hover:from-purple-700 hover:to-purple-800"
                       >
                         Inspect
                       </Link>
