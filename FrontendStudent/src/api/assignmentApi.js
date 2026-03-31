@@ -58,3 +58,29 @@ export const getAssignmentResult = async (assignmentId, studentId) => {
   );
   return res.data;
 };
+
+export const openSubmissionPdf = async (submissionId) => {
+  const pdfWindow = window.open("", "_blank", "noopener,noreferrer");
+
+  try {
+    const res = await axios.get(
+      `${BASE_URL}/assignment-submission/pdf/${submissionId}`,
+      { responseType: "blob" }
+    );
+
+    const pdfUrl = window.URL.createObjectURL(
+      new Blob([res.data], { type: "application/pdf" })
+    );
+
+    if (pdfWindow) {
+      pdfWindow.location.href = pdfUrl;
+    } else {
+      window.open(pdfUrl, "_blank", "noopener,noreferrer");
+    }
+
+    window.setTimeout(() => window.URL.revokeObjectURL(pdfUrl), 60_000);
+  } catch (error) {
+    pdfWindow?.close();
+    throw error;
+  }
+};

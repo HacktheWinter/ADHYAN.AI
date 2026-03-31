@@ -7,6 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import API_BASE_URL from '../config';
 import { ArrowLeft, Plus, X, CalendarDays, Loader, Clock, AlignLeft, Trash2, MapPin } from 'lucide-react';
+import { getStoredUser } from '../utils/authStorage';
 
 const CalendarPage = () => {
     const { classId } = useParams();
@@ -18,7 +19,7 @@ const CalendarPage = () => {
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [deleting, setDeleting] = useState(false);
     
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const currentUser = getStoredUser() || {};
     const teacherId = currentUser.id || currentUser._id;
 
     const [newEvent, setNewEvent] = useState({
@@ -32,6 +33,11 @@ const CalendarPage = () => {
     });
 
     useEffect(() => {
+        if (!teacherId) {
+            setLoading(false);
+            return;
+        }
+
         fetchEvents();
     }, [teacherId]);
 
