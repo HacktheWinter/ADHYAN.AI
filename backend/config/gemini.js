@@ -36,40 +36,69 @@ const rotateApiKey = () => {
 };
 
 const generationConfig = {
-  temperature: 1,
+  temperature: 0.7,
   topP: 0.95,
   topK: 40,
-  maxOutputTokens: 8192,
+  maxOutputTokens: 16384,
   responseMimeType: "application/json",
 };
 
 /**
  *  Generate MCQ Quiz from PDF Text
+ * @param {string} extractedText - Text extracted from PDFs
+ * @param {object} config - Quiz configuration
+ * @param {number} config.questionCount - Number of questions to generate (default 20)
+ * @param {number} config.marksPerQuestion - Marks per question (default 1)
+ * @param {string} config.difficulty - Difficulty level: easy, medium, hard, mixed (default mixed)
+ * @param {string[]} config.excludeQuestions - List of existing questions to avoid
  */
-export const generateQuizFromText = async (extractedText) => {
+export const generateQuizFromText = async (extractedText, config = {}) => {
+  const questionCount = config.questionCount || 20;
+  const marksPerQuestion = config.marksPerQuestion || 1;
+  const difficulty = config.difficulty || "mixed";
+  const excludeQuestions = config.excludeQuestions || [];
+
   let attempts = 0;
 
   while (attempts < MAX_RETRIES) {
     try {
       console.log("🤖 Preparing Gemini prompt for MCQ Quiz...");
+      console.log(`Config: ${questionCount} questions, ${marksPerQuestion} marks each, difficulty: ${difficulty}`);
 
       // Limit text to avoid token overflow
       const limitedText = extractedText.slice(0, 10000);
 
+      const difficultyInstruction = difficulty === "mixed"
+        ? "Mix difficulty levels (easy, medium, hard)"
+        : `All questions should be ${difficulty.toUpperCase()} difficulty level`;
+
+      const excludeInstruction = excludeQuestions.length > 0 
+        ? `\nDO NOT repeat or generate questions similar to these existing ones:\n- ${excludeQuestions.join('\n- ')}\n`
+        : "";
+
       const prompt = `
-You are an expert quiz generator. Generate exactly 20 multiple-choice questions from the following educational content.
+You are an expert quiz generator. Generate exactly ${questionCount} multiple-choice questions from the following educational content.
+
+${excludeInstruction}
+
+CRITICAL JSON RULES:
+1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
+2. NO LITERAL NEWLINES inside JSON string values.
+3. Escape all double quotes (\") within question or option text.
+4. Each option and explanation must be a single-line string.
 
 CONTENT:
 ${limitedText}
 
 REQUIREMENTS:
-1. Generate EXACTLY 20 questions
+1. Generate EXACTLY ${questionCount} questions
 2. Each question MUST have exactly 4 options (A, B, C, D)
 3. One option must be the correct answer
 4. Questions should be clear and unambiguous
 5. Cover different topics from the content
-6. Mix difficulty levels (easy, medium, hard)
+6. ${difficultyInstruction}
 7. Ensure options are distinct and plausible
+8. Each question is worth ${marksPerQuestion} mark(s)
 
 RESPONSE FORMAT (Valid JSON only):
 {
@@ -90,7 +119,7 @@ RESPONSE FORMAT (Valid JSON only):
 IMPORTANT: 
 - Return ONLY valid JSON
 - No markdown, no code blocks, no extra text
-- Exactly 20 questions
+- Exactly ${questionCount} questions
 - correctAnswer must EXACTLY match one of the options
 `;
 
@@ -186,32 +215,61 @@ IMPORTANT:
 
 /**
  *  Generate MCQ Quiz from Topics (without PDF)
+ * @param {string[]} topics - Array of topics
+ * @param {object} config - Quiz configuration
+ * @param {number} config.questionCount - Number of questions to generate (default 20)
+ * @param {number} config.marksPerQuestion - Marks per question (default 1)
+ * @param {string} config.difficulty - Difficulty level: easy, medium, hard, mixed (default mixed)
+ * @param {string[]} config.excludeQuestions - List of existing questions to avoid
  */
-export const generateQuizFromTopics = async (topics) => {
+export const generateQuizFromTopics = async (topics, config = {}) => {
+  const questionCount = config.questionCount || 20;
+  const marksPerQuestion = config.marksPerQuestion || 1;
+  const difficulty = config.difficulty || "mixed";
+  const excludeQuestions = config.excludeQuestions || [];
+
   let attempts = 0;
 
   while (attempts < MAX_RETRIES) {
     try {
       console.log("🤖 Preparing Gemini prompt for MCQ Quiz from topics...");
       console.log("Topics:", topics);
+      console.log(`Config: ${questionCount} questions, ${marksPerQuestion} marks each, difficulty: ${difficulty}`);
 
       const topicsText = Array.isArray(topics) ? topics.join(", ") : topics;
 
+      const difficultyInstruction = difficulty === "mixed"
+        ? "Mix difficulty levels (easy, medium, hard)"
+        : `All questions should be ${difficulty.toUpperCase()} difficulty level`;
+
+      const excludeInstruction = excludeQuestions.length > 0 
+        ? `\nDO NOT repeat or generate questions similar to these existing ones:\n- ${excludeQuestions.join('\n- ')}\n`
+        : "";
+
       const prompt = `
-You are an expert quiz generator. Generate exactly 20 multiple-choice questions based on the following topics.
+You are an expert quiz generator. Generate exactly ${questionCount} multiple-choice questions based on the following topics.
+
+${excludeInstruction}
+
+CRITICAL JSON RULES:
+1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
+2. NO LITERAL NEWLINES inside JSON string values.
+3. Escape all double quotes (\") within question or option text.
+4. Each option and explanation must be a single-line string.
 
 TOPICS:
 ${topicsText}
 
 REQUIREMENTS:
-1. Generate EXACTLY 20 questions
+1. Generate EXACTLY ${questionCount} questions
 2. Each question MUST have exactly 4 options (A, B, C, D)
 3. One option must be the correct answer
 4. Questions should be clear and unambiguous
 5. Cover different aspects of the given topics
-6. Mix difficulty levels (easy, medium, hard)
+6. ${difficultyInstruction}
 7. Ensure options are distinct and plausible
 8. Questions should be educational and test understanding
+9. Each question is worth ${marksPerQuestion} mark(s)
 
 RESPONSE FORMAT (Valid JSON only):
 {
@@ -232,7 +290,7 @@ RESPONSE FORMAT (Valid JSON only):
 IMPORTANT: 
 - Return ONLY valid JSON
 - No markdown, no code blocks, no extra text
-- Exactly 20 questions
+- Exactly ${questionCount} questions
 - correctAnswer must EXACTLY match one of the options
 `;
 

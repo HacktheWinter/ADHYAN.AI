@@ -11,6 +11,9 @@ import {
   Loader,
   X,
   Eye,
+  Settings2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   getAssignmentsByClassroom,
@@ -42,6 +45,13 @@ const AssignmentsPage = () => {
   const [availableNotes, setAvailableNotes] = useState([]);
   const [selectedNotes, setSelectedNotes] = useState([]);
 
+  // AI Gen Config
+  const [customTitle, setCustomTitle] = useState("");
+  const [questionCount, setQuestionCount] = useState(5);
+  const [marksPerQuestion, setMarksPerQuestion] = useState(2);
+  const [difficulty, setDifficulty] = useState("mixed");
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
   useEffect(() => {
     if (classData?.id) {
       fetchAssignments();
@@ -66,6 +76,12 @@ const AssignmentsPage = () => {
   const handleOpenAIModal = async () => {
     setShowAIModal(true);
     setLoadingNotes(true);
+    // Reset config
+    setCustomTitle("");
+    setQuestionCount(5);
+    setMarksPerQuestion(2);
+    setDifficulty("mixed");
+    setShowAdvancedOptions(false);
 
     try {
       const response = await getNotesByClassroom(classData.id);
@@ -87,9 +103,17 @@ const AssignmentsPage = () => {
     setIsGenerating(true);
 
     try {
+      const config = {
+        customTitle: customTitle.trim(),
+        questionCount,
+        marksPerQuestion,
+        difficulty
+      };
+
       const response = await generateAssignmentWithAI(
         selectedNotes,
-        classData.id
+        classData.id,
+        config
       );
 
       setDrafts((prev) => [response.assignment, ...prev]);
@@ -98,11 +122,14 @@ const AssignmentsPage = () => {
         "Assignment Generated!\n\n" +
           "Details:\n" +
           `• Questions: ${response.stats.questionsGenerated}\n` +
+          `• Marks per Q: ${response.stats.marksPerQuestion}\n` +
           `• Total Marks: ${response.stats.totalMarks}\n` +
+          `• Difficulty: ${response.stats.difficulty}\n` +
           `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}`
       );
 
       setSelectedNotes([]);
+      setCustomTitle("");
       setShowAIModal(false);
     } catch (error) {
       console.error("Generation error:", error);
@@ -418,73 +445,145 @@ const AssignmentsPage = () => {
             </div>
 
             {/* Body */}
-            <div className="p-4 sm:p-6 flex-1 overflow-y-auto">
-              <h4 className="font-semibold text-gray-900 mb-4">
-                Select Source Notes
-              </h4>
+            {/* Body */}
+            <div className="p-4 sm:p-6 flex-1 overflow-y-auto space-y-6">
+              {/* Assignment Title */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-purple-600" />
+                  Assignment Title (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Chapter 1 Review, Weekly Homework..."
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  disabled={isGenerating}
+                />
+              </div>
 
-              {loadingNotes ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader className="w-8 h-8 text-purple-600 animate-spin" />
-                  <span className="ml-3 text-gray-600">Loading notes...</span>
-                </div>
-              ) : availableNotes.length === 0 ? (
-                <div className="text-center py-12">
-                  <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 font-medium">No notes uploaded</p>
-                  <p className="text-gray-400 text-sm mt-1">
-                    Upload notes from the "Notes" tab first.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {availableNotes.map((note) => (
-                    <label
-                      key={note._id}
-                      className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border rounded-lg cursor-pointer transition-all ${
-                        selectedNotes.includes(note._id)
-                          ? "border-indigo-600 bg-indigo-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      } ${isGenerating ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedNotes.includes(note._id)}
-                        onChange={() => toggleNoteSelection(note._id)}
-                        disabled={isGenerating}
-                        className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-600"
-                      />
+              {/* Notes Selection Group */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-indigo-600" />
+                  Select Source Notes
+                </h4>
 
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
-                        </div>
-
+                {loadingNotes ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader className="w-8 h-8 text-purple-600 animate-spin" />
+                  </div>
+                ) : availableNotes.length === 0 ? (
+                  <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                    <p className="text-gray-500 text-sm">No notes found. Upload some first.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                    {availableNotes.map((note) => (
+                      <label
+                        key={note._id}
+                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
+                          selectedNotes.includes(note._id)
+                            ? "border-indigo-600 bg-indigo-50 shadow-sm"
+                            : "border-gray-200 hover:border-gray-300"
+                        } ${isGenerating ? "opacity-50 cursor-not-allowed" : ""}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedNotes.includes(note._id)}
+                          onChange={() => toggleNoteSelection(note._id)}
+                          disabled={isGenerating}
+                          className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-600 cursor-pointer"
+                        />
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">
-                            {note.title}
-                          </p>
-                          <p className="text-xs sm:text-sm text-gray-500 truncate">
-                            Uploaded by {note.uploadedBy} •{" "}
-                            {new Date(note.createdAt).toLocaleDateString()}
-                          </p>
+                          <p className="font-medium text-gray-900 text-sm truncate">{note.title}</p>
                         </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              )}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Advanced Customization Options */}
+              <div className="border-t border-gray-100 pt-4">
+                <button 
+                  onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors mb-4"
+                >
+                  <Settings2 className="w-4 h-4" />
+                  Advanced Question Options
+                  {showAdvancedOptions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {showAdvancedOptions && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100"
+                  >
+                    {/* Q Count */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Question Count</label>
+                      <input 
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={questionCount}
+                        onChange={(e) => setQuestionCount(Math.max(1, Number(e.target.value)))}
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
+                        disabled={isGenerating}
+                      />
+                    </div>
+
+                    {/* Marks Per Q */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Marks per Q</label>
+                      <input 
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={marksPerQuestion}
+                        onChange={(e) => setMarksPerQuestion(Math.max(1, Number(e.target.value)))}
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all"
+                        disabled={isGenerating}
+                      />
+                    </div>
+
+                    {/* Difficulty */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-tight flex justify-between">
+                        Difficulty
+                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black">
+                          {questionCount * marksPerQuestion} MARKS TOTAL
+                        </span>
+                      </label>
+                      <select 
+                        value={difficulty}
+                        onChange={(e) => setDifficulty(e.target.value)}
+                        className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm"
+                        disabled={isGenerating}
+                      >
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                        <option value="mixed">Mixed</option>
+                      </select>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
             </div>
 
             {/* Footer */}
-            <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3">
+            <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3 bg-gray-50 rounded-b-xl">
               <button
                 onClick={() => {
                   setShowAIModal(false);
                   setSelectedNotes([]);
                 }}
                 disabled={isGenerating}
-                className="w-full sm:flex-1 px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 cursor-pointer"
+                className="w-full sm:flex-1 px-6 py-3 bg-white text-gray-700 font-semibold rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors disabled:opacity-50 cursor-pointer"
               >
                 Cancel
               </button>
@@ -492,15 +591,18 @@ const AssignmentsPage = () => {
               <button
                 onClick={handleGenerateWithAI}
                 disabled={selectedNotes.length === 0 || isGenerating}
-                className="w-full sm:flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                className="w-full sm:flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg cursor-pointer"
               >
                 {isGenerating ? (
                   <span className="flex items-center justify-center gap-2">
-                    <Loader className="w-4 h-4 animate-spin" />
-                    Generating...
+                    <Loader className="w-5 h-5 animate-spin" />
+                    Generating {questionCount} Qs...
                   </span>
                 ) : (
-                  `Generate Assignment (${selectedNotes.length} notes)`
+                  <span className="flex items-center justify-center gap-2">
+                    <Sparkles className="w-5 h-5" />
+                    Generate Assignment ({questionCount * marksPerQuestion} Marks)
+                  </span>
                 )}
               </button>
             </div>
