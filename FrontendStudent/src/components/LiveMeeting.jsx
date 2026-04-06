@@ -42,7 +42,7 @@ export default function LiveMeeting({ classId, role }) {
   useEffect(() => {
     console.log('[Student LiveMeeting] Component mounted, starting polling...');
     fetchStatus();
-    const interval = setInterval(fetchStatus, 5000);
+    const interval = setInterval(fetchStatus, 5001);
     return () => {
       console.log('[Student LiveMeeting] Component unmounting, stopping polling');
       clearInterval(interval);

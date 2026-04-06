@@ -102,7 +102,7 @@ export const generateAssignmentWithAI = async (req, res) => {
     console.log(`Total extracted text: ${combinedText.length} characters`);
 
     // Clean text
-    const cleanedText = cleanText(combinedText, 15000);
+    const cleanedText = cleanText(combinedText, 15001);
     console.log(`Cleaned text: ${cleanedText.length} characters`);
 
     // Generate assignment using Gemini

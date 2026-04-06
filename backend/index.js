@@ -29,6 +29,7 @@ import profileRoutes from "./routes/profileRoutes.js";
 
 import videoRoutes from "./routes/video.routes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
+import seminarRoutes from "./routes/seminarRoutes.js";
 import socketHandler from "./socket/socketHandler.js";
 
 const app = express();
@@ -116,6 +117,7 @@ app.use('/api', forgotPasswordRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api", videoRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/seminar", seminarRoutes);
 
 
 // Serve uploaded files
@@ -127,7 +129,7 @@ app.get("/", (req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });

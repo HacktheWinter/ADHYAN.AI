@@ -72,7 +72,7 @@ npm install
 nodemon server.js
 ```
 
-Backend runs at: `http://localhost:5000`
+Backend runs at: `http://localhost:5001`
 
 ---
 
