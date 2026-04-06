@@ -47,11 +47,11 @@ export default function ClassDetailPage() {
       <PageHeader
         eyebrow="Class inspection"
         title={classroom.subject || classroom.name}
-        description={`${classroom.classCode} • ${classroom.studentCount} students • ${classroom.teacher?.name || "Unassigned teacher"}`}
+        description={`${classroom.classCode} | ${classroom.studentCount} students | ${classroom.teacher?.name || "Unassigned teacher"}`}
         action={
           <Link
             to="/classes"
-            className="rounded-full border border-slate-200 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700"
+            className="rounded-full border border-gray-200 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-gray-700 transition hover:bg-purple-50 hover:text-purple-700"
           >
             Back to classes
           </Link>
@@ -61,46 +61,56 @@ export default function ClassDetailPage() {
       <div className="grid gap-6 xl:grid-cols-3">
         <SectionCard title="Operations" description="Published classroom workload.">
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-2xl bg-slate-50 px-4 py-4">
-              <p className="text-slate-500">Notes</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">{classroom.noteCount}</p>
+            <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4">
+              <p className="text-gray-500">Notes</p>
+              <p className="mt-2 text-2xl font-bold text-gray-900">{classroom.noteCount}</p>
             </div>
-            <div className="rounded-2xl bg-slate-50 px-4 py-4">
-              <p className="text-slate-500">Assignments</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">{classroom.assignmentCount}</p>
+            <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4">
+              <p className="text-gray-500">Assignments</p>
+              <p className="mt-2 text-2xl font-bold text-gray-900">
+                {classroom.assignmentCount}
+              </p>
             </div>
-            <div className="rounded-2xl bg-slate-50 px-4 py-4">
-              <p className="text-slate-500">Quizzes</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">{classroom.quizCount}</p>
+            <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4">
+              <p className="text-gray-500">Quizzes</p>
+              <p className="mt-2 text-2xl font-bold text-gray-900">{classroom.quizCount}</p>
             </div>
-            <div className="rounded-2xl bg-slate-50 px-4 py-4">
-              <p className="text-slate-500">Test papers</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">{classroom.testPaperCount}</p>
+            <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4">
+              <p className="text-gray-500">Test papers</p>
+              <p className="mt-2 text-2xl font-bold text-gray-900">
+                {classroom.testPaperCount}
+              </p>
             </div>
           </div>
         </SectionCard>
 
         <SectionCard title="Performance" description="Participation and result trends.">
-          <div className="space-y-3 text-sm text-slate-700">
-            <div className="rounded-2xl bg-slate-50 px-4 py-4">
-              Attendance rate: <span className="font-semibold">{classroom.attendancePercentage}%</span>
+          <div className="space-y-3 text-sm text-gray-700">
+            <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4">
+              Attendance rate:{" "}
+              <span className="font-semibold">{classroom.attendancePercentage}%</span>
             </div>
-            <div className="rounded-2xl bg-slate-50 px-4 py-4">
-              Assignment submissions: <span className="font-semibold">{classroom.assignmentSubmissionRate}%</span>
+            <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4">
+              Assignment submissions:{" "}
+              <span className="font-semibold">{classroom.assignmentSubmissionRate}%</span>
             </div>
-            <div className="rounded-2xl bg-slate-50 px-4 py-4">
-              Quiz participation: <span className="font-semibold">{classroom.quizParticipationRate}%</span>
+            <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4">
+              Quiz participation:{" "}
+              <span className="font-semibold">{classroom.quizParticipationRate}%</span>
             </div>
-            <div className="rounded-2xl bg-slate-50 px-4 py-4">
-              Test participation: <span className="font-semibold">{classroom.testParticipationRate}%</span>
+            <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4">
+              Test participation:{" "}
+              <span className="font-semibold">{classroom.testParticipationRate}%</span>
             </div>
           </div>
         </SectionCard>
 
         <SectionCard title="Teacher" description="Class ownership and live state.">
-          <div className="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-700">
-            <p className="font-semibold text-slate-900">{classroom.teacher?.name || "Unassigned"}</p>
-            <p className="mt-1 text-slate-500">{classroom.teacher?.email || "No email"}</p>
+          <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4 text-sm text-gray-700">
+            <p className="font-semibold text-gray-900">
+              {classroom.teacher?.name || "Unassigned"}
+            </p>
+            <p className="mt-1 text-gray-500">{classroom.teacher?.email || "No email"}</p>
             <p className="mt-4">
               Live now: <span className="font-semibold">{classroom.activeLive ? "Yes" : "No"}</span>
             </p>
@@ -118,10 +128,10 @@ export default function ClassDetailPage() {
               {classroom.students.map((student) => (
                 <div
                   key={student._id}
-                  className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3"
+                  className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-3"
                 >
-                  <p className="font-semibold text-slate-900">{student.name}</p>
-                  <p className="mt-1 text-sm text-slate-500">{student.email}</p>
+                  <p className="font-semibold text-gray-900">{student.name}</p>
+                  <p className="mt-1 text-sm text-gray-500">{student.email}</p>
                 </div>
               ))}
             </div>

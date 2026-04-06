@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Calendar, Clock, ChevronRight, Loader, ChevronDown, ChevronUp } from 'lucide-react';
 import EventDetailModal from './EventDetailModal';
 import API_BASE_URL from '../config';
+import { getStoredUser } from '../utils/authStorage';
 
 const UpcomingEventsSidebar = () => {
     const [events, setEvents] = useState([]);
@@ -10,7 +11,7 @@ const UpcomingEventsSidebar = () => {
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [isExpanded, setIsExpanded] = useState(false);
     
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = getStoredUser() || {};
     const studentId = user.id || user._id;
 
     useEffect(() => {

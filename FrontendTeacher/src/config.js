@@ -3,6 +3,9 @@ const API_BASE_URL =
     ? "http://localhost:5001/api"
     : "https://adhyanai-backend.onrender.com/api";
 
+export const LANDING_PAGE_URL =
+  import.meta.env.VITE_LANDING_PAGE_URL || "https://adhyan-ai.onrender.com/";
+
 export const SOCKET_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:5001"

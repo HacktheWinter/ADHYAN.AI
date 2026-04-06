@@ -3,11 +3,11 @@ import {
   Building2,
   LayoutDashboard,
   LogOut,
-  ShieldCheck,
   UserCircle2,
   Users,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { LANDING_PAGE_URL } from "../../config";
 
 const navItems = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard, end: true },
@@ -19,19 +19,28 @@ const navItems = [
 
 export default function Sidebar({ onLogout }) {
   return (
-    <aside className="flex h-full flex-col rounded-[30px] border border-slate-200 bg-[#0f172a] p-5 text-slate-200 shadow-[0_28px_80px_rgba(15,23,42,0.24)]">
-      <div className="rounded-[24px] bg-white/6 p-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-400/16 text-sky-300">
-          <ShieldCheck className="h-7 w-7" />
+    <aside className="flex self-start flex-col rounded-[30px] border border-gray-200 bg-white/90 p-5 text-gray-700 shadow-[0_24px_60px_rgba(88,28,135,0.08)] backdrop-blur-md xl:sticky xl:top-4 xl:h-[calc(100vh-2rem)]">
+      <a
+        href={LANDING_PAGE_URL}
+        className="rounded-[24px] border border-purple-100 bg-gradient-to-br from-purple-50 via-white to-purple-50 p-4 transition hover:border-purple-200"
+      >
+        <div className="flex items-center gap-3">
+          <img
+            src="/logo02.png"
+            alt="ADHYAN.AI Logo"
+            className="h-14 w-14 object-contain"
+          />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-purple-500">
+              ADHYAN.AI
+            </p>
+            <h2 className="mt-1 text-2xl font-bold text-gray-900">Principal</h2>
+          </div>
         </div>
-        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
-          ADHYAN.AI
-        </p>
-        <h2 className="mt-1 text-2xl font-bold text-white">Principal</h2>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-4 text-sm text-gray-600">
           Inspection-first control room for academic oversight.
         </p>
-      </div>
+      </a>
 
       <nav className="mt-8 space-y-2">
         {navItems.map((item) => (
@@ -42,8 +51,8 @@ export default function Sidebar({ onLogout }) {
             className={({ isActive }) =>
               `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
                 isActive
-                  ? "bg-sky-400 text-slate-950 shadow-[0_16px_28px_rgba(56,189,248,0.25)]"
-                  : "text-slate-300 hover:bg-white/8 hover:text-white"
+                  ? "bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-[0_16px_30px_rgba(126,34,206,0.25)]"
+                  : "text-gray-600 hover:bg-purple-50 hover:text-purple-700"
               }`
             }
           >
@@ -56,7 +65,7 @@ export default function Sidebar({ onLogout }) {
       <button
         type="button"
         onClick={onLogout}
-        className="mt-auto flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+        className="mt-auto flex items-center justify-center gap-2 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-100"
       >
         <LogOut className="h-4 w-4" />
         Logout

@@ -3,6 +3,7 @@ import axios from "axios";
 import API_BASE_URL from "../config";
 import { Bell, Clock, Calendar, CheckCircle, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getStoredUser } from "../utils/authStorage";
 
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,7 +14,7 @@ const NotificationDropdown = () => {
   const [visibleNotifications, setVisibleNotifications] = useState([]);
   const dropdownRef = useRef(null);
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = getStoredUser() || {};
   const studentId = user.id || user._id;
 
   useEffect(() => {
