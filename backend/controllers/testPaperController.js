@@ -22,11 +22,11 @@ export const generateTestPaperWithAI = async (req, res) => {
       console.error("GridFS bucket not ready");
       return;
     }
-    const { noteIds, classroomId } = req.body;
+    const { noteIds, classroomId, customTitle, counts, difficulty } = req.body;
     const teacherId = req.user?._id?.toString();
 
     console.log("=== TEST PAPER GENERATION STARTED ===");
-    console.log("Request:", { noteIds, classroomId });
+    console.log("Request:", { noteIds, classroomId, customTitle, counts, difficulty });
 
     if (!noteIds || !Array.isArray(noteIds) || noteIds.length === 0) {
       return res.status(400).json({ error: "Please select at least one note" });
@@ -45,6 +45,25 @@ export const generateTestPaperWithAI = async (req, res) => {
         return res.status(403).json({ error: "Unauthorized" });
       }
     }
+
+    // Build config with proper nested structure for counts
+    const testConfig = {
+      counts: {
+        short: { 
+          count: typeof counts?.short === 'object' ? (counts.short.count || 5) : (Number(counts?.short) || 5),
+          optional: typeof counts?.short === 'object' ? (counts.short.optional || 0) : 0
+        },
+        medium: { 
+          count: typeof counts?.medium === 'object' ? (counts.medium.count || 4) : (Number(counts?.medium) || 4),
+          optional: typeof counts?.medium === 'object' ? (counts.medium.optional || 0) : 0
+        },
+        long: { 
+          count: typeof counts?.long === 'object' ? (counts.long.count || 2) : (Number(counts?.long) || 2),
+          optional: typeof counts?.long === 'object' ? (counts.long.optional || 0) : 0
+        }
+      },
+      difficulty: difficulty || "mixed",
+    };
 
     // Fetch notes
     const notes = await Note.find({ _id: { $in: noteIds } });
@@ -103,9 +122,17 @@ export const generateTestPaperWithAI = async (req, res) => {
     // Clean text
     const cleanedText = cleanText(combinedText, 15001);
 
+    // Fetch existing questions for this classroom to avoid repetition
+    const existingPapers = await TestPaper.find({ classroomId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select("questions.question");
+    
+    const excludeQuestions = existingPapers.flatMap(p => p.questions.map(extQ => extQ.question));
+
     // Generate test paper using Gemini
     console.log("Calling Gemini API...");
-    const questions = await generateTestPaperFromText(cleanedText);
+    const questions = await generateTestPaperFromText(cleanedText, { ...testConfig, excludeQuestions });
 
     console.log(`Generated ${questions.length} questions`);
 
@@ -114,10 +141,19 @@ export const generateTestPaperWithAI = async (req, res) => {
       .slice(0, 2)
       .map((n) => n.title)
       .join(", ");
-    const testTitle =
-      notes.length > 2
+    
+    const testTitle = customTitle?.trim()
+      ? customTitle.trim()
+      : notes.length > 2
         ? `Test Paper from ${noteNames} and ${notes.length - 2} more`
         : `Test Paper from ${noteNames}`;
+
+    // Calculate total marks (only count required questions, not optional ones)
+    const finalCounts = testConfig.counts;
+    const calculatedTotalMarks = 
+      (finalCounts.short.count * 2) + 
+      (finalCounts.medium.count * 5) + 
+      (finalCounts.long.count * 10);
 
     // Save to database
     const testPaper = await TestPaper.create({
@@ -128,10 +164,15 @@ export const generateTestPaperWithAI = async (req, res) => {
         question: q.question,
         type: q.type,
         marks: q.marks,
+        section: q.section || "",
+        choiceLabel: q.choiceLabel || "",
+        choiceGroup: q.choiceGroup || "",
         answerKey: q.answerKey,
         answerGuidelines: q.answerGuidelines || "",
       })),
-      totalMarks: 50,
+      questionCounts: testConfig.counts,
+      totalMarks: calculatedTotalMarks,
+      difficulty: testConfig.difficulty,
       status: "draft",
     });
 
@@ -146,7 +187,8 @@ export const generateTestPaperWithAI = async (req, res) => {
         totalNotes: notes.length,
         processedNotes: successfulExtractions,
         questionsGenerated: questions.length,
-        totalMarks: 50,
+        totalMarks: calculatedTotalMarks,
+        difficulty: testConfig.difficulty,
       },
     });
   } catch (error) {

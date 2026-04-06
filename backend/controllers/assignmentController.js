@@ -20,10 +20,10 @@ export const generateAssignmentWithAI = async (req, res) => {
       console.error("GridFS bucket not ready");
       return;
     }
-    const { noteIds, classroomId } = req.body;
+    const { noteIds, classroomId, customTitle, questionCount, marksPerQuestion, difficulty } = req.body;
 
     console.log("=== ASSIGNMENT GENERATION STARTED ===");
-    console.log("Request:", { noteIds, classroomId });
+    console.log("Request:", { noteIds, classroomId, customTitle, questionCount, marksPerQuestion, difficulty });
 
     if (!noteIds || !Array.isArray(noteIds) || noteIds.length === 0) {
       return res.status(400).json({ error: "Please select at least one note" });
@@ -45,6 +45,13 @@ export const generateAssignmentWithAI = async (req, res) => {
           .json({ error: "Unauthorized to generate assignments for this classroom" });
       }
     }
+
+    // AI Config
+    const aiConfig = {
+      questionCount: parseInt(questionCount) || 5,
+      marksPerQuestion: Number(marksPerQuestion) || 2,
+      difficulty: difficulty || "mixed"
+    };
 
     // Fetch notes
     const notes = await Note.find({ _id: { $in: noteIds } });
@@ -99,34 +106,37 @@ export const generateAssignmentWithAI = async (req, res) => {
     }
 
     console.log("Content validation passed");
-    console.log(`Total extracted text: ${combinedText.length} characters`);
 
     // Clean text
     const cleanedText = cleanText(combinedText, 15001);
-    console.log(`Cleaned text: ${cleanedText.length} characters`);
+
+    // Fetch existing questions for this classroom to avoid repetition
+    const existingAssignments = await Assignment.find({ classroomId })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select("questions.question");
+    
+    const excludeQuestions = existingAssignments.flatMap(a => a.questions.map(extQ => extQ.question));
 
     // Generate assignment using Gemini
     console.log("Calling Gemini API for assignment generation...");
-    console.log("Generating 5 questions × 2 marks each = 10 total marks");
-
+    
     let questions;
     try {
-      questions = await generateAssignmentFromText(cleanedText);
+      questions = await generateAssignmentFromText(cleanedText, { ...aiConfig, excludeQuestions });
       console.log(`Generated ${questions.length} questions`);
     } catch (aiError) {
       console.error("AI Generation Error:", aiError.message);
       return res.status(500).json({
         error: "Failed to generate assignment using AI",
         details: aiError.message,
-        suggestion: "Please try again or select different notes",
       });
     }
 
-    // Validate questions
-    if (!questions || questions.length !== 5) {
+    // Validate questions count (allowing some flexibility but not too much)
+    if (!questions || questions.length === 0) {
       return res.status(500).json({
-        error: "AI did not generate the expected number of questions",
-        details: `Expected 5 questions, got ${questions?.length || 0}`,
+        error: "AI did not generate any questions",
       });
     }
 
@@ -135,24 +145,30 @@ export const generateAssignmentWithAI = async (req, res) => {
       .slice(0, 2)
       .map((n) => n.title)
       .join(", ");
-    const assignmentTitle =
-      notes.length > 2
+    
+    const assignmentTitle = customTitle?.trim() 
+      ? customTitle.trim() 
+      : notes.length > 2
         ? `Assignment from ${noteNames} and ${notes.length - 2} more`
         : `Assignment from ${noteNames}`;
 
-    // Save to database (5 questions × 2 marks = 10 marks)
+    const totalMarks = questions.reduce((acc, q) => acc + (q.marks || aiConfig.marksPerQuestion), 0);
+
+    // Save to database
     const assignment = await Assignment.create({
       classroomId,
       title: assignmentTitle,
-      description: "Complete all 5 questions with brief answers (2 marks each)",
+      description: `Complete all ${questions.length} questions. Each question is worth ${aiConfig.marksPerQuestion} marks.`,
       generatedFrom: noteIds,
       questions: questions.map((q) => ({
         question: q.question,
-        marks: q.marks,
+        marks: q.marks || aiConfig.marksPerQuestion,
         answerKey: q.answerKey,
         answerGuidelines: q.answerGuidelines || "",
       })),
-      totalMarks: 10,
+      marksPerQuestion: aiConfig.marksPerQuestion,
+      totalMarks: totalMarks,
+      difficulty: aiConfig.difficulty,
       status: "draft",
     });
 
@@ -161,14 +177,15 @@ export const generateAssignmentWithAI = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Generated assignment with ${questions.length} questions (2 marks each)`,
+      message: `Generated assignment with ${questions.length} questions`,
       assignment,
       stats: {
         totalNotes: notes.length,
         processedNotes: successfulExtractions,
         questionsGenerated: questions.length,
-        marksPerQuestion: 2,
-        totalMarks: 10,
+        marksPerQuestion: aiConfig.marksPerQuestion,
+        totalMarks: totalMarks,
+        difficulty: aiConfig.difficulty,
       },
     });
   } catch (error) {
