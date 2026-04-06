@@ -19,8 +19,8 @@ export default function AppShell() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.16),transparent_25%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.12),transparent_28%),linear-gradient(180deg,#f4f8fc_0%,#e9f1f9_100%)] px-4 py-4 sm:px-6">
-      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-400 gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50 px-4 py-4 sm:px-6">
+      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[1600px] gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
         <Sidebar onLogout={handleLogout} />
         <main className="space-y-4">
           <Topbar />

@@ -10,16 +10,52 @@ const safeParse = (value) => {
   }
 };
 
-const resolveStorage = () => {
-  const hasLocalUser = localStorage.getItem(USER_KEY);
-  const hasLocalToken = localStorage.getItem(TOKEN_KEY);
-  const hasSessionUser = sessionStorage.getItem(USER_KEY);
-  const hasSessionToken = sessionStorage.getItem(TOKEN_KEY);
+const clearStorage = (storage) => {
+  storage.removeItem(TOKEN_KEY);
+  storage.removeItem(USER_KEY);
+};
 
-  if (hasLocalUser && hasLocalToken) return localStorage;
-  if (hasSessionUser && hasSessionToken) return sessionStorage;
-  if (hasLocalToken || hasLocalUser) return localStorage;
-  if (hasSessionToken || hasSessionUser) return sessionStorage;
+const decodeTokenPayload = (token) => {
+  if (!token) return null;
+
+  const [, payload] = token.split('.');
+  if (!payload) return null;
+
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+};
+
+const isTokenExpired = (token) => {
+  const payload = decodeTokenPayload(token);
+
+  if (!payload) return true;
+  if (typeof payload.exp !== 'number') return false;
+
+  return payload.exp * 1000 <= Date.now();
+};
+
+const hasValidSession = (storage) => {
+  const token = storage.getItem(TOKEN_KEY);
+  const user = storage.getItem(USER_KEY);
+
+  if (!token && !user) return false;
+
+  if (!token || !user || isTokenExpired(token)) {
+    clearStorage(storage);
+    return false;
+  }
+
+  return true;
+};
+
+const resolveStorage = () => {
+  if (hasValidSession(localStorage)) return localStorage;
+  if (hasValidSession(sessionStorage)) return sessionStorage;
   return null;
 };
 
@@ -46,15 +82,12 @@ export const persistAuth = (token, user, rememberMe) => {
     target.setItem(USER_KEY, JSON.stringify(user));
   }
 
-  other.removeItem(TOKEN_KEY);
-  other.removeItem(USER_KEY);
+  clearStorage(other);
 };
 
 export const clearAuth = () => {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
-  sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(USER_KEY);
+  clearStorage(localStorage);
+  clearStorage(sessionStorage);
 };
 
 export const updateStoredUser = (userPatch) => {

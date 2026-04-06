@@ -23,32 +23,32 @@ export default function ActivityTimeline({ activities = [] }) {
       {activities.map((activity) => (
         <div
           key={activity._id}
-          className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4"
+          className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4"
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-sm font-semibold text-gray-900">
                 {actionLabelMap[activity.action] || activity.action}
               </p>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="mt-1 text-sm text-gray-600">
                 {activity.teacherName} in {activity.className}
               </p>
               {activity.meta?.noteTitle ? (
-                <p className="mt-1 text-xs text-slate-500">Note: {activity.meta.noteTitle}</p>
+                <p className="mt-1 text-xs text-gray-500">Note: {activity.meta.noteTitle}</p>
               ) : null}
               {activity.meta?.assignmentTitle ? (
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-gray-500">
                   Assignment: {activity.meta.assignmentTitle}
                 </p>
               ) : null}
               {activity.meta?.quizTitle ? (
-                <p className="mt-1 text-xs text-slate-500">Quiz: {activity.meta.quizTitle}</p>
+                <p className="mt-1 text-xs text-gray-500">Quiz: {activity.meta.quizTitle}</p>
               ) : null}
               {activity.meta?.testTitle ? (
-                <p className="mt-1 text-xs text-slate-500">Test: {activity.meta.testTitle}</p>
+                <p className="mt-1 text-xs text-gray-500">Test: {activity.meta.testTitle}</p>
               ) : null}
             </div>
-            <p className="text-xs font-medium uppercase tracking-[0.24em] text-slate-400">
+            <p className="text-xs font-medium uppercase tracking-[0.24em] text-purple-500">
               {formatDateTime(activity.createdAt)}
             </p>
           </div>

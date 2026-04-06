@@ -4,7 +4,7 @@ import { LogIn, LogOut, Settings, User, UserPlus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import NotificationDropdown from './NotificationDropdown';
 import { clearAuth, getStoredUser } from '../utils/authStorage';
-import API_BASE_URL from '../config';
+import API_BASE_URL, { LANDING_PAGE_URL } from '../config';
 
 export default function StudentNavbar({ searchQuery = '', onSearchChange = () => {} }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -92,7 +92,7 @@ export default function StudentNavbar({ searchQuery = '', onSearchChange = () =>
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
             <a 
-              href="https://adhyanai-5eum.onrender.com/" 
+              href={LANDING_PAGE_URL}
               className="flex items-center space-x-1 focus:outline-none"
             >
               <img 

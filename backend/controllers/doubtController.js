@@ -1,109 +1,144 @@
 import Doubt from "../models/Doubt.js";
 import User from "../models/User.js";
+import Classroom from "../models/Classroom.js";
+import {
+  createHttpError,
+  getAuthorizedClassroomForStudent,
+  getAuthorizedClassroomForTeacher,
+  getAuthorizedClassroomForUser,
+  getRequestUserId,
+} from "../utils/accessControl.js";
+
+const hydrateDoubts = async (doubts) =>
+  Promise.all(
+    doubts.map(async (doubt) => {
+      const doubtObj = doubt.toObject();
+
+      if (doubtObj.authorId) {
+        const author = await User.findById(doubtObj.authorId).select(
+          "name profilePhoto role"
+        );
+        if (author) {
+          doubtObj.authorName = author.name;
+          doubtObj.profilePhoto = author.profilePhoto;
+          doubtObj.authorRole = author.role;
+        }
+      }
+
+      if (Array.isArray(doubtObj.replies) && doubtObj.replies.length > 0) {
+        doubtObj.replies = await Promise.all(
+          doubtObj.replies.map(async (reply) => {
+            if (!reply.authorId) return reply;
+
+            const replyAuthor = await User.findById(reply.authorId).select(
+              "name profilePhoto role"
+            );
+            if (replyAuthor) {
+              reply.authorName = replyAuthor.name;
+              reply.profilePhoto = replyAuthor.profilePhoto;
+              reply.authorRole = replyAuthor.role;
+            }
+            return reply;
+          })
+        );
+      }
+
+      return doubtObj;
+    })
+  );
+
+const getAccessibleClassIds = async (req) => {
+  const userId = getRequestUserId(req);
+
+  if (req.user.role === "teacher") {
+    const classrooms = await Classroom.find({ teacherId: userId }).select("_id");
+    return classrooms.map((classroom) => classroom._id.toString());
+  }
+
+  if (req.user.role === "student") {
+    const classrooms = await Classroom.find({ students: userId }).select("_id");
+    return classrooms.map((classroom) => classroom._id.toString());
+  }
+
+  throw createHttpError(403, "You are not allowed to access doubts.");
+};
+
+const getDoubtWithAccess = async (req, doubtId) => {
+  const doubt = await Doubt.findById(doubtId);
+
+  if (!doubt) {
+    throw createHttpError(404, "Doubt not found");
+  }
+
+  await getAuthorizedClassroomForUser(req, doubt.classId);
+  return doubt;
+};
+
+const assertReplyPermission = async (req, doubt, reply) => {
+  const userId = getRequestUserId(req);
+
+  if (reply.authorId === userId) {
+    return;
+  }
+
+  if (req.user.role === "teacher") {
+    await getAuthorizedClassroomForTeacher(req, doubt.classId);
+    return;
+  }
+
+  throw createHttpError(403, "You are not allowed to modify this reply.");
+};
 
 /* ---------------------------------------------
-  GET ALL DOUBTS (Teacher Panel)
+  GET ALL DOUBTS (Teacher/Student)
 --------------------------------------------- */
 export const getAllDoubts = async (req, res) => {
   try {
-    // Build query filter
-    const filter = {};
+    let classIds;
+
     if (req.query.classId) {
-      filter.classId = req.query.classId;
+      const classroom =
+        req.user.role === "teacher"
+          ? await getAuthorizedClassroomForTeacher(req, req.query.classId)
+          : await getAuthorizedClassroomForStudent(req, req.query.classId);
+
+      classIds = [classroom._id.toString()];
+    } else {
+      classIds = await getAccessibleClassIds(req);
     }
-    
-    const doubts = await Doubt.find(filter).sort({ createdAt: -1 });
-    
-    // Populate current user data for doubts and replies
-    const populatedDoubts = await Promise.all(
-      doubts.map(async (doubt) => {
-        const doubtObj = doubt.toObject();
-        
-        // Get current author info
-        if (doubtObj.authorId) {
-          const author = await User.findById(doubtObj.authorId);
-          if (author) {
-            doubtObj.authorName = author.name;
-            doubtObj.profilePhoto = author.profilePhoto;
-            doubtObj.authorRole = author.role;
-          }
-        }
-        
-        // Get current info for reply authors
-        if (doubtObj.replies && doubtObj.replies.length > 0) {
-          doubtObj.replies = await Promise.all(
-            doubtObj.replies.map(async (reply) => {
-              if (reply.authorId) {
-                const replyAuthor = await User.findById(reply.authorId);
-                if (replyAuthor) {
-                  reply.authorName = replyAuthor.name;
-                  reply.profilePhoto = replyAuthor.profilePhoto;
-                  reply.authorRole = replyAuthor.role;
-                }
-              }
-              return reply;
-            })
-          );
-        }
-        
-        return doubtObj;
-      })
-    );
-    
-    res.json(populatedDoubts);
+
+    if (classIds.length === 0) {
+      return res.json([]);
+    }
+
+    const doubts = await Doubt.find({ classId: { $in: classIds } }).sort({
+      createdAt: -1,
+    });
+
+    res.json(await hydrateDoubts(doubts));
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch doubts" });
+    res
+      .status(err.statusCode || 500)
+      .json({ message: err.message || "Failed to fetch doubts" });
   }
 };
 
 /* ---------------------------------------------
-  GET DOUBTS BY CLASS ID (Student Panel)
+  GET DOUBTS BY CLASS ID
 --------------------------------------------- */
 export const getDoubtsByClass = async (req, res) => {
   try {
-    const doubts = await Doubt.find({ classId: req.params.classId }).sort({
+    const classroom = await getAuthorizedClassroomForUser(req, req.params.classId);
+
+    const doubts = await Doubt.find({ classId: classroom._id.toString() }).sort({
       createdAt: -1,
     });
-    
-    // Populate current user data for doubts and replies
-    const populatedDoubts = await Promise.all(
-      doubts.map(async (doubt) => {
-        const doubtObj = doubt.toObject();
-        
-        // Get current author info
-        if (doubtObj.authorId) {
-          const author = await User.findById(doubtObj.authorId);
-          if (author) {
-            doubtObj.authorName = author.name;
-            doubtObj.profilePhoto = author.profilePhoto;
-            doubtObj.authorRole = author.role;
-          }
-        }
-        
-        // Get current info for reply authors
-        if (doubtObj.replies && doubtObj.replies.length > 0) {
-          doubtObj.replies = await Promise.all(
-            doubtObj.replies.map(async (reply) => {
-              if (reply.authorId) {
-                const replyAuthor = await User.findById(reply.authorId);
-                if (replyAuthor) {
-                  reply.authorName = replyAuthor.name;
-                  reply.profilePhoto = replyAuthor.profilePhoto;
-                  reply.authorRole = replyAuthor.role;
-                }
-              }
-              return reply;
-            })
-          );
-        }
-        
-        return doubtObj;
-      })
-    );
-    
-    res.json(populatedDoubts);
+
+    res.json(await hydrateDoubts(doubts));
   } catch (err) {
-    res.status(500).json({ message: "Failed to get doubts" });
+    res
+      .status(err.statusCode || 500)
+      .json({ message: err.message || "Failed to get doubts" });
   }
 };
 
@@ -112,68 +147,109 @@ export const getDoubtsByClass = async (req, res) => {
 --------------------------------------------- */
 export const postDoubt = async (req, res) => {
   try {
+    const title = req.body.title?.trim();
+    const description = req.body.description?.trim();
+
+    if (!title || !description || !req.body.classId) {
+      throw createHttpError(400, "classId, title, and description are required");
+    }
+
+    const classroom = await getAuthorizedClassroomForStudent(req, req.body.classId);
+
     const doubt = await Doubt.create({
-      classId: req.body.classId,
-      authorId: req.body.authorId,
-      authorName: req.body.authorName,
-      authorRole: req.body.authorRole,
-      profilePhoto: req.body.profilePhoto,
-      title: req.body.title,
-      description: req.body.description,
+      classId: classroom._id.toString(),
+      authorId: getRequestUserId(req),
+      authorName: req.user.name,
+      authorRole: req.user.role,
+      profilePhoto: req.user.profilePhoto || "",
+      title,
+      description,
     });
 
-    res.json(doubt);
+    const [hydratedDoubt] = await hydrateDoubts([doubt]);
+    res.json(hydratedDoubt);
   } catch (err) {
-    res.status(500).json({ message: "Failed to post doubt" });
+    res
+      .status(err.statusCode || 500)
+      .json({ message: err.message || "Failed to post doubt" });
   }
 };
 
 /* ---------------------------------------------
-  EDIT DOUBT (Student Only)
+  EDIT DOUBT (Author Only)
 --------------------------------------------- */
 export const editDoubt = async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const doubt = await getDoubtWithAccess(req, req.params.id);
+    const userId = getRequestUserId(req);
 
-    const updated = await Doubt.findByIdAndUpdate(
-      req.params.id,
-      { title, description },
-      { new: true }
-    );
+    if (doubt.authorId !== userId) {
+      throw createHttpError(403, "You can only edit your own doubt.");
+    }
 
-    res.json(updated);
+    const title =
+      typeof req.body.title === "string" ? req.body.title.trim() : doubt.title;
+    const description =
+      typeof req.body.description === "string"
+        ? req.body.description.trim()
+        : doubt.description;
+
+    if (!title || !description) {
+      throw createHttpError(400, "title and description cannot be empty");
+    }
+
+    doubt.title = title;
+    doubt.description = description;
+    await doubt.save();
+
+    const [hydratedDoubt] = await hydrateDoubts([doubt]);
+    res.json(hydratedDoubt);
   } catch (err) {
-    res.status(500).json({ message: "Failed to edit doubt" });
+    res
+      .status(err.statusCode || 500)
+      .json({ message: err.message || "Failed to edit doubt" });
   }
 };
 
 /* ---------------------------------------------
-  DELETE DOUBT (Student or Teacher)
+  DELETE DOUBT (Author or Classroom Teacher)
 --------------------------------------------- */
 export const deleteDoubt = async (req, res) => {
   try {
+    const doubt = await getDoubtWithAccess(req, req.params.id);
+    const userId = getRequestUserId(req);
+
+    if (doubt.authorId !== userId && req.user.role !== "teacher") {
+      throw createHttpError(403, "You are not allowed to delete this doubt.");
+    }
+
     await Doubt.findByIdAndDelete(req.params.id);
     res.json({ message: "Doubt deleted successfully" });
   } catch (err) {
-    res.status(500).json({ message: "Failed to delete doubt" });
+    res
+      .status(err.statusCode || 500)
+      .json({ message: err.message || "Failed to delete doubt" });
   }
 };
 
 /* ---------------------------------------------
-  ADD REPLY (Student or Teacher)
+  ADD REPLY
 --------------------------------------------- */
 export const addReply = async (req, res) => {
   try {
-    const doubt = await Doubt.findById(req.params.id);
+    const doubt = await getDoubtWithAccess(req, req.params.id);
+    const message = req.body.message?.trim();
 
-    if (!doubt) return res.status(404).json({ message: "Doubt not found" });
+    if (!message) {
+      throw createHttpError(400, "message is required");
+    }
 
     const reply = {
-      authorId: req.body.authorId,
-      authorName: req.body.authorName,
-      authorRole: req.body.authorRole,
-      profilePhoto: req.body.profilePhoto,
-      message: req.body.message,
+      authorId: getRequestUserId(req),
+      authorName: req.user.name,
+      authorRole: req.user.role,
+      profilePhoto: req.user.profilePhoto || "",
+      message,
       createdAt: Date.now(),
     };
 
@@ -182,7 +258,9 @@ export const addReply = async (req, res) => {
 
     res.json(reply);
   } catch (err) {
-    res.status(500).json({ message: "Failed to add reply" });
+    res
+      .status(err.statusCode || 500)
+      .json({ message: err.message || "Failed to add reply" });
   }
 };
 
@@ -191,17 +269,23 @@ export const addReply = async (req, res) => {
 --------------------------------------------- */
 export const deleteReply = async (req, res) => {
   try {
-    const { index } = req.body;
-    const doubt = await Doubt.findById(req.params.id);
+    const index = Number(req.body.index);
+    const doubt = await getDoubtWithAccess(req, req.params.id);
 
-    if (!doubt) return res.status(404).json({ message: "Doubt not found" });
+    if (!Number.isInteger(index) || index < 0 || index >= doubt.replies.length) {
+      throw createHttpError(404, "Reply not found");
+    }
+
+    await assertReplyPermission(req, doubt, doubt.replies[index]);
 
     doubt.replies.splice(index, 1);
     await doubt.save();
 
     res.json({ message: "Reply deleted" });
   } catch (err) {
-    res.status(500).json({ message: "Failed to delete reply" });
+    res
+      .status(err.statusCode || 500)
+      .json({ message: err.message || "Failed to delete reply" });
   }
 };
 
@@ -210,19 +294,27 @@ export const deleteReply = async (req, res) => {
 --------------------------------------------- */
 export const editReply = async (req, res) => {
   try {
-    const { index, message } = req.body;
+    const index = Number(req.body.index);
+    const message = req.body.message?.trim();
+    const doubt = await getDoubtWithAccess(req, req.params.id);
 
-    const doubt = await Doubt.findById(req.params.id);
-    if (!doubt) return res.status(404).json({ message: "Doubt not found" });
+    if (!Number.isInteger(index) || index < 0 || index >= doubt.replies.length) {
+      throw createHttpError(404, "Reply not found");
+    }
 
-    if (!doubt.replies[index])
-      return res.status(404).json({ message: "Reply not found" });
+    if (!message) {
+      throw createHttpError(400, "message is required");
+    }
+
+    await assertReplyPermission(req, doubt, doubt.replies[index]);
 
     doubt.replies[index].message = message;
     await doubt.save();
 
     res.json(doubt.replies[index]);
   } catch (err) {
-    res.status(500).json({ message: "Failed to edit reply" });
+    res
+      .status(err.statusCode || 500)
+      .json({ message: err.message || "Failed to edit reply" });
   }
 };

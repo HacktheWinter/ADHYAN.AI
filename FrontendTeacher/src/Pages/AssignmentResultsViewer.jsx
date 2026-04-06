@@ -8,6 +8,7 @@ import {
   getAssignmentSubmissions, 
   checkAssignmentWithAI, 
   getAssignmentById,
+  openSubmissionPdf,
   publishResults
 } from '../api/assignmentApi';
 import API_BASE_URL from '../config';
@@ -380,7 +381,14 @@ const AssignmentResultsViewer = () => {
                           </button>
                           {submission.submissionType === 'pdf' && submission.pdfFileId && (
                             <button
-                              onClick={() => window.open(`${API_BASE_URL.replace('/api', '')}/api/assignment-submission/pdf/${submission._id}`, "_blank")}
+                              onClick={async () => {
+                                try {
+                                  await openSubmissionPdf(submission._id);
+                                } catch (error) {
+                                  console.error('Failed to open submission PDF:', error);
+                                  alert('Failed to open PDF');
+                                }
+                              }}
                               className="px-2 sm:px-4 py-2 bg-white text-purple-700 border border-purple-200 text-xs sm:text-sm font-medium rounded-lg hover:bg-purple-50 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1"
                             >
                               <FileText className="w-4 h-4" />

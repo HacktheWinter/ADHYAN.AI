@@ -1,8 +1,49 @@
 // Backend/controllers/testSubmissionController.js
 import TestSubmission from "../models/TestSubmission.js";
 import TestPaper from "../models/TestPaper.js";
-import User from "../models/User.js";
 import { checkAnswersWithAI } from "../config/geminiTestPaper.js";
+import {
+  createHttpError,
+  ensureUserMatchesId,
+  getAuthorizedClassroomForStudent,
+  getAuthorizedClassroomForTeacher,
+  getRequestUserId,
+} from "../utils/accessControl.js";
+
+const getAuthorizedTestPaperForStudent = async (req, testPaperId) => {
+  const testPaper = await TestPaper.findById(testPaperId);
+
+  if (!testPaper) {
+    throw createHttpError(404, "Test paper not found");
+  }
+
+  await getAuthorizedClassroomForStudent(req, testPaper.classroomId);
+  return testPaper;
+};
+
+const getAuthorizedTestPaperForTeacher = async (req, testPaperId) => {
+  const testPaper = await TestPaper.findById(testPaperId);
+
+  if (!testPaper) {
+    throw createHttpError(404, "Test paper not found");
+  }
+
+  await getAuthorizedClassroomForTeacher(req, testPaper.classroomId);
+  return testPaper;
+};
+
+const getAuthorizedTestSubmissionForTeacher = async (req, submissionId) => {
+  const submission = await TestSubmission.findById(submissionId)
+    .populate("testPaperId", "title totalMarks questions classroomId")
+    .populate("studentId", "name email profilePhoto");
+
+  if (!submission) {
+    throw createHttpError(404, "Submission not found");
+  }
+
+  await getAuthorizedClassroomForTeacher(req, submission.testPaperId.classroomId);
+  return submission;
+};
 
 /**
  * Submit test answers (without grading)
@@ -10,25 +51,25 @@ import { checkAnswersWithAI } from "../config/geminiTestPaper.js";
  */
 export const submitTest = async (req, res) => {
   try {
-    const { testPaperId, studentId, answers } = req.body;
+    const { testPaperId, studentId: requestedStudentId, answers } = req.body;
+    const studentId = getRequestUserId(req);
 
     console.log("Test submission received:", { testPaperId, studentId });
 
-    if (!testPaperId || !studentId || !answers || !Array.isArray(answers)) {
+    if (!testPaperId || !answers || !Array.isArray(answers)) {
       return res.status(400).json({
-        error: "testPaperId, studentId, and answers array are required",
+        error: "testPaperId and answers array are required",
       });
     }
 
-    const testPaper = await TestPaper.findById(testPaperId);
-    if (!testPaper) {
-      return res.status(404).json({ error: "Test paper not found" });
-    }
+    ensureUserMatchesId(
+      requestedStudentId,
+      studentId,
+      "You can only submit tests for your own account."
+    );
 
-    const student = await User.findById(studentId);
-    if (!student) {
-      return res.status(404).json({ error: "Student not found" });
-    }
+    const testPaper = await getAuthorizedTestPaperForStudent(req, testPaperId);
+    const student = req.user;
 
     // Check if already submitted
     const existingSubmission = await TestSubmission.findOne({
@@ -93,9 +134,9 @@ export const submitTest = async (req, res) => {
     });
   } catch (error) {
     console.error("Test submission error:", error);
-    res.status(500).json({
-      error: "Failed to submit test",
-      details: error.message,
+    res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : "Failed to submit test",
+      details: error.statusCode ? undefined : error.message,
     });
   }
 };
@@ -110,10 +151,7 @@ export const checkTestWithAI = async (req, res) => {
 
     console.log("Starting AI checking for test:", testPaperId);
 
-    const testPaper = await TestPaper.findById(testPaperId);
-    if (!testPaper) {
-      return res.status(404).json({ error: "Test paper not found" });
-    }
+    const testPaper = await getAuthorizedTestPaperForTeacher(req, testPaperId);
 
     const submissions = await TestSubmission.find({
       testPaperId,
@@ -277,9 +315,9 @@ export const checkTestWithAI = async (req, res) => {
     });
   } catch (error) {
     console.error("AI checking error:", error);
-    res.status(500).json({
-      error: "Failed to check with AI",
-      details: error.message,
+    res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : "Failed to check with AI",
+      details: error.statusCode ? undefined : error.message,
     });
   }
 };
@@ -291,6 +329,7 @@ export const checkTestWithAI = async (req, res) => {
 export const publishResults = async (req, res) => {
   try {
     const { testPaperId } = req.params;
+    await getAuthorizedTestPaperForTeacher(req, testPaperId);
 
     const result = await TestSubmission.updateMany(
       { testPaperId, status: "checked" },
@@ -306,7 +345,7 @@ export const publishResults = async (req, res) => {
     });
   } catch (error) {
     console.error("Error publishing results:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
@@ -316,7 +355,16 @@ export const publishResults = async (req, res) => {
  */
 export const getTestResult = async (req, res) => {
   try {
-    const { testPaperId, studentId } = req.params;
+    const { testPaperId, studentId: requestedStudentId } = req.params;
+    const studentId = getRequestUserId(req);
+
+    ensureUserMatchesId(
+      requestedStudentId,
+      studentId,
+      "You can only access your own test results."
+    );
+
+    await getAuthorizedTestPaperForStudent(req, testPaperId);
 
     const submission = await TestSubmission.findOne({
       testPaperId,
@@ -340,7 +388,7 @@ export const getTestResult = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching result:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
@@ -352,13 +400,7 @@ export const getSubmissionById = async (req, res) => {
   try {
     const { submissionId } = req.params;
 
-    const submission = await TestSubmission.findById(submissionId)
-      .populate("testPaperId", "title totalMarks questions")
-      .populate("studentId", "name email profilePhoto");
-
-    if (!submission) {
-      return res.status(404).json({ error: "Submission not found" });
-    }
+    const submission = await getAuthorizedTestSubmissionForTeacher(req, submissionId);
 
     res.status(200).json({
       success: true,
@@ -366,7 +408,7 @@ export const getSubmissionById = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching submission:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
@@ -376,7 +418,16 @@ export const getSubmissionById = async (req, res) => {
  */
 export const checkSubmission = async (req, res) => {
   try {
-    const { testPaperId, studentId } = req.params;
+    const { testPaperId, studentId: requestedStudentId } = req.params;
+    const studentId = getRequestUserId(req);
+
+    ensureUserMatchesId(
+      requestedStudentId,
+      studentId,
+      "You can only check submissions for your own account."
+    );
+
+    await getAuthorizedTestPaperForStudent(req, testPaperId);
 
     const submission = await TestSubmission.findOne({
       testPaperId,
@@ -391,7 +442,7 @@ export const checkSubmission = async (req, res) => {
     });
   } catch (error) {
     console.error("Error checking submission:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
@@ -402,6 +453,7 @@ export const checkSubmission = async (req, res) => {
 export const getTestSubmissions = async (req, res) => {
   try {
     const { testPaperId } = req.params;
+    await getAuthorizedTestPaperForTeacher(req, testPaperId);
 
     const submissions = await TestSubmission.find({ testPaperId })
       .populate("studentId", "name email profilePhoto")
@@ -414,7 +466,7 @@ export const getTestSubmissions = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching submissions:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
@@ -427,10 +479,19 @@ export const updateMarksManually = async (req, res) => {
     const { submissionId } = req.params;
     const { answers } = req.body;
 
-    const submission = await TestSubmission.findById(submissionId);
+    if (!Array.isArray(answers)) {
+      return res.status(400).json({ error: "answers array is required" });
+    }
+
+    const submission = await TestSubmission.findById(submissionId).populate(
+      "testPaperId",
+      "classroomId"
+    );
     if (!submission) {
       return res.status(404).json({ error: "Submission not found" });
     }
+
+    await getAuthorizedClassroomForTeacher(req, submission.testPaperId.classroomId);
 
     let totalMarksObtained = 0;
 
@@ -467,6 +528,6 @@ export const updateMarksManually = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating marks:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };

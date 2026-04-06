@@ -47,11 +47,11 @@ export default function TeacherDetailPage() {
       <PageHeader
         eyebrow="Teacher inspection"
         title={teacher.name}
-        description={`${teacher.email} • ${teacher.classCount} classes • ${teacher.sessionCount} sessions`}
+        description={`${teacher.email} | ${teacher.classCount} classes | ${teacher.sessionCount} sessions`}
         action={
           <Link
             to="/teachers"
-            className="rounded-full border border-slate-200 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700"
+            className="rounded-full border border-gray-200 bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-gray-700 transition hover:bg-purple-50 hover:text-purple-700"
           >
             Back to teachers
           </Link>
@@ -68,18 +68,18 @@ export default function TeacherDetailPage() {
               <Link
                 key={classroom._id}
                 to={`/classes/${classroom._id}`}
-                className="block rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 transition hover:border-sky-300 hover:bg-white"
+                className="block rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4 transition hover:border-purple-300 hover:bg-white"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="font-semibold text-slate-900">
+                    <p className="font-semibold text-gray-900">
                       {classroom.subject || classroom.name}
                     </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {classroom.studentCount} students • {classroom.sessionCount} sessions
+                    <p className="mt-1 text-sm text-gray-500">
+                      {classroom.studentCount} students | {classroom.sessionCount} sessions
                     </p>
                   </div>
-                  <div className="text-right text-xs uppercase tracking-[0.18em] text-slate-400">
+                  <div className="text-right text-xs uppercase tracking-[0.18em] text-purple-500">
                     {classroom.classCode}
                   </div>
                 </div>
