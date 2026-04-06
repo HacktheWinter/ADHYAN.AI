@@ -9,13 +9,28 @@ dotenv.config();
 
 export const registerStudent = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, course, section, erpId, semester } = req.body;
     if (!name || !email || !password)
       return res.status(400).json({ error: "All fields are required" });
+
+    // Validate student-specific fields
+    if (!course || !course.trim())
+      return res.status(400).json({ error: "Course is required for students" });
+    if (!section || !section.trim())
+      return res.status(400).json({ error: "Section is required for students" });
+    if (!erpId || !erpId.trim())
+      return res.status(400).json({ error: "ERP ID is required for students" });
+    if (!semester || !String(semester).trim())
+      return res.status(400).json({ error: "Semester is required for students" });
 
     const existing = await User.findOne({ email });
     if (existing)
       return res.status(400).json({ error: "Email already exists" });
+
+    // Check for duplicate ERP ID
+    const existingErp = await User.findOne({ erpId: erpId.trim(), role: "student" });
+    if (existingErp)
+      return res.status(400).json({ error: "ERP ID already registered" });
 
     const hashed = await bcrypt.hash(password, 10);
     const student = await User.create({
@@ -23,6 +38,10 @@ export const registerStudent = async (req, res) => {
       email,
       password: hashed,
       role: "student",
+      course: course.trim(),
+      section: section.trim().toUpperCase(),
+      erpId: erpId.trim(),
+      semester: String(semester).trim(),
     });
 
     // Welcome email (non-blocking)

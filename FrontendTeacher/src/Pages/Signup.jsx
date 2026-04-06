@@ -237,25 +237,22 @@ export default function Signup() {
                     onClick={() =>
                       setFormData({ ...formData, role: "student" })
                     }
-                    className={`p-3 border-2 rounded-xl transition-all cursor-pointer ${
-                      formData.role === "student"
+                    className={`p-3 border-2 rounded-xl transition-all cursor-pointer ${formData.role === "student"
                         ? "border-purple-600 bg-purple-50"
                         : "border-gray-300 hover:border-gray-400"
-                    }`}
+                      }`}
                   >
                     <BookOpen
-                      className={`w-6 h-6 mx-auto mb-1 ${
-                        formData.role === "student"
+                      className={`w-6 h-6 mx-auto mb-1 ${formData.role === "student"
                           ? "text-purple-600"
                           : "text-gray-400"
-                      }`}
+                        }`}
                     />
                     <span
-                      className={`text-sm font-medium ${
-                        formData.role === "student"
+                      className={`text-sm font-medium ${formData.role === "student"
                           ? "text-purple-600"
                           : "text-gray-600"
-                      }`}
+                        }`}
                     >
                       Student
                     </span>
@@ -265,25 +262,22 @@ export default function Signup() {
                     onClick={() =>
                       setFormData({ ...formData, role: "teacher" })
                     }
-                    className={`p-3 border-2 rounded-xl transition-all cursor-pointer ${
-                      formData.role === "teacher"
+                    className={`p-3 border-2 rounded-xl transition-all cursor-pointer ${formData.role === "teacher"
                         ? "border-purple-600 bg-purple-50"
                         : "border-gray-300 hover:border-gray-400"
-                    }`}
+                      }`}
                   >
                     <User
-                      className={`w-6 h-6 mx-auto mb-1 ${
-                        formData.role === "teacher"
+                      className={`w-6 h-6 mx-auto mb-1 ${formData.role === "teacher"
                           ? "text-purple-600"
                           : "text-gray-400"
-                      }`}
+                        }`}
                     />
                     <span
-                      className={`text-sm font-medium ${
-                        formData.role === "teacher"
+                      className={`text-sm font-medium ${formData.role === "teacher"
                           ? "text-purple-600"
                           : "text-gray-600"
-                      }`}
+                        }`}
                     >
                       Teacher
                     </span>

@@ -261,7 +261,7 @@ const StudentAttendancePage = () => {
             if (document.visibilityState === "visible") {
                 loadMyAttendance();
             }
-        }, 15000);
+        }, 15001);
 
         return () => window.clearInterval(intervalId);
     }, [activeTab, user, classId]);

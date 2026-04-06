@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, X, Save, Calendar, User as UserIcon, Building2, ArrowLeft, Image } from 'lucide-react';
+import { Camera, X, Save, Calendar, User as UserIcon, Building2, ArrowLeft, Image, GraduationCap, Hash, Layers, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getStoredToken, updateStoredUser } from '../utils/authStorage';
@@ -17,6 +17,10 @@ export default function ProfilePage() {
     dateOfBirth: '',
     gender: '',
     collegeName: '',
+    course: '',
+    section: '',
+    erpId: '',
+    semester: '',
   });
   const [previewImage, setPreviewImage] = useState(null);
   const [error, setError] = useState('');
@@ -42,6 +46,10 @@ export default function ProfilePage() {
         dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth).toISOString().split('T')[0] : '',
         gender: userData.gender || '',
         collegeName: userData.collegeName || '',
+        course: userData.course || '',
+        section: userData.section || '',
+        erpId: userData.erpId || '',
+        semester: userData.semester || '',
       });
       setLoading(false);
     } catch (err) {
@@ -406,6 +414,31 @@ export default function ProfilePage() {
                     {user?.role === 'student' ? 'Student' : 'Teacher'}
                   </span>
                 </div>
+                {/* Academic Info badges for students */}
+                {user?.role === 'student' && (user?.course || user?.erpId) && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {user?.course && (
+                      <span className="inline-block px-3 py-1 bg-white/20 rounded-full text-sm font-medium backdrop-blur-sm">
+                        {user.course}
+                      </span>
+                    )}
+                    {user?.section && (
+                      <span className="inline-block px-3 py-1 bg-white/20 rounded-full text-sm font-medium backdrop-blur-sm">
+                        Sec {user.section}
+                      </span>
+                    )}
+                    {user?.semester && (
+                      <span className="inline-block px-3 py-1 bg-white/20 rounded-full text-sm font-medium backdrop-blur-sm">
+                        Sem {user.semester}
+                      </span>
+                    )}
+                    {user?.erpId && (
+                      <span className="inline-block px-3 py-1 bg-white/20 rounded-full text-sm font-medium backdrop-blur-sm">
+                        ERP: {user.erpId}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -504,6 +537,96 @@ export default function ProfilePage() {
                 />
               </div>
             </div>
+
+              {/* Student Academic Fields */}
+              {user?.role === 'student' && (
+                <div className="border-t border-gray-100 pt-6 mt-2">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <GraduationCap className="w-5 h-5 text-purple-600" />
+                    Academic Information
+                  </h3>
+                  <div className="space-y-4">
+                    {/* Course */}
+                    <div>
+                      <label htmlFor="course" className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center gap-2">
+                          <GraduationCap className="w-4 h-4" />
+                          Course
+                        </div>
+                      </label>
+                      <input
+                        type="text"
+                        id="course"
+                        name="course"
+                        value={formData.course}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
+                        placeholder="e.g. B.Tech CSE, BBA, MBA"
+                      />
+                    </div>
+
+                    {/* Section & Semester */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="section" className="block text-sm font-medium text-gray-700 mb-2">
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4" />
+                            Section
+                          </div>
+                        </label>
+                        <input
+                          type="text"
+                          id="section"
+                          name="section"
+                          value={formData.section}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all uppercase"
+                          placeholder="e.g. A, B, C"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="semester" className="block text-sm font-medium text-gray-700 mb-2">
+                          <div className="flex items-center gap-2">
+                            <Layers className="w-4 h-4" />
+                            Semester
+                          </div>
+                        </label>
+                        <select
+                          id="semester"
+                          name="semester"
+                          value={formData.semester}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
+                        >
+                          <option value="">Select semester</option>
+                          {[1,2,3,4,5,6,7,8].map(s => (
+                            <option key={s} value={String(s)}>Semester {s}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* ERP ID */}
+                    <div>
+                      <label htmlFor="erpId" className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center gap-2">
+                          <Hash className="w-4 h-4" />
+                          ERP / Roll Number
+                        </div>
+                      </label>
+                      <input
+                        type="text"
+                        id="erpId"
+                        name="erpId"
+                        value={formData.erpId}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
+                        placeholder="Enter your ERP / Roll Number"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
             {/* Save Button */}
             <div className="mt-8 flex justify-end">

@@ -1,6 +1,6 @@
 const API_BASE_URL =
   window.location.hostname === "localhost"
-    ? "http://localhost:5000/api"
+    ? "http://localhost:5001/api"
     : "https://adhyanai-backend.onrender.com/api";
 
 export const LANDING_PAGE_URL =
@@ -8,7 +8,7 @@ export const LANDING_PAGE_URL =
 
 export const SOCKET_URL =
   window.location.hostname === "localhost"
-    ? "http://localhost:5000"
+    ? "http://localhost:5001"
     : "https://adhyanai-backend.onrender.com";
 
 export const TEACHER_FRONTEND_URL =

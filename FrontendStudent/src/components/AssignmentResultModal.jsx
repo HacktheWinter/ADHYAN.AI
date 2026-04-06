@@ -175,14 +175,17 @@ export default function AssignmentResultModal({
                   <p className="text-gray-600 text-sm mt-1">Review the document you uploaded for this assignment.</p>
                 </div>
                 <button
-                  onClick={async () => {
-                    try {
-                      await openSubmissionPdf(result._id);
-                    } catch (error) {
-                      console.error("Failed to open submission PDF:", error);
-                      alert("Failed to open PDF");
-                    }
-                  }}
+
+               onClick={async () => {
+  try {
+    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/assignment-submission/pdf/${result._id}`;
+    window.open(url, "_blank");
+  } catch (error) {
+    console.error("Failed to open submission PDF:", error);
+    alert("Failed to open PDF");
+  }
+}}
+
                   className="px-4 py-2 bg-white text-purple-700 font-medium rounded-lg border-2 border-purple-200 hover:bg-purple-50 transition-colors flex items-center gap-2"
                 >
                   <span className="text-lg">👁️</span>
