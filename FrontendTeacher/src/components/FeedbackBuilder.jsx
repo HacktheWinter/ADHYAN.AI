@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Star, Send, ClipboardList } from "lucide-react";
 import API_BASE_URL from "../config";
+import { getStoredToken } from "../utils/authStorage";
 
 const FeedbackBuilder = ({ classId, onClose, onSuccess }) => {
   const [questions, setQuestions] = useState([]);
@@ -27,7 +28,7 @@ const FeedbackBuilder = ({ classId, onClose, onSuccess }) => {
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     if (!token) {
       alert("Authentication required. Please login again.");
       return;

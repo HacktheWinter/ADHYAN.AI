@@ -1,4 +1,5 @@
 import express from "express";
+import { authMiddleware, authorizeRoles } from "../middleware/authMiddleware.js";
 import {
   getAllDoubts,
   getDoubtsByClass,
@@ -11,6 +12,8 @@ import {
 } from "../controllers/doubtController.js";
 
 const router = express.Router();
+
+router.use(authMiddleware, authorizeRoles("teacher", "student"));
 
 // GET routes
 router.get("/", getAllDoubts);

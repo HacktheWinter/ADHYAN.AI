@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { LockKeyhole, ShieldPlus } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
 import { motion } from "framer-motion";
-import beacon from "../assets/principalBeacon.svg";
+import { Link, useNavigate } from "react-router-dom";
+import { LANDING_PAGE_URL } from "../config";
 import { loginPrincipal, registerPrincipal } from "../api/principalApi";
 import { persistAuth } from "../utils/authStorage";
 
@@ -66,32 +66,61 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.12),transparent_28%),linear-gradient(180deg,#f3f8fc_0%,#e8f2fb_100%)] px-4 py-8">
-      <div className="mx-auto grid max-w-6xl items-center gap-8 lg:grid-cols-[1.2fr_0.9fr]">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50 px-4 py-8">
+      <div className="mx-auto grid max-w-6xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <motion.div
           initial={{ opacity: 0, x: -24 }}
           animate={{ opacity: 1, x: 0 }}
-          className="rounded-[36px] border border-white/70 bg-[#0f172a] p-8 text-white shadow-[0_30px_90px_rgba(15,23,42,0.28)]"
+          className="hidden lg:block"
         >
-          <div className="flex items-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-400/16 text-emerald-300">
-              <ShieldPlus className="h-7 w-7" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.34em] text-slate-400">
-                ADHYAN.AI
+          <div className="text-center space-y-6">
+            <a
+              href={LANDING_PAGE_URL}
+              className="flex items-center justify-center space-x-2"
+            >
+              <img
+                src="/logo02.png"
+                alt="ADHYAN.AI Logo"
+                className="h-20 w-20 object-contain"
+              />
+              <div className="text-left">
+                <h1 className="text-4xl font-bold text-gray-900">ADHYAN.AI</h1>
+                <p className="text-sm text-gray-500">Principal Panel</p>
+              </div>
+            </a>
+
+            <div className="space-y-4">
+              <h2 className="text-3xl font-bold text-gray-800">
+                Create principal access in the same platform style
+              </h2>
+              <p className="text-lg text-gray-600">
+                Set up an oversight account for institutional visibility across classes,
+                teacher activity, attendance, and published work.
               </p>
-              <h1 className="mt-1 text-3xl font-bold">Create Principal Account</h1>
             </div>
-          </div>
 
-          <p className="mt-8 max-w-xl text-sm leading-7 text-slate-300">
-            Set up secure access for academic inspection, teacher oversight,
-            class analytics, attendance review, and publishing visibility.
-          </p>
-
-          <div className="mt-10 rounded-[28px] bg-white/6 p-4">
-            <img src={beacon} alt="Principal inspection analytics" className="w-full rounded-3xl" />
+            <div className="rounded-3xl bg-gradient-to-r from-purple-600 to-purple-700 p-8 text-white shadow-xl">
+              <div className="space-y-4">
+                <div className="rounded-2xl bg-white/15 px-4 py-4 text-left">
+                  <p className="font-semibold">Cross-panel consistency</p>
+                  <p className="mt-1 text-sm text-purple-100">
+                    The principal workspace now follows the same visual language as teacher and student.
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/15 px-4 py-4 text-left">
+                  <p className="font-semibold">Secure principal access</p>
+                  <p className="mt-1 text-sm text-purple-100">
+                    Create a dedicated account for review, visibility, and monitoring.
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/15 px-4 py-4 text-left">
+                  <p className="font-semibold">Immediate dashboard access</p>
+                  <p className="mt-1 text-sm text-purple-100">
+                    New principal accounts sign in directly after successful registration.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
 
@@ -99,87 +128,108 @@ export default function RegisterPage() {
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           onSubmit={handleSubmit}
-          className="rounded-[34px] border border-white/80 bg-white/96 p-8 shadow-[0_26px_80px_rgba(15,23,42,0.12)]"
+          className="rounded-3xl border border-white/80 bg-white p-8 shadow-2xl md:p-10"
         >
+          <div className="mb-6 text-center lg:hidden">
+            <a
+              href={LANDING_PAGE_URL}
+              className="inline-flex items-center justify-center space-x-2"
+            >
+              <img
+                src="/logo02.png"
+                alt="ADHYAN.AI Logo"
+                className="h-12 w-12 object-contain"
+              />
+              <div className="text-left">
+                <span className="block text-2xl font-bold text-gray-900">ADHYAN.AI</span>
+                <span className="text-sm text-gray-500">Principal Panel</span>
+              </div>
+            </a>
+          </div>
+
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-purple-700">
               <LockKeyhole className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-purple-500">
                 New principal
               </p>
-              <h2 className="text-2xl font-bold text-slate-950">Create account</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Create account</h2>
             </div>
           </div>
 
+          <p className="mt-4 text-sm text-gray-600">
+            Create a principal account to access the oversight dashboard.
+          </p>
+
           <div className="mt-8 space-y-5">
             <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Full name</span>
+              <span className="text-sm font-semibold text-gray-700">Full name</span>
               <input
                 name="name"
                 type="text"
                 value={form.name}
                 onChange={handleChange}
                 required
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:bg-white"
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-transparent focus:bg-white focus:ring-2 focus:ring-purple-600"
                 placeholder="Principal name"
               />
             </label>
 
             <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Email</span>
+              <span className="text-sm font-semibold text-gray-700">Email</span>
               <input
                 name="email"
                 type="email"
                 value={form.email}
                 onChange={handleChange}
                 required
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:bg-white"
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-transparent focus:bg-white focus:ring-2 focus:ring-purple-600"
                 placeholder="principal@adhyan.ai"
               />
             </label>
 
             <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Password</span>
+              <span className="text-sm font-semibold text-gray-700">Password</span>
               <input
                 name="password"
                 type="password"
                 value={form.password}
                 onChange={handleChange}
                 required
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:bg-white"
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-transparent focus:bg-white focus:ring-2 focus:ring-purple-600"
                 placeholder="At least 6 characters"
               />
             </label>
 
             <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Confirm password</span>
+              <span className="text-sm font-semibold text-gray-700">Confirm password</span>
               <input
                 name="confirmPassword"
                 type="password"
                 value={form.confirmPassword}
                 onChange={handleChange}
                 required
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-emerald-400 focus:bg-white"
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-transparent focus:bg-white focus:ring-2 focus:ring-purple-600"
                 placeholder="Re-enter password"
               />
             </label>
 
-            <label className="flex items-center gap-3 text-sm text-slate-600">
+            <label className="flex items-center gap-3 text-sm text-gray-600">
               <input
                 name="rememberMe"
                 type="checkbox"
                 checked={form.rememberMe}
                 onChange={handleChange}
-                className="h-4 w-4 rounded border-slate-300 text-emerald-600"
+                className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
               />
               Keep me signed in on this device
             </label>
           </div>
 
           {error ? (
-            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
               {error}
             </div>
           ) : null}
@@ -187,14 +237,14 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="mt-6 w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-6 w-full rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:from-purple-700 hover:to-purple-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? "Creating account..." : "Create principal account"}
           </button>
 
-          <p className="mt-5 text-center text-sm text-slate-600">
+          <p className="mt-5 text-center text-sm text-gray-600">
             Already have an account?{" "}
-            <Link to="/login" className="font-semibold text-sky-700 hover:text-sky-800">
+            <Link to="/login" className="font-semibold text-purple-600 hover:text-purple-700">
               Sign in
             </Link>
           </p>

@@ -1,10 +1,15 @@
 import AssignmentSubmission from "../models/AssignmentSubmission.js";
 import Assignment from "../models/Assignment.js";
-import User from "../models/User.js";
 import { checkAssignmentWithAI, checkPDFSubmissionsBatch } from "../config/geminiAssignment.js";
 import multer from "multer";
-import mongoose from "mongoose";
 import { getBucket } from "../config/gridfs.js";
+import {
+  createHttpError,
+  ensureUserMatchesId,
+  getAuthorizedClassroomForStudent,
+  getAuthorizedClassroomForTeacher,
+  getRequestUserId,
+} from "../utils/accessControl.js";
 
 // Multer configured for memory storage (max 4MB)
 const upload = multer({
@@ -19,33 +24,92 @@ const upload = multer({
   },
 });
 
+const getAuthorizedAssignmentForStudent = async (req, assignmentId) => {
+  const assignment = await Assignment.findById(assignmentId);
+
+  if (!assignment) {
+    throw createHttpError(404, "Assignment not found");
+  }
+
+  await getAuthorizedClassroomForStudent(req, assignment.classroomId);
+  return assignment;
+};
+
+const getAuthorizedAssignmentForTeacher = async (req, assignmentId) => {
+  const assignment = await Assignment.findById(assignmentId);
+
+  if (!assignment) {
+    throw createHttpError(404, "Assignment not found");
+  }
+
+  await getAuthorizedClassroomForTeacher(req, assignment.classroomId);
+  return assignment;
+};
+
+const getAuthorizedAssignmentSubmissionForTeacher = async (req, submissionId) => {
+  const submission = await AssignmentSubmission.findById(submissionId)
+    .populate("assignmentId", "title totalMarks questions classroomId")
+    .populate("studentId", "name email profilePhoto");
+
+  if (!submission) {
+    throw createHttpError(404, "Submission not found");
+  }
+
+  await getAuthorizedClassroomForTeacher(req, submission.assignmentId.classroomId);
+  return submission;
+};
+
+const getAuthorizedAssignmentSubmissionForUser = async (req, submissionId) => {
+  const submission = await AssignmentSubmission.findById(submissionId);
+
+  if (!submission) {
+    throw createHttpError(404, "Submission not found");
+  }
+
+  const assignment = await Assignment.findById(submission.assignmentId);
+  if (!assignment) {
+    throw createHttpError(404, "Assignment not found");
+  }
+
+  if (req.user.role === "teacher") {
+    await getAuthorizedClassroomForTeacher(req, assignment.classroomId);
+    return submission;
+  }
+
+  const studentId = getRequestUserId(req);
+  if (submission.studentId.toString() !== studentId) {
+    throw createHttpError(403, "You are not allowed to access this submission.");
+  }
+
+  await getAuthorizedClassroomForStudent(req, assignment.classroomId);
+  return submission;
+};
+
 
 export const submitAssignment = async (req, res) => {
   try {
-    const { assignmentId, studentId, answers } = req.body;
+    const { assignmentId, studentId: requestedStudentId, answers } = req.body;
+    const studentId = getRequestUserId(req);
 
     console.log("Assignment submission received:", {
       assignmentId,
       studentId,
     });
 
-    if (!assignmentId || !studentId || !answers || !Array.isArray(answers)) {
+    if (!assignmentId || !answers || !Array.isArray(answers)) {
       return res.status(400).json({
-        error: "assignmentId, studentId, and answers array are required",
+        error: "assignmentId and answers array are required",
       });
     }
 
-    // Validate assignment
-    const assignment = await Assignment.findById(assignmentId);
-    if (!assignment) {
-      return res.status(404).json({ error: "Assignment not found" });
-    }
+    ensureUserMatchesId(
+      requestedStudentId,
+      studentId,
+      "You can only submit assignments for your own account."
+    );
 
-    // Validate student
-    const student = await User.findById(studentId);
-    if (!student) {
-      return res.status(404).json({ error: "Student not found" });
-    }
+    const assignment = await getAuthorizedAssignmentForStudent(req, assignmentId);
+    const student = req.user;
 
     // Check if already submitted
     const existingSubmission = await AssignmentSubmission.findOne({
@@ -110,9 +174,9 @@ export const submitAssignment = async (req, res) => {
     });
   } catch (error) {
     console.error("Assignment submission error:", error);
-    res.status(500).json({
-      error: "Failed to submit assignment",
-      details: error.message,
+    res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : "Failed to submit assignment",
+      details: error.statusCode ? undefined : error.message,
     });
   }
 };
@@ -121,18 +185,22 @@ export const submitAssignmentPDF = [
   upload.single("assignmentPdf"),
   async (req, res) => {
     try {
-      const { assignmentId, studentId } = req.body;
+      const { assignmentId, studentId: requestedStudentId } = req.body;
+      const studentId = getRequestUserId(req);
       const file = req.file;
 
-      if (!assignmentId || !studentId || !file) {
-        return res.status(400).json({ error: "assignmentId, studentId, and PDF file are required" });
+      if (!assignmentId || !file) {
+        return res.status(400).json({ error: "assignmentId and PDF file are required" });
       }
 
-      const assignment = await Assignment.findById(assignmentId);
-      if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+      ensureUserMatchesId(
+        requestedStudentId,
+        studentId,
+        "You can only submit assignments for your own account."
+      );
 
-      const student = await User.findById(studentId);
-      if (!student) return res.status(404).json({ error: "Student not found" });
+      const assignment = await getAuthorizedAssignmentForStudent(req, assignmentId);
+      const student = req.user;
 
       const existingSubmission = await AssignmentSubmission.findOne({ assignmentId, studentId });
       if (existingSubmission) {
@@ -145,6 +213,10 @@ export const submitAssignmentPDF = [
 
       // Upload file to GridFS
       const bucket = getBucket();
+      if (!bucket) {
+        return res.status(503).json({ error: "Database connection not ready. Please try again." });
+      }
+
       const filename = `${student.name.replace(/\s+/g, "_")}_${Date.now()}.pdf`;
 
       const uploadStream = bucket.openUploadStream(filename, {
@@ -154,52 +226,68 @@ export const submitAssignmentPDF = [
       uploadStream.end(file.buffer);
 
       uploadStream.on("finish", async () => {
-        // Build Answers array using assignment questions
-        const submissionAnswers = assignment.questions.map((q) => ({
-          questionId: q._id.toString(),
-          question: q.question,
-          studentAnswer: "(PDF submission)",
-          answerKey: q.answerKey,
-          marks: q.marks,
-          marksAwarded: 0,
-          checkedBy: "pending",
-        }));
+        try {
+          // Build Answers array using assignment questions
+          const submissionAnswers = assignment.questions.map((q) => ({
+            questionId: q._id.toString(),
+            question: q.question,
+            studentAnswer: "(PDF submission)",
+            answerKey: q.answerKey,
+            marks: q.marks,
+            marksAwarded: 0,
+            checkedBy: "pending",
+          }));
 
-        const submission = await AssignmentSubmission.create({
-          assignmentId,
-          studentId,
-          studentName: student.name,
-          answers: submissionAnswers,
-          totalMarks: assignment.totalMarks,
-          marksObtained: 0,
-          percentage: 0,
-          status: "pending",
-          isResultPublished: false,
-          submissionType: "pdf",
-          pdfFileId: uploadStream.id,
-          pdfFileName: filename,
-        });
+          const submission = await AssignmentSubmission.create({
+            assignmentId,
+            studentId,
+            studentName: student.name,
+            answers: submissionAnswers,
+            totalMarks: assignment.totalMarks,
+            marksObtained: 0,
+            percentage: 0,
+            status: "pending",
+            isResultPublished: false,
+            submissionType: "pdf",
+            pdfFileId: uploadStream.id,
+            pdfFileName: filename,
+          });
 
-        res.status(201).json({
-          success: true,
-          message: "PDF Assignment submitted successfully. Awaiting results.",
-          submission: {
-            _id: submission._id,
-            status: submission.status,
-            submittedAt: submission.submittedAt,
-          },
-        });
+          res.status(201).json({
+            success: true,
+            message: "PDF Assignment submitted successfully. Awaiting results.",
+            submission: {
+              _id: submission._id,
+              status: submission.status,
+              submittedAt: submission.submittedAt,
+            },
+          });
+        } catch (error) {
+          console.error("Error saving PDF assignment submission:", error);
+          if (!res.headersSent) {
+            res.status(500).json({
+              error: "Failed to submit PDF assignment",
+              details: error.message,
+            });
+          }
+        }
       });
 
       uploadStream.on("error", (err) => {
-        throw err;
+        console.error("PDF assignment upload error:", err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            error: "Failed to submit PDF assignment",
+            details: err.message,
+          });
+        }
       });
 
     } catch (error) {
       console.error("PDF assignment submission error:", error);
-      res.status(500).json({
-        error: "Failed to submit PDF assignment",
-        details: error.message,
+      res.status(error.statusCode || 500).json({
+        error: error.statusCode ? error.message : "Failed to submit PDF assignment",
+        details: error.statusCode ? undefined : error.message,
       });
     }
   }
@@ -211,10 +299,7 @@ export const checkAssignmentWithAI_Batch = async (req, res) => {
 
     console.log("Starting AI checking for assignment:", assignmentId);
 
-    const assignment = await Assignment.findById(assignmentId);
-    if (!assignment) {
-      return res.status(404).json({ error: "Assignment not found" });
-    }
+    const assignment = await getAuthorizedAssignmentForTeacher(req, assignmentId);
 
     const submissions = await AssignmentSubmission.find({
       assignmentId,
@@ -315,6 +400,9 @@ export const checkAssignmentWithAI_Batch = async (req, res) => {
 
     // 🔹 Process PDF Submissions
     const bucket = getBucket();
+    if (!bucket && pdfSubmissions.length > 0) {
+      return res.status(503).json({ error: "Database connection not ready. Please try again." });
+    }
     const PDF_BATCH_SIZE = 1;
     const PDF_DELAY = 3000;
 
@@ -415,9 +503,9 @@ export const checkAssignmentWithAI_Batch = async (req, res) => {
     });
   } catch (error) {
     console.error("AI checking error:", error);
-    res.status(500).json({
-      error: "Failed to check with AI",
-      details: error.message,
+    res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : "Failed to check with AI",
+      details: error.statusCode ? undefined : error.message,
     });
   }
 };
@@ -425,6 +513,7 @@ export const checkAssignmentWithAI_Batch = async (req, res) => {
 export const publishResults = async (req, res) => {
   try {
     const { assignmentId } = req.params;
+    await getAuthorizedAssignmentForTeacher(req, assignmentId);
 
     const result = await AssignmentSubmission.updateMany(
       { assignmentId, status: "checked" },
@@ -434,16 +523,26 @@ export const publishResults = async (req, res) => {
     res.status(200).json({
       success: true,
       message: `Published results for ${result.modifiedCount} students`,
+      count: result.modifiedCount,
     });
   } catch (error) {
     console.error("Error publishing results:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
 export const getAssignmentResult = async (req, res) => {
   try {
-    const { assignmentId, studentId } = req.params;
+    const { assignmentId, studentId: requestedStudentId } = req.params;
+    const studentId = getRequestUserId(req);
+
+    ensureUserMatchesId(
+      requestedStudentId,
+      studentId,
+      "You can only access your own assignment results."
+    );
+
+    await getAuthorizedAssignmentForStudent(req, assignmentId);
 
     const submission = await AssignmentSubmission.findOne({
       assignmentId,
@@ -467,7 +566,7 @@ export const getAssignmentResult = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching result:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
@@ -475,24 +574,27 @@ export const getSubmissionById = async (req, res) => {
   try {
     const { submissionId } = req.params;
 
-    const submission = await AssignmentSubmission.findById(submissionId)
-      .populate("assignmentId", "title totalMarks questions")
-      .populate("studentId", "name email");
-
-    if (!submission) {
-      return res.status(404).json({ error: "Submission not found" });
-    }
+    const submission = await getAuthorizedAssignmentSubmissionForTeacher(req, submissionId);
 
     res.status(200).json({ success: true, submission });
   } catch (error) {
     console.error("Error fetching submission:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
 export const checkSubmission = async (req, res) => {
   try {
-    const { assignmentId, studentId } = req.params;
+    const { assignmentId, studentId: requestedStudentId } = req.params;
+    const studentId = getRequestUserId(req);
+
+    ensureUserMatchesId(
+      requestedStudentId,
+      studentId,
+      "You can only check submissions for your own account."
+    );
+
+    await getAuthorizedAssignmentForStudent(req, assignmentId);
 
     const submission = await AssignmentSubmission.findOne({
       assignmentId,
@@ -507,13 +609,14 @@ export const checkSubmission = async (req, res) => {
     });
   } catch (error) {
     console.error("Error checking submission:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
 export const getAssignmentSubmissions = async (req, res) => {
   try {
     const { assignmentId } = req.params;
+    await getAuthorizedAssignmentForTeacher(req, assignmentId);
 
     const submissions = await AssignmentSubmission.find({ assignmentId })
       .populate("studentId", "name email profilePhoto")
@@ -526,7 +629,7 @@ export const getAssignmentSubmissions = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching submissions:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
@@ -535,11 +638,20 @@ export const updateMarksManually = async (req, res) => {
     const { submissionId } = req.params;
     const { answers } = req.body;
 
-    const submission = await AssignmentSubmission.findById(submissionId);
+    if (!Array.isArray(answers)) {
+      return res.status(400).json({ error: "answers array is required" });
+    }
+
+    const submission = await AssignmentSubmission.findById(submissionId).populate(
+      "assignmentId",
+      "classroomId"
+    );
 
     if (!submission) {
       return res.status(404).json({ error: "Submission not found" });
     }
+
+    await getAuthorizedClassroomForTeacher(req, submission.assignmentId.classroomId);
 
     let totalMarksObtained = 0;
 
@@ -577,20 +689,23 @@ export const updateMarksManually = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating marks:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };
 
 export const getSubmissionPDF = async (req, res) => {
   try {
     const { submissionId } = req.params;
-    const submission = await AssignmentSubmission.findById(submissionId);
+    const submission = await getAuthorizedAssignmentSubmissionForUser(req, submissionId);
 
-    if (!submission || !submission.pdfFileId) {
+    if (!submission.pdfFileId) {
        return res.status(404).json({ error: "Submission or PDF not found" });
     }
 
     const bucket = getBucket();
+    if (!bucket) {
+      return res.status(503).json({ error: "Database connection not ready. Please try again." });
+    }
     const downloadStream = bucket.openDownloadStream(submission.pdfFileId);
 
     res.set("Content-Type", "application/pdf");
@@ -607,6 +722,6 @@ export const getSubmissionPDF = async (req, res) => {
 
   } catch (error) {
     console.error("Error fetching submission PDF:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
   }
 };

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LogIn, LogOut, Settings, User, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clearAuth, getStoredUser } from '../utils/authStorage';
-import API_BASE_URL from '../config';
+import API_BASE_URL, { LANDING_PAGE_URL } from '../config';
 
 const Header = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -53,7 +53,7 @@ const Header = () => {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
             <motion.a 
-              href="https://adhyanai-5eum.onrender.com/"
+              href={LANDING_PAGE_URL}
               className="flex items-center space-x-1"
             >
               <img 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, MessageSquare, History, ChevronDown, Trash2 } from "lucide-react";
 import API_BASE_URL from "../config";
+import { getStoredToken } from "../utils/authStorage";
 
 const FeedbackResults = ({ classId }) => {
   const [responses, setResponses] = useState([]);
@@ -17,11 +18,17 @@ const FeedbackResults = ({ classId }) => {
   // =======================
   const fetchResults = async () => {
     try {
+      const token = getStoredToken();
+      if (!token) {
+        setResponses([]);
+        return;
+      }
+
       const res = await fetch(
         `${API_BASE_URL}/feedback/results/${classId}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -45,12 +52,17 @@ const FeedbackResults = ({ classId }) => {
   const fetchHistory = async () => {
     try {
       setHistoryLoading(true);
+      const token = getStoredToken();
+      if (!token) {
+        setHistory([]);
+        return;
+      }
 
       const res = await fetch(
         `${API_BASE_URL}/feedback/results/all/${classId}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -72,10 +84,16 @@ const FeedbackResults = ({ classId }) => {
     if (!window.confirm("Are you sure you want to delete this entire feedback session? This cannot be undone.")) return;
 
     try {
+      const token = getStoredToken();
+      if (!token) {
+        alert("Authentication required. Please login again.");
+        return;
+      }
+
       const res = await fetch(`${API_BASE_URL}/feedback/delete/${feedbackId}`, {
          method: 'DELETE',
          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
          }
       });
 
@@ -133,11 +151,18 @@ const FeedbackResults = ({ classId }) => {
   useEffect(() => {
      const getActiveId = async () => {
         try {
+           const token = getStoredToken();
+           if (!token) {
+             setActiveFeedbackId(null);
+             return;
+           }
+
            const res = await fetch(`${API_BASE_URL}/feedback/active/${classId}`, {
-              headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+              headers: { Authorization: `Bearer ${token}` }
            });
            const data = await res.json();
            if (data.isActive) setActiveFeedbackId(data.feedbackId);
+           else setActiveFeedbackId(null);
         } catch(e) { console.error(e); }
      };
      getActiveId();
@@ -149,9 +174,15 @@ const FeedbackResults = ({ classId }) => {
       if (!window.confirm("Delete this response?")) return;
 
       try {
+        const token = getStoredToken();
+        if (!token) {
+          alert("Authentication required. Please login again.");
+          return;
+        }
+
         const res = await fetch(`${API_BASE_URL}/feedback/response/${activeFeedbackId}/${studentId}`, {
            method: 'DELETE',
-           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+           headers: { Authorization: `Bearer ${token}` }
         });
 
         if (res.ok) {

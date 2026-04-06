@@ -8,6 +8,13 @@ import {
   logActivity,
   startClassSession,
 } from "../utils/activityTracker.js";
+import {
+  createHttpError,
+  ensureUserMatchesId,
+  getAuthorizedClassroomForStudent,
+  getAuthorizedClassroomForTeacher,
+  getRequestUserId,
+} from "../utils/accessControl.js";
 
 /**
  * Create Classroom (Teacher)
@@ -22,12 +29,12 @@ export const createClassroom = async (req, res) => {
       colorTheme = "bg-gradient-to-br from-purple-500 to-purple-700",
       themeImage = "",
     } = req.body;
-    const teacherId = req.user?._id?.toString() || req.body.teacherId;
+    const teacherId = getRequestUserId(req);
 
-    if (!teacherId || !name) {
+    if (!name) {
       return res
         .status(400)
-        .json({ success: false, error: "teacherId and name are required" });
+        .json({ success: false, error: "name is required" });
     }
 
     const teacher = await User.findById(teacherId);
@@ -87,14 +94,21 @@ export const createClassroom = async (req, res) => {
  */
 export const joinClassroom = async (req, res) => {
   try {
-    const { studentId, classCode } = req.body;
+    const { studentId: requestedStudentId, classCode } = req.body;
+    const studentId = getRequestUserId(req);
 
-    if (!studentId || !classCode) {
+    if (!classCode) {
       return res.status(400).json({
         success: false,
-        error: "studentId and classCode are required",
+        error: "classCode is required",
       });
     }
+
+    ensureUserMatchesId(
+      requestedStudentId,
+      studentId,
+      "You can only join a classroom for your own account."
+    );
 
     const classroom = await Classroom.findOne({ classCode });
     if (!classroom)
@@ -102,16 +116,7 @@ export const joinClassroom = async (req, res) => {
         .status(404)
         .json({ success: false, error: "Invalid class code" });
 
-    const student = await User.findById(studentId);
-    if (!student)
-      return res
-        .status(404)
-        .json({ success: false, error: "Student not found" });
-    if (student.role !== "student") {
-      return res
-        .status(400)
-        .json({ success: false, error: "User is not a student" });
-    }
+    const student = req.user;
 
     if (
       classroom.students.some((id) => id.toString() === studentId.toString())
@@ -126,13 +131,6 @@ export const joinClassroom = async (req, res) => {
     const wasInLeftStudents = classroom.leftStudents.some(
       (ls) => ls.studentId.toString() === studentId.toString()
     );
-
-    if (wasInLeftStudents) {
-      // Remove from leftStudents
-      classroom.leftStudents = classroom.leftStudents.filter(
-        (ls) => ls.studentId.toString() !== studentId.toString()
-      );
-    }
 
     if (wasInLeftStudents) {
       // Remove from leftStudents
@@ -163,12 +161,25 @@ export const joinClassroom = async (req, res) => {
  */
 export const getClassrooms = async (req, res) => {
   try {
-    const { userId, role } = req.query;
+    const requestedUserId = req.query.userId;
+    const requestedRole = req.query.role;
+    const userId = getRequestUserId(req);
+    const role = req.user?.role;
 
     if (!userId || !role) {
-      return res
-        .status(400)
-        .json({ success: false, error: "userId and role are required" });
+      throw createHttpError(401, "Authentication required");
+    }
+
+    if (requestedUserId) {
+      ensureUserMatchesId(
+        requestedUserId,
+        userId,
+        "You can only fetch classrooms for your own account."
+      );
+    }
+
+    if (requestedRole && requestedRole !== role) {
+      throw createHttpError(403, "You are not allowed to access classrooms for another role.");
     }
 
     let classrooms;
@@ -188,9 +199,9 @@ export const getClassrooms = async (req, res) => {
     res.status(200).json({ success: true, classrooms });
   } catch (error) {
     console.error("Get Classrooms Error:", error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
-      error: "Server error while fetching classrooms",
+      error: error.message || "Server error while fetching classrooms",
     });
   }
 };
@@ -202,11 +213,7 @@ export const getClassrooms = async (req, res) => {
 export const getClassroomById = async (req, res) => {
   try {
     const { classId } = req.params;
-
-    const classroom = await Classroom.findById(classId)
-      .populate("students", "name email profilePhoto createdAt")
-      .populate("leftStudents.studentId", "name email profilePhoto createdAt")
-      .populate("teacherId", "name email");
+    const classroom = await Classroom.findById(classId);
 
     if (!classroom) {
       return res
@@ -214,13 +221,52 @@ export const getClassroomById = async (req, res) => {
         .json({ success: false, error: "Classroom not found" });
     }
 
+    const userId = getRequestUserId(req);
+    let responseClassroom;
+
+    if (req.user.role === "teacher") {
+      if (classroom.teacherId.toString() !== userId) {
+        throw createHttpError(403, "You are not authorized to access this classroom.");
+      }
+
+      responseClassroom = await Classroom.findById(classId)
+        .populate("students", "name email profilePhoto createdAt")
+        .populate("leftStudents.studentId", "name email profilePhoto createdAt")
+        .populate("teacherId", "name email");
+    } else if (req.user.role === "student") {
+      const isEnrolled = classroom.students.some(
+        (student) => student.toString() === userId
+      );
+
+      if (!isEnrolled) {
+        throw createHttpError(403, "You are not enrolled in this classroom.");
+      }
+
+      responseClassroom = await Classroom.findById(classId).populate(
+        "teacherId",
+        "name email"
+      );
+
+      if (responseClassroom) {
+        const classroomObject = responseClassroom.toObject();
+        delete classroomObject.students;
+        delete classroomObject.leftStudents;
+        responseClassroom = classroomObject;
+      }
+    } else {
+      throw createHttpError(403, "You are not allowed to access this classroom.");
+    }
+
     res.status(200).json({
       success: true,
-      classroom,
+      classroom: responseClassroom,
     });
   } catch (error) {
     console.error("Error fetching classroom:", error);
-    res.status(500).json({ success: false, error: "Server error" });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Server error",
+    });
   }
 };
 
@@ -236,23 +282,8 @@ export const getClassroomById = async (req, res) => {
 export const updateClassroom = async (req, res) => {
   try {
     const { classId } = req.params;
-    const teacherId = req.user?._id?.toString() || req.body.teacherId;
     const { name, subject, colorTheme, themeImage } = req.body;
-
-    if (!teacherId) {
-      return res.status(400).json({ error: "teacherId is required" });
-    }
-
-    const classroom = await Classroom.findById(classId);
-    if (!classroom) {
-      return res.status(404).json({ error: "Classroom not found" });
-    }
-
-    if (classroom.teacherId.toString() !== teacherId) {
-      return res.status(403).json({
-        error: "Unauthorized: You are not the teacher of this classroom",
-      });
-    }
+    const classroom = await getAuthorizedClassroomForTeacher(req, classId);
 
     if (name !== undefined) classroom.name = name;
     if (subject !== undefined) classroom.subject = subject;
@@ -269,32 +300,16 @@ export const updateClassroom = async (req, res) => {
     });
   } catch (error) {
     console.error("Update Classroom Error:", error);
-    res.status(500).json({ error: "Server error while updating classroom" });
+    res.status(error.statusCode || 500).json({
+      error: error.message || "Server error while updating classroom",
+    });
   }
 };
 
 export const deleteClassroom = async (req, res) => {
   try {
     const { classId } = req.params;
-    const teacherId = req.user?._id?.toString() || req.body.teacherId;
-
-    if (!teacherId) {
-      return res
-        .status(400)
-        .json({ success: false, error: "teacherId is required" });
-    }
-
-    const classroom = await Classroom.findById(classId);
-
-    if (!classroom) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Classroom not found" });
-    }
-
-    if (classroom.teacherId.toString() !== teacherId) {
-      return res.status(403).json({ success: false, error: "Unauthorized" });
-    }
+    await getAuthorizedClassroomForTeacher(req, classId);
 
     await Classroom.findByIdAndDelete(classId);
 
@@ -304,9 +319,10 @@ export const deleteClassroom = async (req, res) => {
     });
   } catch (error) {
     console.error("Delete Classroom Error:", error);
-    res
-      .status(500)
-      .json({ success: false, error: "Server error while deleting classroom" });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Server error while deleting classroom",
+    });
   }
 };
 
@@ -318,17 +334,11 @@ export const deleteClassroom = async (req, res) => {
 export const startMeeting = async (req, res) => {
   try {
     const { classId } = req.params;
-    const teacherId = req.user?._id?.toString() || req.body.teacherId;
+    const teacherId = getRequestUserId(req);
 
     console.log('[startMeeting] Request received:', { classId, teacherId });
 
-    const classroom = await Classroom.findById(classId);
-    if (!classroom) {
-      console.error('[startMeeting] Classroom not found:', classId);
-      return res
-        .status(404)
-        .json({ success: false, error: "Classroom not found" });
-    }
+    const classroom = await getAuthorizedClassroomForTeacher(req, classId);
 
     console.log('[startMeeting] Classroom found:', {
       classroomId: classroom._id,
@@ -336,20 +346,6 @@ export const startMeeting = async (req, res) => {
       providedTeacherId: teacherId,
       currentIsLive: classroom.isLive
     });
-
-    const classroomTeacherIdStr = classroom.teacherId.toString().trim();
-    const providedTeacherIdStr = teacherId?.toString().trim();
-
-    console.log('[startMeeting] ID Comparison:', {
-      classroomTeacherId: classroomTeacherIdStr,
-      providedTeacherId: providedTeacherIdStr,
-      match: classroomTeacherIdStr === providedTeacherIdStr
-    });
-
-    if (classroomTeacherIdStr !== providedTeacherIdStr) {
-      console.warn(`[startMeeting] UNAUTHORIZED - Classroom Teacher: ${classroomTeacherIdStr}, Provided Teacher: ${providedTeacherIdStr}`);
-      return res.status(403).json({ success: false, error: "Unauthorized" });
-    }
 
     console.log('[startMeeting] Authorization passed, updating isLive to true');
     classroom.isLive = true;
@@ -438,7 +434,10 @@ export const startMeeting = async (req, res) => {
   } catch (error) {
     console.error("[startMeeting] ERROR:", error);
     console.error("[startMeeting] Error stack:", error.stack);
-    res.status(500).json({ success: false, error: "Server error" });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Server error",
+    });
   }
 };
 
@@ -450,18 +449,7 @@ export const startMeeting = async (req, res) => {
 export const endMeeting = async (req, res) => {
   try {
     const { classId } = req.params;
-    const teacherId = req.user?._id?.toString() || req.body.teacherId;
-
-    const classroom = await Classroom.findById(classId);
-    if (!classroom) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Classroom not found" });
-    }
-
-    if (classroom.teacherId.toString() !== teacherId) {
-      return res.status(403).json({ success: false, error: "Unauthorized" });
-    }
+    const classroom = await getAuthorizedClassroomForTeacher(req, classId);
 
     classroom.isLive = false;
     await classroom.save();
@@ -497,7 +485,10 @@ export const endMeeting = async (req, res) => {
       .json({ success: true, message: "Meeting ended", isLive: false });
   } catch (error) {
     console.error("End Meeting Error:", error);
-    res.status(500).json({ success: false, error: "Server error" });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Server error",
+    });
   }
 };
 
@@ -509,36 +500,16 @@ export const endMeeting = async (req, res) => {
 export const leaveClassroom = async (req, res) => {
   try {
     const { classId } = req.params;
-    const { studentId } = req.body;
+    const { studentId: requestedStudentId } = req.body;
+    const studentId = getRequestUserId(req);
 
-    if (!studentId) {
-      return res
-        .status(400)
-        .json({ success: false, error: "studentId is required" });
-    }
+    ensureUserMatchesId(
+      requestedStudentId,
+      studentId,
+      "You can only leave a classroom for your own account."
+    );
 
-    const classroom = await Classroom.findById(classId);
-    if (!classroom) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Classroom not found" });
-    }
-
-    const student = await User.findById(studentId);
-    if (!student) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Student not found" });
-    }
-
-    if (
-      !classroom.students.some((id) => id.toString() === studentId.toString())
-    ) {
-      return res.status(400).json({
-        success: false,
-        error: "Student is not enrolled in this classroom",
-      });
-    }
+    const classroom = await getAuthorizedClassroomForStudent(req, classId);
 
     // Remove student from active students
     classroom.students = classroom.students.filter(
@@ -565,8 +536,9 @@ export const leaveClassroom = async (req, res) => {
     });
   } catch (error) {
     console.error("Leave Classroom Error:", error);
-    res
-      .status(500)
-      .json({ success: false, error: "Server error while leaving classroom" });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Server error while leaving classroom",
+    });
   }
 };
