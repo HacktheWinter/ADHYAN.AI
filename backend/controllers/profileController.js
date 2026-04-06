@@ -57,13 +57,17 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, dateOfBirth, gender, collegeName } = req.body;
+    const { name, dateOfBirth, gender, collegeName, course, section, erpId, semester } = req.body;
 
     const updateData = {};
     if (name) updateData.name = name;
     if (dateOfBirth) updateData.dateOfBirth = dateOfBirth;
     if (gender) updateData.gender = gender;
     if (collegeName) updateData.collegeName = collegeName;
+    if (course !== undefined) updateData.course = course;
+    if (section !== undefined) updateData.section = section;
+    if (erpId !== undefined) updateData.erpId = erpId;
+    if (semester !== undefined) updateData.semester = semester;
 
     const user = await User.findByIdAndUpdate(
       userId,

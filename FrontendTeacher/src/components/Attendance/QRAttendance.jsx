@@ -191,7 +191,7 @@ const QRAttendance = ({ classId, students, socket, onNavigateToManual }) => {
     if (!classId) return;
     const pollInterval = setInterval(() => {
       checkTodayAttendanceLock();
-    }, 5000);
+    }, 5001);
     return () => clearInterval(pollInterval);
   }, [classId, checkTodayAttendanceLock]);
 

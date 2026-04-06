@@ -1,6 +1,6 @@
 const API_BASE_URL =
   window.location.hostname === "localhost"
-    ? "http://localhost:5000/api"
+    ? "http://localhost:5001/api"
     : "https://adhyanai-backend.onrender.com/api";
 
 export const PRINCIPAL_FRONTEND_URL =

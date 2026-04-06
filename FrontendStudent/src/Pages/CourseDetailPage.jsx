@@ -65,7 +65,7 @@ export default function CourseDetailPage() {
   //   const checkFeedback = async () => {
   //     try {
   //       const res = await fetch(
-  //         `http://localhost:5000/api/feedback/active/${id}`,
+  //         `http://localhost:5001/api/feedback/active/${id}`,
   //         {
   //           headers: {
   //             Authorization: `Bearer ${token}`,

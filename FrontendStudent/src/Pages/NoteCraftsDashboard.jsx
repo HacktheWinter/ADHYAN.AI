@@ -8,6 +8,7 @@ import {
   AlertCircle,
   MoreVertical,
   LogOut,
+  QrCode,
 } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import axios from "axios";
@@ -15,6 +16,7 @@ import UpcomingEventsSidebar from "../components/UpcomingEventsSidebar";
 import { getStoredUser } from "../utils/authStorage";
 import API_BASE_URL from "../config";
 import { getAllThemes } from "../data/themeData";
+import SeminarQRScanner from "../components/SeminarQRScanner";
 
 export default function NoteCraftsDashboard() {
   const navigate = useNavigate();
@@ -25,6 +27,7 @@ export default function NoteCraftsDashboard() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showSeminarScanner, setShowSeminarScanner] = useState(false);
 
   const user = getStoredUser() || {};
   const studentId = user.id || user._id;
@@ -244,7 +247,7 @@ export default function NoteCraftsDashboard() {
             err.response?.data?.error ||
               "Failed to leave class. Please try again."
           );
-          setTimeout(() => setError(""), 5000);
+          setTimeout(() => setError(""), 5001);
         }
       }
     };
@@ -338,16 +341,28 @@ export default function NoteCraftsDashboard() {
               Keep growing your skills 🚀
             </p>
           </div>
-          <button
-            onClick={() => setShowJoinModal(true)}
-            className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium text-white text-sm sm:text-base flex items-center justify-center gap-2 transition-all cursor-pointer hover:shadow-lg"
-            style={{
-              background: "linear-gradient(135deg, #6D28D9 0%, #9333EA 100%)",
-            }}
-          >
-            <BookOpen size={18} className="sm:w-5 sm:h-5" />
-            Join Class
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+            <button
+              onClick={() => setShowSeminarScanner(true)}
+              className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium text-white text-sm sm:text-base flex items-center justify-center gap-2 transition-all cursor-pointer hover:shadow-lg"
+              style={{
+                background: "linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)",
+              }}
+            >
+              <QrCode size={18} className="sm:w-5 sm:h-5" />
+              Scan Seminar QR
+            </button>
+            <button
+              onClick={() => setShowJoinModal(true)}
+              className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium text-white text-sm sm:text-base flex items-center justify-center gap-2 transition-all cursor-pointer hover:shadow-lg"
+              style={{
+                background: "linear-gradient(135deg, #6D28D9 0%, #9333EA 100%)",
+              }}
+            >
+              <BookOpen size={18} className="sm:w-5 sm:h-5" />
+              Join Class
+            </button>
+          </div>
         </div>
 
         {/* Global Success/Error Messages */}
@@ -522,6 +537,9 @@ export default function NoteCraftsDashboard() {
             </form>
           </div>
         </div>
+      )}
+      {showSeminarScanner && (
+        <SeminarQRScanner onClose={() => setShowSeminarScanner(false)} />
       )}
     </div>
   );

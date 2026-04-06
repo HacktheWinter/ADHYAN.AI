@@ -17,6 +17,12 @@ const userSchema = new mongoose.Schema({
   dateOfBirth: { type: Date },
   gender: { type: String, enum: ["male", "female", "other", "prefer-not-to-say", ""], default: "" },
   collegeName: { type: String, default: "" },
+
+  // Student-specific academic fields
+  course: { type: String, default: "" },
+  section: { type: String, default: "" },
+  erpId: { type: String, default: "", sparse: true },
+  semester: { type: String, default: "" },
 }, { timestamps: true });
 
 export default mongoose.model("User", userSchema);
