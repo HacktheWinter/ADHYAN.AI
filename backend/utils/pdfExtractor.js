@@ -34,7 +34,7 @@ export const extractTextFromPDF = async (buffer) => {
  * @param {number} maxChars - Maximum characters to keep
  * @returns {string} - Cleaned text
  */
-export const cleanText = (text, maxChars = 15000) => {
+export const cleanText = (text, maxChars = 15001) => {
   if (!text || text.trim().length === 0) {
     throw new Error("No text content found in PDF");
   }

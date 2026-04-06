@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import { getClassrooms, createClassroom, deleteClassroom, updateClassroom } from "../api/classroomApi";
 import { getStoredUser } from "../utils/authStorage";
+import SeminarQRGenerator from "../components/SeminarQRGenerator";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -29,6 +30,7 @@ const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showSeminarQR, setShowSeminarQR] = useState(false);
 
   const user = getStoredUser() || {};
   const teacherId = user.id || user._id;
@@ -138,17 +140,35 @@ const Dashboard = () => {
             </p>
           </div>
           {classes.length > 0 && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                setEditingClass(null);
-                setIsModalOpen(true);
-              }}
-              className="w-full sm:w-auto px-4 py-2 sm:py-2.5 bg-blue-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-blue-700 transition cursor-pointer whitespace-nowrap"
-            >
-              + Create New Class
-            </motion.button>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowSeminarQR(true)}
+                className="flex-1 sm:flex-none px-4 py-2 sm:py-2.5 bg-indigo-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-indigo-700 transition cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5"
+              >
+                📡 Seminar QR
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => navigate('/seminar-attendance')}
+                className="flex-1 sm:flex-none px-4 py-2 sm:py-2.5 bg-emerald-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-emerald-700 transition cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5"
+              >
+                📋 Seminar Records
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setEditingClass(null);
+                  setIsModalOpen(true);
+                }}
+                className="flex-1 sm:flex-none px-4 py-2 sm:py-2.5 bg-blue-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-blue-700 transition cursor-pointer whitespace-nowrap"
+              >
+                + Create New Class
+              </motion.button>
+            </div>
           )}
         </div>
 
@@ -226,6 +246,9 @@ const Dashboard = () => {
             mode={editingClass ? "edit" : "create"}
           />
         </div>
+      )}
+      {showSeminarQR && (
+        <SeminarQRGenerator onClose={() => setShowSeminarQR(false)} />
       )}
     </div>
   );

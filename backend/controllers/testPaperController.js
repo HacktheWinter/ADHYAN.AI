@@ -101,7 +101,7 @@ export const generateTestPaperWithAI = async (req, res) => {
     console.log("Content validation passed");
 
     // Clean text
-    const cleanedText = cleanText(combinedText, 15000);
+    const cleanedText = cleanText(combinedText, 15001);
 
     // Generate test paper using Gemini
     console.log("Calling Gemini API...");

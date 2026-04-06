@@ -262,10 +262,10 @@ export const generateQuizWithAI = async (req, res) => {
 
     console.log("Content validation passed");
 
-    // Clean text for AI processing (limit to 15000 chars for faster processing)
+    // Clean text for AI processing (limit to 15001 chars for faster processing)
     let cleanedText;
     try {
-      cleanedText = cleanText(combinedText, 15000);
+      cleanedText = cleanText(combinedText, 15001);
       console.log(`Text cleaned: ${cleanedText.length} characters`);
     } catch (error) {
       return res.status(400).json({

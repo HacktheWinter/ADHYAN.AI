@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, User, BookOpen } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, BookOpen, GraduationCap, Hash, Layers, Users } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
 
@@ -17,6 +17,10 @@ export default function Signup() {
     password: "",
     confirmPassword: "",
     role: "student",
+    course: "",
+    section: "",
+    erpId: "",
+    semester: "",
   });
 
   const handleSubmit = async (e) => {
@@ -33,6 +37,26 @@ export default function Signup() {
       return;
     }
 
+    // Validate student-specific fields
+    if (formData.role === "student") {
+      if (!formData.course.trim()) {
+        setError("Course is required for students");
+        return;
+      }
+      if (!formData.section.trim()) {
+        setError("Section is required for students");
+        return;
+      }
+      if (!formData.erpId.trim()) {
+        setError("ERP ID is required for students");
+        return;
+      }
+      if (!formData.semester.trim()) {
+        setError("Semester is required for students");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -41,11 +65,21 @@ export default function Signup() {
           ? `${API_BASE_URL}/teacher/register`
           : `${API_BASE_URL}/student/register`;
 
-      await axios.post(endpoint, {
+      const payload = {
         name: formData.fullName,
         email: formData.email,
         password: formData.password,
-      });
+      };
+
+      // Add student-specific fields
+      if (formData.role === "student") {
+        payload.course = formData.course.trim();
+        payload.section = formData.section.trim();
+        payload.erpId = formData.erpId.trim();
+        payload.semester = formData.semester.trim();
+      }
+
+      await axios.post(endpoint, payload);
 
       alert("Registration successful! Please login.");
       navigate("/login");
@@ -278,6 +312,92 @@ export default function Signup() {
                   </button>
                 </div>
               </div>
+
+              {/* Student-specific fields */}
+              {formData.role === "student" && (
+                <div className="space-y-4 p-4 bg-purple-50 border border-purple-100 rounded-xl">
+                  <p className="text-sm font-semibold text-purple-700 mb-1">Academic Details</p>
+
+                  {/* Course */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Course *
+                    </label>
+                    <div className="relative">
+                      <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="text"
+                        name="course"
+                        value={formData.course}
+                        onChange={handleChange}
+                        placeholder="e.g. B.Tech CSE, BBA, MBA"
+                        required
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Section & Semester Row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Section *
+                      </label>
+                      <div className="relative">
+                        <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                          type="text"
+                          name="section"
+                          value={formData.section}
+                          onChange={handleChange}
+                          placeholder="e.g. A, B, C"
+                          required
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm uppercase"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Semester *
+                      </label>
+                      <div className="relative">
+                        <Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <select
+                          name="semester"
+                          value={formData.semester}
+                          onChange={handleChange}
+                          required
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm appearance-none bg-white"
+                        >
+                          <option value="">Select</option>
+                          {[1,2,3,4,5,6,7,8].map(s => (
+                            <option key={s} value={String(s)}>Semester {s}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ERP ID */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      ERP / Roll Number *
+                    </label>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="text"
+                        name="erpId"
+                        value={formData.erpId}
+                        onChange={handleChange}
+                        placeholder="Enter your ERP / University Roll No."
+                        required
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Password */}
               <div>
