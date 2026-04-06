@@ -56,6 +56,10 @@ const hasValidSession = (storage) => {
 const resolveStorage = () => {
   if (hasValidSession(localStorage)) return localStorage;
   if (hasValidSession(sessionStorage)) return sessionStorage;
+  const hasLocal = localStorage.getItem(USER_KEY) && localStorage.getItem(TOKEN_KEY);
+  const hasSession = sessionStorage.getItem(USER_KEY) && sessionStorage.getItem(TOKEN_KEY);
+  if (hasLocal) return localStorage;
+  if (hasSession) return sessionStorage;
   return null;
 };
 
