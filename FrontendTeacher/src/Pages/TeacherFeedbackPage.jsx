@@ -7,6 +7,7 @@ import FeedbackBuilder from "../components/FeedbackBuilder";
 import FeedbackResults from "../components/FeedbackResults";
 import * as XLSX from "xlsx";
 import API_BASE_URL from "../config";
+import { getStoredToken } from "../utils/authStorage";
 
 const TeacherFeedbackPage = () => {
   const location = useLocation();
@@ -49,7 +50,11 @@ const TeacherFeedbackPage = () => {
       }
       
       setDownloadLoading(true); // temporary loading to fetch list
-      const token = localStorage.getItem("token");
+      const token = getStoredToken();
+      if (!token) {
+        alert("Authentication required. Please login again.");
+        return;
+      }
       
       const res = await fetch(
         `${API_BASE_URL}/feedback/results/all/${classId}`,

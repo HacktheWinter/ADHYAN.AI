@@ -2,7 +2,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, Edit2, Save, X, Loader, Sparkles, Award } from 'lucide-react';
-import { getSubmissionById, updateMarksManually } from '../api/assignmentApi';
+import {
+  getAssignmentSubmissions,
+  getSubmissionById,
+  openSubmissionPdf,
+  updateMarksManually,
+} from '../api/assignmentApi';
 import API_BASE_URL from '../config';
 
 const StudentAssignmentResult = () => {
@@ -21,10 +26,19 @@ const StudentAssignmentResult = () => {
     try {
       setLoading(true);
 
-      const submissionId = location.state?.submissionId;
+      let submissionId = location.state?.submissionId;
 
       if (!submissionId) {
-        alert('Submission ID not found');
+        const allSubmissions = await getAssignmentSubmissions(assignmentId);
+        const matchingSubmission = (allSubmissions.submissions || []).find(
+          (item) => (item.studentId?._id || item.studentId)?.toString() === _studentId
+        );
+
+        submissionId = matchingSubmission?._id;
+      }
+
+      if (!submissionId) {
+        alert('Submission not found');
         navigate(`/class/${classId}/assignments/results/${assignmentId}`);
         return;
       }
@@ -45,7 +59,7 @@ const StudentAssignmentResult = () => {
     } finally {
       setLoading(false);
     }
-  }, [location.state?.submissionId, navigate, classId, assignmentId]);
+  }, [location.state?.submissionId, navigate, classId, assignmentId, _studentId]);
 
   useEffect(() => {
     fetchSubmission();
@@ -211,7 +225,14 @@ const StudentAssignmentResult = () => {
               <p className="text-gray-500 text-sm mt-1">Review the student's original uploaded document.</p>
             </div>
             <button
-              onClick={() => window.open(`${API_BASE_URL.replace('/api', '')}/api/assignment-submission/pdf/${submission._id}`, "_blank")}
+              onClick={async () => {
+                try {
+                  await openSubmissionPdf(submission._id);
+                } catch (error) {
+                  console.error('Failed to open submission PDF:', error);
+                  alert('Failed to open PDF');
+                }
+              }}
               className="px-4 py-2 bg-purple-50 text-purple-700 font-medium rounded-lg border border-purple-200 hover:bg-purple-100 transition-colors cursor-pointer"
             >
               View Document

@@ -13,6 +13,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import axios from "axios";
+import API_BASE_URL from "../config";
 
 const StudentTestResult = () => {
   const { classId, testId, studentId } = useParams();

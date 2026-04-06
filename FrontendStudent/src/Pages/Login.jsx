@@ -3,7 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import axios from "axios";
 import { clearAuth, persistAuth } from "../utils/authStorage";
-import API_BASE_URL, { STUDENT_FRONTEND_URL, TEACHER_FRONTEND_URL } from "../config";
+import API_BASE_URL, {
+  LANDING_PAGE_URL,
+  STUDENT_FRONTEND_URL,
+  TEACHER_FRONTEND_URL,
+} from "../config";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -98,7 +102,7 @@ export default function Login() {
         <div className="hidden md:block">
           <div className="text-center space-y-6">
             <a
-              href="https://adhyanai-5eum.onrender.com/"
+              href={LANDING_PAGE_URL}
               className="flex items-center justify-center space-x-1 mb-8"
             >
               <img 
@@ -164,7 +168,7 @@ export default function Login() {
           <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10">
             <div className="md:hidden text-center mb-6">
               <a
-                href="https://adhyanai-5eum.onrender.com/"
+                href={LANDING_PAGE_URL}
                 className="flex items-center justify-center space-x-2 mb-4"
               >
                 <img 

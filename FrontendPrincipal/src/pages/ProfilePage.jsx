@@ -15,17 +15,17 @@ export default function ProfilePage() {
 
       <SectionCard title="Account details">
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl bg-slate-50 px-4 py-4">
-            <p className="text-sm text-slate-500">Name</p>
-            <p className="mt-2 font-semibold text-slate-900">{user?.name || "-"}</p>
+          <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4">
+            <p className="text-sm text-gray-500">Name</p>
+            <p className="mt-2 font-semibold text-gray-900">{user?.name || "-"}</p>
           </div>
-          <div className="rounded-2xl bg-slate-50 px-4 py-4">
-            <p className="text-sm text-slate-500">Email</p>
-            <p className="mt-2 font-semibold text-slate-900">{user?.email || "-"}</p>
+          <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4">
+            <p className="text-sm text-gray-500">Email</p>
+            <p className="mt-2 font-semibold text-gray-900">{user?.email || "-"}</p>
           </div>
-          <div className="rounded-2xl bg-slate-50 px-4 py-4">
-            <p className="text-sm text-slate-500">Role</p>
-            <p className="mt-2 font-semibold text-slate-900">{user?.role || "-"}</p>
+          <div className="rounded-2xl border border-purple-100 bg-purple-50/50 px-4 py-4">
+            <p className="text-sm text-gray-500">Role</p>
+            <p className="mt-2 font-semibold text-gray-900">{user?.role || "-"}</p>
           </div>
         </div>
       </SectionCard>
