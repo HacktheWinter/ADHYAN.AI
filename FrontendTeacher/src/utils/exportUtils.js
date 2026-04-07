@@ -3,23 +3,55 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
+// ==================== TOP HELPERS ====================
+
+const getGroupedQuestions = (questions) => {
+  const groups = {
+    'Section A: Short Answer (2 marks)': [],
+    'Section B: Medium Answer (5 marks)': [],
+    'Section C: Long Answer (10 marks)': []
+  };
+
+  questions.forEach(q => {
+    const section = q.section?.toLowerCase() || '';
+    const m = Number(q.marks) || 0;
+    
+    // Strict Label-First Sorting
+    if (section.includes('section b')) {
+      groups['Section B: Medium Answer (5 marks)'].push({ ...q, marks: 5 }); // ENFORCE 5 MARKS
+    } else if (section.includes('section c')) {
+      groups['Section C: Long Answer (10 marks)'].push({ ...q, marks: 10 }); // ENFORCE 10 MARKS
+    } else if (section.includes('section a')) {
+      groups['Section A: Short Answer (2 marks)'].push({ ...q, marks: 2 }); // ENFORCE 2 MARKS
+    } else {
+      // Fallback to marks ONLY if section name is missing
+      if (m < 5) groups['Section A: Short Answer (2 marks)'].push({ ...q, marks: 2 });
+      else if (m >= 5 && m < 10) groups['Section B: Medium Answer (5 marks)'].push({ ...q, marks: 5 });
+      else groups['Section C: Long Answer (10 marks)'].push({ ...q, marks: 10 });
+    }
+  });
+
+  return groups;
+};
+
+const formatExportQNo = (label, defaultNo) => {
+  if (!label) return `Question ${defaultNo}`;
+  if (label.toLowerCase().startsWith('q')) return label;
+  if (label.toLowerCase().startsWith('question')) return label;
+  return `Question ${label}`;
+};
+
 // ==================== QUIZ EXPORT ====================
 
 export const exportQuizToExcel = (quiz) => {
   try {
-    // Prepare data for Excel
     const data = [];
-    
-    // Add header row
     data.push(['Quiz Title', quiz.title]);
     data.push(['Total Questions', quiz.questions.length]);
     data.push(['Status', quiz.status]);
-    data.push([]); // Empty row
-    
-    // Add questions header (removed Correct Answer column)
+    data.push([]);
     data.push(['Q.No', 'Question', 'Option A', 'Option B', 'Option C', 'Option D']);
     
-    // Add questions (without correct answer)
     quiz.questions.forEach((q, index) => {
       data.push([
         index + 1,
@@ -31,30 +63,14 @@ export const exportQuizToExcel = (quiz) => {
       ]);
     });
 
-    // Create worksheet
     const ws = XLSX.utils.aoa_to_sheet(data);
-    
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 6 },  // Q.No
-      { wch: 50 }, // Question
-      { wch: 25 }, // Option A
-      { wch: 25 }, // Option B
-      { wch: 25 }, // Option C
-      { wch: 25 }  // Option D
-    ];
-
-    // Create workbook
+    ws['!cols'] = [{ wch: 6 }, { wch: 50 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Quiz');
-
-    // Generate file
-    const fileName = `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_Quiz.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    XLSX.writeFile(wb, `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_Quiz.xlsx`);
 
     return { success: true, message: 'Quiz exported to Excel successfully!' };
   } catch (error) {
-    console.error('Excel export error:', error);
     return { success: false, message: 'Failed to export to Excel' };
   }
 };
@@ -62,65 +78,36 @@ export const exportQuizToExcel = (quiz) => {
 export const exportQuizToPDF = (quiz) => {
   try {
     const doc = new jsPDF();
-    
-    // Add title
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
     doc.text(quiz.title, 14, 20);
     
-    // Add metadata
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Total Questions: ${quiz.questions.length}`, 14, 30);
-    doc.text(`Status: ${quiz.status}`, 14, 36);
-    
-    let yPosition = 50;
-    
-    // Add questions (without correct answer)
+    let y = 35;
     quiz.questions.forEach((q, index) => {
-      // Check if we need a new page
-      if (yPosition > 270) {
-        doc.addPage();
-        yPosition = 20;
-      }
-      
-      // Question number and text
+      if (y > 270) { doc.addPage(); y = 20; }
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
-      doc.text(`Question ${index + 1}:`, 14, yPosition);
+      doc.text(`Question ${index + 1}:`, 14, y);
       
       doc.setFont(undefined, 'normal');
       const questionLines = doc.splitTextToSize(q.question, 180);
-      doc.text(questionLines, 14, yPosition + 6);
-      yPosition += 6 + (questionLines.length * 6);
+      doc.text(questionLines, 14, y + 6);
+      y += 6 + (questionLines.length * 6);
       
-      // Options
       doc.setFontSize(10);
       q.options.forEach((option, optIndex) => {
         const optionLetter = String.fromCharCode(65 + optIndex);
         const optionLines = doc.splitTextToSize(`${optionLetter}. ${option}`, 170);
-        
-        if (yPosition > 270) {
-          doc.addPage();
-          yPosition = 20;
-        }
-        
-        doc.text(optionLines, 20, yPosition);
-        yPosition += 6 * optionLines.length;
+        if (y > 270) { doc.addPage(); y = 20; }
+        doc.text(optionLines, 20, y);
+        y += 6 * optionLines.length;
       });
-      
-      // Removed correct answer section
-      
-      yPosition += 12; // Space before next question
+      y += 12;
     });
     
-    // Save PDF
-    const fileName = `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_Quiz.pdf`;
-    doc.save(fileName);
-
+    doc.save(`${quiz.title.replace(/[^a-z0-9]/gi, '_')}_Quiz.pdf`);
     return { success: true, message: 'Quiz exported to PDF successfully!' };
   } catch (error) {
-    console.error('PDF export error:', error);
     return { success: false, message: 'Failed to export to PDF' };
   }
 };
@@ -130,49 +117,36 @@ export const exportQuizToPDF = (quiz) => {
 export const exportTestPaperToExcel = (testPaper) => {
   try {
     const data = [];
-    
-    // Add header
     data.push(['Test Paper Title', testPaper.title]);
-    data.push(['Total Questions', testPaper.questions.length]);
     data.push(['Total Marks', testPaper.totalMarks]);
-    data.push(['Status', testPaper.status]);
-    data.push([]); // Empty row
-    
-    // Add questions header (removed Answer Key and Guidelines)
-    data.push(['Q.No', 'Type', 'Marks', 'Question']);
-    
-    // Add questions (without answer key and guidelines)
-    testPaper.questions.forEach((q, index) => {
-      data.push([
-        index + 1,
-        q.type,
-        q.marks,
-        q.question
-      ]);
+    data.push([]);
+
+    const groups = getGroupedQuestions(testPaper.questions);
+
+    Object.entries(groups).forEach(([sectionTitle, qs]) => {
+      if (qs.length === 0) return;
+      
+      data.push([sectionTitle.toUpperCase()]);
+      data.push(['Q.No', 'Marks', 'Question']);
+      
+      qs.forEach((q, idx) => {
+        data.push([
+          formatExportQNo(q.choiceLabel, idx + 1),
+          q.marks, // This now reflects the enforced section mark
+          q.question
+        ]);
+      });
+      data.push([]);
     });
 
-    // Create worksheet
     const ws = XLSX.utils.aoa_to_sheet(data);
-    
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 6 },  // Q.No
-      { wch: 10 }, // Type
-      { wch: 8 },  // Marks
-      { wch: 70 }  // Question
-    ];
-
-    // Create workbook
+    ws['!cols'] = [{ wch: 15 }, { wch: 8 }, { wch: 80 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Test Paper');
-
-    // Generate file
-    const fileName = `${testPaper.title.replace(/[^a-z0-9]/gi, '_')}_TestPaper.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    XLSX.writeFile(wb, `${testPaper.title.replace(/[^a-z0-9]/gi, '_')}.xlsx`);
 
     return { success: true, message: 'Test Paper exported to Excel successfully!' };
   } catch (error) {
-    console.error('Excel export error:', error);
     return { success: false, message: 'Failed to export to Excel' };
   }
 };
@@ -180,54 +154,47 @@ export const exportTestPaperToExcel = (testPaper) => {
 export const exportTestPaperToPDF = (testPaper) => {
   try {
     const doc = new jsPDF();
-    
-    // Add title
-    doc.setFontSize(18);
+    doc.setFontSize(20);
     doc.setFont(undefined, 'bold');
     doc.text(testPaper.title, 14, 20);
     
-    // Add metadata
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
-    doc.text(`Total Questions: ${testPaper.questions.length}`, 14, 30);
-    doc.text(`Total Marks: ${testPaper.totalMarks}`, 14, 36);
-    doc.text(`Status: ${testPaper.status}`, 14, 42);
+    doc.text(`Total Marks: ${testPaper.totalMarks}`, 14, 28);
     
-    let yPosition = 55;
-    
-    // Add questions (without answer key and guidelines)
-    testPaper.questions.forEach((q, index) => {
-      // Check if we need a new page
-      if (yPosition > 260) {
-        doc.addPage();
-        yPosition = 20;
-      }
-      
-      // Question header
-      doc.setFontSize(12);
+    let y = 40;
+    const groups = getGroupedQuestions(testPaper.questions);
+
+    Object.entries(groups).forEach(([sectionTitle, qs]) => {
+      if (qs.length === 0) return;
+
+      if (y > 250) { doc.addPage(); y = 20; }
+      doc.setFontSize(14);
       doc.setFont(undefined, 'bold');
-      doc.text(`Question ${index + 1} [${q.marks} marks] - ${q.type}`, 14, yPosition);
-      yPosition += 8;
-      
-      // Question text
-      doc.setFont(undefined, 'normal');
-      const questionLines = doc.splitTextToSize(q.question, 180);
-      doc.text(questionLines, 14, yPosition);
-      yPosition += 6 * questionLines.length + 6;
-      
-      // Removed Answer Key section
-      // Removed Guidelines section
-      
-      yPosition += 8; // Space before next question
+      doc.setTextColor(70, 70, 70);
+      doc.text(sectionTitle, 14, y);
+      doc.line(14, y + 2, 100, y + 2);
+      y += 12;
+
+      qs.forEach((q, idx) => {
+        if (y > 260) { doc.addPage(); y = 20; }
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text(`${formatExportQNo(q.choiceLabel, idx + 1)} [${q.marks} Marks]`, 14, y); // Enforced mark
+        y += 7;
+
+        doc.setFont(undefined, 'normal');
+        const lines = doc.splitTextToSize(q.question, 180);
+        doc.text(lines, 14, y);
+        y += (lines.length * 6) + 8;
+      });
+      y += 5;
     });
     
-    // Save PDF
-    const fileName = `${testPaper.title.replace(/[^a-z0-9]/gi, '_')}_TestPaper.pdf`;
-    doc.save(fileName);
-
+    doc.save(`${testPaper.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
     return { success: true, message: 'Test Paper exported to PDF successfully!' };
   } catch (error) {
-    console.error('PDF export error:', error);
     return { success: false, message: 'Failed to export to PDF' };
   }
 };
@@ -237,19 +204,11 @@ export const exportTestPaperToPDF = (testPaper) => {
 export const exportAssignmentToExcel = (assignment) => {
   try {
     const data = [];
-    
-    // Add header
     data.push(['Assignment Title', assignment.title]);
-    data.push(['Description', assignment.description || '']);
-    data.push(['Total Questions', assignment.questions.length]);
     data.push(['Total Marks', assignment.totalMarks]);
-    data.push(['Status', assignment.status]);
-    data.push([]); // Empty row
-    
-    // Add questions header (removed Answer Key and Guidelines)
+    data.push([]);
     data.push(['Q.No', 'Marks', 'Question']);
     
-    // Add questions (without answer key and guidelines)
     assignment.questions.forEach((q, index) => {
       data.push([
         index + 1,
@@ -258,27 +217,14 @@ export const exportAssignmentToExcel = (assignment) => {
       ]);
     });
 
-    // Create worksheet
     const ws = XLSX.utils.aoa_to_sheet(data);
-    
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 6 },  // Q.No
-      { wch: 8 },  // Marks
-      { wch: 80 }  // Question
-    ];
-
-    // Create workbook
+    ws['!cols'] = [{ wch: 6 }, { wch: 8 }, { wch: 80 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Assignment');
-
-    // Generate file
-    const fileName = `${assignment.title.replace(/[^a-z0-9]/gi, '_')}_Assignment.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    XLSX.writeFile(wb, `${assignment.title.replace(/[^a-z0-9]/gi, '_')}_Assignment.xlsx`);
 
     return { success: true, message: 'Assignment exported to Excel successfully!' };
   } catch (error) {
-    console.error('Excel export error:', error);
     return { success: false, message: 'Failed to export to Excel' };
   }
 };
@@ -286,63 +232,31 @@ export const exportAssignmentToExcel = (assignment) => {
 export const exportAssignmentToPDF = (assignment) => {
   try {
     const doc = new jsPDF();
-    
-    // Add title
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
     doc.text(assignment.title, 14, 20);
     
-    // Add description
-    if (assignment.description) {
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'italic');
-      const descLines = doc.splitTextToSize(assignment.description, 180);
-      doc.text(descLines, 14, 28);
-    }
-    
-    // Add metadata
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
-    const metaY = assignment.description ? 38 : 30;
-    doc.text(`Total Questions: ${assignment.questions.length}`, 14, metaY);
-    doc.text(`Total Marks: ${assignment.totalMarks}`, 14, metaY + 6);
-    doc.text(`Status: ${assignment.status}`, 14, metaY + 12);
+    doc.text(`Total Marks: ${assignment.totalMarks}`, 14, 30);
     
-    let yPosition = metaY + 25;
-    
-    // Add questions (without answer key and guidelines)
+    let y = 50;
     assignment.questions.forEach((q, index) => {
-      // Check if we need a new page
-      if (yPosition > 260) {
-        doc.addPage();
-        yPosition = 20;
-      }
-      
-      // Question header
+      if (y > 260) { doc.addPage(); y = 20; }
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
-      doc.text(`Question ${index + 1} [${q.marks} marks]`, 14, yPosition);
-      yPosition += 8;
+      doc.text(`Question ${index + 1} [${q.marks} marks]`, 14, y);
+      y += 8;
       
-      // Question text
       doc.setFont(undefined, 'normal');
       const questionLines = doc.splitTextToSize(q.question, 180);
-      doc.text(questionLines, 14, yPosition);
-      yPosition += 6 * questionLines.length + 6;
-      
-      // Removed Answer Key section
-      // Removed Guidelines section
-      
-      yPosition += 8; // Space before next question
+      doc.text(questionLines, 14, y);
+      y += 6 * questionLines.length + 12;
     });
     
-    // Save PDF
-    const fileName = `${assignment.title.replace(/[^a-z0-9]/gi, '_')}_Assignment.pdf`;
-    doc.save(fileName);
-
+    doc.save(`${assignment.title.replace(/[^a-z0-9]/gi, '_')}_Assignment.pdf`);
     return { success: true, message: 'Assignment exported to PDF successfully!' };
   } catch (error) {
-    console.error('PDF export error:', error);
     return { success: false, message: 'Failed to export to PDF' };
   }
 };

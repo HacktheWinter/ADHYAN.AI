@@ -35,61 +35,104 @@ const rotateApiKey = () => {
 };
 
 const generationConfig = {
-  temperature: 1,
+  temperature: 0.7, // Lower temperature for more stable JSON
   topP: 0.95,
   topK: 40,
-  maxOutputTokens: 8192,
+  maxOutputTokens: 16384, // Increased tokens for long test papers
   responseMimeType: "application/json",
 };
 
 /**
  * Generate Test Paper from text using Gemini AI
+ * @param {string} extractedText - Content extracted from PDFs
+ * @param {object} config - Configuration for generation
+ * @param {object} config.counts - {short: {count, optional}, medium: {count, optional}, long: {count, optional}}
+ * @param {string} config.difficulty - easy, medium, hard, mixed
+ * @param {string[]} config.excludeQuestions - List of existing questions to avoid
  */
-export const generateTestPaperFromText = async (extractedText) => {
+export const generateTestPaperFromText = async (extractedText, config = {}) => {
+  const counts = config.counts || { 
+    short: { count: 5, optional: 0 }, 
+    medium: { count: 4, optional: 0 }, 
+    long: { count: 2, optional: 0 } 
+  };
+  const difficulty = config.difficulty || "mixed";
+  const excludeQuestions = config.excludeQuestions || [];
+  
+  // Total to generate for each section
+  const totalShort = (counts.short?.count || 5) + (counts.short?.optional || 0);
+  const totalMedium = (counts.medium?.count || 4) + (counts.medium?.optional || 0);
+  const totalLong = (counts.long?.count || 2) + (counts.long?.optional || 0);
+  
+  // Rule for Direct + Pairs
+  const directShort = Math.max(0, (counts.short?.count || 5) - (counts.short?.optional || 0));
+  const directMedium = Math.max(0, (counts.medium?.count || 4) - (counts.medium?.optional || 0));
+  const directLong = Math.max(0, (counts.long?.count || 2) - (counts.long?.optional || 0));
+  const totalQuestions = totalShort + totalMedium + totalLong;
+
   let attempts = 0;
 
   while (attempts < MAX_RETRIES) {
     try {
-      console.log("Preparing Gemini prompt for Test Paper...");
+      console.log(`Preparing Gemini prompt for Test Paper (Total ${totalQuestions} Qs)...`);
+      console.log(`Config: ${totalShort}S, ${totalMedium}M, ${totalLong}L, difficulty: ${difficulty}`);
 
       const limitedText = extractedText.slice(0, 12000);
 
+      const difficultyInstruction = difficulty === "mixed"
+        ? "Mix difficulty levels for each category"
+        : `All questions should be ${difficulty.toUpperCase()} difficulty level`;
+
+      const excludeInstruction = excludeQuestions.length > 0
+        ? `\nDO NOT repeat or generate questions similar to these existing ones:\n- ${excludeQuestions.join('\n- ')}\n`
+        : "";
+
       const prompt = `
-You are an expert exam question paper generator. Generate EXACTLY 11 questions with answer keys from the following educational content.
+You are an expert exam question paper generator. Generate questions with answer keys grouped by sections from the following content.
 
 CONTENT:
 ${limitedText}
 
-REQUIREMENTS:
-1. Generate EXACTLY 11 questions in this structure:
-   - 5 SHORT answer questions (2 marks each) - Answer in 2-3 lines
-   - 4 MEDIUM answer questions (5 marks each) - Answer in 5-6 lines
-   - 2 LONG answer questions (10 marks each) - Answer in 10-12 lines
+${excludeInstruction}
 
-2. Each question MUST have:
-   - Clear question text
-   - Question type (short/medium/long)
-   - Marks allocation
-   - Detailed answer key (model answer)
-   - Guidelines for acceptable alternate answers
+CRITICAL JSON RULES:
+1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
+2. NO LITERAL NEWLINES inside JSON string values. Use spaces or /n instead.
+3. Escape all double quotes (\") within question or answer text.
+4. Each answerKey MUST be detailed (7-9 lines) but formatted as a SINGLE-LINE string with no literal line breaks.
+
+STRUCTURE RULE (Repeat for Section A, B, and C):
+1. For a section with R Required and O Optional questions:
+   - Generate (R-O) Direct Questions (Numbered normally).
+   - Generate O Internal Choice Pairs (e.g., "Question 4(a) OR 4(b)").
+2. For this specific paper:
+   - Section A: ${directShort} direct questions + ${counts.short?.optional || 0} internal choice pairs.
+   - Section B: ${directMedium} direct questions + ${counts.medium?.optional || 0} internal choice pairs.
+   - Section C: ${directLong} direct questions + ${counts.long?.optional || 0} internal choice pairs.
+
+REQUIREMENTS:
+1. CONTINUOUS NUMBERING: Use a single global sequence (1, 2, 3... N) for the entire paper. 
+   - If Section A has 5 items, Section B MUST start at Question 6. 
+   - NEVER reset numbering for a new section.
+2. Format Paired Questions: Use "Q[GlobalNumber](a)" and "Q[GlobalNumber](b)" in the choiceLabel field.
+3. Link Pairs: Paired questions MUST share the same choiceGroup (e.g., "group_sectionA_6").
+4. Separator: Include the text "[OR]" between the question text of internal choice pairs.
+5. Each question MUST include: question, type, marks, section, choiceLabel, choiceGroup, answerKey, answerGuidelines.
 
 RESPONSE FORMAT (Valid JSON only):
 {
   "questions": [
     {
-      "question": "What is photosynthesis?",
-      "type": "short",
-      "marks": 2,
-      "answerKey": "Photosynthesis is the process by which green plants convert light energy into chemical energy.",
-      "answerGuidelines": "Accept: Any answer mentioning light energy conversion and glucose production"
+      "question": "Direct question text...",
+      "type": "short", "marks": 2, "section": "Section A", "choiceLabel": "", "choiceGroup": "",
+      "answerKey": "Detailed 7-9 line explanation on a single line.", "answerGuidelines": "4-5 words only"
     }
   ]
 }
 
 IMPORTANT: 
-- Return ONLY valid JSON
-- No markdown, no code blocks, no extra text
-- Exactly 5 short + 4 medium + 2 long questions
+- Total unique items generated: ${totalQuestions}
+- EXACTLY match the Direct + Pair structure for ALL sections.
 `;
 
       console.log("Sending request to Gemini...");
