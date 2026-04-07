@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Users, Calendar, Save, CheckCircle, XCircle, MoreVertical, RefreshCw, X, CircleCheckBig, CalendarOff, CheckCheck, XSquare } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Users, Calendar, Save, CheckCircle, XCircle, MoreVertical, RefreshCw, X, CircleCheckBig, CalendarOff, CheckCheck, XSquare, QrCode as QrCodeIcon } from "lucide-react";
 import api from "../../api/axios";
 
 // Helper to get local date in YYYY-MM-DD format (not UTC)
@@ -22,6 +24,13 @@ const toLocalDateKey = (value) => {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const getStudentIdKey = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value._id) return value._id.toString();
+  return String(value);
 };
 
 const selectBestSessionForDate = (sessions, targetDateKey) => {
@@ -50,7 +59,8 @@ const selectBestSessionForDate = (sessions, targetDateKey) => {
   })[0];
 };
 
-const ManualAttendance = ({ classId, students }) => {
+const Attendance = ({ classId, students, socket }) => {
+  const MotionDiv = motion.div;
   const today = getLocalDateString();
   const todayIsSunday = new Date().getDay() === 0;
   const [selectedDate, setSelectedDate] = useState(today);
@@ -64,38 +74,138 @@ const ManualAttendance = ({ classId, students }) => {
   const [todaySaved, setTodaySaved] = useState(false);
   const [savedStats, setSavedStats] = useState({ present: 0, absent: 0 });
   const [backendRecords, setBackendRecords] = useState({});
+  const [sessions, setSessions] = useState([]);
+  
+  // QR Integration State
+  const [token, setToken] = useState("");
+  const [isQrActive, setIsQrActive] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [refreshCountdown, setRefreshCountdown] = useState(20);
+  
   const menuRef = useRef(null);
   const modalRef = useRef(null);
 
-  useEffect(() => {
-    // Fetch today's attendance from backend to check if it's already saved
-    const fetchTodayAttendance = async () => {
-      try {
-        setTodaySaved(false);
-        setSavedStats({ present: 0, absent: 0 });
-        const response = await api.get(`/attendance/sessions/${classId}`);
-        if (response.data?.success && response.data?.attendance) {
-          const sessions = Array.isArray(response.data.attendance) ? response.data.attendance : [response.data.attendance];
-          const todaySession = selectBestSessionForDate(sessions, today);
-          
-          if (todaySession && todaySession.status === 'completed') {
-            setTodaySaved(true);
-            // Calculate stats from the attendance entries
-            let p = 0, a = 0;
-            (todaySession.attendanceEntries || []).forEach(entry => {
-              if (entry.status === 'present' || entry.status === 'late') p++;
-              else a++;
-            });
-            setSavedStats({ present: p, absent: a });
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching today's attendance:", error);
+  const fetchSessions = useCallback(async () => {
+    try {
+      const response = await api.get(`/attendance/sessions/${classId}`);
+      if (response.data?.success && response.data?.attendance) {
+        const fetched = Array.isArray(response.data.attendance)
+          ? response.data.attendance
+          : [response.data.attendance];
+        setSessions(fetched);
+        return fetched;
       }
+      setSessions([]);
+      return [];
+    } catch (error) {
+      console.error("Error fetching attendance sessions:", error);
+      setSessions([]);
+      return [];
+    }
+  }, [classId]);
+
+  useEffect(() => {
+    if (!classId) return;
+    fetchSessions();
+  }, [classId, fetchSessions]);
+
+  useEffect(() => {
+    setTodaySaved(false);
+    setSavedStats({ present: 0, absent: 0 });
+
+    const todaySession = selectBestSessionForDate(sessions, today);
+    if (!todaySession || todaySession.status !== "completed") return;
+
+    let present = 0;
+    let absent = 0;
+    (todaySession.attendanceEntries || []).forEach((entry) => {
+      if (entry.status === "present") present += 1;
+      else absent += 1;
+    });
+
+    setTodaySaved(true);
+    setSavedStats({ present, absent });
+  }, [sessions, today]);
+
+  // Socket listener for QR attendance updates (for today's date only)
+  useEffect(() => {
+    if (!socket || isUpdateMode || selectedDate !== today) return;
+
+    const handleAttendanceUpdate = ({ studentId }) => {
+      setAttendanceData(prev => ({ ...prev, [studentId]: 'P' }));
     };
 
-    fetchTodayAttendance();
-  }, [classId, today]);
+    socket.on("attendance_update", handleAttendanceUpdate);
+
+    return () => {
+      socket.off("attendance_update", handleAttendanceUpdate);
+    };
+  }, [socket, isUpdateMode, selectedDate, today]);
+
+  // Token generation and refresh for QR (today only)
+  const fetchToken = useCallback(async () => {
+    try {
+      const response = await api.get(`/attendance/generate-token/${classId}`);
+      if (response.data?.token) {
+        setToken(response.data.token);
+        if (socket) socket.emit("refresh_token", { classId, token: response.data.token });
+        return response.data.token;
+      }
+    } catch (error) {
+      console.error("Error fetching token:", error);
+    }
+    return null;
+  }, [classId, socket]);
+
+  // Toggle QR session with socket events
+  const handleToggleQrSession = async () => {
+    const newState = !isQrActive;
+    
+    if (newState) {
+      // Starting QR session
+      setRefreshCountdown(20);
+      const qrToken = await fetchToken();
+      if (!qrToken) {
+        console.error("Failed to generate QR token");
+        return;
+      }
+      setIsQrActive(true);
+      if (socket) socket.emit("start_attendance", { classId, token: qrToken });
+    } else {
+      // Ending QR session
+      setIsQrActive(false);
+      setToken("");
+      if (socket) socket.emit("stop_attendance", classId);
+      setShowQrModal(false);
+    }
+  };
+
+  useEffect(() => {
+    let intervalId;
+    let countdownIntervalId;
+
+    if (isQrActive && selectedDate === today && !isUpdateMode) {
+      setRefreshCountdown(20);
+      fetchToken();
+
+      intervalId = setInterval(() => {
+        setRefreshCountdown(20);
+        fetchToken();
+      }, 20000);
+
+      countdownIntervalId = setInterval(() => {
+        setRefreshCountdown((prev) => (prev <= 1 ? 20 : prev - 1));
+      }, 1000);
+    } else {
+      setToken("");
+      setRefreshCountdown(20);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      if (countdownIntervalId) clearInterval(countdownIntervalId);
+    };
+  }, [isQrActive, selectedDate, today, isUpdateMode, fetchToken]);
 
   const getWeekDates = () => {
     const dates = [];
@@ -130,40 +240,23 @@ const ManualAttendance = ({ classId, students }) => {
   }, [showDatePicker]);
 
   useEffect(() => {
-    // Load attendance data for selected date
-    const loadDateAttendance = async () => {
-      try {
-        // Always try to load from backend for any date
-        const response = await api.get(`/attendance/sessions/${classId}`);
-        if (response.data?.success && response.data?.attendance) {
-          const sessions = Array.isArray(response.data.attendance) ? response.data.attendance : [response.data.attendance];
-          const session = selectBestSessionForDate(sessions, selectedDate);
-          
-          if (session) {
-            // Convert attendance entries to override format and always prefill all students.
-            const overrides = {};
-            students.forEach((student) => {
-              overrides[student._id] = 'A';
-            });
-            (session.attendanceEntries || []).forEach(entry => {
-              overrides[entry.studentId] = (entry.status === 'present' || entry.status === 'late') ? 'P' : 'A';
-            });
-            setAttendanceData(overrides);
-            return;
-          }
-        }
-      } catch (error) {
-        console.error("Error loading attendance:", error);
-      }
-      
-      // Default: initialize all as present
-      const initialData = {};
-      students.forEach(student => { initialData[student._id] = 'P'; });
-      setAttendanceData(initialData);
-    };
+    const session = selectBestSessionForDate(sessions, selectedDate);
 
-    loadDateAttendance();
-  }, [students, selectedDate, isUpdateMode, classId]);
+    const nextData = {};
+    students.forEach((student) => {
+      nextData[getStudentIdKey(student._id)] = "A";
+    });
+
+    if (session) {
+      (session.attendanceEntries || []).forEach((entry) => {
+        const studentKey = getStudentIdKey(entry.studentId);
+        if (!studentKey) return;
+        nextData[studentKey] = entry.status === "present" ? "P" : "A";
+      });
+    }
+
+    setAttendanceData(nextData);
+  }, [students, selectedDate, sessions]);
 
   const toggleAttendance = (studentId, status) => {
     setAttendanceData(prev => ({ ...prev, [studentId]: status }));
@@ -185,29 +278,15 @@ const ManualAttendance = ({ classId, students }) => {
 
   const handleSave = async () => {
     setIsSaving(true);
-    console.log("[ManualAttendance] ========== SAVE START ==========");
-    console.log("[ManualAttendance] Current state:", { todaySaved, isUpdateMode, selectedDate, today });
     
     try {
-      console.log("[ManualAttendance] Saving record with:", {
-        classId,
-        date: selectedDate,
-        attendance: Object.keys(attendanceData).length,
-        isUpdateMode,
-      });
-
       const response = await api.post(`/attendance/save-record/${classId}`, {
         date: selectedDate,
         attendance: attendanceData,
       });
 
-      console.log("[ManualAttendance] Save response:", response.data);
-      console.log("[ManualAttendance] Response success?:", response.data?.success);
-      console.log("[ManualAttendance] selectedDate === today?:", selectedDate === today);
-
       if (response.data?.success) {
-        console.log("[ManualAttendance] Save successful!");
-
+        await fetchSessions();
         const isTodaySelected = selectedDate === today;
 
         // If today's attendance was saved/updated, keep the done screen visible.
@@ -217,17 +296,11 @@ const ManualAttendance = ({ classId, students }) => {
         }
 
         if (isUpdateMode) {
-          console.log("[ManualAttendance] In update mode - exiting...");
           // Exit update mode and return to today's view.
           setIsUpdateMode(false);
           setSelectedDate(today);
-        } else if (isTodaySelected) {
-          console.log("[ManualAttendance] Done screen state updated");
-        } else {
-          console.log("[ManualAttendance] Save successful but not today's date and not update mode");
         }
       } else {
-        console.log("[ManualAttendance] Save failed - success is false or undefined");
         const errorMsg = response.data?.error || "Unknown error";
         console.error("[ManualAttendance] Save failed:", errorMsg);
         alert("Failed to save attendance: " + errorMsg);
@@ -238,28 +311,17 @@ const ManualAttendance = ({ classId, students }) => {
       alert("Failed to save attendance: " + errorMsg);
     } finally {
       setIsSaving(false);
-      console.log("[ManualAttendance] ========== SAVE END ==========");
     }
   };
 
   const handleUpdateAttendance = async () => {
     setShowMenu(false);
-    // Fetch records from backend before opening date picker
-    try {
-      const response = await api.get(`/attendance/sessions/${classId}`);
-      if (response.data?.success && response.data?.attendance) {
-        const sessions = Array.isArray(response.data.attendance) ? response.data.attendance : [response.data.attendance];
-        const recordsMap = {};
-        sessions.forEach(s => {
-          const sessionDate = toLocalDateKey(s.date);
-          recordsMap[sessionDate] = true;
-        });
-        setBackendRecords(recordsMap);
-      }
-    } catch (error) {
-      console.error("Error fetching attendance records:", error);
-      setBackendRecords({});
-    }
+    const recordsMap = {};
+    sessions.forEach((session) => {
+      const sessionDate = toLocalDateKey(session.date || session.attendanceDate);
+      if (sessionDate) recordsMap[sessionDate] = true;
+    });
+    setBackendRecords(recordsMap);
     setShowDatePicker(true);
   };
   const handleDateSelect = (dateValue) => { setSelectedDate(dateValue); setIsUpdateMode(true); setShowDatePicker(false); };
@@ -344,7 +406,7 @@ const ManualAttendance = ({ classId, students }) => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">Manual Attendance</h2>
+            <h2 className="text-xl font-bold text-gray-800">Attendance</h2>
             <p className="text-sm text-gray-500 mt-1">Sunday — No attendance required</p>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -390,7 +452,7 @@ const ManualAttendance = ({ classId, students }) => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">{isUpdateMode ? 'Update Attendance' : 'Manual Attendance'}</h2>
+            <h2 className="text-xl font-bold text-gray-800">{isUpdateMode ? 'Update Attendance' : 'Attendance'}</h2>
           <p className="text-sm text-gray-500 mt-1">
             {isUpdateMode ? `Editing attendance for ${formatDisplayDate(selectedDate)}` : showDoneScreen ? `Attendance already marked for today` : `Mark attendance for today — ${formatDisplayDate(today)}`}
           </p>
@@ -429,6 +491,97 @@ const ManualAttendance = ({ classId, students }) => {
       </div>
 
       {showDatePicker && typeof document !== 'undefined' && createPortal(<DatePickerModal />, document.body)}
+
+      {/* QR Scanner Button - Show only for today, not in update mode, not in done screen */}
+      {!isUpdateMode && !showDoneScreen && selectedDate === today && (
+        <MotionDiv
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"
+        >
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <QrCodeIcon className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-800">QR Scanner</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Students scanning QR will automatically be marked present</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowQrModal(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer whitespace-nowrap"
+            >
+              <QrCodeIcon className="w-5 h-5" />
+              Open QR Scanner
+            </button>
+          </div>
+        </MotionDiv>
+      )}
+
+      {/* QR Modal */}
+      <AnimatePresence>
+        {showQrModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <MotionDiv
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden"
+            >
+              <div className="p-8">
+                <button onClick={() => setShowQrModal(false)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-800 p-2 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors cursor-pointer">
+                  <X size={20} />
+                </button>
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-2">QR Session</h2>
+                  <p className="text-gray-500 mb-8 text-sm px-4">
+                    {isQrActive ? "Ask students to scan this QR code with their app to mark attendance." : "Click 'Open QR Session' below to generate a new attendance code."}
+                  </p>
+                  <div className="flex justify-center items-center mb-8 h-72 bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden relative mx-auto p-4 shadow-inner">
+                    {!isQrActive ? (
+                      <div className="text-gray-400 flex flex-col items-center">
+                        <div className="bg-white p-4 rounded-full shadow-sm mb-3">
+                          <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 8v4M6 12v4M6 16v4M6 8H4m2 0h2m-2 4H4m2 0h2m-2 4H4m2 0h2m12-16v4m0 4v4m0 4v4m0-12h-2m2 0h2m-2 4h-2m2 0h2m-2 4h-2m2 0h2m-2 4h-2m2 0h2" />
+                          </svg>
+                        </div>
+                        <span className="font-medium text-gray-500">QR is currently closed</span>
+                      </div>
+                    ) : token ? (
+                      <div className="bg-white p-3 rounded-xl shadow-md border border-gray-100 transition-transform hover:scale-105 duration-300">
+                        <QRCodeCanvas value={token} size={220} level={"H"} includeMargin={true} />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="animate-spin h-10 w-10 border-4 border-purple-200 border-t-purple-600 rounded-full"></div>
+                        <span className="text-sm font-medium text-purple-600">Generating code...</span>
+                      </div>
+                    )}
+                  </div>
+                  {isQrActive && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-purple-700 font-bold bg-purple-50 border border-purple-100 py-2.5 px-5 rounded-full mx-auto w-fit mb-8 shadow-sm">
+                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Auto-updates in {refreshCountdown}s
+                    </div>
+                  )}
+                  <button
+                    onClick={handleToggleQrSession}
+                    className={`w-full py-3.5 px-4 rounded-xl font-bold text-white transition-all duration-200 transform active:scale-[0.98] cursor-pointer shadow-lg ${
+                      isQrActive ? "bg-red-500 hover:bg-red-600 shadow-red-200" : "bg-purple-600 hover:bg-purple-700 shadow-purple-200"
+                    }`}
+                  >
+                    {isQrActive ? "End Session & Close QR" : "Open QR Session"}
+                  </button>
+                </div>
+              </div>
+            </MotionDiv>
+          </div>
+        )}
+      </AnimatePresence>
 
       {showDoneScreen ? (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -613,4 +766,4 @@ const ManualAttendance = ({ classId, students }) => {
   );
 };
 
-export default ManualAttendance;
+export default Attendance;

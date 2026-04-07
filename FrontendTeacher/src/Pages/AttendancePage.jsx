@@ -2,11 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import io from "socket.io-client";
 import api from "../api/axios";
-import { ChevronLeft, QrCode, PenTool, CalendarDays, Activity } from "lucide-react";
+import { ChevronLeft, PenTool, CalendarDays, Activity } from "lucide-react";
 import { SOCKET_URL } from "../config";
 
-import QRAttendance from "../components/Attendance/QRAttendance";
-import ManualAttendance from "../components/Attendance/ManualAttendance";
+import Attendance from "../components/Attendance/Attendance";
 import AttendanceRegister from "../components/Attendance/AttendanceRegister";
 import AttendanceAnalysis from "../components/Attendance/AttendanceAnalysis";
 
@@ -19,20 +18,19 @@ const AttendancePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  const validPanels = new Set(["qr", "manual", "register", "analysis"]);
-  const activeTab = validPanels.has(panel) ? panel : "manual";
+  const validPanels = new Set(["attendance", "register", "analysis"]);
+  const activeTab = validPanels.has(panel) ? panel : "attendance";
 
   useEffect(() => {
     if (!classId) return;
     if (validPanels.has(panel)) return;
-    navigate(`/class/${classId}/attendance/manual`, { replace: true });
+    navigate(`/class/${classId}/attendance/attendance`, { replace: true });
   }, [classId, panel, navigate]);
 
 
-  // Initialize socket only when QR tab is active.
-  // Manual/Register tabs do not need a socket connection.
+  // Initialize socket for Attendance mode
   useEffect(() => {
-    if (activeTab !== "qr") {
+    if (activeTab !== "attendance") {
       setSocket(null);
       return;
     }
@@ -102,28 +100,17 @@ const AttendancePage = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex p-1 space-x-2 bg-white rounded-2xl shadow-sm border border-gray-100 max-w-2xl overflow-x-auto hide-scrollbar">
+        <div className="flex p-1 space-x-2 bg-white rounded-2xl shadow-sm border border-gray-100 max-w-xl overflow-x-auto hide-scrollbar">
             <button
-              onClick={() => navigate(`/class/${classId}/attendance/qr`)}
+              onClick={() => navigate(`/class/${classId}/attendance/attendance`)}
               className={`flex-1 flex justify-center items-center gap-2 py-3 px-4 text-sm font-bold rounded-xl whitespace-nowrap transition-all duration-200 cursor-pointer ${
-                activeTab === 'qr'
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <QrCode className="w-4 h-4" />
-              Live QR Scanner
-            </button>
-            <button
-              onClick={() => navigate(`/class/${classId}/attendance/manual`)}
-              className={`flex-1 flex justify-center items-center gap-2 py-3 px-4 text-sm font-bold rounded-xl whitespace-nowrap transition-all duration-200 cursor-pointer ${
-                activeTab === 'manual'
+                activeTab === 'attendance'
                   ? 'bg-purple-600 text-white shadow-md'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
               <PenTool className="w-4 h-4" />
-              Manual Entry
+              Attendance
             </button>
             <button
               onClick={() => navigate(`/class/${classId}/attendance/register`)}
@@ -162,14 +149,9 @@ const AttendancePage = () => {
                  </div>
             ) : (
                 <div className="transition-all duration-300">
-                    {activeTab === 'qr' && (
+                    {activeTab === 'attendance' && (
                       <div className="animate-in fade-in duration-500">
-                            <QRAttendance classId={classId} students={students} socket={socket} onNavigateToManual={() => navigate(`/class/${classId}/attendance/manual`)} />
-                        </div>
-                    )}
-                    {activeTab === 'manual' && (
-                      <div className="animate-in fade-in duration-500">
-                            <ManualAttendance classId={classId} students={students} />
+                            <Attendance classId={classId} students={students} socket={socket} />
                         </div>
                     )}
                     {activeTab === 'register' && (
