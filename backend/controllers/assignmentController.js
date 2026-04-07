@@ -12,6 +12,11 @@ import {
   cleanText,
   validateTextContent,
 } from "../utils/pdfExtractor.js";
+import {
+  enforceDailyGenerationLimit,
+  incrementDailyGenerationCount,
+  getDailyGenerationUsage,
+} from "../utils/generationLimiter.js";
 
 export const generateAssignmentWithAI = async (req, res) => {
   try {
@@ -44,6 +49,16 @@ export const generateAssignmentWithAI = async (req, res) => {
           .status(403)
           .json({ error: "Unauthorized to generate assignments for this classroom" });
       }
+
+      await enforceDailyGenerationLimit(teacherId, "assignment");
+    }
+
+    const normalizedNoteIds = [...new Set(noteIds.map(String))]
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    if (normalizedNoteIds.length === 0) {
+      return res.status(400).json({ error: "No valid note IDs provided" });
     }
 
     // AI Config
@@ -54,7 +69,7 @@ export const generateAssignmentWithAI = async (req, res) => {
     };
 
     // Fetch notes
-    const notes = await Note.find({ _id: { $in: noteIds } });
+    const notes = await Note.find({ _id: { $in: normalizedNoteIds } });
 
     if (notes.length === 0) {
       return res.status(404).json({ error: "No notes found" });
@@ -111,7 +126,11 @@ export const generateAssignmentWithAI = async (req, res) => {
     const cleanedText = cleanText(combinedText, 15001);
 
     // Fetch existing questions for this classroom to avoid repetition
-    const existingAssignments = await Assignment.find({ classroomId })
+    // Fetch existing questions for this classroom AND same notes to avoid repetition
+    const existingAssignments = await Assignment.find({ 
+      classroomId, 
+      generatedFrom: { $all: normalizedNoteIds, $size: normalizedNoteIds.length },
+    })
       .sort({ createdAt: -1 })
       .limit(10)
       .select("questions.question");
@@ -159,7 +178,7 @@ export const generateAssignmentWithAI = async (req, res) => {
       classroomId,
       title: assignmentTitle,
       description: `Complete all ${questions.length} questions. Each question is worth ${aiConfig.marksPerQuestion} marks.`,
-      generatedFrom: noteIds,
+      generatedFrom: normalizedNoteIds,
       questions: questions.map((q) => ({
         question: q.question,
         marks: q.marks || aiConfig.marksPerQuestion,
@@ -172,12 +191,24 @@ export const generateAssignmentWithAI = async (req, res) => {
       status: "draft",
     });
 
+    if (teacherId) {
+      await incrementDailyGenerationCount(teacherId, "assignment");
+    }
+
+    const usage = await getDailyGenerationUsage(teacherId, "assignment");
+    const usageAlert =
+      usage.remaining === 0
+        ? "Daily assignment generation limit reached for today (2/2)."
+        : `Assignment generated successfully. Remaining today: ${usage.remaining}/${usage.dailyLimit}.`;
+
     console.log("Assignment saved:", assignment._id);
     console.log("=== GENERATION COMPLETED ===\n");
 
     res.status(201).json({
       success: true,
       message: `Generated assignment with ${questions.length} questions`,
+      alert: usageAlert,
+      usage,
       assignment,
       stats: {
         totalNotes: notes.length,
@@ -189,6 +220,10 @@ export const generateAssignmentWithAI = async (req, res) => {
       },
     });
   } catch (error) {
+    if (error.code === "DAILY_LIMIT_REACHED") {
+      return res.status(429).json({ error: error.message });
+    }
+
     console.error("ASSIGNMENT GENERATION FAILED:", error);
 
     // Detailed error response

@@ -146,6 +146,10 @@ const QuizzesPage = () => {
       setDrafts((prev) => [response.data.quiz, ...prev]);
 
       const stats = response.data.stats;
+      const usage = response.data.usage;
+      const usageLine = usage
+        ? `• Today usage: ${usage.used}/${usage.dailyLimit} (remaining: ${usage.remaining})\n`
+        : "";
       alert(
         `Quiz Generated Successfully!\n\n` +
           `Details:\n` +
@@ -153,7 +157,9 @@ const QuizzesPage = () => {
           `• Marks per Q: ${stats.marksPerQuestion}\n` +
           `• Total Marks: ${stats.totalMarks}\n` +
           `• Difficulty: ${stats.difficulty}\n` +
-          `• Topics: ${stats.topics.join(", ")}`
+          `• Topics: ${stats.topics.join(", ")}\n` +
+          usageLine +
+          (response.data.alert ? `\n${response.data.alert}` : "")
       );
 
       setTopics([]);
@@ -193,6 +199,10 @@ const QuizzesPage = () => {
       setDrafts((prev) => [response.data.quiz, ...prev]);
 
       const stats = response.data.stats;
+      const usage = response.data.usage;
+      const usageLine = usage
+        ? `• Today usage: ${usage.used}/${usage.dailyLimit} (remaining: ${usage.remaining})\n`
+        : "";
       alert(
         `Quiz Generated Successfully!\n\n` +
           `Details:\n` +
@@ -200,7 +210,9 @@ const QuizzesPage = () => {
           `• Marks per Q: ${stats.marksPerQuestion}\n` +
           `• Total Marks: ${stats.totalMarks}\n` +
           `• Difficulty: ${stats.difficulty}\n` +
-          `• Notes processed: ${stats.processedNotes}/${stats.totalNotes}`
+          `• Notes processed: ${stats.processedNotes}/${stats.totalNotes}\n` +
+          usageLine +
+          (response.data.alert ? `\n${response.data.alert}` : "")
       );
 
       setSelectedNotes([]);

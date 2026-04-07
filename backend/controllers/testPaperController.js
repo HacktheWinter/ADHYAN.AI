@@ -10,6 +10,11 @@ import {
   validateTextContent,
 } from "../utils/pdfExtractor.js";
 import { logActivity } from "../utils/activityTracker.js";
+import {
+  enforceDailyGenerationLimit,
+  incrementDailyGenerationCount,
+  getDailyGenerationUsage,
+} from "../utils/generationLimiter.js";
 
 /**
  * Generate test paper using AI
@@ -44,29 +49,57 @@ export const generateTestPaperWithAI = async (req, res) => {
       if (classroom.teacherId?.toString() !== teacherId) {
         return res.status(403).json({ error: "Unauthorized" });
       }
+
+      await enforceDailyGenerationLimit(teacherId, "test");
     }
+
+    const normalizedNoteIds = [...new Set(noteIds.map(String))]
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    if (normalizedNoteIds.length === 0) {
+      return res.status(400).json({ error: "No valid note IDs provided" });
+    }
+
+    const toNonNegativeNumberOrDefault = (value, defaultValue) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return defaultValue;
+      return Math.max(0, parsed);
+    };
 
     // Build config with proper nested structure for counts
     const testConfig = {
       counts: {
         short: { 
-          count: typeof counts?.short === 'object' ? (counts.short.count || 5) : (Number(counts?.short) || 5),
-          optional: typeof counts?.short === 'object' ? (counts.short.optional || 0) : 0
+          count: typeof counts?.short === 'object'
+            ? toNonNegativeNumberOrDefault(counts.short.count, 5)
+            : toNonNegativeNumberOrDefault(counts?.short, 5),
+          optional: typeof counts?.short === 'object'
+            ? toNonNegativeNumberOrDefault(counts.short.optional, 0)
+            : 0,
         },
         medium: { 
-          count: typeof counts?.medium === 'object' ? (counts.medium.count || 4) : (Number(counts?.medium) || 4),
-          optional: typeof counts?.medium === 'object' ? (counts.medium.optional || 0) : 0
+          count: typeof counts?.medium === 'object'
+            ? toNonNegativeNumberOrDefault(counts.medium.count, 4)
+            : toNonNegativeNumberOrDefault(counts?.medium, 4),
+          optional: typeof counts?.medium === 'object'
+            ? toNonNegativeNumberOrDefault(counts.medium.optional, 0)
+            : 0,
         },
         long: { 
-          count: typeof counts?.long === 'object' ? (counts.long.count || 2) : (Number(counts?.long) || 2),
-          optional: typeof counts?.long === 'object' ? (counts.long.optional || 0) : 0
-        }
+          count: typeof counts?.long === 'object'
+            ? toNonNegativeNumberOrDefault(counts.long.count, 2)
+            : toNonNegativeNumberOrDefault(counts?.long, 2),
+          optional: typeof counts?.long === 'object'
+            ? toNonNegativeNumberOrDefault(counts.long.optional, 0)
+            : 0,
+        },
       },
       difficulty: difficulty || "mixed",
     };
 
     // Fetch notes
-    const notes = await Note.find({ _id: { $in: noteIds } });
+    const notes = await Note.find({ _id: { $in: normalizedNoteIds } });
 
     if (notes.length === 0) {
       return res.status(404).json({ error: "No notes found" });
@@ -123,9 +156,13 @@ export const generateTestPaperWithAI = async (req, res) => {
     const cleanedText = cleanText(combinedText, 15001);
 
     // Fetch existing questions for this classroom to avoid repetition
-    const existingPapers = await TestPaper.find({ classroomId })
+    // Fetch existing questions for this classroom AND same notes to avoid repetition
+    const existingPapers = await TestPaper.find({ 
+      classroomId, 
+      generatedFrom: { $all: normalizedNoteIds, $size: normalizedNoteIds.length },
+    })
       .sort({ createdAt: -1 })
-      .limit(5)
+      .limit(10) // Can increase limit since we're filtering more strictly
       .select("questions.question");
     
     const excludeQuestions = existingPapers.flatMap(p => p.questions.map(extQ => extQ.question));
@@ -148,33 +185,57 @@ export const generateTestPaperWithAI = async (req, res) => {
         ? `Test Paper from ${noteNames} and ${notes.length - 2} more`
         : `Test Paper from ${noteNames}`;
 
-    // Calculate total marks (only count required questions, not optional ones)
-    const finalCounts = testConfig.counts;
-    const calculatedTotalMarks = 
-      (finalCounts.short.count * 2) + 
-      (finalCounts.medium.count * 5) + 
-      (finalCounts.long.count * 10);
+    // Normalize marks per generated question and derive total from actual saved content.
+    const normalizedQuestions = questions.map((q) => {
+      const fallbackMarksByType = {
+        short: 2,
+        medium: 5,
+        long: 10,
+      };
 
-    // Save to database
-    const testPaper = await TestPaper.create({
-      classroomId,
-      title: testTitle,
-      generatedFrom: noteIds,
-      questions: questions.map((q) => ({
+      const rawMarks = Number(q.marks);
+      const marks = Number.isFinite(rawMarks) && rawMarks > 0
+        ? rawMarks
+        : (fallbackMarksByType[q.type] || 0);
+
+      return {
         question: q.question,
         type: q.type,
-        marks: q.marks,
+        marks,
         section: q.section || "",
         choiceLabel: q.choiceLabel || "",
         choiceGroup: q.choiceGroup || "",
         answerKey: q.answerKey,
         answerGuidelines: q.answerGuidelines || "",
-      })),
+      };
+    });
+
+    const calculatedTotalMarks = normalizedQuestions.reduce(
+      (sum, q) => sum + (Number(q.marks) || 0),
+      0
+    );
+
+    // Save to database
+    const testPaper = await TestPaper.create({
+      classroomId,
+      title: testTitle,
+      generatedFrom: normalizedNoteIds,
+      questions: normalizedQuestions,
       questionCounts: testConfig.counts,
       totalMarks: calculatedTotalMarks,
       difficulty: testConfig.difficulty,
       status: "draft",
     });
+
+    if (teacherId) {
+      await incrementDailyGenerationCount(teacherId, "test");
+    }
+
+    const usage = await getDailyGenerationUsage(teacherId, "test");
+    const usageAlert =
+      usage.remaining === 0
+        ? "Daily test generation limit reached for today (2/2)."
+        : `Test paper generated successfully. Remaining today: ${usage.remaining}/${usage.dailyLimit}.`;
 
     console.log(" Test paper saved:", testPaper._id);
     console.log("=== GENERATION COMPLETED ===\n");
@@ -182,6 +243,8 @@ export const generateTestPaperWithAI = async (req, res) => {
     res.status(201).json({
       success: true,
       message: `Generated test paper with ${questions.length} questions`,
+      alert: usageAlert,
+      usage,
       testPaper,
       stats: {
         totalNotes: notes.length,
@@ -192,6 +255,10 @@ export const generateTestPaperWithAI = async (req, res) => {
       },
     });
   } catch (error) {
+    if (error.code === "DAILY_LIMIT_REACHED") {
+      return res.status(429).json({ error: error.message });
+    }
+
     console.error("TEST PAPER GENERATION FAILED:", error);
     res.status(500).json({
       error: "Failed to generate test paper",

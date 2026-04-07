@@ -118,6 +118,11 @@ const AssignmentsPage = () => {
 
       setDrafts((prev) => [response.assignment, ...prev]);
 
+      const usage = response.usage;
+      const usageLine = usage
+        ? `• Today usage: ${usage.used}/${usage.dailyLimit} (remaining: ${usage.remaining})\n`
+        : "";
+
       alert(
         "Assignment Generated!\n\n" +
           "Details:\n" +
@@ -125,7 +130,9 @@ const AssignmentsPage = () => {
           `• Marks per Q: ${response.stats.marksPerQuestion}\n` +
           `• Total Marks: ${response.stats.totalMarks}\n` +
           `• Difficulty: ${response.stats.difficulty}\n` +
-          `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}`
+          `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}\n` +
+          usageLine +
+          (response.alert ? `\n${response.alert}` : "")
       );
 
       setSelectedNotes([]);
