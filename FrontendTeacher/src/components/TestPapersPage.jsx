@@ -111,12 +111,19 @@ const TestPapersPage = () => {
 
       setDrafts(prev => [response.testPaper, ...prev]);
 
+      const usage = response.usage;
+      const usageLine = usage
+        ? `• Today usage: ${usage.used}/${usage.dailyLimit} (remaining: ${usage.remaining})\n`
+        : "";
+
       alert(`Test Paper Generated!\n\n` +
         `Details:\n` +
         `• Questions: ${response.stats.questionsGenerated}\n` +
         `• Total Marks: ${response.stats.totalMarks}\n` +
         `• Difficulty: ${response.stats.difficulty}\n` +
-        `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}`
+        `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}\n` +
+        usageLine +
+        (response.alert ? `\n${response.alert}` : "")
       );
 
       setSelectedNotes([]);
