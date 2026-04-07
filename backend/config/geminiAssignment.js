@@ -38,7 +38,7 @@ const rotateApiKey = () => {
 };
 
 const generationConfig = {
-  temperature: 1,
+  temperature: 0.7,
   topP: 0.95,
   topK: 40,
   maxOutputTokens: 16384,
@@ -46,38 +46,60 @@ const generationConfig = {
 };
 
 /**
- *  Generate Assignment (5 questions, 2 marks each = 10 total marks)
+ *  Generate Assignment from text using Gemini AI
+ * @param {string} extractedText - Content extracted from PDFs
+ * @param {object} config - Configuration for generation
+ * @param {number} config.questionCount - Number of questions (default 5)
+ * @param {number} config.marksPerQuestion - Marks per question (default 2)
+ * @param {string} config.difficulty - easy, medium, hard, mixed (default mixed)
+ * @param {string[]} config.excludeQuestions - List of existing questions to avoid
  */
-export const generateAssignmentFromText = async (extractedText) => {
+export const generateAssignmentFromText = async (extractedText, config = {}) => {
+  const questionCount = config.questionCount || 5;
+  const marksPerQuestion = config.marksPerQuestion || 2;
+  const difficulty = config.difficulty || "mixed";
+  const excludeQuestions = config.excludeQuestions || [];
+
   let attempts = 0;
 
   while (attempts < MAX_RETRIES) {
     try {
-      console.log(" Preparing Gemini prompt for Assignment...");
+      console.log(` Preparing Gemini prompt for Assignment (${questionCount} Qs)...`);
+      console.log(`Config: ${questionCount} questions, ${marksPerQuestion} marks each, difficulty: ${difficulty}`);
 
       const limitedText = extractedText.slice(0, 12000);
 
+      const difficultyInstruction = difficulty === "mixed"
+        ? "Mix difficulty levels among the questions"
+        : `All questions should be ${difficulty.toUpperCase()} difficulty level`;
+
+      const excludeInstruction = excludeQuestions.length > 0
+        ? `\nDO NOT repeat or generate questions similar to these existing ones:\n- ${excludeQuestions.join('\n- ')}\n`
+        : "";
+
       const prompt = `
-You are an expert assignment question generator. Generate EXACTLY 5 short-answer assignment questions from the following educational content.
+You are an expert assignment question generator. Generate EXACTLY ${questionCount} short-answer assignment questions from the following educational content.
+
+${excludeInstruction}
 
 CONTENT:
 ${limitedText}
 
 CRITICAL JSON RULES:
-1. Return ONLY valid JSON - no markdown, no extra text
-2. Escape all special characters in strings
-3. Keep questions concise and clear
-4. Answer keys MUST be detailed and comprehensive (7-9 lines each)
-5. Answer guidelines MUST be EXACTLY 4-5 words only (NOT MORE)
-6. No line breaks in text (use spaces instead)
+1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
+2. NO LITERAL NEWLINES inside JSON string values. Use spaces or /n instead.
+3. Escape all double quotes (\") within question or answer text.
+4. Total answer keys MUST be detailed (7-9 lines) but must be a SINGLE-LINE string with no breaks.
+5. Answer guidelines MUST be EXACTLY 4-5 words only.
 
 REQUIREMENTS:
-1. Generate EXACTLY 5 questions
-2. Each question is worth 2 marks
+1. Generate EXACTLY ${questionCount} questions
+2. Each question is worth ${marksPerQuestion} mark(s)
 3. Questions should be direct and clear
-4. Each question MUST have:
+4. ${difficultyInstruction}
+5. Each question MUST have:
    - Question text (concise and clear)
-   - Marks = 2
+   - Marks = ${marksPerQuestion}
    - Detailed answer key (MUST be 7-9 lines, comprehensive explanation)
    - Very short guidelines (4-5 words ONLY)
 
@@ -94,15 +116,9 @@ EXACT JSON FORMAT:
   "questions": [
     {
       "question": "Define photosynthesis and explain its importance",
-      "marks": 2,
-      "answerKey": "Photosynthesis is the biological process by which green plants, algae, and some bacteria convert light energy into chemical energy. This process occurs in chloroplasts, specifically in the chlorophyll molecules. During photosynthesis, plants absorb carbon dioxide from the atmosphere and water from the soil. Using sunlight as an energy source, they convert these raw materials into glucose (a simple sugar) and release oxygen as a byproduct. The process can be divided into two main stages: light-dependent reactions and light-independent reactions (Calvin cycle). Photosynthesis is crucial for life on Earth as it produces oxygen for respiration and forms the base of most food chains. It also helps regulate atmospheric carbon dioxide levels.",
+      "marks": ${marksPerQuestion},
+      "answerKey": "Photosynthesis is the biological process... (7-9 lines of text)",
       "answerGuidelines": "Define process clearly"
-    },
-    {
-      "question": "Explain the difference between prokaryotic and eukaryotic cells",
-      "marks": 2,
-      "answerKey": "Prokaryotic and eukaryotic cells are the two main types of cells that differ significantly in their structure and complexity. Prokaryotic cells are simpler and smaller, typically 1-10 micrometers in size, and lack a membrane-bound nucleus. Their genetic material (DNA) floats freely in the cytoplasm in a region called the nucleoid. Examples include bacteria and archaea. Eukaryotic cells are larger and more complex, ranging from 10-100 micrometers. They contain a true nucleus enclosed by a nuclear membrane, which houses the genetic material. Eukaryotic cells also have membrane-bound organelles like mitochondria, endoplasmic reticulum, Golgi apparatus, and in plants, chloroplasts. These cells are found in animals, plants, fungi, and protists.",
-      "answerGuidelines": "Compare both types"
     }
   ]
 }
@@ -135,57 +151,43 @@ IMPORTANT:
         throw new Error("Incomplete JSON response - response seems truncated");
       }
 
-      // 🔹 IMPROVED JSON CLEANING
+      // 🔹 ROBUST JSON CLEANING & HEALING
       let cleaned = response.trim();
 
-      // Remove markdown code blocks
-      cleaned = cleaned.replace(/```json\n?/gi, "").replace(/```/g, "");
+      // 1. Remove markdown code blocks if present
+      cleaned = cleaned.replace(/```json\n?/gi, "").replace(/```\n?/g, "");
 
-      // Remove any text before first { and after last }
+      // 2. Clear junk text outside the JSON structure
       const firstBrace = cleaned.indexOf("{");
       const lastBrace = cleaned.lastIndexOf("}");
-
       if (firstBrace === -1 || lastBrace === -1) {
-        console.error(" No valid JSON object found in response");
-        throw new Error("No valid JSON object found in response");
+        throw new Error("No valid JSON structure found in AI response");
       }
-
       cleaned = cleaned.substring(firstBrace, lastBrace + 1);
 
-      // Parse JSON with error handling
+      // 3. SMART HEALING: Escape unescaped quotes within text while protecting keys and key-delimiters
+      // This regex attempts to find quotes inside JSON string values and escapes them.
+      const healed = cleaned
+        .replace(/:\s*"(.*)"\s*(,?)\s*(\n|}|,)/g, (match, p1, p2, p3) => {
+          // Escape quotes within the captured content, then restore the surrounding structure
+          const escapedContent = p1.replace(/"/g, '\\"');
+          return `: "${escapedContent}"${p2}${p3}`;
+        })
+        // Remove literal newlines within values that occasionally break parsers
+        .replace(/\r?\n|\r/g, " ");
+
       let parsed;
       try {
-        // First attempt: direct parse
-        parsed = JSON.parse(cleaned);
-        console.log("JSON parsed successfully on first attempt");
-      } catch (firstError) {
-        console.warn(" First parse failed, attempting repair...");
-        console.error("Parse error:", firstError.message);
-
+        parsed = JSON.parse(healed);
+        console.log("JSON successfully healed and parsed!");
+      } catch (parseError) {
+        console.error(" Healer failed, attempting direct parse as fallback...");
         try {
-          // Attempt 2: Try to fix common issues
-          let repaired = cleaned
-            .replace(/\n/g, " ") // Replace newlines with spaces
-            .replace(/\r/g, "") // Remove carriage returns
-            .replace(/\t/g, " ") // Replace tabs with spaces
-            .replace(/\s+/g, " "); // Normalize multiple spaces
-
-          parsed = JSON.parse(repaired);
-          console.log("JSON parsed successfully after repair");
-        } catch (secondError) {
-          console.error("JSON Parse Error (First):", firstError.message);
-          console.error("JSON Parse Error (Second):", secondError.message);
-          console.error(
-            "Cleaned response (first 500 chars):",
-            cleaned.substring(0, 500)
-          );
-          console.error(
-            "Cleaned response (last 500 chars):",
-            cleaned.substring(cleaned.length - 500)
-          );
-          throw new Error(
-            "Invalid JSON from AI - unable to parse after repair attempts"
-          );
+          parsed = JSON.parse(cleaned);
+        } catch (f) {
+          console.error("All parse attempts failed. Problematic JSON segment:");
+          console.error(cleaned.substring(0, 500));
+          throw new Error(`JSON Structure Error: ${parseError.message}`);
         }
       }
 
@@ -203,7 +205,6 @@ IMPORTANT:
         const hasBasicFields =
           q.question &&
           typeof q.question === "string" &&
-          q.marks === 2 &&
           q.answerKey &&
           typeof q.answerKey === "string";
 
@@ -227,10 +228,10 @@ IMPORTANT:
         ` Found ${validQuestions.length} valid questions out of ${parsed.questions.length}`
       );
 
-      if (validQuestions.length !== 5) {
-        console.error(`Expected 5 questions, got ${validQuestions.length}`);
+      if (validQuestions.length < questionCount) {
+        console.error(`Expected ${questionCount} questions, got ${validQuestions.length}`);
         throw new Error(
-          `AI generated ${validQuestions.length} valid questions instead of 5`
+          `AI generated only ${validQuestions.length} valid questions instead of ${questionCount}`
         );
       }
 

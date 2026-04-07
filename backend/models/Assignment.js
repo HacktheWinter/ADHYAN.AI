@@ -38,9 +38,18 @@ const assignmentSchema = new mongoose.Schema({
     ref: "Note",
   }],
   questions: [questionSchema],
+  marksPerQuestion: {
+    type: Number,
+    default: 2,
+  },
   totalMarks: {
     type: Number,
-    default: 50,
+    required: true,
+  },
+  difficulty: {
+    type: String,
+    enum: ["easy", "medium", "hard", "mixed"],
+    default: "mixed",
   },
   status: {
     type: String,
