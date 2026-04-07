@@ -115,6 +115,9 @@ const StudentAttendancePage = () => {
     const { id: classId, panel } = useParams();
 
     const socketRef = useRef(null);
+    const resetScanTimerRef = useRef(null);
+    const lastScannedTokenRef = useRef("");
+    const lastScannedAtRef = useRef(0);
     const [user, setUser] = useState(null);
 
     const validPanels = new Set(["scan", "history", "analysis"]);
@@ -153,6 +156,10 @@ const StudentAttendancePage = () => {
         socketRef.current = socket;
 
         const onSuccess = (payload) => {
+            if (resetScanTimerRef.current) {
+                window.clearTimeout(resetScanTimerRef.current);
+                resetScanTimerRef.current = null;
+            }
             const nextMessage = payload?.message || "Attendance marked successfully";
             setScanStatus("success");
             setScanMessage(nextMessage);
@@ -171,6 +178,10 @@ const StudentAttendancePage = () => {
             const isAlreadyMarked = normalizedMessage.includes("already marked");
 
             if (isAlreadyMarked) {
+                if (resetScanTimerRef.current) {
+                    window.clearTimeout(resetScanTimerRef.current);
+                    resetScanTimerRef.current = null;
+                }
                 setScanStatus("success");
                 setScanMessage(nextMessage);
                 setIsTodayAttendanceLocked(true);
@@ -180,12 +191,25 @@ const StudentAttendancePage = () => {
 
             setScanStatus("error");
             setScanMessage(nextMessage);
+
+            // Auto-recover quickly so students can rescan without manually tapping.
+            if (resetScanTimerRef.current) {
+                window.clearTimeout(resetScanTimerRef.current);
+            }
+            resetScanTimerRef.current = window.setTimeout(() => {
+                setScanStatus("idle");
+                setScanMessage("");
+            }, 1500);
         };
 
         socket.on("attendance_success", onSuccess);
         socket.on("attendance_error", onError);
 
         return () => {
+            if (resetScanTimerRef.current) {
+                window.clearTimeout(resetScanTimerRef.current);
+                resetScanTimerRef.current = null;
+            }
             socket.off("attendance_success", onSuccess);
             socket.off("attendance_error", onError);
             socket.disconnect();
@@ -271,6 +295,16 @@ const StudentAttendancePage = () => {
         if (scanStatus !== "idle" || !user || !socketRef.current) return;
         const token = results?.[0]?.rawValue?.trim();
         if (!token) return;
+
+        const now = Date.now();
+        if (
+            token === lastScannedTokenRef.current &&
+            now - lastScannedAtRef.current < 2500
+        ) {
+            return;
+        }
+        lastScannedTokenRef.current = token;
+        lastScannedAtRef.current = now;
 
         setScanStatus("processing");
         setScanMessage("");
