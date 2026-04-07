@@ -12,11 +12,6 @@ import {
   cleanText,
   validateTextContent,
 } from "../utils/pdfExtractor.js";
-import {
-  enforceDailyGenerationLimit,
-  incrementDailyGenerationCount,
-  getDailyGenerationUsage,
-} from "../utils/generationLimiter.js";
 
 export const generateAssignmentWithAI = async (req, res) => {
   try {
@@ -49,8 +44,6 @@ export const generateAssignmentWithAI = async (req, res) => {
           .status(403)
           .json({ error: "Unauthorized to generate assignments for this classroom" });
       }
-
-      await enforceDailyGenerationLimit(teacherId, "assignment");
     }
 
     const normalizedNoteIds = [...new Set(noteIds.map(String))]
@@ -61,10 +54,22 @@ export const generateAssignmentWithAI = async (req, res) => {
       return res.status(400).json({ error: "No valid note IDs provided" });
     }
 
+    const toClampedInt = (value, defaultValue, min, max) => {
+      const parsed = Number.parseInt(value, 10);
+      if (!Number.isFinite(parsed)) return defaultValue;
+      return Math.min(max, Math.max(min, parsed));
+    };
+
+    const toClampedNumber = (value, defaultValue, min, max) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return defaultValue;
+      return Math.min(max, Math.max(min, parsed));
+    };
+
     // AI Config
     const aiConfig = {
-      questionCount: parseInt(questionCount) || 5,
-      marksPerQuestion: Number(marksPerQuestion) || 2,
+      questionCount: toClampedInt(questionCount, 5, 1, 10),
+      marksPerQuestion: toClampedNumber(marksPerQuestion, 2, 1, 10),
       difficulty: difficulty || "mixed"
     };
 
@@ -191,24 +196,12 @@ export const generateAssignmentWithAI = async (req, res) => {
       status: "draft",
     });
 
-    if (teacherId) {
-      await incrementDailyGenerationCount(teacherId, "assignment");
-    }
-
-    const usage = await getDailyGenerationUsage(teacherId, "assignment");
-    const usageAlert =
-      usage.remaining === 0
-        ? "Daily assignment generation limit reached for today (2/2)."
-        : `Assignment generated successfully. Remaining today: ${usage.remaining}/${usage.dailyLimit}.`;
-
     console.log("Assignment saved:", assignment._id);
     console.log("=== GENERATION COMPLETED ===\n");
 
     res.status(201).json({
       success: true,
       message: `Generated assignment with ${questions.length} questions`,
-      alert: usageAlert,
-      usage,
       assignment,
       stats: {
         totalNotes: notes.length,
@@ -220,10 +213,6 @@ export const generateAssignmentWithAI = async (req, res) => {
       },
     });
   } catch (error) {
-    if (error.code === "DAILY_LIMIT_REACHED") {
-      return res.status(429).json({ error: error.message });
-    }
-
     console.error("ASSIGNMENT GENERATION FAILED:", error);
 
     // Detailed error response

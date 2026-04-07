@@ -11,11 +11,6 @@ import {
   validateTextContent,
 } from "../utils/pdfExtractor.js";
 import { logActivity } from "../utils/activityTracker.js";
-import {
-  enforceDailyGenerationLimit,
-  incrementDailyGenerationCount,
-  getDailyGenerationUsage,
-} from "../utils/generationLimiter.js";
 
 /**
  * Generate quiz from topics
@@ -53,8 +48,6 @@ export const generateQuizFromTopicsAPI = async (req, res) => {
       if (classroom.teacherId?.toString() !== teacherId) {
         return res.status(403).json({ error: "Unauthorized" });
       }
-
-      await enforceDailyGenerationLimit(teacherId, "quiz");
     }
 
     // Convert to normalized array and remove duplicates for strict dedupe matching
@@ -136,24 +129,12 @@ export const generateQuizFromTopicsAPI = async (req, res) => {
       status: "draft",
     });
 
-    if (teacherId) {
-      await incrementDailyGenerationCount(teacherId, "quiz");
-    }
-
-    const usage = await getDailyGenerationUsage(teacherId, "quiz");
-    const usageAlert =
-      usage.remaining === 0
-        ? "Daily quiz generation limit reached for today (2/2)."
-        : `Quiz generated successfully. Remaining today: ${usage.remaining}/${usage.dailyLimit}.`;
-
     console.log("Quiz saved to database:", quiz._id);
     console.log("=== QUIZ GENERATION FROM TOPICS COMPLETED ===\n");
 
     res.status(201).json({
       success: true,
       message: `Generated ${questions.length} questions successfully from ${topicsArray.length} topic(s)`,
-      alert: usageAlert,
-      usage,
       quiz,
       stats: {
         topics: topicsArray,
@@ -164,10 +145,6 @@ export const generateQuizFromTopicsAPI = async (req, res) => {
       },
     });
   } catch (error) {
-    if (error.code === "DAILY_LIMIT_REACHED") {
-      return res.status(429).json({ error: error.message });
-    }
-
     console.error("QUIZ GENERATION FROM TOPICS FAILED:", error);
     console.error("Stack trace:", error.stack);
 
@@ -220,8 +197,6 @@ export const generateQuizWithAI = async (req, res) => {
       if (classroom.teacherId?.toString() !== teacherId) {
         return res.status(403).json({ error: "Unauthorized" });
       }
-
-      await enforceDailyGenerationLimit(teacherId, "quiz");
     }
 
     const normalizedNoteIds = [...new Set(noteIds.map(String))]
@@ -415,24 +390,12 @@ export const generateQuizWithAI = async (req, res) => {
       status: "draft",
     });
 
-    if (teacherId) {
-      await incrementDailyGenerationCount(teacherId, "quiz");
-    }
-
-    const usage = await getDailyGenerationUsage(teacherId, "quiz");
-    const usageAlert =
-      usage.remaining === 0
-        ? "Daily quiz generation limit reached for today (2/2)."
-        : `Quiz generated successfully. Remaining today: ${usage.remaining}/${usage.dailyLimit}.`;
-
     console.log("Quiz saved to database:", quiz._id);
     console.log("=== QUIZ GENERATION COMPLETED ===\n");
 
     res.status(201).json({
       success: true,
       message: `Generated ${questions.length} questions successfully from ${successfulExtractions} notes`,
-      alert: usageAlert,
-      usage,
       quiz,
       stats: {
         totalNotes: notes.length,
@@ -445,10 +408,6 @@ export const generateQuizWithAI = async (req, res) => {
       },
     });
   } catch (error) {
-    if (error.code === "DAILY_LIMIT_REACHED") {
-      return res.status(429).json({ error: error.message });
-    }
-
     console.error("QUIZ GENERATION FAILED:", error);
     console.error("Stack trace:", error.stack);
 

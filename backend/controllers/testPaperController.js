@@ -10,11 +10,6 @@ import {
   validateTextContent,
 } from "../utils/pdfExtractor.js";
 import { logActivity } from "../utils/activityTracker.js";
-import {
-  enforceDailyGenerationLimit,
-  incrementDailyGenerationCount,
-  getDailyGenerationUsage,
-} from "../utils/generationLimiter.js";
 
 /**
  * Generate test paper using AI
@@ -49,8 +44,6 @@ export const generateTestPaperWithAI = async (req, res) => {
       if (classroom.teacherId?.toString() !== teacherId) {
         return res.status(403).json({ error: "Unauthorized" });
       }
-
-      await enforceDailyGenerationLimit(teacherId, "test");
     }
 
     const normalizedNoteIds = [...new Set(noteIds.map(String))]
@@ -227,24 +220,12 @@ export const generateTestPaperWithAI = async (req, res) => {
       status: "draft",
     });
 
-    if (teacherId) {
-      await incrementDailyGenerationCount(teacherId, "test");
-    }
-
-    const usage = await getDailyGenerationUsage(teacherId, "test");
-    const usageAlert =
-      usage.remaining === 0
-        ? "Daily test generation limit reached for today (2/2)."
-        : `Test paper generated successfully. Remaining today: ${usage.remaining}/${usage.dailyLimit}.`;
-
     console.log(" Test paper saved:", testPaper._id);
     console.log("=== GENERATION COMPLETED ===\n");
 
     res.status(201).json({
       success: true,
       message: `Generated test paper with ${questions.length} questions`,
-      alert: usageAlert,
-      usage,
       testPaper,
       stats: {
         totalNotes: notes.length,
@@ -255,10 +236,6 @@ export const generateTestPaperWithAI = async (req, res) => {
       },
     });
   } catch (error) {
-    if (error.code === "DAILY_LIMIT_REACHED") {
-      return res.status(429).json({ error: error.message });
-    }
-
     console.error("TEST PAPER GENERATION FAILED:", error);
     res.status(500).json({
       error: "Failed to generate test paper",

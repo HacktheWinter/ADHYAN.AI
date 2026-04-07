@@ -146,10 +146,6 @@ const QuizzesPage = () => {
       setDrafts((prev) => [response.data.quiz, ...prev]);
 
       const stats = response.data.stats;
-      const usage = response.data.usage;
-      const usageLine = usage
-        ? `• Today usage: ${usage.used}/${usage.dailyLimit} (remaining: ${usage.remaining})\n`
-        : "";
       alert(
         `Quiz Generated Successfully!\n\n` +
           `Details:\n` +
@@ -157,9 +153,7 @@ const QuizzesPage = () => {
           `• Marks per Q: ${stats.marksPerQuestion}\n` +
           `• Total Marks: ${stats.totalMarks}\n` +
           `• Difficulty: ${stats.difficulty}\n` +
-          `• Topics: ${stats.topics.join(", ")}\n` +
-          usageLine +
-          (response.data.alert ? `\n${response.data.alert}` : "")
+          `• Topics: ${stats.topics.join(", ")}\n`
       );
 
       setTopics([]);
@@ -199,10 +193,6 @@ const QuizzesPage = () => {
       setDrafts((prev) => [response.data.quiz, ...prev]);
 
       const stats = response.data.stats;
-      const usage = response.data.usage;
-      const usageLine = usage
-        ? `• Today usage: ${usage.used}/${usage.dailyLimit} (remaining: ${usage.remaining})\n`
-        : "";
       alert(
         `Quiz Generated Successfully!\n\n` +
           `Details:\n` +
@@ -210,9 +200,7 @@ const QuizzesPage = () => {
           `• Marks per Q: ${stats.marksPerQuestion}\n` +
           `• Total Marks: ${stats.totalMarks}\n` +
           `• Difficulty: ${stats.difficulty}\n` +
-          `• Notes processed: ${stats.processedNotes}/${stats.totalNotes}\n` +
-          usageLine +
-          (response.data.alert ? `\n${response.data.alert}` : "")
+          `• Notes processed: ${stats.processedNotes}/${stats.totalNotes}\n`
       );
 
       setSelectedNotes([]);
@@ -646,7 +634,7 @@ const QuizzesPage = () => {
                         className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500"
                         disabled={isGenerating}
                       >
-                        {[5, 10, 15, 20, 25, 30].map(count => (
+                        {[5, 10, 15, 20].map(count => (
                           <option key={count} value={count}>{count} Questions</option>
                         ))}
                       </select>
