@@ -378,6 +378,33 @@ export const setupSocketHandler = (io) => {
     });
 
     // ────────────────────────────────────────────────────────────────
+    // Physical Test Checking Events (Real-time Progress)
+    // ────────────────────────────────────────────────────────────────
+
+    socket.on("join_physical_check", ({ sessionId }) => {
+      if (!sessionId) return;
+      socket.join(`physical_check_${sessionId}`);
+      console.log(`[Socket] ${socket.id} joined physical_check_${sessionId}`);
+    });
+
+    socket.on("leave_physical_check", ({ sessionId }) => {
+      if (!sessionId) return;
+      socket.leave(`physical_check_${sessionId}`);
+      console.log(`[Socket] ${socket.id} left physical_check_${sessionId}`);
+    });
+
+    socket.on("stop_physical_check", ({ sessionId }) => {
+      if (!sessionId) return;
+      // Dynamically import the active sessions map
+      import("../controllers/physicalTestSubmissionController.js").then(mod => {
+        if (mod.activeCheckingSessions.has(sessionId)) {
+          mod.activeCheckingSessions.set(sessionId, "stop");
+          console.log(`[Socket] Stop signal sent for physical_check_${sessionId}`);
+        }
+      });
+    });
+
+    // ────────────────────────────────────────────────────────────────
     // Cleanup on disconnect
     // ────────────────────────────────────────────────────────────────
 
