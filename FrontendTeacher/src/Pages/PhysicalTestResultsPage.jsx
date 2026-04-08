@@ -86,7 +86,7 @@ const PhysicalTestResultsPage = () => {
               <select
                 value={selectedTitle}
                 onChange={e => setSelectedTitle(e.target.value)}
-                className="border border-gray-300 rounded-xl px-4 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                className="border border-gray-300 rounded-xl px-4 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none cursor-pointer"
               >
                 {titles.map(t => (
                   <option key={t} value={t}>{t === "all" ? "All Tests" : t}</option>
