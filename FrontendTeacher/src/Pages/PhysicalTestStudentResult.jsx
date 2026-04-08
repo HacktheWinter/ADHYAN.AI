@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader, Edit2, Save, X, Award, FileText, BookOpen, MessageSquare, PenLine } from "lucide-react";
+import { ArrowLeft, Loader, Edit2, Save, X, Award, FileText, BookOpen, MessageSquare, PenLine, BarChart3, PanelLeftClose, PanelLeft, GripVertical } from "lucide-react";
 import { getPhysicalSubmissionById, getPhysicalSubmissionPDFUrl, updatePhysicalMarksManually } from "../api/physicalTestApi";
 
 const PhysicalTestStudentResult = () => {
@@ -11,6 +11,72 @@ const PhysicalTestStudentResult = () => {
   const [editingMarks, setEditingMarks] = useState({});
   const [saving, setSaving] = useState(false);
   const [showPDF, setShowPDF] = useState(false);
+
+  // ── Resizable columns ─────────────────────────────────────────────
+  const [leftWidthPercent, setLeftWidthPercent] = useState(50);
+  const isDragging = useRef(false);
+  const containerRef = useRef(null);
+
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    isDragging.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      let pct = (x / rect.width) * 100;
+      pct = Math.max(25, Math.min(75, pct)); // clamp between 25% and 75%
+      setLeftWidthPercent(pct);
+    };
+
+    const handleMouseUp = () => {
+      if (isDragging.current) {
+        isDragging.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  // ── Touch support for resize on mobile ────────────────────────────
+  const handleTouchStart = useCallback((e) => {
+    isDragging.current = true;
+  }, []);
+
+  useEffect(() => {
+    const handleTouchMove = (e) => {
+      if (!isDragging.current || !containerRef.current) return;
+      const touch = e.touches[0];
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      let pct = (x / rect.width) * 100;
+      pct = Math.max(25, Math.min(75, pct));
+      setLeftWidthPercent(pct);
+    };
+
+    const handleTouchEnd = () => {
+      isDragging.current = false;
+    };
+
+    window.addEventListener("touchmove", handleTouchMove);
+    window.addEventListener("touchend", handleTouchEnd);
+    return () => {
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, []);
 
   useEffect(() => { fetchSubmission(); }, [submissionId]);
 
@@ -49,9 +115,275 @@ const PhysicalTestStudentResult = () => {
 
   const totalEdited = Object.keys(editingMarks).length > 0;
 
+  // ── Marks Breakdown Table Component ───────────────────────────────
+  const MarksBreakdownTable = () => {
+    if (submission.status !== "checked" || !submission.answers?.length) return null;
+
+    const groups = {};
+    submission.answers.forEach(ans => {
+      const key = ans.marks;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(ans);
+    });
+    const sortedSections = Object.keys(groups).map(Number).sort((a, b) => a - b);
+    const maxQCount = Math.max(...sortedSections.map(k => groups[k].length));
+
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50">
+          <BarChart3 className="w-5 h-5 text-purple-600" />
+          <h3 className="font-semibold text-gray-900">Marks Breakdown</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
+            <thead>
+              <tr style={{ backgroundColor: "#f8f5ff" }}>
+                <th style={{
+                  padding: "12px 16px", textAlign: "left", fontWeight: 600,
+                  color: "#6b21a8", borderBottom: "2px solid #e9d5ff",
+                  position: "sticky", left: 0, backgroundColor: "#f8f5ff", zIndex: 1,
+                  minWidth: "140px"
+                }}>
+                  Section
+                </th>
+                {Array.from({ length: maxQCount }, (_, i) => (
+                  <th key={i} style={{
+                    padding: "12px 14px", textAlign: "center", fontWeight: 600,
+                    color: "#6b21a8", borderBottom: "2px solid #e9d5ff",
+                    minWidth: "70px"
+                  }}>
+                    Q{i + 1}
+                  </th>
+                ))}
+                <th style={{
+                  padding: "12px 16px", textAlign: "center", fontWeight: 700,
+                  color: "#6b21a8", borderBottom: "2px solid #e9d5ff",
+                  minWidth: "100px", backgroundColor: "#f3e8ff"
+                }}>
+                  Section Total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedSections.map((marksPerQ, sIdx) => {
+                const sectionAnswers = groups[marksPerQ];
+                const sectionTotal = sectionAnswers.reduce((s, a) => s + a.marksAwarded, 0);
+                const sectionMax = sectionAnswers.length * marksPerQ;
+                const isEven = sIdx % 2 === 0;
+
+                return (
+                  <tr key={marksPerQ} style={{ backgroundColor: isEven ? "#ffffff" : "#faf9fc" }}>
+                    <td style={{
+                      padding: "14px 16px", borderBottom: "1px solid #f0ecf5",
+                      position: "sticky", left: 0,
+                      backgroundColor: isEven ? "#ffffff" : "#faf9fc", zIndex: 1,
+                    }}>
+                      <div style={{ fontWeight: 600, color: "#1f2937", fontSize: "13px" }}>
+                        {marksPerQ} mark{marksPerQ !== 1 ? "s" : ""} each
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>
+                        {sectionAnswers.length} question{sectionAnswers.length !== 1 ? "s" : ""}
+                      </div>
+                    </td>
+                    {Array.from({ length: maxQCount }, (_, i) => {
+                      const ans = sectionAnswers[i];
+                      if (!ans) {
+                        return (
+                          <td key={i} style={{
+                            padding: "14px 14px", textAlign: "center",
+                            borderBottom: "1px solid #f0ecf5", color: "#d1d5db",
+                          }}>
+                            —
+                          </td>
+                        );
+                      }
+                      const pct = marksPerQ > 0 ? (ans.marksAwarded / marksPerQ) * 100 : 0;
+                      const color = pct >= 75 ? "#16a34a" : pct >= 40 ? "#ca8a04" : "#dc2626";
+                      return (
+                        <td key={i} style={{
+                          padding: "14px 14px", textAlign: "center",
+                          borderBottom: "1px solid #f0ecf5",
+                        }}>
+                          <span style={{ fontWeight: 700, color, fontSize: "14px" }}>
+                            {ans.marksAwarded}
+                          </span>
+                          <span style={{ color: "#9ca3af", fontSize: "12px" }}>
+                            {" "}/{marksPerQ}
+                          </span>
+                        </td>
+                      );
+                    })}
+                    <td style={{
+                      padding: "14px 16px", textAlign: "center",
+                      borderBottom: "1px solid #f0ecf5",
+                      backgroundColor: isEven ? "#faf5ff" : "#f3e8ff",
+                    }}>
+                      <span style={{ fontWeight: 700, color: "#7c3aed", fontSize: "15px" }}>
+                        {sectionTotal}
+                      </span>
+                      <span style={{ color: "#a78bfa", fontSize: "12px" }}>
+                        {" "}/{sectionMax}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* Grand Total Row */}
+              <tr style={{ backgroundColor: "#7c3aed" }}>
+                <td style={{
+                  padding: "14px 16px", fontWeight: 700, color: "#ffffff",
+                  fontSize: "14px", position: "sticky", left: 0,
+                  backgroundColor: "#7c3aed", zIndex: 1,
+                }}>
+                  Grand Total
+                </td>
+                {Array.from({ length: maxQCount }, (_, i) => (
+                  <td key={i} style={{ padding: "14px 14px" }}></td>
+                ))}
+                <td style={{ padding: "14px 16px", textAlign: "center" }}>
+                  <span style={{
+                    fontWeight: 800, color: "#ffffff", fontSize: "18px",
+                    letterSpacing: "0.5px",
+                  }}>
+                    {submission.marksObtained}
+                  </span>
+                  <span style={{ color: "#ddd6fe", fontSize: "14px", fontWeight: 500 }}>
+                    {" "}/{submission.totalMarks}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Q&A Cards Content ─────────────────────────────────────────────
+  const QACards = () => (
+    <div className="space-y-5">
+      {submission.answers.map((ans, idx) => {
+        const maxMarks = ans.marks;
+        const isEditing = editingMarks[ans.questionId] !== undefined;
+        const pct = maxMarks > 0 ? (ans.marksAwarded / maxMarks) * 100 : 0;
+
+        return (
+          <div key={ans.questionId} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            {/* Question Header */}
+            <div className="flex items-center gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100">
+              <span className="w-8 h-8 bg-purple-600 text-white rounded-full text-sm font-bold flex items-center justify-center flex-shrink-0">
+                {idx + 1}
+              </span>
+              <p className="text-gray-800 text-sm font-medium flex-1">{ans.question || `Question ${idx + 1}`}</p>
+              <span className="text-xs text-gray-500 font-semibold flex-shrink-0">{maxMarks} mark{maxMarks !== 1 ? "s" : ""}</span>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {/* Student's Answer Points */}
+              {ans.studentAnswerPoints ? (
+                <div className="flex items-start gap-3 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                  <PenLine className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-1">Student's Answer</p>
+                    <p className="text-sm text-indigo-900 leading-relaxed whitespace-pre-line">{ans.studentAnswerPoints}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                  <PenLine className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-gray-400 italic">Student's answer not available</p>
+                </div>
+              )}
+
+              {/* AI Feedback */}
+              {ans.aiFeedback ? (
+                <div className="flex items-start gap-3 p-4 bg-purple-50 border border-purple-200 rounded-xl">
+                  <MessageSquare className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-purple-700 uppercase tracking-wide mb-1">AI Feedback</p>
+                    <p className="text-sm text-purple-900 leading-relaxed">{ans.aiFeedback}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                  <MessageSquare className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-gray-400 italic">No AI feedback available</p>
+                </div>
+              )}
+
+              {/* Marks + Progress Bar */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                    <span>Score</span>
+                    <span>{ans.marksAwarded}/{maxMarks}</span>
+                  </div>
+                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${pct >= 75 ? "bg-green-500" : pct >= 40 ? "bg-yellow-500" : "bg-red-400"}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {isEditing ? (
+                    <>
+                      <input
+                        type="number"
+                        min="0"
+                        max={maxMarks}
+                        value={editingMarks[ans.questionId]}
+                        onChange={e => setEditingMarks(prev => ({
+                          ...prev,
+                          [ans.questionId]: Math.min(maxMarks, Math.max(0, parseFloat(e.target.value) || 0))
+                        }))}
+                        className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                      <button
+                        onClick={() => { const e = { ...editingMarks }; delete e[ans.questionId]; setEditingMarks(e); }}
+                        className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className={`text-xl font-bold ${pct >= 75 ? "text-green-600" : pct >= 40 ? "text-yellow-600" : "text-red-500"}`}>
+                        {ans.marksAwarded}/{maxMarks}
+                      </span>
+                      <button
+                        onClick={() => setEditingMarks(prev => ({ ...prev, [ans.questionId]: ans.marksAwarded }))}
+                        className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg cursor-pointer"
+                        title="Edit marks"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Checked by badge */}
+              <div className="flex items-center gap-2">
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                  ans.checkedBy === "ai" ? "bg-purple-100 text-purple-700" :
+                  ans.checkedBy === "teacher" ? "bg-blue-100 text-blue-700" :
+                  "bg-gray-100 text-gray-500"
+                }`}>
+                  {ans.checkedBy === "ai" ? "✨ AI Checked" : ans.checkedBy === "teacher" ? "👨‍🏫 Teacher Checked" : "⏳ Pending"}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+      <div className={`mx-auto px-4 sm:px-6 py-6 transition-all duration-300 ${showPDF ? "max-w-[1800px]" : "max-w-5xl"}`}>
 
         {/* Back */}
         <button
@@ -90,10 +422,14 @@ const PhysicalTestStudentResult = () => {
           <div className="flex flex-wrap gap-3 mt-4">
             <button
               onClick={() => setShowPDF(!showPDF)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition cursor-pointer text-sm font-medium"
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition cursor-pointer text-sm font-medium ${
+                showPDF
+                  ? "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200"
+                  : "bg-blue-600 text-white hover:bg-blue-700"
+              }`}
             >
-              <FileText className="w-4 h-4" />
-              {showPDF ? "Hide PDF" : "View Student's PDF"}
+              {showPDF ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+              {showPDF ? "Hide PDF Panel" : "View Student's PDF"}
             </button>
             <a
               href={getPhysicalSubmissionPDFUrl(submissionId)}
@@ -107,22 +443,8 @@ const PhysicalTestStudentResult = () => {
           </div>
         </div>
 
-        {/* PDF Viewer */}
-        {showPDF && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Student's Handwritten Paper</h3>
-              <button onClick={() => setShowPDF(false)} className="p-1 hover:bg-gray-100 rounded cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <iframe
-              src={`${getPhysicalSubmissionPDFUrl(submissionId)}#toolbar=0`}
-              className="w-full h-[600px] border-0"
-              title="Student Paper"
-            />
-          </div>
-        )}
+        {/* ── Marks Breakdown Table (always at top, full width) ────────── */}
+        <MarksBreakdownTable />
 
         {/* Save All Banner */}
         {totalEdited && (
@@ -139,125 +461,110 @@ const PhysicalTestStudentResult = () => {
           </div>
         )}
 
-        {/* Q&A Cards */}
-        <div className="space-y-5">
-          {submission.answers.map((ans, idx) => {
-            const maxMarks = ans.marks;
-            const isEditing = editingMarks[ans.questionId] !== undefined;
-            const pct = maxMarks > 0 ? (ans.marksAwarded / maxMarks) * 100 : 0;
+        {/* ── Two-Column Layout (when PDF open) / Single column ─────── */}
+        {showPDF ? (
+          <div
+            ref={containerRef}
+            className="flex flex-col lg:flex-row"
+            style={{ gap: 0 }}
+          >
+            {/* Left Column — Q&A Cards */}
+            <div
+              className="min-w-0 overflow-y-auto"
+              style={{
+                width: `${leftWidthPercent}%`,
+                paddingRight: "8px",
+              }}
+            >
+              <QACards />
+            </div>
 
-            return (
-              <div key={ans.questionId} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                {/* Question Header */}
-                <div className="flex items-center gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100">
-                  <span className="w-8 h-8 bg-purple-600 text-white rounded-full text-sm font-bold flex items-center justify-center flex-shrink-0">
-                    {idx + 1}
-                  </span>
-                  <p className="text-gray-800 text-sm font-medium flex-1">{ans.question || `Question ${idx + 1}`}</p>
-                  <span className="text-xs text-gray-500 font-semibold flex-shrink-0">{maxMarks} mark{maxMarks !== 1 ? "s" : ""}</span>
-                </div>
-
-                <div className="px-6 py-5 space-y-4">
-                  {/* Student's Answer Points */}
-                  {ans.studentAnswerPoints ? (
-                    <div className="flex items-start gap-3 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-                      <PenLine className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-1">Student's Answer</p>
-                        <p className="text-sm text-indigo-900 leading-relaxed whitespace-pre-line">{ans.studentAnswerPoints}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                      <PenLine className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-gray-400 italic">Student's answer not available</p>
-                    </div>
-                  )}
-
-                  {/* AI Feedback */}
-                  {ans.aiFeedback ? (
-                    <div className="flex items-start gap-3 p-4 bg-purple-50 border border-purple-200 rounded-xl">
-                      <MessageSquare className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-bold text-purple-700 uppercase tracking-wide mb-1">AI Feedback</p>
-                        <p className="text-sm text-purple-900 leading-relaxed">{ans.aiFeedback}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                      <MessageSquare className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-gray-400 italic">No AI feedback available</p>
-                    </div>
-                  )}
-
-                  {/* Marks + Progress Bar */}
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                        <span>Score</span>
-                        <span>{ans.marksAwarded}/{maxMarks}</span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${pct >= 75 ? "bg-green-500" : pct >= 40 ? "bg-yellow-500" : "bg-red-400"}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {isEditing ? (
-                        <>
-                          <input
-                            type="number"
-                            min="0"
-                            max={maxMarks}
-                            value={editingMarks[ans.questionId]}
-                            onChange={e => setEditingMarks(prev => ({
-                              ...prev,
-                              [ans.questionId]: Math.min(maxMarks, Math.max(0, parseFloat(e.target.value) || 0))
-                            }))}
-                            className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-purple-500"
-                          />
-                          <button
-                            onClick={() => { const e = { ...editingMarks }; delete e[ans.questionId]; setEditingMarks(e); }}
-                            className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg cursor-pointer"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <span className={`text-xl font-bold ${pct >= 75 ? "text-green-600" : pct >= 40 ? "text-yellow-600" : "text-red-500"}`}>
-                            {ans.marksAwarded}/{maxMarks}
-                          </span>
-                          <button
-                            onClick={() => setEditingMarks(prev => ({ ...prev, [ans.questionId]: ans.marksAwarded }))}
-                            className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg cursor-pointer"
-                            title="Edit marks"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Checked by badge */}
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      ans.checkedBy === "ai" ? "bg-purple-100 text-purple-700" :
-                      ans.checkedBy === "teacher" ? "bg-blue-100 text-blue-700" :
-                      "bg-gray-100 text-gray-500"
-                    }`}>
-                      {ans.checkedBy === "ai" ? "✨ AI Checked" : ans.checkedBy === "teacher" ? "👨‍🏫 Teacher Checked" : "⏳ Pending"}
-                    </span>
-                  </div>
+            {/* ── Draggable Resizer Handle ────────────────────────────── */}
+            <div
+              onMouseDown={handleMouseDown}
+              onTouchStart={handleTouchStart}
+              className="hidden lg:flex items-center justify-center flex-shrink-0 group"
+              style={{
+                width: "12px",
+                cursor: "col-resize",
+                position: "relative",
+                zIndex: 10,
+              }}
+            >
+              {/* Visible divider line */}
+              <div
+                style={{
+                  width: "4px",
+                  height: "100%",
+                  minHeight: "200px",
+                  borderRadius: "4px",
+                  background: "linear-gradient(to bottom, #e9d5ff, #c084fc, #e9d5ff)",
+                  transition: "width 0.15s, background 0.15s",
+                  position: "relative",
+                }}
+                className="group-hover:!w-[6px]"
+              >
+                {/* Grip icon in the middle */}
+                <div
+                  style={{
+                    position: "sticky",
+                    top: "50vh",
+                    transform: "translateY(-50%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "24px",
+                    height: "40px",
+                    marginLeft: "-10px",
+                    borderRadius: "6px",
+                    backgroundColor: "#7c3aed",
+                    boxShadow: "0 2px 8px rgba(124, 58, 237, 0.35)",
+                    transition: "transform 0.15s, box-shadow 0.15s",
+                  }}
+                  className="group-hover:scale-110 group-hover:shadow-lg"
+                >
+                  <GripVertical className="w-4 h-4 text-white" />
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+
+            {/* Right Column — Sticky PDF Viewer */}
+            <div
+              className="min-w-0"
+              style={{
+                width: `${100 - leftWidthPercent}%`,
+                paddingLeft: "8px",
+              }}
+            >
+              <div className="lg:sticky lg:top-4" style={{ maxHeight: "calc(100vh - 2rem)" }}>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden h-full flex flex-col">
+                  <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-purple-600" />
+                      <h3 className="font-semibold text-gray-900 text-sm">Student's Handwritten Paper</h3>
+                    </div>
+                    <button
+                      onClick={() => setShowPDF(false)}
+                      className="p-1.5 hover:bg-gray-200 rounded-lg cursor-pointer transition"
+                      title="Close PDF panel"
+                    >
+                      <X className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </div>
+                  <iframe
+                    src={`${getPhysicalSubmissionPDFUrl(submissionId)}#toolbar=0`}
+                    className="w-full border-0 flex-1"
+                    style={{ minHeight: "calc(100vh - 6rem)" }}
+                    title="Student Paper"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Single column — no PDF */
+          <QACards />
+        )}
 
       </div>
     </div>
