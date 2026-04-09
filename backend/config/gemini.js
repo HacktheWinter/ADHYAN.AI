@@ -10,6 +10,41 @@ const API_KEYS = [
 
 let currentKeyIndex = 0;
 const MAX_RETRIES = API_KEYS.length;
+const TRANSIENT_ERROR_RETRY_MULTIPLIER = 3;
+const MAX_TRANSIENT_RETRIES = Math.max(
+  MAX_RETRIES,
+  MAX_RETRIES * TRANSIENT_ERROR_RETRY_MULTIPLIER
+);
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isQuotaOrRateLimitError = (error) => {
+  const message = String(error?.message || "");
+  const status = Number(error?.status);
+  return (
+    status === 429 ||
+    message.includes("quota") ||
+    message.includes("429") ||
+    message.includes("RESOURCE_EXHAUSTED")
+  );
+};
+
+const isTransientServiceError = (error) => {
+  const message = String(error?.message || "").toLowerCase();
+  const status = Number(error?.status);
+  return (
+    status === 503 ||
+    status === 502 ||
+    status === 504 ||
+    message.includes("503") ||
+    message.includes("service unavailable") ||
+    message.includes("high demand") ||
+    message.includes("temporarily unavailable") ||
+    message.includes("unavailable")
+  );
+};
+
+const getBackoffMs = (attempt) => Math.min(12000, 1500 * Math.max(1, attempt));
 
 /**
  * Get Gemini model using current API key
@@ -60,7 +95,7 @@ export const generateQuizFromText = async (extractedText, config = {}) => {
 
   let attempts = 0;
 
-  while (attempts < MAX_RETRIES) {
+  while (attempts < MAX_TRANSIENT_RETRIES) {
     try {
       console.log("🤖 Preparing Gemini prompt for MCQ Quiz...");
       console.log(`Config: ${questionCount} questions, ${marksPerQuestion} marks each, difficulty: ${difficulty}`);
@@ -189,19 +224,29 @@ IMPORTANT:
 
       attempts++;
 
-      // If quota exceeded → rotate
-      if (
-        error.message.includes("quota") ||
-        error.message.includes("429") ||
-        error.message.includes("RESOURCE_EXHAUSTED")
-      ) {
+      if (isQuotaOrRateLimitError(error)) {
         console.log(
           ` API Key #${currentKeyIndex + 1} quota exceeded. Rotating...`
         );
         rotateApiKey();
 
-        if (attempts < MAX_RETRIES) {
+        if (attempts < MAX_TRANSIENT_RETRIES) {
           console.log("Retrying with next API key...");
+          continue;
+        }
+      }
+
+      if (isTransientServiceError(error)) {
+        const backoffMs = getBackoffMs(attempts);
+        console.log(
+          ` Gemini service is temporarily busy (attempt ${attempts}/${MAX_TRANSIENT_RETRIES}). Retrying in ${backoffMs}ms...`
+        );
+
+        // Rotate key to spread request load even for transient spikes.
+        rotateApiKey();
+
+        if (attempts < MAX_TRANSIENT_RETRIES) {
+          await wait(backoffMs);
           continue;
         }
       }
@@ -210,7 +255,9 @@ IMPORTANT:
     }
   }
 
-  throw new Error("All API keys exhausted. Try again later.");
+  throw new Error(
+    "Gemini service is busy right now after multiple retries. Please try again in a minute."
+  );
 };
 
 /**
@@ -230,7 +277,7 @@ export const generateQuizFromTopics = async (topics, config = {}) => {
 
   let attempts = 0;
 
-  while (attempts < MAX_RETRIES) {
+  while (attempts < MAX_TRANSIENT_RETRIES) {
     try {
       console.log("🤖 Preparing Gemini prompt for MCQ Quiz from topics...");
       console.log("Topics:", topics);
@@ -360,19 +407,29 @@ IMPORTANT:
 
       attempts++;
 
-      // If quota exceeded → rotate
-      if (
-        error.message.includes("quota") ||
-        error.message.includes("429") ||
-        error.message.includes("RESOURCE_EXHAUSTED")
-      ) {
+      if (isQuotaOrRateLimitError(error)) {
         console.log(
           ` API Key #${currentKeyIndex + 1} quota exceeded. Rotating...`
         );
         rotateApiKey();
 
-        if (attempts < MAX_RETRIES) {
+        if (attempts < MAX_TRANSIENT_RETRIES) {
           console.log("Retrying with next API key...");
+          continue;
+        }
+      }
+
+      if (isTransientServiceError(error)) {
+        const backoffMs = getBackoffMs(attempts);
+        console.log(
+          ` Gemini service is temporarily busy (attempt ${attempts}/${MAX_TRANSIENT_RETRIES}). Retrying in ${backoffMs}ms...`
+        );
+
+        // Rotate key to spread request load even for transient spikes.
+        rotateApiKey();
+
+        if (attempts < MAX_TRANSIENT_RETRIES) {
+          await wait(backoffMs);
           continue;
         }
       }
@@ -381,7 +438,9 @@ IMPORTANT:
     }
   }
 
-  throw new Error("All API keys exhausted. Try again later.");
+  throw new Error(
+    "Gemini service is busy right now after multiple retries. Please try again in a minute."
+  );
 };
 
 /**
@@ -444,12 +503,7 @@ Generate ONLY the title text, nothing else:`;
 
       attempts++;
 
-      // If quota exceeded → rotate
-      if (
-        error.message.includes("quota") ||
-        error.message.includes("429") ||
-        error.message.includes("RESOURCE_EXHAUSTED")
-      ) {
+      if (isQuotaOrRateLimitError(error)) {
         console.log(
           ` API Key #${currentKeyIndex + 1} quota exceeded. Rotating...`
         );
@@ -457,6 +511,19 @@ Generate ONLY the title text, nothing else:`;
 
         if (attempts < MAX_RETRIES) {
           console.log("Retrying with next API key...");
+          continue;
+        }
+      }
+
+      if (isTransientServiceError(error)) {
+        const backoffMs = getBackoffMs(attempts);
+        console.log(
+          ` Title generation hit temporary service load. Retrying in ${backoffMs}ms...`
+        );
+        rotateApiKey();
+
+        if (attempts < MAX_RETRIES) {
+          await wait(backoffMs);
           continue;
         }
       }

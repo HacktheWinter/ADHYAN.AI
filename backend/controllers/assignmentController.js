@@ -46,15 +46,35 @@ export const generateAssignmentWithAI = async (req, res) => {
       }
     }
 
+    const normalizedNoteIds = [...new Set(noteIds.map(String))]
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    if (normalizedNoteIds.length === 0) {
+      return res.status(400).json({ error: "No valid note IDs provided" });
+    }
+
+    const toClampedInt = (value, defaultValue, min, max) => {
+      const parsed = Number.parseInt(value, 10);
+      if (!Number.isFinite(parsed)) return defaultValue;
+      return Math.min(max, Math.max(min, parsed));
+    };
+
+    const toClampedNumber = (value, defaultValue, min, max) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return defaultValue;
+      return Math.min(max, Math.max(min, parsed));
+    };
+
     // AI Config
     const aiConfig = {
-      questionCount: parseInt(questionCount) || 5,
-      marksPerQuestion: Number(marksPerQuestion) || 2,
+      questionCount: toClampedInt(questionCount, 5, 1, 10),
+      marksPerQuestion: toClampedNumber(marksPerQuestion, 2, 1, 10),
       difficulty: difficulty || "mixed"
     };
 
     // Fetch notes
-    const notes = await Note.find({ _id: { $in: noteIds } });
+    const notes = await Note.find({ _id: { $in: normalizedNoteIds } });
 
     if (notes.length === 0) {
       return res.status(404).json({ error: "No notes found" });
@@ -111,7 +131,11 @@ export const generateAssignmentWithAI = async (req, res) => {
     const cleanedText = cleanText(combinedText, 15001);
 
     // Fetch existing questions for this classroom to avoid repetition
-    const existingAssignments = await Assignment.find({ classroomId })
+    // Fetch existing questions for this classroom AND same notes to avoid repetition
+    const existingAssignments = await Assignment.find({ 
+      classroomId, 
+      generatedFrom: { $all: normalizedNoteIds, $size: normalizedNoteIds.length },
+    })
       .sort({ createdAt: -1 })
       .limit(10)
       .select("questions.question");
@@ -159,7 +183,7 @@ export const generateAssignmentWithAI = async (req, res) => {
       classroomId,
       title: assignmentTitle,
       description: `Complete all ${questions.length} questions. Each question is worth ${aiConfig.marksPerQuestion} marks.`,
-      generatedFrom: noteIds,
+      generatedFrom: normalizedNoteIds,
       questions: questions.map((q) => ({
         question: q.question,
         marks: q.marks || aiConfig.marksPerQuestion,
