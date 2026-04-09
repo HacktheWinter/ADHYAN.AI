@@ -139,24 +139,24 @@ const Dashboard = () => {
               Manage your classes and share codes with students
             </p>
           </div>
-          {classes.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setShowSeminarQR(true)}
-                className="flex-1 sm:flex-none px-4 py-2 sm:py-2.5 bg-indigo-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-indigo-700 transition cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5"
-              >
-                📡 Seminar QR
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => navigate('/seminar-attendance')}
-                className="flex-1 sm:flex-none px-4 py-2 sm:py-2.5 bg-emerald-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-emerald-700 transition cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5"
-              >
-                📋 Seminar Records
-              </motion.button>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowSeminarQR(true)}
+              className="flex-1 sm:flex-none px-4 py-2 sm:py-2.5 bg-indigo-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-indigo-700 transition cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5"
+            >
+              📡 Seminar QR
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate('/seminar-attendance')}
+              className="flex-1 sm:flex-none px-4 py-2 sm:py-2.5 bg-emerald-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-emerald-700 transition cursor-pointer whitespace-nowrap flex items-center justify-center gap-1.5"
+            >
+              📋 Seminar Records
+            </motion.button>
+            {classes.length > 0 && (
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -168,8 +168,8 @@ const Dashboard = () => {
               >
                 + Create New Class
               </motion.button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {loading ? (

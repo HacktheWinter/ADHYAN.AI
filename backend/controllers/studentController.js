@@ -9,7 +9,7 @@ dotenv.config();
 
 export const registerStudent = async (req, res) => {
   try {
-    const { name, email, password, course, section, erpId, semester } = req.body;
+    const { name, email, password, course, specialization, section, erpId, semester } = req.body;
     if (!name || !email || !password)
       return res.status(400).json({ error: "All fields are required" });
 
@@ -39,6 +39,7 @@ export const registerStudent = async (req, res) => {
       password: hashed,
       role: "student",
       course: course.trim(),
+      specialization: (specialization || "").trim() || "None",
       section: section.trim().toUpperCase(),
       erpId: erpId.trim(),
       semester: String(semester).trim(),
@@ -50,9 +51,24 @@ export const registerStudent = async (req, res) => {
         console.error("[Email] Student welcome email failed:", emailError.message)
       );
 
-    res
-      .status(201)
-      .json({ message: "Student registered successfully", student });
+    // Generate JWT token for auto-login after signup
+    const token = jwt.sign(
+      { id: student._id, role: student.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.status(201).json({
+      message: "Student registered successfully",
+      token,
+      student: {
+        id: student._id,
+        name: student.name,
+        email: student.email,
+        profilePhoto: student.profilePhoto,
+        role: "student",
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

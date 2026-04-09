@@ -5,18 +5,63 @@ import {
   ArrowLeft,
   Calendar,
   Users,
-  Download,
   ChevronDown,
   ChevronRight,
   Clock,
   Search,
   FileSpreadsheet,
+  BookOpen,
+  Layers,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import api from "../api/axios";
 import Header from "../components/Header";
 import PageTransition from "../components/PageTransition";
 
+// ── Sorting & Grouping Utility ──────────────────────────────────
+/**
+ * Takes a flat attendees array and returns a structured hierarchy:
+ *   sorted[courseKey] → sorted[sectionKey] → sorted students by name
+ *
+ * Returns { courseKeys, groups } where:
+ *   courseKeys = alphabetically sorted course names
+ *   groups[course][section] = [ { name, erpId, semester, markedAt, ... }, ... ]
+ */
+const buildSortedGroups = (attendees) => {
+  // 1. Normalise each attendee into a flat object
+  const flat = attendees.map((a) => ({
+    name: a.studentName || a.studentId?.name || "Unknown",
+    erpId: a.erpId || a.studentId?.erpId || "",
+    course: a.course || a.studentId?.course || "Other",
+    section: (a.section || a.studentId?.section || "—").toUpperCase(),
+    semester: a.semester || a.studentId?.semester || "",
+    college: a.collegeName || a.studentId?.collegeName || "",
+    markedAt: a.markedAt,
+  }));
+
+  // 2. Multi-level sort: Course → Section → Name
+  flat.sort((a, b) => {
+    const cmpCourse = a.course.localeCompare(b.course);
+    if (cmpCourse !== 0) return cmpCourse;
+    const cmpSec = a.section.localeCompare(b.section);
+    if (cmpSec !== 0) return cmpSec;
+    return a.name.localeCompare(b.name);
+  });
+
+  // 3. Build nested map: Course → Section → students[]
+  const groups = {};
+  for (const s of flat) {
+    if (!groups[s.course]) groups[s.course] = {};
+    if (!groups[s.course][s.section]) groups[s.course][s.section] = [];
+    groups[s.course][s.section].push(s);
+  }
+
+  const courseKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+  return { courseKeys, groups, flat };
+};
+
+// ── Component ───────────────────────────────────────────────────
 const SeminarAttendancePage = () => {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
@@ -43,36 +88,6 @@ const SeminarAttendancePage = () => {
     fetchRecords();
   }, []);
 
-  // Group attendees by course → then sort alphabetically
-  const getGroupedAttendees = (attendees) => {
-    const groups = {};
-    for (const a of attendees) {
-      const groupKey = a.course || a.studentId?.course || "Other";
-      if (!groups[groupKey]) groups[groupKey] = [];
-      groups[groupKey].push({
-        name: a.studentName || a.studentId?.name || "Unknown",
-        erpId: a.erpId || a.studentId?.erpId || "",
-        course: a.course || a.studentId?.course || "",
-        section: a.section || a.studentId?.section || "",
-        semester: a.semester || a.studentId?.semester || "",
-        college: a.collegeName || a.studentId?.collegeName || "",
-        markedAt: a.markedAt,
-      });
-    }
-
-    // Sort students alphabetically within each group
-    for (const key of Object.keys(groups)) {
-      groups[key].sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    // Sort group keys alphabetically
-    const sortedKeys = Object.keys(groups).sort((a, b) =>
-      a.localeCompare(b)
-    );
-
-    return { groups, sortedKeys };
-  };
-
   // Filter sessions by search query
   const filteredSessions = useMemo(() => {
     if (!searchQuery.trim()) return sessions;
@@ -84,12 +99,10 @@ const SeminarAttendancePage = () => {
     );
   }, [sessions, searchQuery]);
 
-  // Export session to Excel
+  // ── Export to Excel (sorted: Course → Section → Name) ─────────
   const handleExport = (session) => {
     try {
-      const { groups, sortedKeys } = getGroupedAttendees(
-        session.attendees || []
-      );
+      const { flat } = buildSortedGroups(session.attendees || []);
 
       const data = [];
       // Header info
@@ -101,32 +114,37 @@ const SeminarAttendancePage = () => {
         }),
       ]);
       data.push(["Total Attendees", session.attendees?.length || 0]);
-      data.push([]); // empty row
-      data.push(["Course", "Student Name", "ERP ID", "Section", "Semester", "Marked At"]);
+      data.push([]); // spacer row
+      data.push([
+        "Course",
+        "Section",
+        "Student Name",
+        "ERP ID",
+        "Semester",
+        "Marked At",
+      ]);
 
-      for (const courseKey of sortedKeys) {
-        for (const student of groups[courseKey]) {
-          data.push([
-            courseKey,
-            student.name,
-            student.erpId,
-            student.section,
-            student.semester,
-            student.markedAt
-              ? new Date(student.markedAt).toLocaleString()
-              : "",
-          ]);
-        }
+      for (const student of flat) {
+        data.push([
+          student.course,
+          student.section,
+          student.name,
+          student.erpId,
+          student.semester,
+          student.markedAt
+            ? new Date(student.markedAt).toLocaleString()
+            : "",
+        ]);
       }
 
       const ws = XLSX.utils.aoa_to_sheet(data);
       ws["!cols"] = [
-        { wch: 20 },
-        { wch: 30 },
-        { wch: 18 },
-        { wch: 10 },
-        { wch: 12 },
-        { wch: 22 },
+        { wch: 18 }, // Course
+        { wch: 10 }, // Section
+        { wch: 28 }, // Name
+        { wch: 18 }, // ERP
+        { wch: 10 }, // Semester
+        { wch: 22 }, // Time
       ];
 
       const wb = XLSX.utils.book_new();
@@ -160,7 +178,7 @@ const SeminarAttendancePage = () => {
     <div className="min-h-screen bg-gray-50">
       <Header onLogoClick={() => navigate("/")} />
       <PageTransition className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        {/* Header */}
+        {/* Page Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div className="flex items-center gap-3">
             <button
@@ -241,7 +259,7 @@ const SeminarAttendancePage = () => {
         <div className="space-y-4">
           {filteredSessions.map((session) => {
             const isExpanded = expandedSession === session._id;
-            const { groups, sortedKeys } = getGroupedAttendees(
+            const { courseKeys, groups } = buildSortedGroups(
               session.attendees || []
             );
             const totalAttendees = session.attendees?.length || 0;
@@ -319,7 +337,7 @@ const SeminarAttendancePage = () => {
                   </div>
                 </div>
 
-                {/* Expanded: Attendee List grouped by college */}
+                {/* Expanded: Attendee List — Course → Section → Name */}
                 <AnimatePresence>
                   {isExpanded && (
                     <motion.div
@@ -341,57 +359,100 @@ const SeminarAttendancePage = () => {
                             No students attended this seminar.
                           </div>
                         ) : (
-                          <div className="mt-3 space-y-4">
-                            {sortedKeys.map((college) => (
-                              <div key={college}>
-                                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 px-1">
-                                  {college} ({groups[college].length})
-                                </h4>
-                                <div className="bg-gray-50 rounded-xl border border-gray-100 divide-y divide-gray-100">
-                                {groups[college].map((student, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="flex items-center justify-between px-4 py-3"
-                                    >
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs shrink-0">
-                                          {student.name
-                                            .charAt(0)
-                                            .toUpperCase()}
-                                        </div>
-                                        <div className="min-w-0">
-                                          <p className="font-semibold text-gray-800 text-sm truncate">
-                                            {student.name}
-                                          </p>
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            {student.erpId && (
-                                              <span className="text-xs text-indigo-600 font-mono bg-indigo-50 px-1.5 py-0.5 rounded">
-                                                {student.erpId}
-                                              </span>
-                                            )}
-                                            {student.section && (
-                                              <span className="text-xs text-gray-500">
-                                                Sec {student.section}
-                                              </span>
-                                            )}
-                                            {student.semester && (
-                                              <span className="text-xs text-gray-500">
-                                                Sem {student.semester}
-                                              </span>
+                          <div className="mt-3 space-y-5">
+                            {courseKeys.map((course) => {
+                              const sectionKeys = Object.keys(
+                                groups[course]
+                              ).sort((a, b) => a.localeCompare(b));
+                              const courseTotal = sectionKeys.reduce(
+                                (sum, sec) =>
+                                  sum + groups[course][sec].length,
+                                0
+                              );
+
+                              return (
+                                <div key={course}>
+                                  {/* ── Course Header ── */}
+                                  <div className="flex items-center gap-2 mb-2.5">
+                                    <BookOpen className="w-4 h-4 text-indigo-500" />
+                                    <h4 className="text-sm font-bold text-indigo-700 uppercase tracking-wide">
+                                      {course}
+                                    </h4>
+                                    <span className="text-xs text-indigo-400 font-medium">
+                                      ({courseTotal})
+                                    </span>
+                                  </div>
+
+                                  <div className="space-y-3 pl-2">
+                                    {sectionKeys.map((section) => {
+                                      const students =
+                                        groups[course][section];
+                                      return (
+                                        <div key={`${course}-${section}`}>
+                                          {/* ── Section Header ── */}
+                                          <div className="flex items-center gap-1.5 mb-1.5 ml-1">
+                                            <Layers className="w-3.5 h-3.5 text-gray-400" />
+                                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                              Section {section}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400">
+                                              ({students.length})
+                                            </span>
+                                          </div>
+
+                                          {/* ── Student List ── */}
+                                          <div className="bg-gray-50 rounded-xl border border-gray-100 divide-y divide-gray-100">
+                                            {students.map(
+                                              (student, idx) => (
+                                                <div
+                                                  key={idx}
+                                                  className="flex items-center justify-between px-4 py-3"
+                                                >
+                                                  <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs shrink-0">
+                                                      {student.name
+                                                        .charAt(0)
+                                                        .toUpperCase()}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                      <p className="font-semibold text-gray-800 text-sm truncate">
+                                                        {student.name}
+                                                      </p>
+                                                      <div className="flex items-center gap-2 flex-wrap">
+                                                        {student.erpId && (
+                                                          <span className="text-xs text-indigo-600 font-mono bg-indigo-50 px-1.5 py-0.5 rounded">
+                                                            {student.erpId}
+                                                          </span>
+                                                        )}
+                                                        {student.semester && (
+                                                          <span className="text-xs text-gray-500">
+                                                            Sem{" "}
+                                                            {
+                                                              student.semester
+                                                            }
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  <span className="text-xs text-gray-400 shrink-0 ml-2">
+                                                    {student.markedAt
+                                                      ? formatTime(
+                                                          student.markedAt
+                                                        )
+                                                      : ""}
+                                                  </span>
+                                                </div>
+                                              )
                                             )}
                                           </div>
                                         </div>
-                                      </div>
-                                      <span className="text-xs text-gray-400 shrink-0 ml-2">
-                                        {student.markedAt
-                                          ? formatTime(student.markedAt)
-                                          : ""}
-                                      </span>
-                                    </div>
-                                  ))}
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
 
