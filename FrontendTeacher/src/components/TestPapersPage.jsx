@@ -116,7 +116,7 @@ const TestPapersPage = () => {
         `• Questions: ${response.stats.questionsGenerated}\n` +
         `• Total Marks: ${response.stats.totalMarks}\n` +
         `• Difficulty: ${response.stats.difficulty}\n` +
-        `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}`
+        `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}\n`
       );
 
       setSelectedNotes([]);
@@ -616,7 +616,7 @@ const TestPapersPage = () => {
                           className="p-1 bg-gray-50 border border-gray-200 rounded text-xs outline-none"
                           disabled={isGenerating}
                         >
-                          {[0, 1, 2, 3, 4, 5].map(c => <option key={c} value={c}>{c}</option>)}
+                          {[0, 1, 2, 3, 4].map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                         <select 
                           value={questionCounts.long.optional}

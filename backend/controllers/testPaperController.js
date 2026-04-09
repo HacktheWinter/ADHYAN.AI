@@ -46,27 +46,53 @@ export const generateTestPaperWithAI = async (req, res) => {
       }
     }
 
+    const normalizedNoteIds = [...new Set(noteIds.map(String))]
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    if (normalizedNoteIds.length === 0) {
+      return res.status(400).json({ error: "No valid note IDs provided" });
+    }
+
+    const toNonNegativeNumberOrDefault = (value, defaultValue) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return defaultValue;
+      return Math.max(0, parsed);
+    };
+
     // Build config with proper nested structure for counts
     const testConfig = {
       counts: {
         short: { 
-          count: typeof counts?.short === 'object' ? (counts.short.count || 5) : (Number(counts?.short) || 5),
-          optional: typeof counts?.short === 'object' ? (counts.short.optional || 0) : 0
+          count: typeof counts?.short === 'object'
+            ? toNonNegativeNumberOrDefault(counts.short.count, 5)
+            : toNonNegativeNumberOrDefault(counts?.short, 5),
+          optional: typeof counts?.short === 'object'
+            ? toNonNegativeNumberOrDefault(counts.short.optional, 0)
+            : 0,
         },
         medium: { 
-          count: typeof counts?.medium === 'object' ? (counts.medium.count || 4) : (Number(counts?.medium) || 4),
-          optional: typeof counts?.medium === 'object' ? (counts.medium.optional || 0) : 0
+          count: typeof counts?.medium === 'object'
+            ? toNonNegativeNumberOrDefault(counts.medium.count, 4)
+            : toNonNegativeNumberOrDefault(counts?.medium, 4),
+          optional: typeof counts?.medium === 'object'
+            ? toNonNegativeNumberOrDefault(counts.medium.optional, 0)
+            : 0,
         },
         long: { 
-          count: typeof counts?.long === 'object' ? (counts.long.count || 2) : (Number(counts?.long) || 2),
-          optional: typeof counts?.long === 'object' ? (counts.long.optional || 0) : 0
-        }
+          count: typeof counts?.long === 'object'
+            ? toNonNegativeNumberOrDefault(counts.long.count, 2)
+            : toNonNegativeNumberOrDefault(counts?.long, 2),
+          optional: typeof counts?.long === 'object'
+            ? toNonNegativeNumberOrDefault(counts.long.optional, 0)
+            : 0,
+        },
       },
       difficulty: difficulty || "mixed",
     };
 
     // Fetch notes
-    const notes = await Note.find({ _id: { $in: noteIds } });
+    const notes = await Note.find({ _id: { $in: normalizedNoteIds } });
 
     if (notes.length === 0) {
       return res.status(404).json({ error: "No notes found" });
@@ -123,9 +149,13 @@ export const generateTestPaperWithAI = async (req, res) => {
     const cleanedText = cleanText(combinedText, 15001);
 
     // Fetch existing questions for this classroom to avoid repetition
-    const existingPapers = await TestPaper.find({ classroomId })
+    // Fetch existing questions for this classroom AND same notes to avoid repetition
+    const existingPapers = await TestPaper.find({ 
+      classroomId, 
+      generatedFrom: { $all: normalizedNoteIds, $size: normalizedNoteIds.length },
+    })
       .sort({ createdAt: -1 })
-      .limit(5)
+      .limit(10) // Can increase limit since we're filtering more strictly
       .select("questions.question");
     
     const excludeQuestions = existingPapers.flatMap(p => p.questions.map(extQ => extQ.question));
@@ -148,28 +178,42 @@ export const generateTestPaperWithAI = async (req, res) => {
         ? `Test Paper from ${noteNames} and ${notes.length - 2} more`
         : `Test Paper from ${noteNames}`;
 
-    // Calculate total marks (only count required questions, not optional ones)
-    const finalCounts = testConfig.counts;
-    const calculatedTotalMarks = 
-      (finalCounts.short.count * 2) + 
-      (finalCounts.medium.count * 5) + 
-      (finalCounts.long.count * 10);
+    // Normalize marks per generated question and derive total from actual saved content.
+    const normalizedQuestions = questions.map((q) => {
+      const fallbackMarksByType = {
+        short: 2,
+        medium: 5,
+        long: 10,
+      };
 
-    // Save to database
-    const testPaper = await TestPaper.create({
-      classroomId,
-      title: testTitle,
-      generatedFrom: noteIds,
-      questions: questions.map((q) => ({
+      const rawMarks = Number(q.marks);
+      const marks = Number.isFinite(rawMarks) && rawMarks > 0
+        ? rawMarks
+        : (fallbackMarksByType[q.type] || 0);
+
+      return {
         question: q.question,
         type: q.type,
-        marks: q.marks,
+        marks,
         section: q.section || "",
         choiceLabel: q.choiceLabel || "",
         choiceGroup: q.choiceGroup || "",
         answerKey: q.answerKey,
         answerGuidelines: q.answerGuidelines || "",
-      })),
+      };
+    });
+
+    const calculatedTotalMarks = normalizedQuestions.reduce(
+      (sum, q) => sum + (Number(q.marks) || 0),
+      0
+    );
+
+    // Save to database
+    const testPaper = await TestPaper.create({
+      classroomId,
+      title: testTitle,
+      generatedFrom: normalizedNoteIds,
+      questions: normalizedQuestions,
       questionCounts: testConfig.counts,
       totalMarks: calculatedTotalMarks,
       difficulty: testConfig.difficulty,
