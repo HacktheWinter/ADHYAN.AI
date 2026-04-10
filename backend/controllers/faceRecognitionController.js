@@ -41,10 +41,14 @@ export const registerFace = async (req, res) => {
         // Cleanup old vectors for this student to avoid stale data
         const oldIds = [1, 2, 3, 4, 5].map(i => `${studentId}_${i}`);
         try {
-            await index.deleteMany({ ids: oldIds });
+            await index.deleteMany(oldIds);
         } catch (deleteErr) {
-            // Serverless index might throw if IDs don't exist, safely ignore or warn
-            console.warn("Could not delete old vectors:", deleteErr.message);
+            try {
+                // Fallback for different Pinecone client versions
+                await index.delete({ ids: oldIds });
+            } catch(e2) {
+                console.warn("Could not delete old vectors:", deleteErr.message);
+            }
         }
 
         if (vectorsToUpsert.length === 0) {
@@ -52,7 +56,11 @@ export const registerFace = async (req, res) => {
         }
 
         // Upsert to Pinecone
-        await index.upsert({ records: vectorsToUpsert });
+        try {
+            await index.upsert(vectorsToUpsert);
+        } catch(err) {
+            await index.upsert({ records: vectorsToUpsert });
+        }
 
         // Update User Model
         await User.findByIdAndUpdate(studentId, { isFaceRegistered: true });

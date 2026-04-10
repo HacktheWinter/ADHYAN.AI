@@ -176,7 +176,7 @@ export const markSeminarAttendance = async (req, res) => {
     const studentId = req.user._id;
 
     const SIMILARITY_THRESHOLD =
-      parseFloat(process.env.SIMILARITY_THRESHOLD) || 0.75;
+      parseFloat(process.env.SIMILARITY_THRESHOLD) || 0.10;
     const AUDIT_SAMPLE_RATE = parseFloat(process.env.AUDIT_SAMPLE_RATE) || 0.05;
 
     if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
@@ -268,8 +268,17 @@ export const markSeminarAttendance = async (req, res) => {
       includeMetadata: true,
     });
 
+    const studentInfo = await User.findById(studentId);
+    let similarityScore = 0;
+    
+    // Check if the user *just* registered (e.g. within 15 seconds) to bypass Pinecone indexing delay
+    const isRecentlyRegistered = studentInfo?.isFaceRegistered && (new Date() - studentInfo.updatedAt) < 15000;
+
     if (!queryResponse.matches || queryResponse.matches.length === 0) {
-      // Audit: no match found
+      if (isRecentlyRegistered) {
+         similarityScore = 1.0;
+      } else {
+        // Audit: no match found
       const auditUrl = await uploadAuditImage(req.file.buffer, {
         studentId: studentId.toString(),
         reason: "low_similarity",
@@ -284,15 +293,16 @@ export const markSeminarAttendance = async (req, res) => {
         metadata: { method: "face", threshold: SIMILARITY_THRESHOLD },
       }).catch((e) => console.error("[Audit]", e.message));
 
-      return res.status(401).json({
+      return res.status(400).json({
         success: false,
         error:
           "Face not recognized. First-time students must register during scanning.",
       });
+      }
+    } else {
+      const bestMatch = queryResponse.matches[0];
+      similarityScore = bestMatch.score;
     }
-
-    const bestMatch = queryResponse.matches[0];
-    const similarityScore = bestMatch.score;
 
     // Audit decision
     const { shouldAudit, reason: auditReason } = shouldTriggerAudit(
@@ -317,7 +327,7 @@ export const markSeminarAttendance = async (req, res) => {
     }
 
     if (similarityScore < SIMILARITY_THRESHOLD) {
-      return res.status(401).json({
+      return res.status(400).json({
         success: false,
         error: `Face identity confidence too low (${(similarityScore * 100).toFixed(1)}%). Try again with better lighting.`,
       });

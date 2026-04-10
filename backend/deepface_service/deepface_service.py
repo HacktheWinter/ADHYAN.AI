@@ -87,14 +87,16 @@ def _extract_single_embedding(pil_image: Image.Image) -> list:
     if faces is None or len(faces) == 0:
         raise HTTPException(status_code=400, detail="No face detected in the image.")
 
+    # If multiple faces are detected, pick the one with the highest probability
     if len(faces) > 1:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Expected exactly 1 face but found {len(faces)}. Use an image with a single face.",
-        )
+        valid_probs = [p if p is not None else 0 for p in probs]
+        best_idx = np.argmax(valid_probs)
+        best_face = faces[best_idx]
+    else:
+        best_face = faces[0]
 
     # Extract embedding (512-dim)
-    face_tensor = faces[0].unsqueeze(0).to(device)  # (1, 3, 160, 160)
+    face_tensor = best_face.unsqueeze(0).to(device)  # (1, 3, 160, 160)
     with torch.no_grad():
         embedding = facenet(face_tensor).cpu().numpy().flatten().tolist()
 

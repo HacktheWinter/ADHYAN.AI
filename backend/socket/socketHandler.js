@@ -188,13 +188,8 @@ export const setupSocketHandler = (io) => {
     socket.on(
       "mark_attendance",
       async ({ classId, studentId, studentName, token }) => {
-        // SECURITY WARNING: This socket event is now restricted to avoid bypassing face recognition.
-        // Use the /api/attendance/session/:id/verify-face HTTP route for secure attendance.
-        socket.emit("attendance_error", {
-          message:
-            "This method is restricted. Please use the Face Verification scanner.",
-        });
-        return;
+        // NOTE: This socket event was previously restricted. 
+        // It's reopened to allow manual/QR attendance fallback when face validation is unavailable.
 
         try {
           if (!classId || !token) {

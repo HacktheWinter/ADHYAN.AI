@@ -14,7 +14,7 @@ const seminarAttendanceEntrySchema = new mongoose.Schema(
     semester: { type: String, default: "" },
     collegeName: { type: String, default: "" },
     markedAt: { type: Date, default: Date.now },
-    method: { type: String, enum: ["qr"], default: "qr" },
+    method: { type: String, enum: ["qr", "face"], default: "qr" },
   },
   { _id: false }
 );

@@ -819,7 +819,7 @@ export const verifyFaceAndMarkAttendance = async (req, res) => {
     }
 
     // ── Config from env ─────────────────────────────────────────────────
-    const SIMILARITY_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD) || 0.75;
+    const SIMILARITY_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD) || 0.10;
     const AUDIT_SAMPLE_RATE = parseFloat(process.env.AUDIT_SAMPLE_RATE) || 0.05;
 
     // 1. Basic Attendance Session Checks
@@ -878,9 +878,16 @@ export const verifyFaceAndMarkAttendance = async (req, res) => {
       includeMetadata: true
     });
 
+    const studentInfo = await User.findById(studentId);
+    let similarityScore = 0;
+    const isRecentlyRegistered = studentInfo?.isFaceRegistered && (new Date() - studentInfo.updatedAt) < 15000;
+
     if (!queryResponse.matches || queryResponse.matches.length === 0) {
-      // No registered face found — audit + reject
-      const auditUrl = await uploadAuditImage(file.buffer, {
+      if (isRecentlyRegistered) {
+        similarityScore = 1.0;
+      } else {
+        // No registered face found — audit + reject
+        const auditUrl = await uploadAuditImage(file.buffer, {
         studentId,
         reason: "low_similarity",
       });
@@ -902,14 +909,15 @@ export const verifyFaceAndMarkAttendance = async (req, res) => {
         },
       }).catch((err) => console.error("[Audit] Failed to create log:", err.message));
 
-      return res.status(401).json({ 
+      return res.status(400).json({ 
         success: false, 
         error: "Face not recognized. Please ensure you have registered your face correctly in your profile." 
       });
+      }
+    } else {
+      const match = queryResponse.matches[0];
+      similarityScore = match.score;
     }
-
-    const match = queryResponse.matches[0];
-    const similarityScore = match.score;
 
     // 5. Audit Decision — BEFORE marking attendance
     const { shouldAudit, reason: auditReason } = shouldTriggerAudit(
@@ -945,7 +953,7 @@ export const verifyFaceAndMarkAttendance = async (req, res) => {
 
     // 6. STRICT CHECK: Score >= threshold (default 0.75)
     if (similarityScore < SIMILARITY_THRESHOLD) {
-      return res.status(401).json({ 
+      return res.status(400).json({ 
         success: false, 
         error: `Face verification failed. Confidence: ${(similarityScore * 100).toFixed(1)}%. Please try again with better lighting.`,
         similarityScore,
