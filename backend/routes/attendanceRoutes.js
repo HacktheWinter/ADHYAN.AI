@@ -1,6 +1,9 @@
 import express from "express";
 import crypto from "crypto";
-import { authMiddleware, authorizeRoles } from "../middleware/authMiddleware.js";
+import {
+  authMiddleware,
+  authorizeRoles,
+} from "../middleware/authMiddleware.js";
 import {
   startAttendanceSession,
   endAttendanceSession,
@@ -11,7 +14,15 @@ import {
   getMyAttendanceSummary,
   getActiveAttendanceSession,
   saveAttendanceRecord,
+  verifyFaceAndMarkAttendance,
 } from "../controllers/attendanceController.js";
+
+import multer from "multer";
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 const router = express.Router();
 
@@ -28,7 +39,7 @@ router.get(
 
       // 20-second time window
       // Note: This logic assumes the token is valid ONLY within this specific 20s window.
-      // Since the socket handler validates against the CURRENTLY ACTIVE session token, 
+      // Since the socket handler validates against the CURRENTLY ACTIVE session token,
       // this route mainly serves to generate a unique token that changes every 20s.
       // The socket handler's in-memory validation is the primary check.
       const timeWindow = Math.floor(Date.now() / 20000);
@@ -44,77 +55,85 @@ router.get(
       console.error("Error generating attendance token:", error);
       res.status(500).json({ message: "Server Error", error: error.message });
     }
-  }
+  },
 );
 
 router.post(
   "/session/start/:classId",
   authMiddleware,
   authorizeRoles("teacher"),
-  startAttendanceSession
+  startAttendanceSession,
 );
 
 router.post(
   "/session/end/:classId",
   authMiddleware,
   authorizeRoles("teacher"),
-  endAttendanceSession
+  endAttendanceSession,
+);
+
+router.post(
+  "/session/:classId/verify-face",
+  authMiddleware,
+  authorizeRoles("student"),
+  upload.single("image"),
+  verifyFaceAndMarkAttendance,
 );
 
 router.post(
   "/session/:attendanceId/mark/:studentId",
   authMiddleware,
   authorizeRoles("teacher"),
-  markAttendance
+  markAttendance,
 );
 
 router.post(
   "/session/:attendanceId/mark",
   authMiddleware,
   authorizeRoles("teacher"),
-  markAttendance
+  markAttendance,
 );
 
 router.get(
   "/sessions/:classId",
   authMiddleware,
   authorizeRoles("teacher", "student", "principal"),
-  getAttendanceSessionsByClass
+  getAttendanceSessionsByClass,
 );
 
 router.get(
   "/session/:attendanceId",
   authMiddleware,
   authorizeRoles("teacher", "student", "principal"),
-  getAttendanceSessionById
+  getAttendanceSessionById,
 );
 
 router.get(
   "/active/:classId",
   authMiddleware,
   authorizeRoles("teacher", "student", "principal"),
-  getActiveAttendanceSession
+  getActiveAttendanceSession,
 );
 
 router.get(
   "/summary/:classId/student/:studentId",
   authMiddleware,
   authorizeRoles("teacher", "student", "principal"),
-  getStudentAttendanceSummary
+  getStudentAttendanceSummary,
 );
 
 router.get(
   "/summary/:classId/me",
   authMiddleware,
   authorizeRoles("student"),
-  getMyAttendanceSummary
+  getMyAttendanceSummary,
 );
 
 router.post(
   "/save-record/:classId",
   authMiddleware,
   authorizeRoles("teacher"),
-  saveAttendanceRecord
+  saveAttendanceRecord,
 );
 
 export default router;

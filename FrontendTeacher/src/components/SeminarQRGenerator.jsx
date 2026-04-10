@@ -1,7 +1,18 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, QrCode, StopCircle, Play, Clock, CheckCircle } from "lucide-react";
+import {
+  X,
+  Users,
+  QrCode,
+  StopCircle,
+  Play,
+  Clock,
+  CheckCircle,
+  MapPin,
+  RefreshCcw,
+  Loader2,
+} from "lucide-react";
 import api from "../api/axios";
 
 const SeminarQRGenerator = ({ onClose }) => {
@@ -15,9 +26,42 @@ const SeminarQRGenerator = ({ onClose }) => {
   const [attendeeCount, setAttendeeCount] = useState(0);
   const [refreshCountdown, setRefreshCountdown] = useState(20);
   const [starting, setStarting] = useState(false);
+  const [teacherLocation, setTeacherLocation] = useState({
+    lat: null,
+    lng: null,
+  });
+  const [locationStatus, setLocationStatus] = useState("detecting"); // detecting | success | failed
+
+  // Detect teacher location on mount
+  const detectLocation = async () => {
+    setLocationStatus("detecting");
+    try {
+      if (!("geolocation" in navigator)) {
+        setLocationStatus("failed");
+        return;
+      }
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+        });
+      });
+      setTeacherLocation({
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      });
+      setLocationStatus("success");
+    } catch (err) {
+      console.warn("Teacher geolocation failed:", err);
+      setTeacherLocation({ lat: null, lng: null });
+      setLocationStatus("failed");
+    }
+  };
 
   // Check if teacher already has an active session on mount
   useEffect(() => {
+    detectLocation();
+
     const checkActive = async () => {
       try {
         const res = await api.get("/seminar/active");
@@ -82,10 +126,13 @@ const SeminarQRGenerator = ({ onClose }) => {
 
     setStarting(true);
     setError("");
+
     try {
       const res = await api.post("/seminar/start", {
         title: title.trim(),
         description: description.trim(),
+        latitude: teacherLocation.lat,
+        longitude: teacherLocation.lng,
       });
 
       if (res.data?.success && res.data?.session) {
@@ -187,6 +234,58 @@ const SeminarQRGenerator = ({ onClose }) => {
                   />
                 </div>
 
+                {/* Location Status */}
+                <div
+                  className={`flex items-center justify-between p-3 rounded-xl border ${
+                    locationStatus === "success"
+                      ? "bg-green-50 border-green-200"
+                      : locationStatus === "failed"
+                        ? "bg-amber-50 border-amber-200"
+                        : "bg-gray-50 border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <MapPin
+                      className={`w-4 h-4 ${
+                        locationStatus === "success"
+                          ? "text-green-600"
+                          : locationStatus === "failed"
+                            ? "text-amber-600"
+                            : "text-gray-400"
+                      }`}
+                    />
+                    <span
+                      className={`text-sm font-medium ${
+                        locationStatus === "success"
+                          ? "text-green-700"
+                          : locationStatus === "failed"
+                            ? "text-amber-700"
+                            : "text-gray-500"
+                      }`}
+                    >
+                      {locationStatus === "detecting" &&
+                        "Detecting your location..."}
+                      {locationStatus === "success" &&
+                        `Location captured (${teacherLocation.lat?.toFixed(4)}, ${teacherLocation.lng?.toFixed(4)})`}
+                      {locationStatus === "failed" &&
+                        "Location not available — geofencing will be disabled"}
+                    </span>
+                  </div>
+                  {locationStatus === "detecting" && (
+                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                  )}
+                  {locationStatus === "failed" && (
+                    <button
+                      type="button"
+                      onClick={detectLocation}
+                      className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 cursor-pointer"
+                    >
+                      <RefreshCcw className="w-3.5 h-3.5" />
+                      Retry
+                    </button>
+                  )}
+                </div>
+
                 <button
                   type="submit"
                   disabled={starting || !title.trim()}
@@ -206,9 +305,7 @@ const SeminarQRGenerator = ({ onClose }) => {
           {/* ──────── ACTIVE QR STEP ──────── */}
           {step === "active" && (
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-800 mb-1">
-                {title}
-              </h2>
+              <h2 className="text-xl font-bold text-gray-800 mb-1">{title}</h2>
               <p className="text-gray-500 text-sm mb-6">
                 Ask students to scan this QR code
               </p>

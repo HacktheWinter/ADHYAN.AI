@@ -5,6 +5,11 @@ import Attendance, {
 } from "../models/Attendance.js";
 import Classroom from "../models/Classroom.js";
 import User from "../models/User.js";
+import AuditLog from "../models/AuditLog.js";
+import { extractEmbedding } from '../config/faceModel.js';
+import { getPineconeIndex } from "../config/pinecone.js";
+import { uploadAuditImage, shouldTriggerAudit } from "../utils/cloudinaryUpload.js";
+
 
 const attendedStatuses = new Set(["present", "late", "excused"]);
 const validStatuses = new Set(ATTENDANCE_ENTRY_STATUSES);
@@ -163,6 +168,8 @@ export const startAttendanceSession = async (req, res) => {
     const teacherId = extractTeacherId(req);
     const attendanceDate = normalizeAttendanceDate(req.body?.attendanceDate);
     const sessionLabel = req.body?.sessionLabel?.trim() || "";
+    const latitude = (req.body?.latitude !== undefined && req.body?.latitude !== null) ? parseFloat(req.body.latitude) : null;
+    const longitude = (req.body?.longitude !== undefined && req.body?.longitude !== null) ? parseFloat(req.body.longitude) : null;
 
     if (!classId || !teacherId) {
       return res.status(400).json({
@@ -210,6 +217,7 @@ export const startAttendanceSession = async (req, res) => {
       classId,
       teacherId,
       date: attendanceDate,
+      teacherLocation: { lat: latitude, lng: longitude },
       attendanceDate,
       sessionLabel,
       startedAt: new Date(),
@@ -796,6 +804,191 @@ export const getActiveAttendanceSession = async (req, res) => {
       success: false,
       error: "Server error while fetching active attendance session",
     });
+  }
+};
+
+export const verifyFaceAndMarkAttendance = async (req, res) => {
+  try {
+    const classId = extractClassId(req);
+    const studentId = req.user?._id?.toString();
+    const { token, status = "present", method = "system", latitude, longitude } = req.body;
+    const file = req.file;
+
+    if (!classId || !studentId || !file) {
+      return res.status(400).json({ success: false, error: "classId, token, and face image are required" });
+    }
+
+    // ── Config from env ─────────────────────────────────────────────────
+    const SIMILARITY_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD) || 0.75;
+    const AUDIT_SAMPLE_RATE = parseFloat(process.env.AUDIT_SAMPLE_RATE) || 0.05;
+
+    // 1. Basic Attendance Session Checks
+    const attendance = await findAttendanceSession({ classId, isActiveOnly: true });
+    if (!attendance) return res.status(404).json({ success: false, error: "Active attendance session not found" });
+
+    // 2. Geofencing Check
+    if (attendance.teacherLocation && attendance.teacherLocation.lat !== null && attendance.teacherLocation.lng !== null) {
+      if (!latitude || !longitude) {
+         return res.status(400).json({ success: false, error: "Location permission is required to mark attendance." });
+      }
+
+      const studentLat = parseFloat(latitude);
+      const studentLng = parseFloat(longitude);
+
+      if (isNaN(studentLat) || isNaN(studentLng)) {
+        return res.status(400).json({ success: false, error: "Invalid location data received." });
+      }
+
+      const R = 6371e3;
+      const lat1 = (attendance.teacherLocation.lat * Math.PI) / 180;
+      const lat2 = (studentLat * Math.PI) / 180;
+      const deltaLat = (studentLat - attendance.teacherLocation.lat) * Math.PI / 180;
+      const deltaLng = (studentLng - attendance.teacherLocation.lng) * Math.PI / 180;
+
+      const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+                Math.cos(lat1) * Math.cos(lat2) *
+                Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+
+      if (distance > 50) {
+        return res.status(403).json({ 
+          success: false, 
+          error: `You are not in the classroom. Detected distance: ${Math.round(distance)}m from teacher.`,
+          distance: Math.round(distance)
+        });
+      }
+    }
+
+    // 3. Process Image for Face Detection via FaceNet Microservice
+    let descriptor;
+    try {
+      descriptor = await extractEmbedding(file.buffer);
+    } catch (err) {
+      const errStatus = err.statusCode || 400;
+      return res.status(errStatus).json({ success: false, error: err.message || "Face detection failed." });
+    }
+
+    // 4. Query Pinecone with strict studentId filter
+    const index = getPineconeIndex();
+    const queryResponse = await index.query({
+      vector: descriptor,
+      topK: 1,
+      filter: { studentId: { '$eq': studentId } },
+      includeMetadata: true
+    });
+
+    if (!queryResponse.matches || queryResponse.matches.length === 0) {
+      // No registered face found — audit + reject
+      const auditUrl = await uploadAuditImage(file.buffer, {
+        studentId,
+        reason: "low_similarity",
+      });
+
+      // Fire-and-forget: create audit log
+      AuditLog.create({
+        studentId,
+        attendanceId: attendance._id,
+        classId,
+        similarityScore: 0,
+        status: "no_match",
+        triggerReason: "low_similarity",
+        auditImageUrl: auditUrl,
+        metadata: {
+          method,
+          threshold: SIMILARITY_THRESHOLD,
+          ipAddress: req.ip || req.connection?.remoteAddress || null,
+          userAgent: req.headers?.["user-agent"] || null,
+        },
+      }).catch((err) => console.error("[Audit] Failed to create log:", err.message));
+
+      return res.status(401).json({ 
+        success: false, 
+        error: "Face not recognized. Please ensure you have registered your face correctly in your profile." 
+      });
+    }
+
+    const match = queryResponse.matches[0];
+    const similarityScore = match.score;
+
+    // 5. Audit Decision — BEFORE marking attendance
+    const { shouldAudit, reason: auditReason } = shouldTriggerAudit(
+      similarityScore,
+      SIMILARITY_THRESHOLD,
+      AUDIT_SAMPLE_RATE
+    );
+
+    let auditImageUrl = null;
+    if (shouldAudit) {
+      auditImageUrl = await uploadAuditImage(file.buffer, {
+        studentId,
+        reason: auditReason,
+      });
+
+      // Fire-and-forget: create audit log
+      AuditLog.create({
+        studentId,
+        attendanceId: attendance._id,
+        classId,
+        similarityScore,
+        status: similarityScore >= SIMILARITY_THRESHOLD ? "match" : "no_match",
+        triggerReason: auditReason,
+        auditImageUrl,
+        metadata: {
+          method,
+          threshold: SIMILARITY_THRESHOLD,
+          ipAddress: req.ip || req.connection?.remoteAddress || null,
+          userAgent: req.headers?.["user-agent"] || null,
+        },
+      }).catch((err) => console.error("[Audit] Failed to create log:", err.message));
+    }
+
+    // 6. STRICT CHECK: Score >= threshold (default 0.75)
+    if (similarityScore < SIMILARITY_THRESHOLD) {
+      return res.status(401).json({ 
+        success: false, 
+        error: `Face verification failed. Confidence: ${(similarityScore * 100).toFixed(1)}%. Please try again with better lighting.`,
+        similarityScore,
+      });
+    }
+
+    // 7. Mark Attendance — Face verified successfully
+    const existingEntryIndex = attendance.attendanceEntries.findIndex(
+      (entry) => entry.studentId.toString() === studentId
+    );
+
+    const entryPayload = {
+      studentId,
+      status,
+      markedAt: new Date(),
+      markedBy: studentId,
+      method,
+      remarks: `Face verified (confidence: ${(similarityScore * 100).toFixed(1)}%)`,
+      similarityScore,
+      auditImageUrl,
+    };
+
+    if (existingEntryIndex >= 0) {
+      attendance.attendanceEntries[existingEntryIndex] = entryPayload;
+    } else {
+      attendance.attendanceEntries.push(entryPayload);
+    }
+
+    const classroom = await Classroom.findById(classId).select("students");
+    recalculateAttendanceDocument({ attendance, classroomStudentIds: classroom.students });
+
+    await attendance.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Face verified and attendance marked securely",
+      entry: entryPayload,
+      similarityScore,
+    });
+
+  } catch (error) {
+    console.error("Face Verification Error:", error);
+    return res.status(500).json({ success: false, error: "Server error during face verification" });
   }
 };
 

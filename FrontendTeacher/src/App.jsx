@@ -37,6 +37,7 @@ const PhysicalTestUploadPage = lazy(() => import("./Pages/PhysicalTestUploadPage
 const PhysicalTestResultsPage = lazy(() => import("./Pages/PhysicalTestResultsPage"));
 const PhysicalTestStudentResult = lazy(() => import("./Pages/PhysicalTestStudentResult"));
 const SeminarAttendancePage = lazy(() => import("./Pages/SeminarAttendancePage"));
+const AttendanceAuditDashboard = lazy(() => import("./components/AttendanceAuditDashboard"));
 
 
 export default function App() {
@@ -105,6 +106,15 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="teacher">
               <SeminarAttendancePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/audit"
+          element={
+            <ProtectedRoute requiredRole="teacher">
+              <AttendanceAuditDashboard />
             </ProtectedRoute>
           }
         />

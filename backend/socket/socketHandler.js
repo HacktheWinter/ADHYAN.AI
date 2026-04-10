@@ -77,63 +77,86 @@ export const setupSocketHandler = (io) => {
     // Attendance Session Events (Real-time QR/Manual)
     // ────────────────────────────────────────────────────────────────
 
-    socket.on("start_attendance", async ({ classId, token }) => {
-      try {
-        if (!classId || !token) {
-          return;
-        }
-
-        activeQrSessions.set(classId, {
-          token,
-          startedAt: Date.now(),
-          startedBySocketId: socket.id,
-        });
-
-        let session = await Attendance.findOne({ classId, isActive: true }).sort({
-          startedAt: -1,
-        });
-
-        if (!session) {
-          const classroom = await Classroom.findById(classId).select(
-            "teacherId students"
-          );
-          if (!classroom) {
-            socket.emit("attendance_error", { message: "Classroom not found." });
+    socket.on(
+      "start_attendance",
+      async ({ classId, token, latitude, longitude }) => {
+        try {
+          if (!classId || !token) {
             return;
           }
 
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-
-          session = new Attendance({
-            classId,
-            teacherId: classroom.teacherId,
-            date: today,
-            attendanceDate: today,
-            startedAt: new Date(),
-            isActive: true,
-            status: "active",
-            totalStudents: classroom.students.length,
-            summary: {
-              totalStudents: classroom.students.length,
-              presentCount: 0,
-              absentCount: 0,
-              lateCount: 0,
-              excusedCount: 0,
+          activeQrSessions.set(classId, {
+            token,
+            startedAt: Date.now(),
+            startedBySocketId: socket.id,
+            teacherLocation: {
+              lat:
+                latitude !== undefined && latitude !== null ? latitude : null,
+              lng:
+                longitude !== undefined && longitude !== null
+                  ? longitude
+                  : null,
             },
-            attendanceEntries: [],
-            studentsPresent: [],
           });
 
-          await session.save();
+          let session = await Attendance.findOne({
+            classId,
+            isActive: true,
+          }).sort({
+            startedAt: -1,
+          });
+
+          if (!session) {
+            const classroom =
+              await Classroom.findById(classId).select("teacherId students");
+            if (!classroom) {
+              socket.emit("attendance_error", {
+                message: "Classroom not found.",
+              });
+              return;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            session = new Attendance({
+              classId,
+              teacherId: classroom.teacherId,
+              date: today,
+              teacherLocation: {
+                lat:
+                  latitude !== undefined && latitude !== null ? latitude : null,
+                lng:
+                  longitude !== undefined && longitude !== null
+                    ? longitude
+                    : null,
+              },
+              attendanceDate: today,
+              startedAt: new Date(),
+              isActive: true,
+              status: "active",
+              totalStudents: classroom.students.length,
+              summary: {
+                totalStudents: classroom.students.length,
+                presentCount: 0,
+                absentCount: 0,
+                lateCount: 0,
+                excusedCount: 0,
+              },
+              attendanceEntries: [],
+              studentsPresent: [],
+            });
+
+            await session.save();
+          }
+        } catch (error) {
+          console.error("[Socket] Error in start_attendance:", error);
+          socket.emit("attendance_error", {
+            message: "Failed to start attendance session.",
+          });
         }
-      } catch (error) {
-        console.error("[Socket] Error in start_attendance:", error);
-        socket.emit("attendance_error", {
-          message: "Failed to start attendance session.",
-        });
-      }
-    });
+      },
+    );
 
     socket.on("refresh_token", ({ classId, token }) => {
       if (!classId || !token) {
@@ -162,202 +185,225 @@ export const setupSocketHandler = (io) => {
       activeQrSessions.delete(classId);
     });
 
-    socket.on("mark_attendance", async ({ classId, studentId, studentName, token }) => {
-      try {
-        if (!classId || !token) {
-          socket.emit("attendance_error", {
-            message: "QR attendance session is not active.",
-          });
-          return;
-        }
-
-        // Step 1 - Validate token
-        const qrSecretKey = process.env.QR_SECRET_KEY || "default_secret_key";
-        let isTokenValid = false;
-
-        for (const offset of [0, -1]) {
-          const timeWindow = Math.floor(Date.now() / 20000) + offset;
-          const expected = crypto
-            .createHash("sha256")
-            .update(classId + qrSecretKey + timeWindow)
-            .digest("hex");
-
-          if (expected === token) {
-            isTokenValid = true;
-            break;
-          }
-        }
-
-        if (!isTokenValid) {
-          socket.emit("attendance_error", {
-            message: "QR code has expired. Please scan the latest QR code.",
-          });
-          return;
-        }
-
-        // Ensure teacher has an active QR session for this class right now.
-        if (!activeQrSessions.has(classId)) {
-          socket.emit("attendance_error", {
-            message: "QR attendance is not currently active for this class.",
-          });
-          return;
-        }
-
-        // Step 2 - Validate ObjectIds
-        if (
-          !mongoose.Types.ObjectId.isValid(classId) ||
-          !mongoose.Types.ObjectId.isValid(studentId)
-        ) {
-          socket.emit("attendance_error", {
-            message: "Invalid class or student ID.",
-          });
-          return;
-        }
-
-        // Step 3 - Validate class and enrollment
-        const classroom = await Classroom.findById(classId).select("name teacherId students");
-        if (!classroom) {
-          socket.emit("attendance_error", { message: "Classroom not found." });
-          return;
-        }
-
-        const isEnrolled = classroom.students.some(
-          (enrolledId) => enrolledId.toString() === studentId.toString()
-        );
-        if (!isEnrolled) {
-          socket.emit("attendance_error", {
-            message: "You are not enrolled in this class.",
-          });
-          return;
-        }
-
-        // Step 4 - Find or create active session
-        let session = await Attendance.findOne({ classId, isActive: true }).sort({
-          startedAt: -1,
-        });
-        if (!session) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-
-          session = new Attendance({
-            classId,
-            teacherId: classroom.teacherId,
-            date: today,
-            attendanceDate: today,
-            startedAt: new Date(),
-            isActive: true,
-            status: "active",
-            totalStudents: classroom.students.length,
-            summary: {
-              totalStudents: classroom.students.length,
-              presentCount: 0,
-              absentCount: 0,
-              lateCount: 0,
-              excusedCount: 0,
-            },
-            attendanceEntries: [],
-            studentsPresent: [],
-          });
-
-          await session.save();
-        }
-
-        // Step 5 - Duplicate check
-        const duplicatePresent = (session.attendanceEntries || []).some(
-          (entry) =>
-            entry.studentId?.toString() === studentId.toString() &&
-            entry.status === "present"
-        );
-        if (duplicatePresent) {
-          socket.emit("attendance_error", {
-            message: "Attendance already marked for this session.",
-          });
-          return;
-        }
-
-        // Step 6 - Build entry objects
-        const now = new Date();
-        const studentObjectId = new mongoose.Types.ObjectId(studentId);
-        const attendanceEntry = {
-          studentId: studentObjectId,
-          status: "present",
-          markedAt: now,
-          markedBy: studentObjectId,
-          method: "qr",
-          remarks: "",
-        };
-
-        const existingEntryIndex = (session.attendanceEntries || []).findIndex(
-          (entry) => entry.studentId?.toString() === studentId.toString()
-        );
-        if (existingEntryIndex >= 0) {
-          session.attendanceEntries[existingEntryIndex] = attendanceEntry;
-        } else {
-          session.attendanceEntries.push(attendanceEntry);
-        }
-
-        const studentsPresentEntry = {
-          studentId: studentObjectId,
-          scannedAt: now,
-          markedAt: now,
-          method: "qr",
-        };
-
-        const existingPresentIndex = (session.studentsPresent || []).findIndex(
-          (entry) => entry.studentId?.toString() === studentId.toString()
-        );
-        if (existingPresentIndex >= 0) {
-          session.studentsPresent[existingPresentIndex] = studentsPresentEntry;
-        } else {
-          session.studentsPresent.push(studentsPresentEntry);
-        }
-
-        // Step 7 - Recalculate summary
-        let presentCount = 0;
-        let absentCount = 0;
-        let lateCount = 0;
-        let excusedCount = 0;
-
-        for (const entry of session.attendanceEntries || []) {
-          if (entry.status === "present") presentCount += 1;
-          else if (entry.status === "absent") absentCount += 1;
-          else if (entry.status === "late") lateCount += 1;
-          else if (entry.status === "excused") excusedCount += 1;
-        }
-
-        session.summary = {
-          totalStudents: classroom.students.length,
-          presentCount,
-          absentCount,
-          lateCount,
-          excusedCount,
-        };
-        session.totalStudents = classroom.students.length;
-
-        // Step 8 - Mark modified and save
-        session.markModified("attendanceEntries");
-        session.markModified("studentsPresent");
-        session.markModified("summary");
-        await session.save();
-
-        // Step 9 - Success to current socket
-        socket.emit("attendance_success", {
-          message: `Attendance marked for ${classroom.name}!`,
-        });
-
-        // Step 10 - Broadcast update to classroom room
-        io.to(`class_${classId}`).emit("attendance_update", {
-          studentId,
-          studentName,
-          presentCount,
-        });
-      } catch (error) {
-        console.error("[Socket] Error in mark_attendance:", error);
+    socket.on(
+      "mark_attendance",
+      async ({ classId, studentId, studentName, token }) => {
+        // SECURITY WARNING: This socket event is now restricted to avoid bypassing face recognition.
+        // Use the /api/attendance/session/:id/verify-face HTTP route for secure attendance.
         socket.emit("attendance_error", {
-          message: "Failed to mark attendance.",
+          message:
+            "This method is restricted. Please use the Face Verification scanner.",
         });
-      }
-    });
+        return;
+
+        try {
+          if (!classId || !token) {
+            socket.emit("attendance_error", {
+              message: "QR attendance session is not active.",
+            });
+            return;
+          }
+
+          // Step 1 - Validate token
+          const qrSecretKey = process.env.QR_SECRET_KEY || "default_secret_key";
+          let isTokenValid = false;
+
+          for (const offset of [0, -1]) {
+            const timeWindow = Math.floor(Date.now() / 20000) + offset;
+            const expected = crypto
+              .createHash("sha256")
+              .update(classId + qrSecretKey + timeWindow)
+              .digest("hex");
+
+            if (expected === token) {
+              isTokenValid = true;
+              break;
+            }
+          }
+
+          if (!isTokenValid) {
+            socket.emit("attendance_error", {
+              message: "QR code has expired. Please scan the latest QR code.",
+            });
+            return;
+          }
+
+          // Ensure teacher has an active QR session for this class right now.
+          if (!activeQrSessions.has(classId)) {
+            socket.emit("attendance_error", {
+              message: "QR attendance is not currently active for this class.",
+            });
+            return;
+          }
+
+          // Step 2 - Validate ObjectIds
+          if (
+            !mongoose.Types.ObjectId.isValid(classId) ||
+            !mongoose.Types.ObjectId.isValid(studentId)
+          ) {
+            socket.emit("attendance_error", {
+              message: "Invalid class or student ID.",
+            });
+            return;
+          }
+
+          // Step 3 - Validate class and enrollment
+          const classroom = await Classroom.findById(classId).select(
+            "name teacherId students",
+          );
+          if (!classroom) {
+            socket.emit("attendance_error", {
+              message: "Classroom not found.",
+            });
+            return;
+          }
+
+          const isEnrolled = classroom.students.some(
+            (enrolledId) => enrolledId.toString() === studentId.toString(),
+          );
+          if (!isEnrolled) {
+            socket.emit("attendance_error", {
+              message: "You are not enrolled in this class.",
+            });
+            return;
+          }
+
+          // Step 4 - Find or create active session
+          let session = await Attendance.findOne({
+            classId,
+            isActive: true,
+          }).sort({
+            startedAt: -1,
+          });
+          if (!session) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            session = new Attendance({
+              classId,
+              teacherId: classroom.teacherId,
+              date: today,
+              attendanceDate: today,
+              startedAt: new Date(),
+              isActive: true,
+              status: "active",
+              totalStudents: classroom.students.length,
+              summary: {
+                totalStudents: classroom.students.length,
+                presentCount: 0,
+                absentCount: 0,
+                lateCount: 0,
+                excusedCount: 0,
+              },
+              attendanceEntries: [],
+              studentsPresent: [],
+            });
+
+            await session.save();
+          }
+
+          // Step 5 - Duplicate check
+          const duplicatePresent = (session.attendanceEntries || []).some(
+            (entry) =>
+              entry.studentId?.toString() === studentId.toString() &&
+              entry.status === "present",
+          );
+          if (duplicatePresent) {
+            socket.emit("attendance_error", {
+              message: "Attendance already marked for this session.",
+            });
+            return;
+          }
+
+          // Step 6 - Build entry objects
+          const now = new Date();
+          const studentObjectId = new mongoose.Types.ObjectId(studentId);
+          const attendanceEntry = {
+            studentId: studentObjectId,
+            status: "present",
+            markedAt: now,
+            markedBy: studentObjectId,
+            method: "qr",
+            remarks: "",
+          };
+
+          const existingEntryIndex = (
+            session.attendanceEntries || []
+          ).findIndex(
+            (entry) => entry.studentId?.toString() === studentId.toString(),
+          );
+          if (existingEntryIndex >= 0) {
+            session.attendanceEntries[existingEntryIndex] = attendanceEntry;
+          } else {
+            session.attendanceEntries.push(attendanceEntry);
+          }
+
+          const studentsPresentEntry = {
+            studentId: studentObjectId,
+            scannedAt: now,
+            markedAt: now,
+            method: "qr",
+          };
+
+          const existingPresentIndex = (
+            session.studentsPresent || []
+          ).findIndex(
+            (entry) => entry.studentId?.toString() === studentId.toString(),
+          );
+          if (existingPresentIndex >= 0) {
+            session.studentsPresent[existingPresentIndex] =
+              studentsPresentEntry;
+          } else {
+            session.studentsPresent.push(studentsPresentEntry);
+          }
+
+          // Step 7 - Recalculate summary
+          let presentCount = 0;
+          let absentCount = 0;
+          let lateCount = 0;
+          let excusedCount = 0;
+
+          for (const entry of session.attendanceEntries || []) {
+            if (entry.status === "present") presentCount += 1;
+            else if (entry.status === "absent") absentCount += 1;
+            else if (entry.status === "late") lateCount += 1;
+            else if (entry.status === "excused") excusedCount += 1;
+          }
+
+          session.summary = {
+            totalStudents: classroom.students.length,
+            presentCount,
+            absentCount,
+            lateCount,
+            excusedCount,
+          };
+          session.totalStudents = classroom.students.length;
+
+          // Step 8 - Mark modified and save
+          session.markModified("attendanceEntries");
+          session.markModified("studentsPresent");
+          session.markModified("summary");
+          await session.save();
+
+          // Step 9 - Success to current socket
+          socket.emit("attendance_success", {
+            message: `Attendance marked for ${classroom.name}!`,
+          });
+
+          // Step 10 - Broadcast update to classroom room
+          io.to(`class_${classId}`).emit("attendance_update", {
+            studentId,
+            studentName,
+            presentCount,
+          });
+        } catch (error) {
+          console.error("[Socket] Error in mark_attendance:", error);
+          socket.emit("attendance_error", {
+            message: "Failed to mark attendance.",
+          });
+        }
+      },
+    );
 
     // ────────────────────────────────────────────────────────────────
     // Doubt Management Events
@@ -373,7 +419,9 @@ export const setupSocketHandler = (io) => {
     socket.on("new_reply", ({ classId, doubtId, reply }) => {
       if (classId && doubtId && reply) {
         io.to(classId).emit("reply_added", { doubtId, reply });
-        console.log(`[Socket] New reply to doubt ${doubtId} in class ${classId}`);
+        console.log(
+          `[Socket] New reply to doubt ${doubtId} in class ${classId}`,
+        );
       }
     });
 

@@ -48,6 +48,10 @@ const seminarSessionSchema = new mongoose.Schema(
     },
     currentToken: { type: String, default: "" },
     tokenExpiresAt: { type: Date, default: null },
+    teacherLocation: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
+    },
     attendees: {
       type: [seminarAttendanceEntrySchema],
       default: [],

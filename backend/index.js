@@ -6,6 +6,9 @@ import cors from "cors";
 import connectDB from "./config/db.js";
 import dotenv from "dotenv";
 
+import { initPinecone } from "./config/pinecone.js";
+import { loadModels } from "./config/faceModel.js"; // now just checks DeepFace service health
+
 import teacherRoutes from "./routes/teacherRoutes.js";
 import studentRoutes from "./routes/studentRoutes.js";
 import principalRoutes from "./routes/principalRoutes.js";
@@ -22,20 +25,24 @@ import assignmentRoutes from "./routes/assignmentRoutes.js";
 import assignmentSubmissionRoutes from "./routes/assignmentSubmissionRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import physicalTestSubmissionRoutes from "./routes/physicalTestSubmissionRoutes.js";
+import faceRecognitionRoutes from "./routes/faceRecognitionRoutes.js";
 
 import calendarRoutes from "./routes/calendarRoutes.js";
-import forgotPasswordRoutes from './routes/forgotPassword.js';
+import forgotPasswordRoutes from "./routes/forgotPassword.js";
 import profileRoutes from "./routes/profileRoutes.js";
 
 import videoRoutes from "./routes/video.routes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import seminarRoutes from "./routes/seminarRoutes.js";
+import auditRoutes from "./routes/auditRoutes.js";
 import socketHandler from "./socket/socketHandler.js";
 
 const app = express();
 
 dotenv.config();
 connectDB();
+initPinecone();
+loadModels();
 
 const staticAllowedOrigins = [
   "https://adhyanai-teacher.onrender.com",
@@ -50,7 +57,7 @@ const isAllowedOrigin = (origin) => {
   if (!origin) return true;
 
   const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(
-    origin
+    origin,
   );
   if (isLocalhost) return true;
 
@@ -65,7 +72,6 @@ const corsOriginHandler = (origin, callback) => {
 
   callback(new Error(`CORS blocked for origin: ${origin}`));
 };
-
 
 const server = http.createServer(app);
 
@@ -89,7 +95,7 @@ app.use(
     origin: corsOriginHandler,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  })
+  }),
 );
 // Increase body limit to allow base64 theme images when creating classes
 app.use(express.json({ limit: "10mb" }));
@@ -111,17 +117,18 @@ app.use("/api/assignment", assignmentRoutes);
 app.use("/api/assignment-submission", assignmentSubmissionRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/physical-test-submission", physicalTestSubmissionRoutes);
+app.use("/api/face", faceRecognitionRoutes);
 
 app.use("/api/calendar", calendarRoutes);
-app.use('/api', forgotPasswordRoutes);
+app.use("/api", forgotPasswordRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api", videoRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/seminar", seminarRoutes);
-
+app.use("/api/audit", auditRoutes);
 
 // Serve uploaded files
-app.use('/uploads', express.static('uploads'));
+app.use("/uploads", express.static("uploads"));
 
 // Health check
 app.get("/", (req, res) => {

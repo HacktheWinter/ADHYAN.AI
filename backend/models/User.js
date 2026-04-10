@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema({
   dateOfBirth: { type: Date },
   gender: { type: String, enum: ["male", "female", "other", "prefer-not-to-say", ""], default: "" },
   collegeName: { type: String, default: "" },
+  isFaceRegistered: { type: Boolean, default: false },
 
   // Student-specific academic fields
   course: { type: String, default: "" },

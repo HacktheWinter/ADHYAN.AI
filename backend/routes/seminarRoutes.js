@@ -1,4 +1,5 @@
 import express from "express";
+import multer from "multer";
 import { authMiddleware, authorizeRoles } from "../middleware/authMiddleware.js";
 import {
   startSeminarSession,
@@ -11,6 +12,8 @@ import {
 } from "../controllers/seminarController.js";
 
 const router = express.Router();
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 // Teacher: Start a new seminar session
 router.post(
@@ -65,6 +68,7 @@ router.post(
   "/attend/:sessionId",
   authMiddleware,
   authorizeRoles("student"),
+  upload.single("image"),
   markSeminarAttendance
 );
 

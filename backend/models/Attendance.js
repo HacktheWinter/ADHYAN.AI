@@ -88,6 +88,14 @@ const attendanceEntrySchema = new mongoose.Schema(
       trim: true,
       maxlength: 300,
     },
+    similarityScore: {
+      type: Number,
+      default: null,
+    },
+    auditImageUrl: {
+      type: String,
+      default: null,
+    },
   },
   { _id: false }
 );
@@ -139,6 +147,10 @@ const attendanceSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
       required: true,
+    },
+    teacherLocation: {
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
     },
     attendanceDate: {
       type: Date,
