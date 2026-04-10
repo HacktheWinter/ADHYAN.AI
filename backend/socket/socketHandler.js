@@ -172,7 +172,7 @@ export const setupSocketHandler = (io) => {
       }
     });
 
-    socket.on("stop_attendance", (classPayload) => {
+    socket.on("stop_attendance", async (classPayload) => {
       const classId =
         typeof classPayload === "object" && classPayload !== null
           ? classPayload.classId
@@ -183,12 +183,31 @@ export const setupSocketHandler = (io) => {
       }
 
       activeQrSessions.delete(classId);
+
+      // Keep DB state aligned with socket state so scans stop immediately
+      // even when clients are connected through different server instances.
+      try {
+        const activeSession = await Attendance.findOne({
+          classId,
+          isActive: true,
+        }).sort({
+          startedAt: -1,
+        });
+        if (activeSession) {
+          activeSession.isActive = false;
+          activeSession.status = "completed";
+          activeSession.endedAt = new Date();
+          await activeSession.save();
+        }
+      } catch (error) {
+        console.error("[Socket] Error in stop_attendance:", error);
+      }
     });
 
     socket.on(
       "mark_attendance",
       async ({ classId, studentId, studentName, token }) => {
-        // NOTE: This socket event was previously restricted. 
+        // NOTE: This socket event was previously restricted.
         // It's reopened to allow manual/QR attendance fallback when face validation is unavailable.
 
         try {
@@ -421,6 +440,37 @@ export const setupSocketHandler = (io) => {
     });
 
     // ────────────────────────────────────────────────────────────────
+    // Physical Test Checking Events (Real-time Progress)
+    // ────────────────────────────────────────────────────────────────
+
+    socket.on("join_physical_check", ({ sessionId }) => {
+      if (!sessionId) return;
+      socket.join(`physical_check_${sessionId}`);
+      console.log(`[Socket] ${socket.id} joined physical_check_${sessionId}`);
+    });
+
+    socket.on("leave_physical_check", ({ sessionId }) => {
+      if (!sessionId) return;
+      socket.leave(`physical_check_${sessionId}`);
+      console.log(`[Socket] ${socket.id} left physical_check_${sessionId}`);
+    });
+
+    socket.on("stop_physical_check", ({ sessionId }) => {
+      if (!sessionId) return;
+      // Dynamically import the active sessions map
+      import("../controllers/physicalTestSubmissionController.js").then(
+        (mod) => {
+          if (mod.activeCheckingSessions.has(sessionId)) {
+            mod.activeCheckingSessions.set(sessionId, "stop");
+            console.log(
+              `[Socket] Stop signal sent for physical_check_${sessionId}`,
+            );
+          }
+        },
+      );
+    });
+
+    // ────────────────────────────────────────────────────────────────
     // Cleanup on disconnect
     // ────────────────────────────────────────────────────────────────
 
@@ -438,6 +488,23 @@ export const setupSocketHandler = (io) => {
       for (const [classId, session] of activeQrSessions.entries()) {
         if (session?.startedBySocketId === socket.id) {
           activeQrSessions.delete(classId);
+
+          // Best-effort DB close for sessions owned by this socket.
+          Attendance.findOne({ classId, isActive: true })
+            .sort({ startedAt: -1 })
+            .then((activeSession) => {
+              if (!activeSession) return;
+              activeSession.isActive = false;
+              activeSession.status = "completed";
+              activeSession.endedAt = new Date();
+              return activeSession.save();
+            })
+            .catch((error) => {
+              console.error(
+                "[Socket] Error closing session on disconnect:",
+                error,
+              );
+            });
         }
       }
     });

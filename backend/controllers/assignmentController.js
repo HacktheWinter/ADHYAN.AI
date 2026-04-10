@@ -20,10 +20,10 @@ export const generateAssignmentWithAI = async (req, res) => {
       console.error("GridFS bucket not ready");
       return;
     }
-    const { noteIds, classroomId } = req.body;
+    const { noteIds, classroomId, customTitle, questionCount, marksPerQuestion, difficulty } = req.body;
 
     console.log("=== ASSIGNMENT GENERATION STARTED ===");
-    console.log("Request:", { noteIds, classroomId });
+    console.log("Request:", { noteIds, classroomId, customTitle, questionCount, marksPerQuestion, difficulty });
 
     if (!noteIds || !Array.isArray(noteIds) || noteIds.length === 0) {
       return res.status(400).json({ error: "Please select at least one note" });
@@ -46,8 +46,35 @@ export const generateAssignmentWithAI = async (req, res) => {
       }
     }
 
+    const normalizedNoteIds = [...new Set(noteIds.map(String))]
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    if (normalizedNoteIds.length === 0) {
+      return res.status(400).json({ error: "No valid note IDs provided" });
+    }
+
+    const toClampedInt = (value, defaultValue, min, max) => {
+      const parsed = Number.parseInt(value, 10);
+      if (!Number.isFinite(parsed)) return defaultValue;
+      return Math.min(max, Math.max(min, parsed));
+    };
+
+    const toClampedNumber = (value, defaultValue, min, max) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return defaultValue;
+      return Math.min(max, Math.max(min, parsed));
+    };
+
+    // AI Config
+    const aiConfig = {
+      questionCount: toClampedInt(questionCount, 5, 1, 10),
+      marksPerQuestion: toClampedNumber(marksPerQuestion, 2, 1, 10),
+      difficulty: difficulty || "mixed"
+    };
+
     // Fetch notes
-    const notes = await Note.find({ _id: { $in: noteIds } });
+    const notes = await Note.find({ _id: { $in: normalizedNoteIds } });
 
     if (notes.length === 0) {
       return res.status(404).json({ error: "No notes found" });
@@ -99,34 +126,41 @@ export const generateAssignmentWithAI = async (req, res) => {
     }
 
     console.log("Content validation passed");
-    console.log(`Total extracted text: ${combinedText.length} characters`);
 
     // Clean text
     const cleanedText = cleanText(combinedText, 15001);
-    console.log(`Cleaned text: ${cleanedText.length} characters`);
+
+    // Fetch existing questions for this classroom to avoid repetition
+    // Fetch existing questions for this classroom AND same notes to avoid repetition
+    const existingAssignments = await Assignment.find({ 
+      classroomId, 
+      generatedFrom: { $all: normalizedNoteIds, $size: normalizedNoteIds.length },
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select("questions.question");
+    
+    const excludeQuestions = existingAssignments.flatMap(a => a.questions.map(extQ => extQ.question));
 
     // Generate assignment using Gemini
     console.log("Calling Gemini API for assignment generation...");
-    console.log("Generating 5 questions × 2 marks each = 10 total marks");
-
+    
     let questions;
     try {
-      questions = await generateAssignmentFromText(cleanedText);
+      questions = await generateAssignmentFromText(cleanedText, { ...aiConfig, excludeQuestions });
       console.log(`Generated ${questions.length} questions`);
     } catch (aiError) {
       console.error("AI Generation Error:", aiError.message);
       return res.status(500).json({
         error: "Failed to generate assignment using AI",
         details: aiError.message,
-        suggestion: "Please try again or select different notes",
       });
     }
 
-    // Validate questions
-    if (!questions || questions.length !== 5) {
+    // Validate questions count (allowing some flexibility but not too much)
+    if (!questions || questions.length === 0) {
       return res.status(500).json({
-        error: "AI did not generate the expected number of questions",
-        details: `Expected 5 questions, got ${questions?.length || 0}`,
+        error: "AI did not generate any questions",
       });
     }
 
@@ -135,24 +169,30 @@ export const generateAssignmentWithAI = async (req, res) => {
       .slice(0, 2)
       .map((n) => n.title)
       .join(", ");
-    const assignmentTitle =
-      notes.length > 2
+    
+    const assignmentTitle = customTitle?.trim() 
+      ? customTitle.trim() 
+      : notes.length > 2
         ? `Assignment from ${noteNames} and ${notes.length - 2} more`
         : `Assignment from ${noteNames}`;
 
-    // Save to database (5 questions × 2 marks = 10 marks)
+    const totalMarks = questions.reduce((acc, q) => acc + (q.marks || aiConfig.marksPerQuestion), 0);
+
+    // Save to database
     const assignment = await Assignment.create({
       classroomId,
       title: assignmentTitle,
-      description: "Complete all 5 questions with brief answers (2 marks each)",
-      generatedFrom: noteIds,
+      description: `Complete all ${questions.length} questions. Each question is worth ${aiConfig.marksPerQuestion} marks.`,
+      generatedFrom: normalizedNoteIds,
       questions: questions.map((q) => ({
         question: q.question,
-        marks: q.marks,
+        marks: q.marks || aiConfig.marksPerQuestion,
         answerKey: q.answerKey,
         answerGuidelines: q.answerGuidelines || "",
       })),
-      totalMarks: 10,
+      marksPerQuestion: aiConfig.marksPerQuestion,
+      totalMarks: totalMarks,
+      difficulty: aiConfig.difficulty,
       status: "draft",
     });
 
@@ -161,14 +201,15 @@ export const generateAssignmentWithAI = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Generated assignment with ${questions.length} questions (2 marks each)`,
+      message: `Generated assignment with ${questions.length} questions`,
       assignment,
       stats: {
         totalNotes: notes.length,
         processedNotes: successfulExtractions,
         questionsGenerated: questions.length,
-        marksPerQuestion: 2,
-        totalMarks: 10,
+        marksPerQuestion: aiConfig.marksPerQuestion,
+        totalMarks: totalMarks,
+        difficulty: aiConfig.difficulty,
       },
     });
   } catch (error) {

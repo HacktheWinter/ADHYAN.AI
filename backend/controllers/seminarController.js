@@ -31,7 +31,7 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 // ── Helpers ─────────────────────────────────────────────────────────
 
 const QR_SECRET = () => process.env.QR_SECRET_KEY || "default_secret_key";
-const TOKEN_WINDOW_MS = 20000; // 20 seconds
+const TOKEN_WINDOW_MS = 10000; // 10 seconds
 
 const generateSeminarToken = (sessionId) => {
   const timeWindow = Math.floor(Date.now() / TOKEN_WINDOW_MS);
@@ -383,6 +383,26 @@ export const markSeminarAttendance = async (req, res) => {
 
 // ── Stop Seminar Session ──────────────────────────────────────────
 
+/**
+ * Sort attendees by: 1) Course (A→Z)  2) Section (A→Z)  3) Name (A→Z)
+ * Mutates the array in-place and returns it.
+ */
+const sortAttendees = (attendees) => {
+  return attendees.sort((a, b) => {
+    const courseA = (a.course || "").toLowerCase();
+    const courseB = (b.course || "").toLowerCase();
+    if (courseA !== courseB) return courseA.localeCompare(courseB);
+
+    const secA = (a.section || "").toLowerCase();
+    const secB = (b.section || "").toLowerCase();
+    if (secA !== secB) return secA.localeCompare(secB);
+
+    const nameA = (a.studentName || "").toLowerCase();
+    const nameB = (b.studentName || "").toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+};
+
 export const stopSeminarSession = async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -410,16 +430,20 @@ export const stopSeminarSession = async (req, res) => {
       });
     }
 
+    // Sort attendees (Course → Section → Name) before persisting
+    sortAttendees(session.attendees);
+
     session.isActive = false;
     session.status = "completed";
     session.endedAt = new Date();
     session.currentToken = "";
     session.tokenExpiresAt = null;
+    session.markModified("attendees");
     await session.save();
 
     return res.status(200).json({
       success: true,
-      message: "Seminar session ended",
+      message: "Seminar session ended — attendance sorted successfully",
       session,
     });
   } catch (error) {
@@ -470,8 +494,27 @@ export const getSeminarAttendanceRecords = async (req, res) => {
 
     const sessions = await SeminarSession.find({ teacherId })
       .sort({ startedAt: -1 })
-      .populate("attendees.studentId", "name email collegeName")
+      .populate("attendees.studentId", "name email collegeName course section erpId semester")
       .lean();
+
+    // Ensure sorted order even for older sessions that were saved unsorted
+    for (const s of sessions) {
+      if (s.attendees?.length > 1) {
+        s.attendees.sort((a, b) => {
+          const cA = (a.course || a.studentId?.course || "").toLowerCase();
+          const cB = (b.course || b.studentId?.course || "").toLowerCase();
+          if (cA !== cB) return cA.localeCompare(cB);
+
+          const sA = (a.section || a.studentId?.section || "").toLowerCase();
+          const sB = (b.section || b.studentId?.section || "").toLowerCase();
+          if (sA !== sB) return sA.localeCompare(sB);
+
+          const nA = (a.studentName || a.studentId?.name || "").toLowerCase();
+          const nB = (b.studentName || b.studentId?.name || "").toLowerCase();
+          return nA.localeCompare(nB);
+        });
+      }
+    }
 
     return res.status(200).json({
       success: true,

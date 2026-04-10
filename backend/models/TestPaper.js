@@ -21,7 +21,19 @@ const questionSchema = new mongoose.Schema({
   answerGuidelines: { 
     type: String, 
     default: "" 
-  }, // Alternate acceptable answers
+  },
+  section: {
+    type: String,
+    default: ""
+  },
+  choiceLabel: {
+    type: String,
+    default: ""
+  },
+  choiceGroup: {
+    type: String,
+    default: ""
+  }
 });
 
 const testPaperSchema = new mongoose.Schema({
@@ -39,9 +51,28 @@ const testPaperSchema = new mongoose.Schema({
     ref: "Note",
   }],
   questions: [questionSchema],
+  questionCounts: {
+    short: { 
+      count: { type: Number, default: 5 },
+      optional: { type: Number, default: 0 }
+    },
+    medium: { 
+      count: { type: Number, default: 4 },
+      optional: { type: Number, default: 0 }
+    },
+    long: { 
+      count: { type: Number, default: 2 },
+      optional: { type: Number, default: 0 }
+    },
+  },
   totalMarks: {
     type: Number,
-    default: 50,
+    required: true,
+  },
+  difficulty: {
+    type: String,
+    enum: ["easy", "medium", "hard", "mixed"],
+    default: "mixed",
   },
   status: {
     type: String,

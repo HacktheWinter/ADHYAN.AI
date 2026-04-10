@@ -209,6 +209,7 @@ const attendanceSchema = new mongoose.Schema(
 
 attendanceSchema.index({ classId: 1, date: -1 });
 attendanceSchema.index({ classId: 1, isActive: 1 });
+attendanceSchema.index({ classId: 1, isActive: 1, startedAt: -1 });
 attendanceSchema.index({ teacherId: 1, date: -1 });
 attendanceSchema.index({ "attendanceEntries.studentId": 1, date: -1 });
 

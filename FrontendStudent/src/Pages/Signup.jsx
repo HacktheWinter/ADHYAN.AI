@@ -1,8 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, User, BookOpen, GraduationCap, Hash, Layers, Users } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, BookOpen, GraduationCap, Hash, Layers, Users, Search, ChevronDown } from "lucide-react";
 import axios from "axios";
-import API_BASE_URL from "../config";
+import { persistAuth } from "../utils/authStorage";
+import API_BASE_URL, { STUDENT_FRONTEND_URL, TEACHER_FRONTEND_URL } from "../config";
+
+// ── Course → Specialization mapping ──────────────────────────────
+const COURSE_SPECIALIZATIONS = {
+  "B.Tech": ["CSE", "IT", "Mechanical", "Civil", "Electrical", "Electronics", "AI & ML", "Data Science", "Cyber Security", "None"],
+  "M.Tech": ["CSE", "IT", "Mechanical", "Civil", "Electrical", "Electronics", "AI & ML", "Data Science", "Cyber Security", "None"],
+  "BCA": ["General", "Cloud Computing", "AI & ML", "Data Science", "Cyber Security", "None"],
+  "MCA": ["General", "Cloud Computing", "AI & ML", "Data Science", "Cyber Security", "None"],
+  "BBA": ["Marketing", "Finance", "HR", "International Business", "Operations", "None"],
+  "MBA": ["Marketing", "Finance", "HR", "International Business", "Operations", "Business Analytics", "None"],
+  "B.Sc": ["Physics", "Chemistry", "Mathematics", "Biology", "Computer Science", "None"],
+  "M.Sc": ["Physics", "Chemistry", "Mathematics", "Biology", "Computer Science", "None"],
+  "B.Com": ["General", "Accounting", "Banking", "Taxation", "None"],
+  "M.Com": ["General", "Accounting", "Banking", "Taxation", "None"],
+  "BA": ["English", "Hindi", "Political Science", "History", "Psychology", "Economics", "None"],
+  "MA": ["English", "Hindi", "Political Science", "History", "Psychology", "Economics", "None"],
+  "B.Pharm": ["Pharmacy", "None"],
+  "D.Pharm": ["Pharmacy", "None"],
+  "LLB": ["Law", "None"],
+  "B.Des": ["Fashion Design", "Interior Design", "Graphic Design", "Product Design", "None"],
+  "B.Arch": ["Architecture", "None"],
+  "MBBS": ["Medicine", "None"],
+  "BDS": ["Dental Surgery", "None"],
+  "B.Ed": ["Education", "None"],
+  "Polytechnic": ["CSE", "Mechanical", "Civil", "Electrical", "Electronics", "None"],
+};
+
+const ALL_COURSES = Object.keys(COURSE_SPECIALIZATIONS);
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -11,6 +39,9 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [courseSearch, setCourseSearch] = useState("");
+  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
+  const courseDropdownRef = useRef(null);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -18,10 +49,38 @@ export default function Signup() {
     confirmPassword: "",
     role: "student",
     course: "",
+    specialization: "",
     section: "",
     erpId: "",
     semester: "",
   });
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (courseDropdownRef.current && !courseDropdownRef.current.contains(e.target)) {
+        setShowCourseDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filtered courses for dropdown
+  const filteredCourses = ALL_COURSES.filter((c) =>
+    c.toLowerCase().includes(courseSearch.toLowerCase())
+  );
+
+  // Available specializations based on selected course
+  const specializations = formData.course && COURSE_SPECIALIZATIONS[formData.course]
+    ? COURSE_SPECIALIZATIONS[formData.course]
+    : [];
+
+  const handleCourseSelect = (course) => {
+    setFormData({ ...formData, course, specialization: "" });
+    setCourseSearch(course);
+    setShowCourseDropdown(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -74,15 +133,38 @@ export default function Signup() {
       // Add student-specific fields
       if (formData.role === "student") {
         payload.course = formData.course.trim();
+        payload.specialization = formData.specialization.trim() || "None";
         payload.section = formData.section.trim();
         payload.erpId = formData.erpId.trim();
         payload.semester = formData.semester.trim();
       }
 
-      await axios.post(endpoint, payload);
+      const response = await axios.post(endpoint, payload);
 
-      alert("Registration successful! Please login.");
-      navigate("/login");
+      // Auto-login: persist token and user data from registration response
+      const userData = {
+        ...(response.data.student || response.data.teacher),
+        role: formData.role,
+      };
+      persistAuth(response.data.token, userData, true);
+
+      // Redirect to the correct role-based frontend
+      const targetUrl = formData.role === "teacher" ? TEACHER_FRONTEND_URL : STUDENT_FRONTEND_URL;
+
+      try {
+        const targetOrigin = new URL(targetUrl).origin;
+        const currentOrigin = window.location.origin;
+
+        if (currentOrigin !== targetOrigin) {
+          window.location.replace(targetUrl);
+          return;
+        }
+      } catch (urlError) {
+        console.error("URL parse error:", urlError);
+      }
+
+      // Same origin — navigate to home
+      navigate("/");
     } catch (err) {
       const backendMsg = err.response?.data?.error || "Registration failed. Please try again.";
       const isDuplicate = err.response?.status === 409 || /exist/i.test(backendMsg);
@@ -257,7 +339,7 @@ export default function Signup() {
                   <button
                     type="button"
                     onClick={() =>
-                      setFormData({ ...formData, role: "student" })
+                      setFormData({ ...formData, role: "student", course: "", specialization: "", section: "", erpId: "", semester: "" })
                     }
                     className={`p-3 border-2 rounded-xl transition-all cursor-pointer ${
                       formData.role === "student"
@@ -313,13 +395,13 @@ export default function Signup() {
                 </div>
               </div>
 
-              {/* Student-specific fields */}
+              {/* Student-specific fields — only shown when role=student */}
               {formData.role === "student" && (
                 <div className="space-y-4 p-4 bg-purple-50 border border-purple-100 rounded-xl">
                   <p className="text-sm font-semibold text-purple-700 mb-1">Academic Details</p>
 
-                  {/* Course */}
-                  <div>
+                  {/* Course — Searchable Dropdown */}
+                  <div ref={courseDropdownRef} className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
                       Course *
                     </label>
@@ -327,15 +409,61 @@ export default function Signup() {
                       <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                       <input
                         type="text"
-                        name="course"
-                        value={formData.course}
-                        onChange={handleChange}
-                        placeholder="e.g. B.Tech CSE, BBA, MBA"
-                        required
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm"
+                        value={courseSearch}
+                        onChange={(e) => {
+                          setCourseSearch(e.target.value);
+                          setShowCourseDropdown(true);
+                          // If the user clears, also clear formData.course
+                          if (!e.target.value) {
+                            setFormData({ ...formData, course: "", specialization: "" });
+                          }
+                        }}
+                        onFocus={() => setShowCourseDropdown(true)}
+                        placeholder="Search course (e.g. B.Tech, BCA, MBA)"
+                        className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm"
                       />
+                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     </div>
+                    {showCourseDropdown && filteredCourses.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {filteredCourses.map((course) => (
+                          <button
+                            key={course}
+                            type="button"
+                            onClick={() => handleCourseSelect(course)}
+                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 transition cursor-pointer ${
+                              formData.course === course ? "bg-purple-50 text-purple-700 font-semibold" : "text-gray-700"
+                            }`}
+                          >
+                            {course}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Specialization — dynamic based on course */}
+                  {formData.course && specializations.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Specialization
+                      </label>
+                      <div className="relative">
+                        <BookOpen className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <select
+                          name="specialization"
+                          value={formData.specialization}
+                          onChange={handleChange}
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm appearance-none bg-white"
+                        >
+                          <option value="">Select Specialization</option>
+                          {specializations.map((spec) => (
+                            <option key={spec} value={spec}>{spec}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Section & Semester Row */}
                   <div className="grid grid-cols-2 gap-3">

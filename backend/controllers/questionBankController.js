@@ -83,7 +83,7 @@ export const generateQuestionBank = async (req, res) => {
       new mongoose.Types.ObjectId(note.fileId)
     );
     const extractedText = await extractTextFromPDF(buffer);
-    const cleanedText = cleanText(extractedText, 25000);
+    const cleanedText = cleanText(extractedText, 2);
     const segments = buildQuestionSegments(cleanedText);
 
     if (segments.length < 30) {

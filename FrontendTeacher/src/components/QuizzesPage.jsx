@@ -12,6 +12,9 @@ import {
   FileText,
   Loader,
   Tag,
+  ChevronDown,
+  ChevronUp,
+  Settings2,
 } from "lucide-react";
 import axios from "axios";
 import { getNotesByClassroom } from "../api/notesApi";
@@ -43,6 +46,13 @@ const QuizzesPage = () => {
   const [showTopicsInput, setShowTopicsInput] = useState(false);
   const [topics, setTopics] = useState([]);
 
+  // Quiz customization state
+  const [customTitle, setCustomTitle] = useState("");
+  const [questionCount, setQuestionCount] = useState(20);
+  const [marksPerQuestion, setMarksPerQuestion] = useState(1);
+  const [difficulty, setDifficulty] = useState("mixed");
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
   // Helper function to truncate title
   const truncateTitle = (title, maxLength = 50) => {
     if (title.length <= maxLength) return title;
@@ -69,6 +79,13 @@ const QuizzesPage = () => {
     setShowAIModal(true);
     setTopics([]);
     setShowTopicsInput(false);
+    // Reset customization
+    setCustomTitle("");
+    setQuestionCount(20);
+    setMarksPerQuestion(1);
+    setDifficulty("mixed");
+    setShowAdvancedOptions(false);
+    
     setLoadingNotes(true);
 
     try {
@@ -115,7 +132,14 @@ const QuizzesPage = () => {
     try {
       const response = await axios.post(
         `${API_BASE_URL}/quiz/generate-from-topics`,
-        { topics, classroomId: classId },
+        { 
+          topics, 
+          classroomId: classId,
+          customTitle,
+          questionCount,
+          marksPerQuestion,
+          difficulty 
+        },
         { headers: { "Content-Type": "application/json" } }
       );
 
@@ -126,10 +150,14 @@ const QuizzesPage = () => {
         `Quiz Generated Successfully!\n\n` +
           `Details:\n` +
           `• Questions: ${stats.questionsGenerated}\n` +
-          `• Topics: ${stats.topics.join(", ")}`
+          `• Marks per Q: ${stats.marksPerQuestion}\n` +
+          `• Total Marks: ${stats.totalMarks}\n` +
+          `• Difficulty: ${stats.difficulty}\n` +
+          `• Topics: ${stats.topics.join(", ")}\n`
       );
 
       setTopics([]);
+      setCustomTitle("");
       setShowTopicsInput(false);
       setShowAIModal(false);
     } catch (err) {
@@ -151,7 +179,14 @@ const QuizzesPage = () => {
     try {
       const response = await axios.post(
         `${API_BASE_URL}/quiz/generate-ai`,
-        { noteIds: selectedNotes, classroomId: classId },
+        { 
+          noteIds: selectedNotes, 
+          classroomId: classId,
+          customTitle,
+          questionCount,
+          marksPerQuestion,
+          difficulty 
+        },
         { headers: { "Content-Type": "application/json" } }
       );
 
@@ -162,10 +197,14 @@ const QuizzesPage = () => {
         `Quiz Generated Successfully!\n\n` +
           `Details:\n` +
           `• Questions: ${stats.questionsGenerated}\n` +
-          `• Notes processed: ${stats.processedNotes}/${stats.totalNotes}`
+          `• Marks per Q: ${stats.marksPerQuestion}\n` +
+          `• Total Marks: ${stats.totalMarks}\n` +
+          `• Difficulty: ${stats.difficulty}\n` +
+          `• Notes processed: ${stats.processedNotes}/${stats.totalNotes}\n`
       );
 
       setSelectedNotes([]);
+      setCustomTitle("");
       setShowAIModal(false);
     } catch (err) {
       console.error("Generation error:", err);
@@ -489,8 +528,24 @@ const QuizzesPage = () => {
             </div>
 
             {/* Body */}
-            <div className="px-6 py-4 flex-1 overflow-y-auto">
-              {/* Topics Input Card (shown when active) */}
+            <div className="px-6 py-4 flex-1 overflow-y-auto space-y-6">
+              {/* Quiz Title Setup - Always Visible */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-purple-600" />
+                  Quiz Title (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Midterm Physics Quiz, Weekly Math Test..."
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                  disabled={isGenerating}
+                />
+              </div>
+
+              {/* Topics or Notes Section */}
               {showTopicsInput ? (
                 <TopicsInputCard
                   topics={topics}
@@ -500,10 +555,11 @@ const QuizzesPage = () => {
                   isGenerating={isGenerating}
                 />
               ) : (
-                <>
+                <div className="space-y-4">
                   {/* Header with Add Topics Button */}
-                  <div className="flex items-center justify-between mb-6">
-                    <h4 className="text-lg font-semibold text-gray-900">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <Tag className="w-4 h-4 text-blue-600" />
                       Select Source Notes
                     </h4>
                     <AddTopicsButton
@@ -515,27 +571,22 @@ const QuizzesPage = () => {
 
                   {/* Notes Selection */}
                   {loadingNotes ? (
-                    <div className="flex items-center justify-center py-16">
+                    <div className="flex items-center justify-center py-12">
                       <Loader className="w-8 h-8 text-purple-600 animate-spin" />
-                      <span className="ml-3 text-gray-600 font-medium">Loading notes...</span>
                     </div>
                   ) : availableNotes.length === 0 ? (
-                    <div className="text-center py-16 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-                      <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                      <p className="text-gray-600 font-semibold text-lg">No notes uploaded yet</p>
-                      <p className="text-gray-500 text-sm mt-2">
-                        Upload notes first or click "Help me write" button above
-                      </p>
+                    <div className="text-center py-10 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                      <p className="text-gray-500 text-sm">No notes available. Use "Help me write" instead.</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 gap-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                       {availableNotes.map((note) => (
                         <label
                           key={note._id}
-                          className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                          className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${
                             selectedNotes.includes(note._id)
-                              ? "border-purple-500 bg-purple-50 shadow-md"
-                              : "border-gray-200 hover:border-purple-300 hover:bg-purple-50/50"
+                              ? "border-purple-500 bg-purple-50"
+                              : "border-gray-200 hover:border-purple-300"
                           } ${isGenerating ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                           <input
@@ -543,28 +594,85 @@ const QuizzesPage = () => {
                             checked={selectedNotes.includes(note._id)}
                             onChange={() => toggleNoteSelection(note._id)}
                             disabled={isGenerating}
-                            className="w-5 h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-600 cursor-pointer"
+                            className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-600 cursor-pointer"
                           />
-                          <div className="flex items-center gap-4 flex-1 min-w-0">
-                            <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
-                              <FileText className="w-6 h-6 text-purple-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-gray-900 text-base truncate">
-                                {note.title}
-                              </p>
-                              <p className="text-sm text-gray-500 truncate">
-                                Uploaded by {note.uploadedBy} •{" "}
-                                {new Date(note.createdAt).toLocaleDateString()}
-                              </p>
-                            </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 text-sm truncate">
+                              {note.title}
+                            </p>
                           </div>
                         </label>
                       ))}
                     </div>
                   )}
-                </>
+                </div>
               )}
+
+              {/* Advanced Customization Options */}
+              <div className="border-t border-gray-100 pt-4">
+                <button
+                  onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors mb-4"
+                >
+                  <Settings2 className="w-4 h-4" />
+                  Advanced Generation Options
+                  {showAdvancedOptions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+
+                {showAdvancedOptions && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100"
+                  >
+                    {/* Question Count */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Number of Qs</label>
+                      <select
+                        value={questionCount}
+                        onChange={(e) => setQuestionCount(Number(e.target.value))}
+                        className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                        disabled={isGenerating}
+                      >
+                        {[5, 10, 15, 20].map(count => (
+                          <option key={count} value={count}>{count} Questions</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Marks Per Question */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Marks per Q</label>
+                      <select
+                        value={marksPerQuestion}
+                        onChange={(e) => setMarksPerQuestion(Number(e.target.value))}
+                        className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                        disabled={isGenerating}
+                      >
+                        {[1, 2, 3, 4, 5].map(marks => (
+                          <option key={marks} value={marks}>{marks} {marks === 1 ? 'Mark' : 'Marks'}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Difficulty Level */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Difficulty</label>
+                      <select
+                        value={difficulty}
+                        onChange={(e) => setDifficulty(e.target.value)}
+                        className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                        disabled={isGenerating}
+                      >
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                        <option value="mixed">Mixed</option>
+                      </select>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
             </div>
 
             {/* Footer */}
@@ -592,12 +700,13 @@ const QuizzesPage = () => {
                 {isGenerating ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader className="w-5 h-5 animate-spin" />
-                    Generating...
+                    Generating {questionCount} Qs...
                   </span>
-                ) : showTopicsInput ? (
-                  `Generate Quiz (${topics.length} ${topics.length === 1 ? 'topic' : 'topics'})`
                 ) : (
-                  `Generate Quiz (${selectedNotes.length} ${selectedNotes.length === 1 ? 'note' : 'notes'})`
+                  <span className="flex items-center justify-center gap-2">
+                    <Sparkles className="w-5 h-5" />
+                    Generate {questionCount} Questions
+                  </span>
                 )}
               </button>
             </div>

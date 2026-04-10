@@ -1,8 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, User, BookOpen } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, BookOpen, GraduationCap, Hash, Layers, Users, ChevronDown } from "lucide-react";
 import axios from "axios";
-import API_BASE_URL from "../config";
+import { persistAuth } from "../utils/authStorage";
+import API_BASE_URL, { STUDENT_FRONTEND_URL, TEACHER_FRONTEND_URL } from "../config";
+
+// ── Course → Specialization mapping (same as student frontend) ───
+const COURSE_SPECIALIZATIONS = {
+  "B.Tech": ["CSE", "IT", "Mechanical", "Civil", "Electrical", "Electronics", "AI & ML", "Data Science", "Cyber Security", "None"],
+  "M.Tech": ["CSE", "IT", "Mechanical", "Civil", "Electrical", "Electronics", "AI & ML", "Data Science", "Cyber Security", "None"],
+  "BCA": ["General", "Cloud Computing", "AI & ML", "Data Science", "Cyber Security", "None"],
+  "MCA": ["General", "Cloud Computing", "AI & ML", "Data Science", "Cyber Security", "None"],
+  "BBA": ["Marketing", "Finance", "HR", "International Business", "Operations", "None"],
+  "MBA": ["Marketing", "Finance", "HR", "International Business", "Operations", "Business Analytics", "None"],
+  "B.Sc": ["Physics", "Chemistry", "Mathematics", "Biology", "Computer Science", "None"],
+  "M.Sc": ["Physics", "Chemistry", "Mathematics", "Biology", "Computer Science", "None"],
+  "B.Com": ["General", "Accounting", "Banking", "Taxation", "None"],
+  "M.Com": ["General", "Accounting", "Banking", "Taxation", "None"],
+  "BA": ["English", "Hindi", "Political Science", "History", "Psychology", "Economics", "None"],
+  "MA": ["English", "Hindi", "Political Science", "History", "Psychology", "Economics", "None"],
+  "B.Pharm": ["Pharmacy", "None"],
+  "D.Pharm": ["Pharmacy", "None"],
+  "LLB": ["Law", "None"],
+  "B.Des": ["Fashion Design", "Interior Design", "Graphic Design", "Product Design", "None"],
+  "B.Arch": ["Architecture", "None"],
+  "MBBS": ["Medicine", "None"],
+  "BDS": ["Dental Surgery", "None"],
+  "B.Ed": ["Education", "None"],
+  "Polytechnic": ["CSE", "Mechanical", "Civil", "Electrical", "Electronics", "None"],
+};
+
+const ALL_COURSES = Object.keys(COURSE_SPECIALIZATIONS);
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -11,13 +39,46 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [courseSearch, setCourseSearch] = useState("");
+  const [showCourseDropdown, setShowCourseDropdown] = useState(false);
+  const courseDropdownRef = useRef(null);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     password: "",
     confirmPassword: "",
     role: "student",
+    course: "",
+    specialization: "",
+    section: "",
+    erpId: "",
+    semester: "",
   });
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (courseDropdownRef.current && !courseDropdownRef.current.contains(e.target)) {
+        setShowCourseDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredCourses = ALL_COURSES.filter((c) =>
+    c.toLowerCase().includes(courseSearch.toLowerCase())
+  );
+
+  const specializations = formData.course && COURSE_SPECIALIZATIONS[formData.course]
+    ? COURSE_SPECIALIZATIONS[formData.course]
+    : [];
+
+  const handleCourseSelect = (course) => {
+    setFormData({ ...formData, course, specialization: "" });
+    setCourseSearch(course);
+    setShowCourseDropdown(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,6 +94,26 @@ export default function Signup() {
       return;
     }
 
+    // Validate student-specific fields when student role is selected
+    if (formData.role === "student") {
+      if (!formData.course.trim()) {
+        setError("Course is required for students");
+        return;
+      }
+      if (!formData.section.trim()) {
+        setError("Section is required for students");
+        return;
+      }
+      if (!formData.erpId.trim()) {
+        setError("ERP ID is required for students");
+        return;
+      }
+      if (!formData.semester.trim()) {
+        setError("Semester is required for students");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -41,14 +122,47 @@ export default function Signup() {
           ? `${API_BASE_URL}/teacher/register`
           : `${API_BASE_URL}/student/register`;
 
-      await axios.post(endpoint, {
+      const payload = {
         name: formData.fullName,
         email: formData.email,
         password: formData.password,
-      });
+      };
 
-      alert("Registration successful! Please login.");
-      navigate("/login");
+      // Add student-specific fields
+      if (formData.role === "student") {
+        payload.course = formData.course.trim();
+        payload.specialization = formData.specialization.trim() || "None";
+        payload.section = formData.section.trim();
+        payload.erpId = formData.erpId.trim();
+        payload.semester = formData.semester.trim();
+      }
+
+      const response = await axios.post(endpoint, payload);
+
+      // Auto-login: persist token and user data from registration response
+      const userData = {
+        ...(response.data.student || response.data.teacher),
+        role: formData.role,
+      };
+      persistAuth(response.data.token, userData, true);
+
+      // Redirect to the correct role-based frontend
+      const targetUrl = formData.role === "teacher" ? TEACHER_FRONTEND_URL : STUDENT_FRONTEND_URL;
+
+      try {
+        const targetOrigin = new URL(targetUrl).origin;
+        const currentOrigin = window.location.origin;
+
+        if (currentOrigin !== targetOrigin) {
+          window.location.replace(targetUrl);
+          return;
+        }
+      } catch (urlError) {
+        console.error("URL parse error:", urlError);
+      }
+
+      // Same origin — navigate to home
+      navigate("/");
     } catch (err) {
       const backendMsg =
         err.response?.data?.error || "Registration failed. Please try again.";
@@ -235,7 +349,7 @@ export default function Signup() {
                   <button
                     type="button"
                     onClick={() =>
-                      setFormData({ ...formData, role: "student" })
+                      setFormData({ ...formData, role: "student", course: "", specialization: "", section: "", erpId: "", semester: "" })
                     }
                     className={`p-3 border-2 rounded-xl transition-all cursor-pointer ${formData.role === "student"
                         ? "border-purple-600 bg-purple-50"
@@ -284,6 +398,137 @@ export default function Signup() {
                   </button>
                 </div>
               </div>
+
+              {/* Student-specific fields — Task 2: Dynamic form based on role */}
+              {formData.role === "student" && (
+                <div className="space-y-4 p-4 bg-purple-50 border border-purple-100 rounded-xl">
+                  <p className="text-sm font-semibold text-purple-700 mb-1">Academic Details</p>
+
+                  {/* Course — Searchable Dropdown */}
+                  <div ref={courseDropdownRef} className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Course *
+                    </label>
+                    <div className="relative">
+                      <GraduationCap className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="text"
+                        value={courseSearch}
+                        onChange={(e) => {
+                          setCourseSearch(e.target.value);
+                          setShowCourseDropdown(true);
+                          if (!e.target.value) {
+                            setFormData({ ...formData, course: "", specialization: "" });
+                          }
+                        }}
+                        onFocus={() => setShowCourseDropdown(true)}
+                        placeholder="Search course (e.g. B.Tech, BCA, MBA)"
+                        className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm"
+                      />
+                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    </div>
+                    {showCourseDropdown && filteredCourses.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {filteredCourses.map((course) => (
+                          <button
+                            key={course}
+                            type="button"
+                            onClick={() => handleCourseSelect(course)}
+                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-purple-50 transition cursor-pointer ${
+                              formData.course === course ? "bg-purple-50 text-purple-700 font-semibold" : "text-gray-700"
+                            }`}
+                          >
+                            {course}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Specialization — dynamic based on course */}
+                  {formData.course && specializations.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Specialization
+                      </label>
+                      <div className="relative">
+                        <BookOpen className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <select
+                          name="specialization"
+                          value={formData.specialization}
+                          onChange={handleChange}
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm appearance-none bg-white"
+                        >
+                          <option value="">Select Specialization</option>
+                          {specializations.map((spec) => (
+                            <option key={spec} value={spec}>{spec}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section & Semester */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Section *
+                      </label>
+                      <div className="relative">
+                        <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                          type="text"
+                          name="section"
+                          value={formData.section}
+                          onChange={handleChange}
+                          placeholder="e.g. A, B, C"
+                          required
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm uppercase"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Semester *
+                      </label>
+                      <div className="relative">
+                        <Layers className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <select
+                          name="semester"
+                          value={formData.semester}
+                          onChange={handleChange}
+                          required
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm appearance-none bg-white"
+                        >
+                          <option value="">Select</option>
+                          {[1,2,3,4,5,6,7,8].map(s => (
+                            <option key={s} value={String(s)}>Semester {s}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ERP ID */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      ERP / Roll Number *
+                    </label>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="text"
+                        name="erpId"
+                        value={formData.erpId}
+                        onChange={handleChange}
+                        placeholder="Enter your ERP / University Roll No."
+                        required
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 outline-none transition-all text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Password */}
               <div>

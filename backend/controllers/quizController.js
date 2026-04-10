@@ -13,17 +13,17 @@ import {
 import { logActivity } from "../utils/activityTracker.js";
 
 /**
- * Generate quiz from topics (NEW FEATURE)
+ * Generate quiz from topics
  * POST /api/quiz/generate-from-topics
- * Body: { topics: string[], classroomId: string }
+ * Body: { topics: string[], classroomId: string, customTitle?, questionCount?, marksPerQuestion?, difficulty? }
  */
 export const generateQuizFromTopicsAPI = async (req, res) => {
   try {
-    const { topics, classroomId } = req.body;
+    const { topics, classroomId, customTitle, questionCount, marksPerQuestion, difficulty } = req.body;
     const teacherId = req.user?._id?.toString();
 
     console.log("=== QUIZ GENERATION FROM TOPICS STARTED ===");
-    console.log(" Request body:", { topics, classroomId });
+    console.log(" Request body:", { topics, classroomId, customTitle, questionCount, marksPerQuestion, difficulty });
 
     // Validation
     if (!topics || (Array.isArray(topics) && topics.length === 0) || (!Array.isArray(topics) && !topics.trim())) {
@@ -50,17 +50,41 @@ export const generateQuizFromTopicsAPI = async (req, res) => {
       }
     }
 
-    // Convert topics to array if string
-    const topicsArray = Array.isArray(topics) ? topics : [topics];
+    // Convert to normalized array and remove duplicates for strict dedupe matching
+    const topicsArray = [...new Set((Array.isArray(topics) ? topics : [topics])
+      .map((topic) => String(topic || "").trim())
+      .filter(Boolean))];
+
+    if (topicsArray.length === 0) {
+      return res.status(400).json({ error: "Please provide at least one valid topic" });
+    }
+
+    // Build quiz config
+    const quizConfig = {
+      questionCount: questionCount || 20,
+      marksPerQuestion: marksPerQuestion || 1,
+      difficulty: difficulty || "mixed",
+    };
     
-    console.log(` Generating quiz from ${topicsArray.length} topic(s)`);
+    console.log(` Generating quiz from ${topicsArray.length} topic(s) with config:`, quizConfig);
+
+    // Fetch existing questions for this classroom AND same topics to avoid repetition
+    const existingQuizzes = await Quiz.find({
+      classroomId,
+      generatedFromTopics: { $all: topicsArray, $size: topicsArray.length },
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select("questions.question");
+    
+    const excludeQuestions = existingQuizzes.flatMap(q => q.questions.map(extQ => extQ.question));
 
     // Generate quiz using Gemini AI
     console.log("\n Calling Gemini API for topic-based quiz...");
     let questions;
 
     try {
-      questions = await generateQuizFromTopics(topicsArray);
+      questions = await generateQuizFromTopics(topicsArray, { ...quizConfig, excludeQuestions });
       console.log(`Generated ${questions.length} questions`);
     } catch (error) {
       console.error("Gemini API Error:", error);
@@ -78,10 +102,14 @@ export const generateQuizFromTopicsAPI = async (req, res) => {
       });
     }
 
-    // Create quiz title
-    const quizTitle = topicsArray.length > 2
-      ? `Quiz: ${topicsArray.slice(0, 2).join(", ")} and ${topicsArray.length - 2} more`
-      : `Quiz: ${topicsArray.join(", ")}`;
+    // Create quiz title (use custom title if provided)
+    const quizTitle = customTitle?.trim()
+      ? customTitle.trim()
+      : topicsArray.length > 2
+        ? `Quiz: ${topicsArray.slice(0, 2).join(", ")} and ${topicsArray.length - 2} more`
+        : `Quiz: ${topicsArray.join(", ")}`;
+
+    const calculatedTotalMarks = questions.length * quizConfig.marksPerQuestion;
 
     // Save to database
     const quiz = await Quiz.create({
@@ -95,6 +123,9 @@ export const generateQuizFromTopicsAPI = async (req, res) => {
         options: q.options,
         correctAnswer: q.correctAnswer,
       })),
+      marksPerQuestion: quizConfig.marksPerQuestion,
+      totalMarks: calculatedTotalMarks,
+      difficulty: quizConfig.difficulty,
       status: "draft",
     });
 
@@ -108,6 +139,9 @@ export const generateQuizFromTopicsAPI = async (req, res) => {
       stats: {
         topics: topicsArray,
         questionsGenerated: questions.length,
+        marksPerQuestion: quizConfig.marksPerQuestion,
+        totalMarks: calculatedTotalMarks,
+        difficulty: quizConfig.difficulty,
       },
     });
   } catch (error) {
@@ -124,11 +158,11 @@ export const generateQuizFromTopicsAPI = async (req, res) => {
 /**
  * Generate quiz using AI from selected notes
  * POST /api/quiz/generate-ai
- * Body: { noteIds: [string], classroomId: string }
+ * Body: { noteIds: [string], classroomId: string, customTitle?, questionCount?, marksPerQuestion?, difficulty? }
  */
 export const generateQuizWithAI = async (req, res) => {
   try {
-    const { noteIds, classroomId } = req.body;
+    const { noteIds, classroomId, customTitle, questionCount, marksPerQuestion, difficulty } = req.body;
     const teacherId = req.user?._id?.toString();
 
     const bucket = getBucket();
@@ -138,7 +172,7 @@ export const generateQuizWithAI = async (req, res) => {
     }
 
     console.log("=== QUIZ GENERATION STARTED ===");
-    console.log(" Request body:", { noteIds, classroomId });
+    console.log(" Request body:", { noteIds, classroomId, customTitle, questionCount, marksPerQuestion, difficulty });
 
     // Validation
     if (!noteIds || !Array.isArray(noteIds) || noteIds.length === 0) {
@@ -165,10 +199,25 @@ export const generateQuizWithAI = async (req, res) => {
       }
     }
 
-    console.log(` Generating quiz from ${noteIds.length} notes`);
+    const normalizedNoteIds = [...new Set(noteIds.map(String))]
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+
+    if (normalizedNoteIds.length === 0) {
+      return res.status(400).json({ error: "No valid note IDs provided" });
+    }
+
+    // Build quiz config
+    const quizConfig = {
+      questionCount: questionCount || 20,
+      marksPerQuestion: marksPerQuestion || 1,
+      difficulty: difficulty || "mixed",
+    };
+
+    console.log(` Generating quiz from ${noteIds.length} notes with config:`, quizConfig);
 
     // Fetch notes from database
-    const notes = await Note.find({ _id: { $in: noteIds } });
+    const notes = await Note.find({ _id: { $in: normalizedNoteIds } });
 
     if (notes.length === 0) {
       console.log(" No notes found in database");
@@ -273,12 +322,23 @@ export const generateQuizWithAI = async (req, res) => {
       });
     }
 
-    // Generate quiz using Gemini AI
+    // Fetch existing questions for this classroom AND same notes to avoid repetition
+    const existingQuizzes = await Quiz.find({ 
+      classroomId, 
+      generatedFrom: { $all: normalizedNoteIds, $size: normalizedNoteIds.length },
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select("questions.question");
+    
+    const excludeQuestions = existingQuizzes.flatMap(q => q.questions.map(extQ => extQ.question));
+
+    // Generate quiz using Gemini AI with config
     console.log("\n Calling Gemini API...");
     let questions;
 
     try {
-      questions = await generateQuizFromText(cleanedText);
+      questions = await generateQuizFromText(cleanedText, { ...quizConfig, excludeQuestions });
       console.log(`Generated ${questions.length} questions`);
     } catch (error) {
       console.error("Gemini API Error:", error);
@@ -296,27 +356,37 @@ export const generateQuizWithAI = async (req, res) => {
       });
     }
 
-    // Create quiz title
-    const noteNames = notes
-      .slice(0, 2)
-      .map((n) => n.title)
-      .join(", ");
-    const quizTitle =
-      notes.length > 2
-        ? `Quiz from ${noteNames} and ${notes.length - 2} more`
-        : `Quiz from ${noteNames}`;
+    // Create quiz title (use custom title if provided)
+    let quizTitle;
+    if (customTitle?.trim()) {
+      quizTitle = customTitle.trim();
+    } else {
+      const noteNames = notes
+        .slice(0, 2)
+        .map((n) => n.title)
+        .join(", ");
+      quizTitle =
+        notes.length > 2
+          ? `Quiz from ${noteNames} and ${notes.length - 2} more`
+          : `Quiz from ${noteNames}`;
+    }
+
+    const calculatedTotalMarks = questions.length * quizConfig.marksPerQuestion;
 
     // Save to database
     const quiz = await Quiz.create({
-      noteId: noteIds[0], // Primary note
+      noteId: normalizedNoteIds[0], // Primary note
       classroomId,
       title: quizTitle,
-      generatedFrom: noteIds,
+      generatedFrom: normalizedNoteIds,
       questions: questions.map((q) => ({
         question: q.question,
         options: q.options,
         correctAnswer: q.correctAnswer,
       })),
+      marksPerQuestion: quizConfig.marksPerQuestion,
+      totalMarks: calculatedTotalMarks,
+      difficulty: quizConfig.difficulty,
       status: "draft",
     });
 
@@ -331,6 +401,9 @@ export const generateQuizWithAI = async (req, res) => {
         totalNotes: notes.length,
         processedNotes: successfulExtractions,
         questionsGenerated: questions.length,
+        marksPerQuestion: quizConfig.marksPerQuestion,
+        totalMarks: calculatedTotalMarks,
+        difficulty: quizConfig.difficulty,
         textLength: cleanedText.length,
       },
     });

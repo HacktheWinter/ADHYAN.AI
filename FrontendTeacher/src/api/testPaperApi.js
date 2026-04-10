@@ -5,10 +5,11 @@ import API_BASE_URL from "../config";
 const BASE_URL = API_BASE_URL;
 
 // Generate test paper with AI
-export const generateTestPaperWithAI = async (noteIds, classroomId) => {
+export const generateTestPaperWithAI = async (noteIds, classroomId, config = {}) => {
   const res = await axios.post(`${BASE_URL}/test-paper/generate-ai`, {
     noteIds,
     classroomId,
+    ...config,
   });
   return res.data;
 };
