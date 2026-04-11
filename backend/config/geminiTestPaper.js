@@ -11,6 +11,41 @@ const API_KEYS = [
 let currentKeyIndex = 0;
 let failedAttempts = 0;
 const MAX_RETRIES = API_KEYS.length;
+const TRANSIENT_ERROR_RETRY_MULTIPLIER = 3;
+const MAX_TRANSIENT_RETRIES = Math.max(
+  MAX_RETRIES,
+  MAX_RETRIES * TRANSIENT_ERROR_RETRY_MULTIPLIER
+);
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isQuotaOrRateLimitError = (error) => {
+  const message = String(error?.message || "");
+  const status = Number(error?.status);
+  return (
+    status === 429 ||
+    message.includes("quota") ||
+    message.includes("429") ||
+    message.includes("RESOURCE_EXHAUSTED")
+  );
+};
+
+const isTransientServiceError = (error) => {
+  const message = String(error?.message || "").toLowerCase();
+  const status = Number(error?.status);
+  return (
+    status === 503 ||
+    status === 502 ||
+    status === 504 ||
+    message.includes("503") ||
+    message.includes("service unavailable") ||
+    message.includes("high demand") ||
+    message.includes("temporarily unavailable") ||
+    message.includes("unavailable")
+  );
+};
+
+const getBackoffMs = (attempt) => Math.min(12000, 1500 * Math.max(1, attempt));
 
 /**
  * Get Gemini model with automatic key rotation
@@ -58,21 +93,35 @@ export const generateTestPaperFromText = async (extractedText, config = {}) => {
   };
   const difficulty = config.difficulty || "mixed";
   const excludeQuestions = config.excludeQuestions || [];
+
+  const getCount = (section, key, fallback) => {
+    const raw = counts?.[section]?.[key];
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(0, parsed);
+  };
+
+  const shortCount = getCount("short", "count", 5);
+  const shortOptional = getCount("short", "optional", 0);
+  const mediumCount = getCount("medium", "count", 4);
+  const mediumOptional = getCount("medium", "optional", 0);
+  const longCount = getCount("long", "count", 2);
+  const longOptional = getCount("long", "optional", 0);
   
   // Total to generate for each section
-  const totalShort = (counts.short?.count || 5) + (counts.short?.optional || 0);
-  const totalMedium = (counts.medium?.count || 4) + (counts.medium?.optional || 0);
-  const totalLong = (counts.long?.count || 2) + (counts.long?.optional || 0);
+  const totalShort = shortCount + shortOptional;
+  const totalMedium = mediumCount + mediumOptional;
+  const totalLong = longCount + longOptional;
   
   // Rule for Direct + Pairs
-  const directShort = Math.max(0, (counts.short?.count || 5) - (counts.short?.optional || 0));
-  const directMedium = Math.max(0, (counts.medium?.count || 4) - (counts.medium?.optional || 0));
-  const directLong = Math.max(0, (counts.long?.count || 2) - (counts.long?.optional || 0));
+  const directShort = Math.max(0, shortCount - shortOptional);
+  const directMedium = Math.max(0, mediumCount - mediumOptional);
+  const directLong = Math.max(0, longCount - longOptional);
   const totalQuestions = totalShort + totalMedium + totalLong;
 
   let attempts = 0;
 
-  while (attempts < MAX_RETRIES) {
+  while (attempts < MAX_TRANSIENT_RETRIES) {
     try {
       console.log(`Preparing Gemini prompt for Test Paper (Total ${totalQuestions} Qs)...`);
       console.log(`Config: ${totalShort}S, ${totalMedium}M, ${totalLong}L, difficulty: ${difficulty}`);
@@ -106,9 +155,9 @@ STRUCTURE RULE (Repeat for Section A, B, and C):
    - Generate (R-O) Direct Questions (Numbered normally).
    - Generate O Internal Choice Pairs (e.g., "Question 4(a) OR 4(b)").
 2. For this specific paper:
-   - Section A: ${directShort} direct questions + ${counts.short?.optional || 0} internal choice pairs.
-   - Section B: ${directMedium} direct questions + ${counts.medium?.optional || 0} internal choice pairs.
-   - Section C: ${directLong} direct questions + ${counts.long?.optional || 0} internal choice pairs.
+  - Section A: ${directShort} direct questions + ${shortOptional} internal choice pairs.
+  - Section B: ${directMedium} direct questions + ${mediumOptional} internal choice pairs.
+  - Section C: ${directLong} direct questions + ${longOptional} internal choice pairs.
 
 REQUIREMENTS:
 1. CONTINUOUS NUMBERING: Use a single global sequence (1, 2, 3... N) for the entire paper. 
@@ -200,19 +249,27 @@ IMPORTANT:
 
       attempts++;
 
-      // Check if quota exceeded error
-      if (
-        error.message.includes("quota") ||
-        error.message.includes("429") ||
-        error.message.includes("RESOURCE_EXHAUSTED")
-      ) {
+      if (isQuotaOrRateLimitError(error)) {
         console.log(
           ` API Key #${currentKeyIndex + 1} quota exceeded. Rotating...`
         );
         rotateApiKey();
 
-        if (attempts < MAX_RETRIES) {
+        if (attempts < MAX_TRANSIENT_RETRIES) {
           console.log(` Retrying with API Key #${currentKeyIndex + 1}...`);
+          continue;
+        }
+      }
+
+      if (isTransientServiceError(error)) {
+        const backoffMs = getBackoffMs(attempts);
+        console.log(
+          ` Gemini service is temporarily busy (attempt ${attempts}/${MAX_TRANSIENT_RETRIES}). Retrying in ${backoffMs}ms...`
+        );
+        rotateApiKey();
+
+        if (attempts < MAX_TRANSIENT_RETRIES) {
+          await wait(backoffMs);
           continue;
         }
       }
@@ -221,7 +278,9 @@ IMPORTANT:
     }
   }
 
-  throw new Error("All API keys exhausted. Please try again later.");
+  throw new Error(
+    "Gemini service is busy right now after multiple retries. Please try again in a minute."
+  );
 };
 
 /**
@@ -231,7 +290,7 @@ IMPORTANT:
 export const checkAnswersWithAI = async (answerKeys, batchStudentAnswers) => {
   let attempts = 0;
 
-  while (attempts < MAX_RETRIES) {
+  while (attempts < MAX_TRANSIENT_RETRIES) {
     try {
       console.log(
         ` Checking answers for ${batchStudentAnswers.length} student with AI...`
@@ -342,20 +401,28 @@ CRITICAL REQUIREMENTS:
 
       attempts++;
 
-      // Check if quota exceeded error
-      if (
-        error.message.includes("quota") ||
-        error.message.includes("429") ||
-        error.message.includes("RESOURCE_EXHAUSTED")
-      ) {
+      if (isQuotaOrRateLimitError(error)) {
         console.log(
           `API Key #${currentKeyIndex + 1} quota exceeded. Rotating...`
         );
         rotateApiKey();
 
-        if (attempts < MAX_RETRIES) {
+        if (attempts < MAX_TRANSIENT_RETRIES) {
           console.log(` Retrying with API Key #${currentKeyIndex + 1}...`);
-          await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
+          await wait(1000);
+          continue;
+        }
+      }
+
+      if (isTransientServiceError(error)) {
+        const backoffMs = getBackoffMs(attempts);
+        console.log(
+          ` Gemini service is temporarily busy while checking answers (attempt ${attempts}/${MAX_TRANSIENT_RETRIES}). Retrying in ${backoffMs}ms...`
+        );
+        rotateApiKey();
+
+        if (attempts < MAX_TRANSIENT_RETRIES) {
+          await wait(backoffMs);
           continue;
         }
       }
@@ -364,7 +431,9 @@ CRITICAL REQUIREMENTS:
     }
   }
 
-  throw new Error("All API keys exhausted. Please try again later.");
+  throw new Error(
+    "Gemini service is busy right now after multiple retries. Please try again in a minute."
+  );
 };
 
 export default { generateTestPaperFromText, checkAnswersWithAI };

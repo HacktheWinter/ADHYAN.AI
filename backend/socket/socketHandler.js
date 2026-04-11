@@ -149,7 +149,7 @@ export const setupSocketHandler = (io) => {
       }
     });
 
-    socket.on("stop_attendance", (classPayload) => {
+    socket.on("stop_attendance", async (classPayload) => {
       const classId =
         typeof classPayload === "object" && classPayload !== null
           ? classPayload.classId
@@ -160,6 +160,22 @@ export const setupSocketHandler = (io) => {
       }
 
       activeQrSessions.delete(classId);
+
+      // Keep DB state aligned with socket state so scans stop immediately
+      // even when clients are connected through different server instances.
+      try {
+        const activeSession = await Attendance.findOne({ classId, isActive: true }).sort({
+          startedAt: -1,
+        });
+        if (activeSession) {
+          activeSession.isActive = false;
+          activeSession.status = "completed";
+          activeSession.endedAt = new Date();
+          await activeSession.save();
+        }
+      } catch (error) {
+        console.error("[Socket] Error in stop_attendance:", error);
+      }
     });
 
     socket.on("mark_attendance", async ({ classId, studentId, studentName, token }) => {
@@ -195,14 +211,6 @@ export const setupSocketHandler = (io) => {
           return;
         }
 
-        // Ensure teacher has an active QR session for this class right now.
-        if (!activeQrSessions.has(classId)) {
-          socket.emit("attendance_error", {
-            message: "QR attendance is not currently active for this class.",
-          });
-          return;
-        }
-
         // Step 2 - Validate ObjectIds
         if (
           !mongoose.Types.ObjectId.isValid(classId) ||
@@ -231,35 +239,17 @@ export const setupSocketHandler = (io) => {
           return;
         }
 
-        // Step 4 - Find or create active session
+        // Step 4 - Find an active DB-backed session.
+        // This makes scanning resilient even when teacher and student hit
+        // different server instances (where in-memory maps are not shared).
         let session = await Attendance.findOne({ classId, isActive: true }).sort({
           startedAt: -1,
         });
         if (!session) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-
-          session = new Attendance({
-            classId,
-            teacherId: classroom.teacherId,
-            date: today,
-            attendanceDate: today,
-            startedAt: new Date(),
-            isActive: true,
-            status: "active",
-            totalStudents: classroom.students.length,
-            summary: {
-              totalStudents: classroom.students.length,
-              presentCount: 0,
-              absentCount: 0,
-              lateCount: 0,
-              excusedCount: 0,
-            },
-            attendanceEntries: [],
-            studentsPresent: [],
+          socket.emit("attendance_error", {
+            message: "QR attendance is not currently active for this class.",
           });
-
-          await session.save();
+          return;
         }
 
         // Step 5 - Duplicate check
@@ -422,6 +412,20 @@ export const setupSocketHandler = (io) => {
       for (const [classId, session] of activeQrSessions.entries()) {
         if (session?.startedBySocketId === socket.id) {
           activeQrSessions.delete(classId);
+
+          // Best-effort DB close for sessions owned by this socket.
+          Attendance.findOne({ classId, isActive: true })
+            .sort({ startedAt: -1 })
+            .then((activeSession) => {
+              if (!activeSession) return;
+              activeSession.isActive = false;
+              activeSession.status = "completed";
+              activeSession.endedAt = new Date();
+              return activeSession.save();
+            })
+            .catch((error) => {
+              console.error("[Socket] Error closing session on disconnect:", error);
+            });
         }
       }
     });

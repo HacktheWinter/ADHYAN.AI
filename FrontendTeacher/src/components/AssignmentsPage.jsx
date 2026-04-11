@@ -52,6 +52,18 @@ const AssignmentsPage = () => {
   const [difficulty, setDifficulty] = useState("mixed");
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
+  const clampQuestionCount = (value) => {
+    const parsed = parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.min(10, Math.max(1, parsed));
+  };
+
+  const clampMarksPerQuestion = (value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.min(10, Math.max(1, parsed));
+  };
+
   useEffect(() => {
     if (classData?.id) {
       fetchAssignments();
@@ -125,7 +137,7 @@ const AssignmentsPage = () => {
           `• Marks per Q: ${response.stats.marksPerQuestion}\n` +
           `• Total Marks: ${response.stats.totalMarks}\n` +
           `• Difficulty: ${response.stats.difficulty}\n` +
-          `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}`
+          `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}\n`
       );
 
       setSelectedNotes([]);
@@ -528,9 +540,10 @@ const AssignmentsPage = () => {
                       <input 
                         type="number"
                         min="1"
-                        max="100"
+                        max="10"
+                        step="1"
                         value={questionCount}
-                        onChange={(e) => setQuestionCount(Math.max(1, Number(e.target.value)))}
+                        onChange={(e) => setQuestionCount(clampQuestionCount(e.target.value))}
                         className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
                         disabled={isGenerating}
                       />
@@ -542,9 +555,10 @@ const AssignmentsPage = () => {
                       <input 
                         type="number"
                         min="1"
-                        max="100"
+                        max="10"
+                        step="0.1"
                         value={marksPerQuestion}
-                        onChange={(e) => setMarksPerQuestion(Math.max(1, Number(e.target.value)))}
+                        onChange={(e) => setMarksPerQuestion(clampMarksPerQuestion(e.target.value))}
                         className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all"
                         disabled={isGenerating}
                       />
