@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
+import React, { useState, useEffect, useCallback } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Calendar, Save, CheckCircle, XCircle, MoreVertical, RefreshCw, X, CircleCheckBig, CalendarOff, CheckCheck, XSquare, QrCode as QrCodeIcon } from "lucide-react";
+import { Users, Calendar, Save, CheckCircle, XCircle, RefreshCw, X, CircleCheckBig, CalendarOff, CheckCheck, XSquare, QrCode as QrCodeIcon } from "lucide-react";
 import api from "../../api/axios";
 
 // Helper to get local date in YYYY-MM-DD format (not UTC)
@@ -64,16 +63,11 @@ const Attendance = ({ classId, students, socket }) => {
   const today = getLocalDateString();
   const todayIsSunday = new Date().getDay() === 0;
   const [selectedDate, setSelectedDate] = useState(today);
-
-  const isSunday = (dateStr) => new Date(dateStr + 'T00:00:00').getDay() === 0;
   const [isUpdateMode, setIsUpdateMode] = useState(false);
   const [attendanceData, setAttendanceData] = useState({});
   const [isSaving, setIsSaving] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [todaySaved, setTodaySaved] = useState(false);
   const [savedStats, setSavedStats] = useState({ present: 0, absent: 0 });
-  const [backendRecords, setBackendRecords] = useState({});
   const [sessions, setSessions] = useState([]);
   
   // QR Integration State
@@ -82,9 +76,6 @@ const Attendance = ({ classId, students, socket }) => {
   const [showQrModal, setShowQrModal] = useState(false);
   const [refreshCountdown, setRefreshCountdown] = useState(20);
   
-  const menuRef = useRef(null);
-  const modalRef = useRef(null);
-
   const fetchSessions = useCallback(async () => {
     try {
       const response = await api.get(`/attendance/sessions/${classId}`);
@@ -207,38 +198,6 @@ const Attendance = ({ classId, students, socket }) => {
     };
   }, [isQrActive, selectedDate, today, isUpdateMode, fetchToken]);
 
-  const getWeekDates = () => {
-    const dates = [];
-    for (let i = 0; i <= 6; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      dates.push({
-        value: toLocalDateKey(d),
-        label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-        dayName: d.toLocaleDateString('en-US', { weekday: 'long' }),
-      });
-    }
-    return dates;
-  };
-
-  const weekDates = getWeekDates();
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (showDatePicker && modalRef.current && !modalRef.current.contains(e.target)) setShowDatePicker(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showDatePicker]);
-
   useEffect(() => {
     const session = selectBestSessionForDate(sessions, selectedDate);
 
@@ -314,17 +273,10 @@ const Attendance = ({ classId, students, socket }) => {
     }
   };
 
-  const handleUpdateAttendance = async () => {
-    setShowMenu(false);
-    const recordsMap = {};
-    sessions.forEach((session) => {
-      const sessionDate = toLocalDateKey(session.date || session.attendanceDate);
-      if (sessionDate) recordsMap[sessionDate] = true;
-    });
-    setBackendRecords(recordsMap);
-    setShowDatePicker(true);
+  const handleUpdateAttendance = () => {
+    setSelectedDate(today);
+    setIsUpdateMode(true);
   };
-  const handleDateSelect = (dateValue) => { setSelectedDate(dateValue); setIsUpdateMode(true); setShowDatePicker(false); };
   const handleCancelUpdate = () => { setIsUpdateMode(false); setSelectedDate(today); };
 
   const getStats = () => {
@@ -334,6 +286,7 @@ const Attendance = ({ classId, students, socket }) => {
   };
 
   const stats = getStats();
+  const canUpdateTodayAttendance = todaySaved;
 
   const formatDisplayDate = (dateStr) => {
     const d = new Date(dateStr + 'T00:00:00');
@@ -342,64 +295,6 @@ const Attendance = ({ classId, students, socket }) => {
 
   // Show done screen only when: (1) today's attendance is saved, (2) not in update mode, (3) viewing today's date
   const showDoneScreen = todaySaved && !isUpdateMode && selectedDate === today;
-
-  const DatePickerModal = () => (
-    <div className="fixed inset-0 w-screen h-dvh min-h-screen bg-black/40 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 overflow-y-auto">
-      <div ref={modalRef} className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-white">
-          <div>
-            <h3 className="text-lg font-bold text-gray-800">Update Attendance</h3>
-            <p className="text-sm text-gray-500 mt-0.5">Select a date from this week to update</p>
-          </div>
-          <button onClick={() => setShowDatePicker(false)} className="p-2 rounded-lg hover:bg-gray-100 transition cursor-pointer text-gray-400 hover:text-gray-600">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="p-4 space-y-2 max-h-80 overflow-y-auto">
-          {weekDates.map((dateItem) => {
-            const dateIsSunday = isSunday(dateItem.value);
-            const isTodayDate = dateItem.value === today;
-            const hasRecord = backendRecords[dateItem.value] || false;
-            return (
-              <button
-                key={dateItem.value}
-                onClick={() => !dateIsSunday && handleDateSelect(dateItem.value)}
-                disabled={dateIsSunday}
-                className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all group ${
-                  dateIsSunday ? 'border-orange-100 bg-orange-50/30 cursor-not-allowed opacity-60' : 'border-gray-100 hover:border-purple-200 hover:bg-purple-50/50 cursor-pointer'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm border transition ${
-                    dateIsSunday ? 'bg-orange-100 text-orange-500 border-orange-200' : 'bg-purple-100 text-purple-700 border-purple-200 group-hover:bg-purple-200'
-                  }`}>
-                    {new Date(dateItem.value + 'T00:00:00').getDate()}
-                  </div>
-                  <div className="text-left">
-                    <div className={`font-semibold transition ${dateIsSunday ? 'text-orange-500' : 'text-gray-800 group-hover:text-purple-800'}`}>{dateItem.dayName}</div>
-                    <div className="text-xs text-gray-400">{dateItem.label}</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {isTodayDate && !dateIsSunday && <span className="text-xs font-medium bg-purple-50 text-purple-600 px-2.5 py-1 rounded-full border border-purple-100">Today</span>}
-                  {dateIsSunday ? (
-                    <span className="text-xs font-medium bg-orange-100 text-orange-600 px-2.5 py-1 rounded-full border border-orange-200">Day Off</span>
-                  ) : hasRecord ? (
-                    <span className="text-xs font-medium bg-green-50 text-green-600 px-2.5 py-1 rounded-full border border-green-100">Recorded</span>
-                  ) : (
-                    <span className="text-xs font-medium bg-gray-50 text-gray-400 px-2.5 py-1 rounded-full border border-gray-100">No record</span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-        <div className="p-4 border-t border-gray-100 bg-gray-50/50">
-          <p className="text-xs text-gray-400 text-center">You can update attendance for today and the past 6 days (excluding Sundays)</p>
-        </div>
-      </div>
-    </div>
-  );
 
   if (todayIsSunday && !isUpdateMode) {
     return (
@@ -414,22 +309,8 @@ const Attendance = ({ classId, students, socket }) => {
               <CalendarOff className="w-4 h-4" />
               Day Off
             </div>
-            <div className="relative" ref={menuRef}>
-              <button onClick={() => setShowMenu(prev => !prev)} className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition cursor-pointer text-gray-500 hover:text-gray-700" title="More options">
-                <MoreVertical className="w-5 h-5" />
-              </button>
-              {showMenu && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
-                  <button onClick={handleUpdateAttendance} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition cursor-pointer">
-                    <RefreshCw className="w-4 h-4" />
-                    Update Attendance
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         </div>
-        {showDatePicker && typeof document !== 'undefined' && createPortal(<DatePickerModal />, document.body)}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="flex flex-col items-center justify-center py-16 px-6">
             <div className="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center mb-5 border-4 border-orange-200 shadow-sm">
@@ -441,7 +322,7 @@ const Attendance = ({ classId, students, socket }) => {
               <Calendar className="w-4 h-4" />
               {formatDisplayDate(today)}
             </div>
-            <p className="text-xs text-gray-400 mt-6">Need to update a past date? Use the <span className="font-semibold text-gray-500">⋮</span> menu above.</p>
+            <p className="text-xs text-gray-400 mt-6">Attendance updates are available only on working days for the current date.</p>
           </div>
         </div>
       </div>
@@ -462,6 +343,15 @@ const Attendance = ({ classId, students, socket }) => {
             <Calendar className="w-4 h-4" />
             {isUpdateMode ? new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today'}
           </div>
+          {canUpdateTodayAttendance && !isUpdateMode && (
+            <button
+              onClick={handleUpdateAttendance}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-200 hover:border-purple-200 hover:bg-purple-50 text-gray-700 hover:text-purple-700 text-sm font-semibold rounded-xl transition shadow-sm cursor-pointer"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Update Attendance
+            </button>
+          )}
           {isUpdateMode && (
             <button onClick={handleCancelUpdate} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer border border-gray-200">
               <X className="w-4 h-4" />
@@ -474,23 +364,8 @@ const Attendance = ({ classId, students, socket }) => {
               {isUpdateMode ? 'Update Record' : 'Save Record'}
             </button>
           )}
-          <div className="relative" ref={menuRef}>
-            <button onClick={() => setShowMenu(prev => !prev)} className="p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition cursor-pointer text-gray-500 hover:text-gray-700" title="More options">
-              <MoreVertical className="w-5 h-5" />
-            </button>
-            {showMenu && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
-                <button onClick={handleUpdateAttendance} className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition cursor-pointer">
-                  <RefreshCw className="w-4 h-4" />
-                  Update Attendance
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
-
-      {showDatePicker && typeof document !== 'undefined' && createPortal(<DatePickerModal />, document.body)}
 
       {/* QR Scanner Button - Show only for today, not in update mode, not in done screen */}
       {!isUpdateMode && !showDoneScreen && selectedDate === today && (
@@ -607,7 +482,7 @@ const Attendance = ({ classId, students, socket }) => {
               <Calendar className="w-4 h-4" />
               {formatDisplayDate(today)}
             </div>
-            <p className="text-xs text-gray-400 mt-6">Need to make changes? Use the <span className="font-semibold text-gray-500">⋮</span> menu above to update attendance.</p>
+            <p className="text-xs text-gray-400 mt-6">Need to make changes? Use the update attendance button above.</p>
           </div>
         </div>
       ) : (
