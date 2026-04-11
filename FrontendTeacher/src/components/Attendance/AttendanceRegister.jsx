@@ -55,11 +55,27 @@ const AttendanceRegister = ({ classId, students }) => {
 
   const today = new Date();
   const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+  const currentDay = today.getDate();
   const startDate = new Date(currentYear, 0, 1);
 
   const [selectedMonth, setSelectedMonth] = useState(
-    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+    `${currentYear}-${String(currentMonth).padStart(2, '0')}`
   );
+
+  const getVisibleMonthDates = useCallback((monthValue) => {
+    const [year, month] = monthValue.split('-').map(Number);
+    const isCurrentMonth =
+      year === currentYear && month === currentMonth;
+    const lastVisibleDay = isCurrentMonth
+      ? currentDay
+      : new Date(year, month, 0).getDate();
+
+    return Array.from({ length: lastVisibleDay }, (_, index) => {
+      const day = String(index + 1).padStart(2, '0');
+      return `${year}-${String(month).padStart(2, '0')}-${day}`;
+    });
+  }, [currentDay, currentMonth, currentYear]);
 
   // Check if a date is a holiday (Sunday or custom)
   const isHoliday = useCallback((dateStr) => {
@@ -72,13 +88,7 @@ const AttendanceRegister = ({ classId, students }) => {
   const loadRegisterData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [year, month] = selectedMonth.split('-');
-      const daysInMonth = new Date(year, month, 0).getDate();
-
-      const monthDates = [];
-      for (let i = 1; i <= daysInMonth; i++) {
-        monthDates.push(`${year}-${month}-${String(i).padStart(2, '0')}`);
-      }
+      const monthDates = getVisibleMonthDates(selectedMonth);
       setDates(monthDates);
 
       // Fetch attendance records from backend
@@ -161,13 +171,7 @@ const AttendanceRegister = ({ classId, students }) => {
     } catch (error) {
       console.error("Error loading attendance register data:", error);
       // Fallback to empty register if backend fails
-      const [year, month] = selectedMonth.split('-');
-      const daysInMonth = new Date(year, month, 0).getDate();
-
-      const monthDates = [];
-      for (let i = 1; i <= daysInMonth; i++) {
-        monthDates.push(`${year}-${month}-${String(i).padStart(2, '0')}`);
-      }
+      const monthDates = getVisibleMonthDates(selectedMonth);
       setDates(monthDates);
 
       const tableData = students.map(student => ({
@@ -187,7 +191,7 @@ const AttendanceRegister = ({ classId, students }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [classId, selectedMonth, students, isHoliday]);
+  }, [classId, getVisibleMonthDates, selectedMonth, students, isHoliday]);
 
   useEffect(() => { loadRegisterData(); }, [loadRegisterData]);
 
@@ -711,13 +715,13 @@ const AttendanceRegister = ({ classId, students }) => {
             >
               <table className="w-full text-sm text-left border-collapse border-spacing-0 whitespace-nowrap min-w-max">
                 <thead className="sticky top-0 z-20 shadow-sm">
-                  <tr className="bg-gray-100 text-gray-700 text-xs uppercase tracking-wider divide-x divide-gray-200 border-b-2 border-gray-300">
-                    <th className="sticky left-0 bg-gray-100 z-30 py-3 px-4 font-bold w-[56px] min-w-[56px] max-w-[56px] text-center border-r-2 border-gray-300">S.No</th>
-                    <th className="sticky left-[56px] bg-gray-100 z-30 py-3 px-6 font-bold w-[260px] min-w-[260px] max-w-[260px] border-r-2 border-gray-300">Student Name</th>
+                  <tr className="bg-gray-100 text-gray-700 text-xs uppercase tracking-wider divide-x divide-gray-200 border-b border-gray-300">
+                    <th rowSpan={2} className="sticky left-0 bg-gray-100 z-30 py-3 px-4 font-bold w-[56px] min-w-[56px] max-w-[56px] text-center border-r-2 border-gray-300">S.No</th>
+                    <th rowSpan={2} className="sticky left-[56px] bg-gray-100 z-30 py-3 px-6 font-bold w-[260px] min-w-[260px] max-w-[260px] border-r-2 border-gray-300">Student Name</th>
                     {dates.map(date => {
                       const { isHol, name: holName } = isHoliday(date);
                       return (
-                        <th key={date} className={`py-3 px-1.5 min-w-[44px] text-center font-bold tracking-tighter ${isHol ? 'bg-orange-50 text-orange-700' : ''}`} title={isHol ? holName : ''}>
+                        <th rowSpan={2} key={date} className={`py-3 px-1.5 min-w-[44px] text-center font-bold tracking-tighter ${isHol ? 'bg-orange-50 text-orange-700' : ''}`} title={isHol ? holName : ''}>
                           <div className="flex flex-col items-center justify-center -space-y-1">
                             <span className={`text-[10px] ${isHol ? 'text-orange-500' : 'text-gray-400'}`}>
                               {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
@@ -727,8 +731,16 @@ const AttendanceRegister = ({ classId, students }) => {
                         </th>
                       );
                     })}
-                    <th className="sticky right-[70px] bg-gray-100 z-30 py-3 px-2 min-w-[70px] text-center text-green-700 font-bold border-l-2 border-gray-300">P</th>
-                    <th className="sticky right-0 bg-gray-100 z-30 py-3 px-2 min-w-[70px] text-center text-red-600 font-bold border-l border-gray-300">A</th>
+                    <th
+                      colSpan={2}
+                      className="sticky right-0 bg-gray-100 z-30 py-2 px-2 w-[192px] min-w-[192px] text-center text-[11px] text-gray-700 font-bold border-l-2 border-b-2 border-gray-300 whitespace-nowrap"
+                    >
+                      Total
+                    </th>
+                  </tr>
+                  <tr className="bg-gray-100 text-gray-700 text-[11px] uppercase tracking-wider divide-x divide-gray-200 border-b-2 border-gray-300">
+                    <th className="sticky right-[96px] bg-gray-100 z-30 py-2 px-2 w-[96px] min-w-[96px] text-center text-green-700 font-bold border-l-2 border-r border-gray-300 whitespace-nowrap">Pre.</th>
+                    <th className="sticky right-0 bg-gray-100 z-30 py-2 px-2 w-[96px] min-w-[96px] text-center text-red-600 font-bold border-l border-gray-300 whitespace-nowrap">Abs.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -772,10 +784,10 @@ const AttendanceRegister = ({ classId, students }) => {
                             </td>
                           );
                         })}
-                        <td className="sticky right-[70px] bg-green-50 z-10 py-2 px-2 text-center text-green-700 font-bold text-sm border-l-2 border-gray-300">
+                        <td className="sticky right-[96px] bg-green-50 z-10 py-2 px-2 w-[96px] min-w-[96px] text-center text-green-700 font-bold text-sm border-l-2 border-r border-gray-300">
                           {row.totalPresent}
                         </td>
-                        <td className="sticky right-0 bg-red-50 z-10 py-2 px-2 text-center text-red-600 font-bold text-sm border-l border-gray-200">
+                        <td className="sticky right-0 bg-red-50 z-10 py-2 px-2 w-[96px] min-w-[96px] text-center text-red-600 font-bold text-sm border-l border-gray-300">
                           {row.totalAbsent}
                         </td>
                       </tr>
@@ -787,7 +799,7 @@ const AttendanceRegister = ({ classId, students }) => {
 
             {/* Custom scrollbar */}
             <div className="px-5 pt-2 pb-1 border-t border-gray-100 bg-white">
-              <div className="mx-0 sm:ml-[316px] sm:mr-[140px]">
+              <div className="mx-0 sm:ml-[316px] sm:mr-[192px]">
                 <div ref={dateScrollbarRef} onScroll={handleDateScrollbarScroll} className="date-only-scrollbar overflow-x-auto overflow-y-hidden" aria-label="Scroll date columns">
                   <div style={{ width: `${Math.max(dates.length * 44, 1)}px`, height: '1px' }} />
                 </div>
