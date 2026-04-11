@@ -626,17 +626,17 @@ export const checkBulkByClass = async (req, res) => {
           // Mark as currently checking
           sub.status = "checking";
           await sub.save();
-          console.log(`\n══════════════════════════════════════════════`);
-          console.log(`[AI CHECK] Starting: ${sub.studentName} (${idx + 1}/${pendingSubmissions.length})`);
-          console.log(`[AI CHECK] Submission ID: ${sub._id}`);
-          console.log(`[AI CHECK] PDF File ID: ${sub.pdfFileId}`);
-          console.log(`══════════════════════════════════════════════`);
+          emitLog(io, sessionId, `\n══════════════════════════════════════════════`);
+          emitLog(io, sessionId, `[AI CHECK] Starting: ${sub.studentName} (${idx + 1}/${pendingSubmissions.length})`);
+          emitLog(io, sessionId, `[AI CHECK] Submission ID: ${sub._id}`);
+          emitLog(io, sessionId, `[AI CHECK] PDF File ID: ${sub.pdfFileId}`);
+          emitLog(io, sessionId, `══════════════════════════════════════════════`);
 
           // ── Read PDF from GridFS ─────────────────────────────────
           let pdfBase64;
           try {
             pdfBase64 = await readPdfFromGridFS(bucket, sub.pdfFileId);
-            console.log(`[AI CHECK] PDF read OK — size: ${(pdfBase64.length / 1024 / 1024).toFixed(2)} MB (base64)`);
+            emitLog(io, sessionId, `[AI CHECK] PDF read OK — size: ${(pdfBase64.length / 1024 / 1024).toFixed(2)} MB (base64)`);
           } catch (pdfErr) {
             console.error(`[AI CHECK] ❌ FAILED to read PDF from GridFS for ${sub.studentName}`);
             console.error(`[AI CHECK] PDF Error:`, pdfErr.message);
@@ -673,7 +673,7 @@ export const checkBulkByClass = async (req, res) => {
                 partial_marking_allowed: ans.rubric?.partialMarkingAllowed !== false,
               };
             });
-            console.log(`[AI CHECK] Rubric built OK — ${rubricForAI.length} questions`);
+            emitLog(io, sessionId, `[AI CHECK] Rubric built OK — ${rubricForAI.length} questions`);
           } catch (rubricErr) {
             console.error(`[AI CHECK] ❌ FAILED to build rubric for ${sub.studentName}`);
             console.error(`[AI CHECK] Rubric Error:`, rubricErr.message);
@@ -697,7 +697,7 @@ The student's handwritten answer sheet PDF is attached. Read it carefully, match
 
           for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
             try {
-              console.log(`[AI CHECK] Attempt ${attempt + 1}/${MAX_ATTEMPTS} for ${sub.studentName} (API key index: ${currentKeyIndex})`);
+              emitLog(io, sessionId, `[AI CHECK] Attempt ${attempt + 1}/${MAX_ATTEMPTS} for ${sub.studentName} (API key index: ${currentKeyIndex})`);
 
               const geminiCall = getModel(true, MASTER_EVALUATION_PROMPT).generateContent({
                 contents: [{
@@ -717,11 +717,11 @@ The student's handwritten answer sheet PDF is attached. Read it carefully, match
               // No timeout — let AI take as long as it needs
               const result = await geminiCall;
               rawResponseText = result.response.text();
-              console.log(`[AI CHECK] ✅ Gemini response received — length: ${rawResponseText.length} chars`);
+              emitLog(io, sessionId, `[AI CHECK] ✅ Gemini response received — length: ${rawResponseText.length} chars`);
 
               try {
                 aiResult = parseGeminiJSON(rawResponseText);
-                console.log(`[AI CHECK] ✅ JSON parsed OK — status: ${aiResult.processingStatus || 'unknown'}, answers: ${aiResult.checkedAnswers?.length || 0}`);
+                emitLog(io, sessionId, `[AI CHECK] ✅ JSON parsed OK — status: ${aiResult.processingStatus || 'unknown'}, answers: ${aiResult.checkedAnswers?.length || 0}`);
               } catch (parseErr) {
                 console.error(`[AI CHECK] ❌ JSON PARSE FAILED for ${sub.studentName}`);
                 console.error(`[AI CHECK] Parse error:`, parseErr.message);
@@ -742,14 +742,14 @@ The student's handwritten answer sheet PDF is attached. Read it carefully, match
                 break;
               }
               if (err.message?.includes("RESOURCE_EXHAUSTED") || err.message?.includes("429") || err.message?.includes("quota") || err.message?.includes("Too Many Requests")) {
-                console.error(`[AI CHECK] 🔴 QUOTA EXHAUSTED on key index ${currentKeyIndex}`);
+                emitLog(io, sessionId, `[AI CHECK] 🔴 QUOTA EXHAUSTED on key index ${currentKeyIndex}`);
                 rotateApiKey();
                 if (attempt < MAX_ATTEMPTS - 1) {
-                  console.log(`[AI CHECK] ⏳ Waiting 3s before retry with key index ${currentKeyIndex}...`);
+                  emitLog(io, sessionId, `[AI CHECK] ⏳ Waiting 3s before retry with key index ${currentKeyIndex}...`);
                   await new Promise(r => setTimeout(r, 3000));
                   continue;
                 }
-                console.error(`[AI CHECK] 🔴 ALL API KEYS EXHAUSTED — stopping session`);
+                emitLog(io, sessionId, `[AI CHECK] 🔴 ALL API KEYS EXHAUSTED — stopping session`);
                 sub.status = "failed";
                 sub.errorType = "quota_exceeded";
                 sub.errorMessage = "AI service quota exhausted — all API keys used";
@@ -767,7 +767,7 @@ The student's handwritten answer sheet PDF is attached. Read it carefully, match
               }
               // Generic error — try next key
               if (attempt < MAX_ATTEMPTS - 1) {
-                console.log(`[AI CHECK] 🔄 Rotating API key and retrying...`);
+                emitLog(io, sessionId, `[AI CHECK] 🔄 Rotating API key and retrying...`);
                 rotateApiKey();
                 await new Promise(r => setTimeout(r, 5000));
               } else {
@@ -916,7 +916,7 @@ The student's handwritten answer sheet PDF is attached. Read it carefully, match
           await sub.save();
 
           checkedCount++;
-          console.log(`[AI CHECK] ✅ DONE: ${sub.studentName} — ${totalMarksObtained}/${sub.totalMarks} (${sub.percentage}%) [${sub.status}]`);
+          emitLog(io, sessionId, `[AI CHECK] ✅ DONE: ${sub.studentName} — ${totalMarksObtained}/${sub.totalMarks} (${sub.percentage}%) [${sub.status}]`);
 
           // ── Emit progress ──────────────────────────────────────────
           emitProgress(io, sessionId, checkedCount, pendingSubmissions.length, failedCount, needsReviewCount, sub.studentName, sub);
@@ -997,6 +997,11 @@ const emitProgress = (io, sessionId, checkedCount, totalCount, failedCount, need
   });
 };
 
+const emitLog = (io, sessionId, msg) => {
+  console.log(msg);
+  io.to(`physical_check_${sessionId}`).emit("physical_check_log", { log: msg });
+};
+
 // ═════════════════════════════════════════════════════════════════════════════
 // ENDPOINT 5: Stop Checking
 // POST /api/physical-test-submission/stop-checking/:sessionId
@@ -1008,7 +1013,15 @@ export const stopChecking = async (req, res) => {
       return res.status(404).json({ error: "No active checking session found with this ID" });
     }
     activeCheckingSessions.set(sessionId, "stop");
-    res.status(200).json({ success: true, message: "Stop signal sent. Checking will stop after the current student finishes." });
+    
+    // Immediately emit physical_check_stopped so the UI reacts instantly
+    const io = req.app.get("io");
+    io.to(`physical_check_${sessionId}`).emit("physical_check_stopped", {
+      sessionId,
+      message: "Checking stopped immediately.",
+    });
+
+    res.status(200).json({ success: true, message: "Stop signal sent. Checking will stop." });
   } catch (error) {
     res.status(500).json({ error: "Failed to stop checking", details: error.message });
   }

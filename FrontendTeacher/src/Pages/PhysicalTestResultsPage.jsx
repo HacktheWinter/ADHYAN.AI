@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, FileText, Loader, Trash2, CheckCircle, Clock, User,
   Sparkles, StopCircle, AlertTriangle, XCircle, Wifi, WifiOff,
-  Eye, RefreshCw, Timer
+  Eye, RefreshCw, Timer, Filter, ChevronDown
 } from "lucide-react";
 import { io as socketIO } from "socket.io-client";
 import { SOCKET_URL } from "../config";
@@ -23,7 +23,26 @@ const PhysicalTestResultsPage = () => {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(null);
-  const [selectedTitle, setSelectedTitle] = useState("all");
+  const [selectedTitle, setSelectedTitle] = useState(() => {
+    return sessionStorage.getItem(`pt-filter-${classId}`) || "all";
+  });
+
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (selectedTitle) sessionStorage.setItem(`pt-filter-${classId}`, selectedTitle);
+  }, [selectedTitle, classId]);
 
   // ── Real-time checking state ────────────────────────────────────────
   const [isChecking, setIsChecking] = useState(false);
@@ -33,8 +52,10 @@ const PhysicalTestResultsPage = () => {
     totalCount: 0,
     failedCount: 0,
     needsReviewCount: 0,
+    needsReviewCount: 0,
     currentStudent: "",
     recentResults: [],
+    logs: [],
   });
   const [stopRequested, setStopRequested] = useState(false);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
@@ -49,7 +70,7 @@ const PhysicalTestResultsPage = () => {
     if (urlTestTitle) {
       setSelectedTitle(urlTestTitle);
     }
-    fetchSubmissions();
+    fetchSubmissions(true);
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -82,15 +103,15 @@ const PhysicalTestResultsPage = () => {
     }
   }, [loading, submissions]);
 
-  const fetchSubmissions = async () => {
-    setLoading(true);
+  const fetchSubmissions = async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     try {
       const data = await getPhysicalSubmissionsByClass(classId);
       setSubmissions(data.submissions || []);
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   };
 
@@ -112,7 +133,7 @@ const PhysicalTestResultsPage = () => {
     const newSessionId = uuidv4();
     setSessionId(newSessionId);
     setStopRequested(false);
-    setProgress({ checkedCount: 0, totalCount: 0, failedCount: 0, needsReviewCount: 0, currentStudent: "", recentResults: [] });
+    setProgress({ checkedCount: 0, totalCount: 0, failedCount: 0, needsReviewCount: 0, currentStudent: "", recentResults: [], logs: [] });
 
     // Connect socket
     const socket = socketIO(SOCKET_URL, { transports: ["websocket", "polling"] });
@@ -139,7 +160,15 @@ const PhysicalTestResultsPage = () => {
           needsReviewCount: data.needsReviewCount || prev.needsReviewCount,
           currentStudent: data.currentStudent,
           recentResults,
+          logs: prev.logs,
         };
+      });
+    });
+
+    socket.on("physical_check_log", (data) => {
+      setProgress(prev => {
+        const newLogs = [...(prev.logs || []), data.log].slice(-50);
+        return { ...prev, logs: newLogs };
       });
     });
 
@@ -160,7 +189,8 @@ const PhysicalTestResultsPage = () => {
     socket.on("physical_check_stopped", () => {
       setIsChecking(false);
       setStopRequested(false);
-      fetchSubmissions();
+      setShowStopConfirm(false);
+      fetchSubmissions(false);
     });
 
     socket.on("physical_check_complete", (data) => {
@@ -172,7 +202,7 @@ const PhysicalTestResultsPage = () => {
         needsReviewCount: data.needsReviewCount,
         currentStudent: "",
       }));
-      fetchSubmissions();
+      fetchSubmissions(false);
     });
 
     // Start the check
@@ -274,15 +304,41 @@ const PhysicalTestResultsPage = () => {
             </div>
             <div className="flex items-center gap-3">
               {titles.length > 1 && (
-                <select
-                  value={selectedTitle}
-                  onChange={e => setSelectedTitle(e.target.value)}
-                  className="border border-gray-300 rounded-xl px-4 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none cursor-pointer"
-                >
-                  {titles.map(t => (
-                    <option key={t} value={t}>{t === "all" ? "All Tests" : t}</option>
-                  ))}
-                </select>
+                <div className="relative group" ref={dropdownRef}>
+                  <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="flex items-center justify-between min-w-[140px] max-w-[200px] bg-white border-2 border-gray-100 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-700 hover:border-purple-200 hover:bg-purple-50/30 focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none cursor-pointer shadow-sm transition-all"
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <Filter className="w-4 h-4 text-purple-500 group-hover:text-purple-600 transition-colors flex-shrink-0" />
+                      <span className="truncate">{selectedTitle === "all" ? "All Tests" : selectedTitle}</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-transform duration-200 ml-2 flex-shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isDropdownOpen && (
+                    <div className="absolute z-50 w-full min-w-[180px] right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl shadow-purple-900/5 overflow-hidden animate-slideIn origin-top-right">
+                      <div className="max-h-60 overflow-y-auto py-1.5 flex flex-col">
+                        {titles.map((t) => (
+                          <button
+                            key={t}
+                            onClick={() => {
+                              setSelectedTitle(t);
+                              setIsDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                              selectedTitle === t 
+                                ? 'bg-purple-50 text-purple-700' 
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            }`}
+                          >
+                            {t === "all" ? "All Tests" : t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
               {/* Start AI Checking button */}
               {pendingCount > 0 && !isChecking && (
@@ -387,6 +443,25 @@ const PhysicalTestResultsPage = () => {
                   <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                   <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                   <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
+              </div>
+            )}
+
+            {/* Agent Logs */}
+            {progress.logs && progress.logs.length > 0 && (
+              <div ref={el => { if (el) el.scrollTop = el.scrollHeight; }} className="px-6 py-4 bg-gray-50 mx-6 mt-4 mb-4 rounded-xl shadow-sm overflow-y-auto max-h-48 border border-gray-200">
+                {progress.logs.map((log, i) => {
+                  const cleanLog = log.replace(/\[AI CHECK\] /g, "").replace(/══════════════════════════════════════════════/g, "──────────");
+                  return (
+                    <div key={i} className="mb-2 leading-relaxed break-words whitespace-pre-wrap flex gap-3 text-sm">
+                      <span className="text-gray-400 text-xs mt-0.5 whitespace-nowrap font-medium">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</span>
+                      <span className="font-medium text-gray-700">{cleanLog}</span>
+                    </div>
+                  );
+                })}
+                <div className="flex items-center gap-2 mt-3 text-purple-600 border-t border-gray-200 pt-3 pb-1 font-semibold text-sm">
+                  <Sparkles className="w-4 h-4 animate-pulse" />
+                  <span className="animate-pulse">Agent is evaluating your student copies. Please wait...</span>
                 </div>
               </div>
             )}
