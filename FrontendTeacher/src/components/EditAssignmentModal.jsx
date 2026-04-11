@@ -10,6 +10,16 @@ export default function EditAssignmentModal({ assignment, onClose, onSave }) {
   const [description, setDescription] = useState(assignment.description || '');
   const [showExportDropdown, setShowExportDropdown] = useState(false);
 
+  const totalMarks = questions.reduce(
+    (sum, q) => sum + (Number(q?.marks) || 0),
+    0
+  );
+  const uniqueMarks = [...new Set(questions.map((q) => Number(q?.marks) || 0))];
+  const marksGuideLine =
+    uniqueMarks.length === 1
+      ? `• Each question is worth ${uniqueMarks[0]} marks (Total: ${totalMarks} marks)`
+      : `• Marks vary by question (Total: ${totalMarks} marks)`;
+
   const updateQuestion = (index, field, value) => {
     const updatedQuestions = [...questions];
     updatedQuestions[index] = {
@@ -154,7 +164,7 @@ export default function EditAssignmentModal({ assignment, onClose, onSave }) {
                   Assignment Guidelines
                 </p>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Each question is worth 10 marks (Total: 50 marks)</li>
+                  <li>{marksGuideLine}</li>
                   <li>• Answer keys will be used by AI for evaluation</li>
                   <li>• Include alternate acceptable answers in guidelines</li>
                   <li>• Be specific but allow semantic variations</li>
