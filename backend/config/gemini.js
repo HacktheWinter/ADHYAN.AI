@@ -10,6 +10,41 @@ const API_KEYS = [
 
 let currentKeyIndex = 0;
 const MAX_RETRIES = API_KEYS.length;
+const TRANSIENT_ERROR_RETRY_MULTIPLIER = 3;
+const MAX_TRANSIENT_RETRIES = Math.max(
+  MAX_RETRIES,
+  MAX_RETRIES * TRANSIENT_ERROR_RETRY_MULTIPLIER
+);
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isQuotaOrRateLimitError = (error) => {
+  const message = String(error?.message || "");
+  const status = Number(error?.status);
+  return (
+    status === 429 ||
+    message.includes("quota") ||
+    message.includes("429") ||
+    message.includes("RESOURCE_EXHAUSTED")
+  );
+};
+
+const isTransientServiceError = (error) => {
+  const message = String(error?.message || "").toLowerCase();
+  const status = Number(error?.status);
+  return (
+    status === 503 ||
+    status === 502 ||
+    status === 504 ||
+    message.includes("503") ||
+    message.includes("service unavailable") ||
+    message.includes("high demand") ||
+    message.includes("temporarily unavailable") ||
+    message.includes("unavailable")
+  );
+};
+
+const getBackoffMs = (attempt) => Math.min(12000, 1500 * Math.max(1, attempt));
 
 /**
  * Get Gemini model using current API key
@@ -36,40 +71,69 @@ const rotateApiKey = () => {
 };
 
 const generationConfig = {
-  temperature: 1,
+  temperature: 0.7,
   topP: 0.95,
   topK: 40,
-  maxOutputTokens: 8192,
+  maxOutputTokens: 16384,
   responseMimeType: "application/json",
 };
 
 /**
  *  Generate MCQ Quiz from PDF Text
+ * @param {string} extractedText - Text extracted from PDFs
+ * @param {object} config - Quiz configuration
+ * @param {number} config.questionCount - Number of questions to generate (default 20)
+ * @param {number} config.marksPerQuestion - Marks per question (default 1)
+ * @param {string} config.difficulty - Difficulty level: easy, medium, hard, mixed (default mixed)
+ * @param {string[]} config.excludeQuestions - List of existing questions to avoid
  */
-export const generateQuizFromText = async (extractedText) => {
+export const generateQuizFromText = async (extractedText, config = {}) => {
+  const questionCount = config.questionCount || 20;
+  const marksPerQuestion = config.marksPerQuestion || 1;
+  const difficulty = config.difficulty || "mixed";
+  const excludeQuestions = config.excludeQuestions || [];
+
   let attempts = 0;
 
-  while (attempts < MAX_RETRIES) {
+  while (attempts < MAX_TRANSIENT_RETRIES) {
     try {
       console.log("🤖 Preparing Gemini prompt for MCQ Quiz...");
+      console.log(`Config: ${questionCount} questions, ${marksPerQuestion} marks each, difficulty: ${difficulty}`);
 
       // Limit text to avoid token overflow
       const limitedText = extractedText.slice(0, 10000);
 
+      const difficultyInstruction = difficulty === "mixed"
+        ? "Mix difficulty levels (easy, medium, hard)"
+        : `All questions should be ${difficulty.toUpperCase()} difficulty level`;
+
+      const excludeInstruction = excludeQuestions.length > 0 
+        ? `\nDO NOT repeat or generate questions similar to these existing ones:\n- ${excludeQuestions.join('\n- ')}\n`
+        : "";
+
       const prompt = `
-You are an expert quiz generator. Generate exactly 20 multiple-choice questions from the following educational content.
+You are an expert quiz generator. Generate exactly ${questionCount} multiple-choice questions from the following educational content.
+
+${excludeInstruction}
+
+CRITICAL JSON RULES:
+1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
+2. NO LITERAL NEWLINES inside JSON string values.
+3. Escape all double quotes (\") within question or option text.
+4. Each option and explanation must be a single-line string.
 
 CONTENT:
 ${limitedText}
 
 REQUIREMENTS:
-1. Generate EXACTLY 20 questions
+1. Generate EXACTLY ${questionCount} questions
 2. Each question MUST have exactly 4 options (A, B, C, D)
 3. One option must be the correct answer
 4. Questions should be clear and unambiguous
 5. Cover different topics from the content
-6. Mix difficulty levels (easy, medium, hard)
+6. ${difficultyInstruction}
 7. Ensure options are distinct and plausible
+8. Each question is worth ${marksPerQuestion} mark(s)
 
 RESPONSE FORMAT (Valid JSON only):
 {
@@ -90,7 +154,7 @@ RESPONSE FORMAT (Valid JSON only):
 IMPORTANT: 
 - Return ONLY valid JSON
 - No markdown, no code blocks, no extra text
-- Exactly 20 questions
+- Exactly ${questionCount} questions
 - correctAnswer must EXACTLY match one of the options
 `;
 
@@ -160,19 +224,29 @@ IMPORTANT:
 
       attempts++;
 
-      // If quota exceeded → rotate
-      if (
-        error.message.includes("quota") ||
-        error.message.includes("429") ||
-        error.message.includes("RESOURCE_EXHAUSTED")
-      ) {
+      if (isQuotaOrRateLimitError(error)) {
         console.log(
           ` API Key #${currentKeyIndex + 1} quota exceeded. Rotating...`
         );
         rotateApiKey();
 
-        if (attempts < MAX_RETRIES) {
+        if (attempts < MAX_TRANSIENT_RETRIES) {
           console.log("Retrying with next API key...");
+          continue;
+        }
+      }
+
+      if (isTransientServiceError(error)) {
+        const backoffMs = getBackoffMs(attempts);
+        console.log(
+          ` Gemini service is temporarily busy (attempt ${attempts}/${MAX_TRANSIENT_RETRIES}). Retrying in ${backoffMs}ms...`
+        );
+
+        // Rotate key to spread request load even for transient spikes.
+        rotateApiKey();
+
+        if (attempts < MAX_TRANSIENT_RETRIES) {
+          await wait(backoffMs);
           continue;
         }
       }
@@ -181,37 +255,68 @@ IMPORTANT:
     }
   }
 
-  throw new Error("All API keys exhausted. Try again later.");
+  throw new Error(
+    "Gemini service is busy right now after multiple retries. Please try again in a minute."
+  );
 };
 
 /**
  *  Generate MCQ Quiz from Topics (without PDF)
+ * @param {string[]} topics - Array of topics
+ * @param {object} config - Quiz configuration
+ * @param {number} config.questionCount - Number of questions to generate (default 20)
+ * @param {number} config.marksPerQuestion - Marks per question (default 1)
+ * @param {string} config.difficulty - Difficulty level: easy, medium, hard, mixed (default mixed)
+ * @param {string[]} config.excludeQuestions - List of existing questions to avoid
  */
-export const generateQuizFromTopics = async (topics) => {
+export const generateQuizFromTopics = async (topics, config = {}) => {
+  const questionCount = config.questionCount || 20;
+  const marksPerQuestion = config.marksPerQuestion || 1;
+  const difficulty = config.difficulty || "mixed";
+  const excludeQuestions = config.excludeQuestions || [];
+
   let attempts = 0;
 
-  while (attempts < MAX_RETRIES) {
+  while (attempts < MAX_TRANSIENT_RETRIES) {
     try {
       console.log("🤖 Preparing Gemini prompt for MCQ Quiz from topics...");
       console.log("Topics:", topics);
+      console.log(`Config: ${questionCount} questions, ${marksPerQuestion} marks each, difficulty: ${difficulty}`);
 
       const topicsText = Array.isArray(topics) ? topics.join(", ") : topics;
 
+      const difficultyInstruction = difficulty === "mixed"
+        ? "Mix difficulty levels (easy, medium, hard)"
+        : `All questions should be ${difficulty.toUpperCase()} difficulty level`;
+
+      const excludeInstruction = excludeQuestions.length > 0 
+        ? `\nDO NOT repeat or generate questions similar to these existing ones:\n- ${excludeQuestions.join('\n- ')}\n`
+        : "";
+
       const prompt = `
-You are an expert quiz generator. Generate exactly 20 multiple-choice questions based on the following topics.
+You are an expert quiz generator. Generate exactly ${questionCount} multiple-choice questions based on the following topics.
+
+${excludeInstruction}
+
+CRITICAL JSON RULES:
+1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
+2. NO LITERAL NEWLINES inside JSON string values.
+3. Escape all double quotes (\") within question or option text.
+4. Each option and explanation must be a single-line string.
 
 TOPICS:
 ${topicsText}
 
 REQUIREMENTS:
-1. Generate EXACTLY 20 questions
+1. Generate EXACTLY ${questionCount} questions
 2. Each question MUST have exactly 4 options (A, B, C, D)
 3. One option must be the correct answer
 4. Questions should be clear and unambiguous
 5. Cover different aspects of the given topics
-6. Mix difficulty levels (easy, medium, hard)
+6. ${difficultyInstruction}
 7. Ensure options are distinct and plausible
 8. Questions should be educational and test understanding
+9. Each question is worth ${marksPerQuestion} mark(s)
 
 RESPONSE FORMAT (Valid JSON only):
 {
@@ -232,7 +337,7 @@ RESPONSE FORMAT (Valid JSON only):
 IMPORTANT: 
 - Return ONLY valid JSON
 - No markdown, no code blocks, no extra text
-- Exactly 20 questions
+- Exactly ${questionCount} questions
 - correctAnswer must EXACTLY match one of the options
 `;
 
@@ -302,19 +407,29 @@ IMPORTANT:
 
       attempts++;
 
-      // If quota exceeded → rotate
-      if (
-        error.message.includes("quota") ||
-        error.message.includes("429") ||
-        error.message.includes("RESOURCE_EXHAUSTED")
-      ) {
+      if (isQuotaOrRateLimitError(error)) {
         console.log(
           ` API Key #${currentKeyIndex + 1} quota exceeded. Rotating...`
         );
         rotateApiKey();
 
-        if (attempts < MAX_RETRIES) {
+        if (attempts < MAX_TRANSIENT_RETRIES) {
           console.log("Retrying with next API key...");
+          continue;
+        }
+      }
+
+      if (isTransientServiceError(error)) {
+        const backoffMs = getBackoffMs(attempts);
+        console.log(
+          ` Gemini service is temporarily busy (attempt ${attempts}/${MAX_TRANSIENT_RETRIES}). Retrying in ${backoffMs}ms...`
+        );
+
+        // Rotate key to spread request load even for transient spikes.
+        rotateApiKey();
+
+        if (attempts < MAX_TRANSIENT_RETRIES) {
+          await wait(backoffMs);
           continue;
         }
       }
@@ -323,7 +438,9 @@ IMPORTANT:
     }
   }
 
-  throw new Error("All API keys exhausted. Try again later.");
+  throw new Error(
+    "Gemini service is busy right now after multiple retries. Please try again in a minute."
+  );
 };
 
 /**
@@ -386,12 +503,7 @@ Generate ONLY the title text, nothing else:`;
 
       attempts++;
 
-      // If quota exceeded → rotate
-      if (
-        error.message.includes("quota") ||
-        error.message.includes("429") ||
-        error.message.includes("RESOURCE_EXHAUSTED")
-      ) {
+      if (isQuotaOrRateLimitError(error)) {
         console.log(
           ` API Key #${currentKeyIndex + 1} quota exceeded. Rotating...`
         );
@@ -399,6 +511,19 @@ Generate ONLY the title text, nothing else:`;
 
         if (attempts < MAX_RETRIES) {
           console.log("Retrying with next API key...");
+          continue;
+        }
+      }
+
+      if (isTransientServiceError(error)) {
+        const backoffMs = getBackoffMs(attempts);
+        console.log(
+          ` Title generation hit temporary service load. Retrying in ${backoffMs}ms...`
+        );
+        rotateApiKey();
+
+        if (attempts < MAX_RETRIES) {
+          await wait(backoffMs);
           continue;
         }
       }

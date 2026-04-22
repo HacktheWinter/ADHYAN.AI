@@ -35,6 +35,19 @@ const quizSchema = new mongoose.Schema({
       correctAnswer: String,
     },
   ],
+  marksPerQuestion: {
+    type: Number,
+    default: 1,
+  },
+  totalMarks: {
+    type: Number,
+    default: null, // Auto-calculated: questions.length × marksPerQuestion
+  },
+  difficulty: {
+    type: String,
+    enum: ["easy", "medium", "hard", "mixed"],
+    default: "mixed",
+  },
   status: {
     type: String,
     enum: ["draft", "published"],
