@@ -4,10 +4,11 @@ import API_BASE_URL from "../config";
 const BASE_URL = API_BASE_URL;
 
 // Generate assignment with AI
-export const generateAssignmentWithAI = async (noteIds, classroomId) => {
+export const generateAssignmentWithAI = async (noteIds, classroomId, config = {}) => {
   const res = await axios.post(`${BASE_URL}/assignment/generate-ai`, {
     noteIds,
     classroomId,
+    ...config,
   });
   return res.data;
 };

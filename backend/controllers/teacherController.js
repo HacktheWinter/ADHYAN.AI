@@ -40,12 +40,22 @@ export const registerTeacher = async (req, res) => {
         console.error("[Email] Teacher welcome email failed:", emailError.message)
       );
 
+    // Generate JWT token for auto-login after signup
+    const token = jwt.sign(
+      { id: teacher._id, role: teacher.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
     res.status(201).json({
       message: "Teacher registered successfully",
+      token,
       teacher: {
         id: teacher._id,
         name: teacher.name,
         email: teacher.email,
+        profilePhoto: teacher.profilePhoto,
+        role: "teacher",
       },
     });
   } catch (err) {

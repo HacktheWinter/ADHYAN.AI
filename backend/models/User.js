@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema({
 
   // Student-specific academic fields
   course: { type: String, default: "" },
+  specialization: { type: String, default: "None" },
   section: { type: String, default: "" },
   erpId: { type: String, default: "", sparse: true },
   semester: { type: String, default: "" },

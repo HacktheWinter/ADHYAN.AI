@@ -13,7 +13,7 @@ const SeminarQRGenerator = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [attendeeCount, setAttendeeCount] = useState(0);
-  const [refreshCountdown, setRefreshCountdown] = useState(20);
+  const [refreshCountdown, setRefreshCountdown] = useState(10);
   const [starting, setStarting] = useState(false);
 
   // Check if teacher already has an active session on mount
@@ -56,15 +56,15 @@ const SeminarQRGenerator = ({ onClose }) => {
 
     // Initial fetch
     fetchToken();
-    setRefreshCountdown(20);
+    setRefreshCountdown(10);
 
     const tokenInterval = setInterval(() => {
       fetchToken();
-      setRefreshCountdown(20);
-    }, 20000);
+      setRefreshCountdown(10);
+    }, 10000);
 
     const countdownInterval = setInterval(() => {
-      setRefreshCountdown((p) => (p <= 1 ? 20 : p - 1));
+      setRefreshCountdown((p) => (p <= 1 ? 10 : p - 1));
     }, 1000);
 
     return () => {
@@ -116,7 +116,7 @@ const SeminarQRGenerator = ({ onClose }) => {
     }
   };
 
-  // Build QR value: JSON with sessionId + token so student app can parse it
+  // Build QR value: minimal JSON payload for faster scanning
   const qrValue = token
     ? JSON.stringify({ type: "seminar", sessionId, token })
     : "";
@@ -219,8 +219,8 @@ const SeminarQRGenerator = ({ onClose }) => {
                 </div>
               )}
 
-              {/* QR Display */}
-              <div className="flex justify-center items-center mb-5 h-64 bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden relative p-4 shadow-inner">
+              {/* QR Display — large, high‑contrast, high error correction */}
+              <div className="flex justify-center items-center mb-5 min-h-[340px] bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden relative p-4 shadow-inner">
                 {!token ? (
                   <div className="flex flex-col items-center gap-3">
                     <div className="animate-spin h-10 w-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full" />
@@ -229,12 +229,15 @@ const SeminarQRGenerator = ({ onClose }) => {
                     </span>
                   </div>
                 ) : (
-                  <div className="bg-white p-3 rounded-xl shadow-md border border-gray-100 transition-transform hover:scale-105 duration-300">
+                  <div className="bg-white p-5 rounded-xl shadow-md border border-gray-100 transition-transform hover:scale-105 duration-300">
                     <QRCodeCanvas
                       value={qrValue}
-                      size={200}
+                      size={280}
                       level="H"
                       includeMargin={true}
+                      marginSize={5}
+                      fgColor="#000000"
+                      bgColor="#ffffff"
                     />
                   </div>
                 )}

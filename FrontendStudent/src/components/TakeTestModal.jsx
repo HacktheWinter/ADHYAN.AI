@@ -77,6 +77,28 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
   // ==================== ANSWER HANDLING ====================
   const handleAnswerChange = (questionId, answer) => {
     setAnswers(prev => {
+      // Check if this question is part of a choice group
+      const currentQ = testPaper.questions.find(q => q._id === questionId);
+      
+      // If user is clearing an answer, just allow it
+      if (!answer.trim()) {
+        const updated = { ...prev };
+        delete updated[questionId];
+        answersRef.current = updated;
+        return updated;
+      }
+
+      // If it's a choice group, check if another in the group is already answered
+      if (currentQ?.choiceGroup) {
+        const otherInGroup = testPaper.questions.find(
+          q => q.choiceGroup === currentQ.choiceGroup && q._id !== questionId
+        );
+        if (otherInGroup && prev[otherInGroup._id]) {
+          alert(`You have already answered ${otherInGroup.choiceLabel || 'another choice'} in this group. Please clear that answer first if you want to switch.`);
+          return prev;
+        }
+      }
+
       const updated = { ...prev, [questionId]: answer };
       answersRef.current = updated;
       return updated;
@@ -235,34 +257,54 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
 
             <p className="text-gray-800 mb-4 whitespace-pre-wrap">{question.question}</p>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Your Answer:
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
+                <span>Your Answer:</span>
+                {question.choiceGroup && (
+                  <span className="text-[10px] uppercase font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">
+                    Optional Choice Group
+                  </span>
+                )}
               </label>
+
+              {question.choiceGroup && testPaper.questions.some(q => q.choiceGroup === question.choiceGroup && q._id !== question._id && answers[q._id]) ? (
+                <div className="absolute inset-0 z-10 bg-gray-50/80 flex items-center justify-center rounded-lg border border-dashed border-gray-300">
+                   <div className="text-center px-4">
+                     <AlertTriangle className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                     <p className="text-sm font-semibold text-gray-700">Choice already answered</p>
+                     <p className="text-xs text-gray-500 mt-1">You can only answer one question from this choice group.</p>
+                   </div>
+                </div>
+              ) : null}
 
               <textarea
                 value={answers[question._id] || ''}
                 onChange={(e) => handleAnswerChange(question._id, e.target.value)}
-                placeholder="Write your answer here..."
+                placeholder={question.choiceGroup ? "Select and write your answer for this choice..." : "Write your answer here..."}
                 disabled={showViolationAlert}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 resize-none ${
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 resize-none transition-all ${
                   showViolationAlert ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+                } ${answers[question._id] ? 'border-purple-300 ring-2 ring-purple-100' : 'border-gray-300'}`}
                 rows={getTextareaRows(question.type)}
               />
             </div>
           </div>
 
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-100">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">
-                Answered: {getAnsweredCount()} / {testPaper.questions.length}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-gray-700">
+                  Total Requirements Met: {Object.keys(answers).length} / {testPaper.questions.filter(q => !q.isOptional).length}
+                </span>
+                <span className="text-[10px] text-gray-500 italic mt-0.5">
+                  (Includes both mandatory and selected optional choices)
+                </span>
+              </div>
 
-              {getAnsweredCount() < testPaper.questions.length && (
-                <span className="text-sm text-yellow-600 flex items-center gap-1">
+              {Object.keys(answers).length < testPaper.questions.filter(q => !q.isOptional).length && (
+                <span className="text-sm text-orange-600 font-medium flex items-center gap-1.5 animate-pulse">
                   <AlertTriangle className="w-4 h-4" />
-                  {testPaper.questions.length - getAnsweredCount()} unanswered
+                  Still some mandatory tasks remaining
                 </span>
               )}
             </div>

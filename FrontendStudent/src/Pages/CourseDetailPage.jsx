@@ -25,7 +25,6 @@ export default function CourseDetailPage() {
     { name: "Calendar", icon: "📅" },
     { name: "Classes", icon: "📚" },
     { name: "Feedback", icon: "💬" },
-    { name: "Attendance", icon: "📷" },
   ];
 
 
@@ -154,6 +153,10 @@ export default function CourseDetailPage() {
     navigate(`/course/${id}/${tabPath}`);
   };
 
+  const handleAttendanceClick = () => {
+    navigate(`/course/${id}/attendance`);
+  };
+
   const handleMenuOption = (option) => {
     // console.log(`Selected: ${option}`);
     setIsMenuOpen(false);
@@ -170,9 +173,6 @@ export default function CourseDetailPage() {
   }
     if (option === "feedback"){ navigate("feedback");}
     
-    if (option === "attendance") {
-        navigate(`/course/${id}/attendance`);
-    }
   };
 
 
@@ -206,14 +206,26 @@ export default function CourseDetailPage() {
 
               {/* Floating Action Button / Quick Tools */}
               <div className="menu-container relative">
-                <button
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center ${
-                    isMenuOpen ? 'rotate-90 scale-110' : 'hover:scale-105'
-                  }`}
-                >
-                  <Grid className="w-6 h-6" />
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleAttendanceClick}
+                    className="h-12 px-4 sm:h-14 sm:px-5 rounded-full border border-purple-200 bg-white text-purple-700 shadow-md hover:bg-purple-50 hover:shadow-lg transition-all duration-300 cursor-pointer flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 104 0M9 5a2 2 0 012 2h2a2 2 0 012-2m-9 9l2 2 4-4" />
+                    </svg>
+                    <span className="hidden sm:inline font-semibold">Attendance</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center ${
+                      isMenuOpen ? 'rotate-90 scale-110' : 'hover:scale-105'
+                    }`}
+                  >
+                    <Grid className="w-6 h-6" />
+                  </button>
+                </div>
 
                 {/* Sidebar Style Dropdown */}
                 {isMenuOpen && (

@@ -60,12 +60,41 @@ export default function EditAnswerKeysModal({ testPaper, onClose, onSave }) {
   const getQuestionsByType = (type) => {
     return questions
       .map((q, index) => ({ ...q, originalIndex: index }))
-      .filter(q => q.type === type);
+      .filter(q => {
+        const section = q.section?.toLowerCase() || '';
+        const m = Number(q.marks) || 0;
+        
+        // Intelligent ranges to ensure no question is lost
+        if (type === 'short') {
+          return (section.includes('section a') || m < 5) && !section.includes('section b') && !section.includes('section c');
+        }
+        if (type === 'medium') {
+          return section.includes('section b') || (m >= 5 && m < 10 && !section.includes('section a') && !section.includes('section c'));
+        }
+        if (type === 'long') {
+          return section.includes('section c') || (m >= 10 && !section.includes('section a') && !section.includes('section b'));
+        }
+        return false;
+      });
+  };
+
+  // Helper to format question label without double prefixing
+  const formatQNo = (label, defaultNo) => {
+    if (!label) return `Question ${defaultNo}`;
+    if (label.toLowerCase().startsWith('q')) return label;
+    if (label.toLowerCase().startsWith('question')) return label;
+    return `Question ${label}`;
   };
 
   const shortQuestions = getQuestionsByType('short');
   const mediumQuestions = getQuestionsByType('medium');
   const longQuestions = getQuestionsByType('long');
+
+  // Calculate live total marks (only counting required questions)
+  const totalMarks = questions.reduce((acc, q) => {
+    if (q.isOptional) return acc;
+    return acc + (Number(q.marks) || 0);
+  }, 0);
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -74,9 +103,13 @@ export default function EditAnswerKeysModal({ testPaper, onClose, onSave }) {
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Edit Answer Keys</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Review and edit answer keys before publishing
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-sm text-gray-600">Review and edit answer keys before publishing</span>
+              <div className="h-4 w-[1px] bg-gray-300 mx-1"></div>
+              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full uppercase tracking-wider">
+                {totalMarks} Marks Total
+              </span>
+            </div>
           </div>
           
           {/* Export Button Group */}
@@ -155,143 +188,161 @@ export default function EditAnswerKeysModal({ testPaper, onClose, onSave }) {
             </div>
           </div>
 
-          {/* Short Questions (2 marks) */}
-          <div>
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              Short Answer Questions (2 marks each)
-            </h3>
-            <div className="space-y-4">
-              {shortQuestions.map((q, idx) => (
-                <div key={q.originalIndex} className="bg-gray-50 border border-gray-200 rounded-lg p-5">
-                  <div className="mb-3">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">
-                      Question {idx + 1}
-                    </p>
-                    <p className="text-gray-900">{q.question}</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Answer Key (2-3 lines expected)
-                      </label>
-                      <textarea
-                        value={q.answerKey}
-                        onChange={(e) => updateQuestion(q.originalIndex, 'answerKey', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-                        rows="3"
-                      />
+          {/* Section A (2 marks) */}
+          {shortQuestions.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 bg-blue-100/50 p-3 rounded-lg border border-blue-100 mb-4">
+                <span className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">A</span>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Section A: Short Answer Questions (2 marks each)
+                </h3>
+              </div>
+              <div className="space-y-4">
+                {shortQuestions.map((q, idx) => (
+                  <div key={q.originalIndex} className="bg-gray-50 border border-gray-200 rounded-lg p-5">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-gray-700 mb-2">
+                        {formatQNo(q.choiceLabel, idx + 1)}
+                        <span className="ml-2 text-[10px] uppercase text-gray-400 font-bold tracking-widest">{q.section || "Section A"}</span>
+                      </p>
+                      <p className="text-gray-900 font-medium">{q.question}</p>
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Answer Guidelines (Optional - alternate acceptable answers)
-                      </label>
-                      <textarea
-                        value={q.answerGuidelines || ''}
-                        onChange={(e) => updateQuestion(q.originalIndex, 'answerGuidelines', e.target.value)}
-                        placeholder="e.g., Accept: 4 bytes, 32 bits, 4B"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-                        rows="2"
-                      />
+  
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Answer Key (2-3 lines expected)
+                        </label>
+                        <textarea
+                          value={q.answerKey}
+                          onChange={(e) => updateQuestion(q.originalIndex, 'answerKey', e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          rows="3"
+                        />
+                      </div>
+  
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Answer Guidelines (Optional - alternate acceptable answers)
+                        </label>
+                        <textarea
+                          value={q.answerGuidelines || ''}
+                          onChange={(e) => updateQuestion(q.originalIndex, 'answerGuidelines', e.target.value)}
+                          placeholder="e.g., Accept: 4 bytes, 32 bits, 4B"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          rows="2"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Medium Questions (5 marks) */}
-          <div>
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              Medium Answer Questions (5 marks each)
-            </h3>
-            <div className="space-y-4">
-              {mediumQuestions.map((q, idx) => (
-                <div key={q.originalIndex} className="bg-gray-50 border border-gray-200 rounded-lg p-5">
-                  <div className="mb-3">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">
-                      Question {shortQuestions.length + idx + 1}
-                    </p>
-                    <p className="text-gray-900">{q.question}</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Answer Key (5-6 lines expected)
-                      </label>
-                      <textarea
-                        value={q.answerKey}
-                        onChange={(e) => updateQuestion(q.originalIndex, 'answerKey', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-                        rows="6"
-                      />
+          {/* Section B (5 marks) */}
+          {mediumQuestions.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 bg-purple-100/50 p-3 rounded-lg border border-purple-100 mb-4">
+                <span className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm">B</span>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Section B: Medium Answer Questions (5 marks each)
+                </h3>
+              </div>
+              <div className="space-y-4">
+                {mediumQuestions.map((q, idx) => (
+                  <div key={q.originalIndex} className="bg-gray-50 border border-gray-200 rounded-lg p-5">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-gray-700 mb-2">
+                        {formatQNo(q.choiceLabel, idx + 1)}
+                        <span className="ml-2 text-[10px] uppercase text-gray-400 font-bold tracking-widest">{q.section || "Section B"}</span>
+                      </p>
+                      <p className="text-gray-900 font-medium">{q.question}</p>
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Answer Guidelines (Optional)
-                      </label>
-                      <textarea
-                        value={q.answerGuidelines || ''}
-                        onChange={(e) => updateQuestion(q.originalIndex, 'answerGuidelines', e.target.value)}
-                        placeholder="e.g., Must mention: light reactions, dark reactions, chlorophyll"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-                        rows="2"
-                      />
+  
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Answer Key (5-6 lines expected)
+                        </label>
+                        <textarea
+                          value={q.answerKey}
+                          onChange={(e) => updateQuestion(q.originalIndex, 'answerKey', e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          rows="6"
+                        />
+                      </div>
+  
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Answer Guidelines (Optional)
+                        </label>
+                        <textarea
+                          value={q.answerGuidelines || ''}
+                          onChange={(e) => updateQuestion(q.originalIndex, 'answerGuidelines', e.target.value)}
+                          placeholder="e.g., Must mention: light reactions, dark reactions, chlorophyll"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          rows="2"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Long Questions (10 marks) */}
-          <div>
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              Long Answer Questions (10 marks each)
-            </h3>
-            <div className="space-y-4">
-              {longQuestions.map((q, idx) => (
-                <div key={q.originalIndex} className="bg-gray-50 border border-gray-200 rounded-lg p-5">
-                  <div className="mb-3">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">
-                      Question {shortQuestions.length + mediumQuestions.length + idx + 1}
-                    </p>
-                    <p className="text-gray-900">{q.question}</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Answer Key (10-12 lines expected)
-                      </label>
-                      <textarea
-                        value={q.answerKey}
-                        onChange={(e) => updateQuestion(q.originalIndex, 'answerKey', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-                        rows="12"
-                      />
+          {/* Section C (10 marks) */}
+          {longQuestions.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 bg-indigo-100/50 p-3 rounded-lg border border-indigo-100 mb-4">
+                <span className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm">C</span>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Section C: Long Answer Questions (10 marks each)
+                </h3>
+              </div>
+              <div className="space-y-4">
+                {longQuestions.map((q, idx) => (
+                  <div key={q.originalIndex} className="bg-gray-50 border border-gray-200 rounded-lg p-5">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-gray-700 mb-2">
+                        {formatQNo(q.choiceLabel, idx + 1)}
+                        <span className="ml-2 text-[10px] uppercase text-gray-400 font-bold tracking-widest">{q.section || "Section C"}</span>
+                      </p>
+                      <p className="text-gray-900 font-medium">{q.question}</p>
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Answer Guidelines (Optional)
-                      </label>
-                      <textarea
-                        value={q.answerGuidelines || ''}
-                        onChange={(e) => updateQuestion(q.originalIndex, 'answerGuidelines', e.target.value)}
-                        placeholder="e.g., 10 marks = all points covered, 8 marks = minor details missing, 5-7 marks = major concepts missing"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
-                        rows="3"
-                      />
+  
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Answer Key (10-12 lines expected)
+                        </label>
+                        <textarea
+                          value={q.answerKey}
+                          onChange={(e) => updateQuestion(q.originalIndex, 'answerKey', e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          rows="12"
+                        />
+                      </div>
+  
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Answer Guidelines (Optional)
+                        </label>
+                        <textarea
+                          value={q.answerGuidelines || ''}
+                          onChange={(e) => updateQuestion(q.originalIndex, 'answerGuidelines', e.target.value)}
+                          placeholder="e.g., 10 marks = all points covered, 8 marks = minor details missing, 5-7 marks = major concepts missing"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                          rows="3"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer */}
