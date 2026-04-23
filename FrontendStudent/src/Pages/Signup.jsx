@@ -13,7 +13,7 @@ const COURSE_SPECIALIZATIONS = {
   "MCA": ["General", "Cloud Computing", "AI & ML", "Data Science", "Cyber Security", "None"],
   "BBA": ["Marketing", "Finance", "HR", "International Business", "Operations", "None"],
   "MBA": ["Marketing", "Finance", "HR", "International Business", "Operations", "Business Analytics", "None"],
-  "B.Sc": ["Physics", "Chemistry", "Mathematics", "Biology", "Computer Science", "None"],
+  "B.Sc": ["Physics", "Chemistry", "Mathematics", "Biology", "Computer Science","IT", "None"],
   "M.Sc": ["Physics", "Chemistry", "Mathematics", "Biology", "Computer Science", "None"],
   "B.Com": ["General", "Accounting", "Banking", "Taxation", "None"],
   "M.Com": ["General", "Accounting", "Banking", "Taxation", "None"],
