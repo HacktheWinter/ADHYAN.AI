@@ -86,10 +86,10 @@ const QuizResultsViewer = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-paper flex items-center justify-center font-body text-ink">
         <div className="text-center">
-          <Loader className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">Loading quiz results...</p>
+          <Loader className="w-12 h-12 text-violet-dark animate-spin mx-auto mb-4" />
+          <p className="text-ink-soft font-semibold">Loading quiz results...</p>
         </div>
       </div>
     );
@@ -97,14 +97,14 @@ const QuizResultsViewer = () => {
 
   if (!quiz && submissions.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-paper flex items-center justify-center font-body text-ink">
         <div className="text-center">
-          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <p className="text-gray-700 font-semibold">Quiz not found</p>
-          <p className="text-gray-500 text-sm mt-2">No quiz or submissions available</p>
+          <AlertTriangle className="w-16 h-16 text-rose-500 mx-auto mb-4" />
+          <p className="text-ink font-semibold font-display">Quiz not found</p>
+          <p className="text-ink-soft text-sm mt-2">No quiz or submissions available</p>
           <button
             onClick={() => navigate(`/class/${classId}/quizzes`)}
-            className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition cursor-pointer"
+            className="mt-4 px-6 py-3 btn-settings-blue text-sm rounded-xl font-bold transition cursor-pointer"
           >
             Back to Quizzes
           </button>
@@ -125,14 +125,14 @@ const QuizResultsViewer = () => {
   const pendingCount = Math.max(0, totalStudents - submittedCount);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-paper font-body text-ink">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         
         {/* Header */}
         <div className="mb-4 sm:mb-6">
           <button
             onClick={() => navigate(`/class/${classId}/quizzes`)}
-            className="flex items-center gap-2 text-purple-600 hover:text-purple-700 mb-4 cursor-pointer"
+            className="flex items-center gap-2 text-violet-dark hover:opacity-80 font-bold transition-all mb-4 cursor-pointer text-sm"
           >
             <ChevronLeft className="w-5 h-5" />
             Back to Quizzes
@@ -140,18 +140,18 @@ const QuizResultsViewer = () => {
           
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2" title={quiz.title}>
+              <h1 className="text-2xl sm:text-3xl font-semibold font-display text-ink mb-2" title={quiz.title}>
                 {quiz.title.length > 50 ? quiz.title.substring(0, 50) + '...' : quiz.title}
               </h1>
-              <p className="text-sm sm:text-base text-gray-600">{quiz.questions?.length || 0} questions • {submissions.length} submissions</p>
+              <p className="text-sm sm:text-base text-ink-soft">{quiz.questions?.length || 0} questions • {submissions.length} submissions</p>
             </div>
 
             <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+                className="p-2 hover:bg-line/60 rounded-xl text-ink-soft hover:text-ink transition-colors cursor-pointer"
               >
-                <MoreVertical className="w-5 h-5 text-gray-600" />
+                <MoreVertical className="w-5 h-5" />
               </button>
 
               {showMenu && (
@@ -160,12 +160,12 @@ const QuizResultsViewer = () => {
                     className="fixed inset-0 z-10"
                     onClick={() => setShowMenu(false)}
                   ></div>
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 z-20 py-1">
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-surface rounded-xl shadow-xl border border-line z-20 py-1 overflow-hidden">
                     <button
                       onClick={() => navigate(`/class/${classId}/dashboard`)}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2"
+                      className="w-full text-left px-4 py-2.5 text-sm text-ink hover:bg-violet-50 hover:text-violet-dark flex items-center gap-2 transition-colors cursor-pointer font-medium"
                     >
-                      <BarChart2 className="w-4 h-4" />
+                      <BarChart2 className="w-4 h-4 text-violet-dark" />
                       Class Dashboard
                     </button>
                   </div>
@@ -177,49 +177,47 @@ const QuizResultsViewer = () => {
 
         {/* Stats Cards - Hidden on small screens */}
         <div className="hidden md:grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-surface rounded-2xl border border-line p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Submission</p>
+                <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">Submission</p>
                 <div className="flex items-baseline gap-2">
-                    <p className="text-xl font-bold text-gray-900">
-                      {submissions.length} <span className="text-sm font-normal text-gray-500">out of {totalStudents} students</span>
+                    <p className="text-xl font-black font-display text-ink">
+                      {submissions.length} <span className="text-xs font-normal font-body text-ink-soft">out of {totalStudents} students</span>
                     </p>
                 </div>
               </div>
-              <FileText className="w-10 h-10 text-gray-300" />
+              <FileText className="w-10 h-10 text-ink-soft opacity-20" />
             </div>
           </div>
 
-
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-surface rounded-2xl border border-line p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Average Score</p>
-                <p className="text-3xl font-bold text-purple-600">{averageScore}%</p>
+                <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">Average Score</p>
+                <p className="text-3xl font-black font-display text-violet-dark">{averageScore}%</p>
               </div>
-              <Trophy className="w-10 h-10 text-purple-300" />
+              <Trophy className="w-10 h-10 text-ink-soft opacity-20" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-surface rounded-2xl border border-line p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Passed (≥40%)</p>
-                <p className="text-3xl font-bold text-green-600">{passCount}</p>
+                <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">Passed (≥40%)</p>
+                <p className="text-3xl font-black font-display text-green-600 dark:text-green-400">{passCount}</p>
               </div>
-              <CheckCircle className="w-10 h-10 text-green-300" />
+              <CheckCircle className="w-10 h-10 text-ink-soft opacity-20" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-surface rounded-2xl border border-line p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Failed (&lt;40%)</p>
-                <p className="text-3xl font-bold text-red-600">{failCount}</p>
+                <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">Failed (&lt;40%)</p>
+                <p className="text-3xl font-black font-display text-rose-600 dark:text-rose-450">{failCount}</p>
               </div>
-              <AlertTriangle className="w-10 h-10 text-red-300" />
+              <AlertTriangle className="w-10 h-10 text-ink-soft opacity-20" />
             </div>
           </div>
         </div>
@@ -228,7 +226,7 @@ const QuizResultsViewer = () => {
         <div className="flex flex-col sm:flex-row gap-3 mb-4 sm:mb-6">
           <button
             onClick={fetchData}
-            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gray-200 text-gray-700 text-sm sm:text-base font-semibold rounded-lg hover:bg-gray-300 transition-colors cursor-pointer"
+            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-line text-ink text-sm sm:text-base font-bold rounded-xl hover:bg-line/80 transition-colors cursor-pointer"
           >
             <RefreshCw className="w-5 h-5" />
             Refresh
@@ -236,57 +234,57 @@ const QuizResultsViewer = () => {
         </div>
 
         {/* Submissions Table */}
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-line overflow-hidden shadow-sm">
           {submissions.length === 0 ? (
-            <div className="p-8 sm:p-12 text-center">
-              <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 font-medium">No submissions yet</p>
-              <p className="text-gray-400 text-sm mt-1">Students haven't submitted this quiz yet</p>
+            <div className="p-8 sm:p-12 text-center bg-surface">
+              <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-ink-soft opacity-20 mx-auto mb-4" />
+              <p className="text-ink-soft font-semibold">No submissions yet</p>
+              <p className="text-ink-soft text-sm mt-1">Students haven't submitted this quiz yet</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-surface border-b border-line">
                   <tr>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-900">Student</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-900">Status</th>
-                    <th className="hidden sm:table-cell px-6 py-4 text-left text-sm font-semibold text-gray-900">Score</th>
-                    <th className="hidden lg:table-cell px-6 py-4 text-left text-sm font-semibold text-gray-900">Percentage</th>
-                    <th className="hidden lg:table-cell px-6 py-4 text-left text-sm font-semibold text-gray-900">Submitted</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-900">Action</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-ink">Student</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-ink">Status</th>
+                    <th className="hidden sm:table-cell px-6 py-4 text-left text-sm font-bold text-ink">Score</th>
+                    <th className="hidden lg:table-cell px-6 py-4 text-left text-sm font-bold text-ink">Percentage</th>
+                    <th className="hidden lg:table-cell px-6 py-4 text-left text-sm font-bold text-ink">Submitted</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-ink">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-line">
                   {submissions.map((submission) => (
-                    <tr key={submission._id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={submission._id} className="hover:bg-line/20 bg-surface transition-colors">
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
                         <div className="flex items-center gap-2 sm:gap-3">
                           {submission.studentId?.profilePhoto ? (
                             <img 
                               src={`${API_BASE_URL.replace('/api', '')}/${submission.studentId.profilePhoto}`}
                               alt={submission.studentId?.name}
-                              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0 border border-purple-200"
+                              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0 border border-line shadow-sm"
                               onError={(e) => {
                                 e.target.style.display = 'none';
                                 e.target.nextElementSibling.style.display = 'flex';
                               }}
                             />
                           ) : (
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                              <User className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-violet-50 border border-line rounded-full flex items-center justify-center flex-shrink-0">
+                              <User className="w-4 h-4 sm:w-5 sm:h-5 text-violet-dark" />
                             </div>
                           )}
                           <div className="min-w-0">
-                            <p className="font-semibold text-gray-900 text-xs sm:text-base truncate">{submission.studentId?.name || 'Unknown'}</p>
-                            <p className="text-xs text-gray-500 truncate hidden sm:block">{submission.studentId?.email}</p>
+                            <p className="font-bold text-ink font-display text-xs sm:text-base truncate">{submission.studentId?.name || 'Unknown'}</p>
+                            <p className="text-xs text-ink-soft truncate hidden sm:block">{submission.studentId?.email}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
-                        <span className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-xs font-semibold ${
+                        <span className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-xs font-bold border border-line ${
                           parseFloat(submission.percentage) >= 40
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
+                            ? 'bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300'
+                            : 'bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350'
                         }`}>
                           {parseFloat(submission.percentage) >= 40 ? (
                             <><CheckCircle className="w-3 h-3" /> <span className="hidden sm:inline">Pass</span></>
@@ -296,19 +294,19 @@ const QuizResultsViewer = () => {
                         </span>
                       </td>
                       <td className="hidden sm:table-cell px-6 py-4">
-                        <span className="font-semibold text-gray-900 text-sm">
+                        <span className="font-semibold text-ink text-sm">
                           {submission.score}/{submission.totalQuestions}
                         </span>
                       </td>
                       <td className="hidden lg:table-cell px-6 py-4">
-                        <span className={`font-semibold ${
-                          parseFloat(submission.percentage) >= 40 ? 'text-green-600' : 'text-red-600'
+                        <span className={`font-bold ${
+                          parseFloat(submission.percentage) >= 40 ? 'text-green-600 dark:text-green-400' : 'text-rose-600 dark:text-rose-450'
                         }`}>
                           {submission.percentage?.toFixed(2)}%
                         </span>
                       </td>
                       <td className="hidden lg:table-cell px-6 py-4">
-                        <span className="text-sm text-gray-600">
+                        <span className="text-sm text-ink-soft">
                           {new Date(submission.submittedAt).toLocaleString('en-US', {
                             month: 'short',
                             day: 'numeric',
@@ -320,7 +318,7 @@ const QuizResultsViewer = () => {
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
                         <button
                           onClick={() => handleViewStudent(submission)}
-                          className="px-2 sm:px-4 py-2 bg-purple-600 text-white text-xs sm:text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors cursor-pointer whitespace-nowrap"
+                          className="px-3 py-1.5 btn-settings-blue text-xs font-bold rounded-xl transition-colors cursor-pointer whitespace-nowrap"
                         >
                           View
                         </button>

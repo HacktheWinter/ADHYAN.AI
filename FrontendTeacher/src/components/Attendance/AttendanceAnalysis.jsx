@@ -130,16 +130,16 @@ const AttendanceAnalysis = ({ classId, students }) => {
 
   if (loading) {
      return (
-        <div className="flex flex-col justify-center items-center min-h-[400px] bg-white rounded-3xl border border-gray-100 shadow-sm">
-            <div className="w-12 h-12 border-4 border-purple-100 border-t-purple-600 rounded-full animate-spin mb-4 shadow-sm" />
-            <p className="text-gray-500 font-medium">Analyzing attendance data...</p>
+        <div className="flex flex-col justify-center items-center min-h-[400px] bg-surface rounded-3xl border border-line shadow-sm">
+            <div className="w-12 h-12 border-4 border-violet-100 border-t-violet-dark rounded-full animate-spin mb-4 shadow-sm" />
+            <p className="text-ink-soft font-medium">Analyzing attendance data...</p>
         </div>
      );
   }
 
   if (error) {
      return (
-        <div className="bg-red-50 text-red-700 p-6 rounded-2xl shadow-sm font-medium border border-red-100">
+        <div className="bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350 p-6 rounded-2xl shadow-sm font-bold border border-line">
             {error}
         </div>
      );
@@ -148,32 +148,32 @@ const AttendanceAnalysis = ({ classId, students }) => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Top Banner / Stats */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-surface p-6 rounded-2xl shadow-sm border border-line gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 border border-purple-200">
+          <div className="w-14 h-14 rounded-full bg-violet-50 text-violet-dark border border-line flex items-center justify-center">
             <TrendingUp className="w-7 h-7" />
           </div>
           <div>
-            <h2 className="text-2xl font-extrabold text-gray-800">Attendance Analysis</h2>
-            <p className="text-sm text-gray-500">Visual breakdown of classroom attendance patterns</p>
+            <h2 className="text-2xl font-semibold font-display text-ink">Attendance Analysis</h2>
+            <p className="text-sm text-ink-soft">Visual breakdown of classroom attendance patterns</p>
           </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 w-full md:w-auto">
-            <div className="flex flex-col items-center bg-purple-50 rounded-xl px-6 py-3 border border-purple-100 min-w-[140px] w-full sm:w-auto">
-                <span className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-1">Avg Attendance</span>
-                <span className="text-3xl font-black text-purple-700">{avgAttendance}%</span>
+            <div className="flex flex-col items-center bg-violet-50 rounded-xl px-6 py-3 border border-line min-w-[140px] w-full sm:w-auto">
+                <span className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">Avg Attendance</span>
+                <span className="text-3xl font-black text-violet-dark font-display">{avgAttendance}%</span>
             </div>
             
-            <div className="flex bg-gray-100 p-1 rounded-xl overflow-x-auto hide-scrollbar max-w-full">
+            <div className="flex bg-paper border border-line p-1 rounded-xl overflow-x-auto hide-scrollbar max-w-full">
                 {["daily", "weekly", "monthly", "yearly"].map(filter => (
                     <button
                         key={filter}
                         onClick={() => setTimeFilter(filter)}
                         className={`px-4 py-2 text-sm font-bold rounded-lg capitalize whitespace-nowrap transition-all duration-200 cursor-pointer ${
                             timeFilter === filter
-                            ? "bg-white text-purple-700 shadow-sm"
-                            : "text-gray-500 hover:text-gray-700"
+                            ? "bg-surface text-violet-dark border border-line shadow-sm"
+                            : "text-ink-soft hover:text-ink"
                         }`}
                     >
                         {filter}
@@ -184,19 +184,19 @@ const AttendanceAnalysis = ({ classId, students }) => {
       </div>
 
       {sessions.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-gray-100 shadow-sm flex flex-col items-center justify-center">
-             <Activity className="w-16 h-16 text-gray-300 mb-4" />
-             <h3 className="text-xl font-bold text-gray-700">No Data Available</h3>
-             <p className="text-gray-500 mt-2">There are no recorded attendance sessions to analyze yet.</p>
+          <div className="bg-surface rounded-2xl p-12 text-center border border-line shadow-sm flex flex-col items-center justify-center">
+             <Activity className="w-16 h-16 text-ink-soft opacity-30 mb-4" />
+             <h3 className="text-xl font-semibold font-display text-ink">No Data Available</h3>
+             <p className="text-ink-soft mt-2">There are no recorded attendance sessions to analyze yet.</p>
           </div>
       ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Main Bar Chart */}
-            <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+            <div className="lg:col-span-2 bg-surface p-6 rounded-2xl shadow-sm border border-line flex flex-col">
                 <div className="flex items-center gap-2 mb-6">
-                    <BarChart2 className="w-5 h-5 text-purple-600" />
-                    <h3 className="text-lg font-bold text-gray-800">Attendance Frequency</h3>
+                    <BarChart2 className="w-5 h-5 text-violet-dark" />
+                    <h3 className="text-lg font-semibold font-display text-ink">Attendance Frequency</h3>
                 </div>
                 <div className="flex-1 w-full min-h-[550px] relative">
                     <style>{`
@@ -204,7 +204,7 @@ const AttendanceAnalysis = ({ classId, students }) => {
                             height: 10px;
                         }
                         .custom-chart-scrollbar::-webkit-scrollbar-button:single-button {
-                            background-color: #f3f4f6;
+                            background-color: var(--paper);
                             display: block;
                             border-style: solid;
                             height: 10px;
@@ -212,32 +212,49 @@ const AttendanceAnalysis = ({ classId, students }) => {
                         }
                         .custom-chart-scrollbar::-webkit-scrollbar-button:single-button:horizontal:decrement {
                             border-width: 5px 8px 5px 0;
-                            border-color: transparent #9ca3af transparent transparent;
+                            border-color: transparent var(--ink-soft) transparent transparent;
                         }
                         .custom-chart-scrollbar::-webkit-scrollbar-button:single-button:horizontal:decrement:hover {
-                            border-color: transparent #4b5563 transparent transparent;
+                            border-color: transparent var(--ink) transparent transparent;
                         }
                         .custom-chart-scrollbar::-webkit-scrollbar-button:single-button:horizontal:increment {
                             border-width: 5px 0 5px 8px;
-                            border-color: transparent transparent transparent #9ca3af;
+                            border-color: transparent transparent transparent var(--ink-soft);
                         }
                         .custom-chart-scrollbar::-webkit-scrollbar-button:single-button:horizontal:increment:hover {
-                            border-color: transparent transparent transparent #4b5563;
+                            border-color: transparent transparent transparent var(--ink);
                         }
                         .custom-chart-scrollbar::-webkit-scrollbar-track {
-                            background: #f3f4f6;
+                            background: var(--paper);
                             border-radius: 4px;
                         }
                         .custom-chart-scrollbar::-webkit-scrollbar-thumb {
-                            background: #9ca3af;
+                            background: var(--line);
                             border-radius: 4px;
                         }
                         .custom-chart-scrollbar::-webkit-scrollbar-thumb:hover {
-                            background: #6b7280;
+                            background: var(--ink-soft);
                         }
                         .custom-chart-scrollbar {
                             scrollbar-width: thin;
-                            scrollbar-color: #9ca3af #f3f4f6;
+                            scrollbar-color: var(--line) var(--paper);
+                        }
+                        /* Recharts SVG theme overrides */
+                        .recharts-cartesian-axis-tick text {
+                            fill: var(--ink-soft) !important;
+                        }
+                        .recharts-label {
+                            fill: var(--ink-soft) !important;
+                        }
+                        .recharts-legend-item-text {
+                            color: var(--ink) !important;
+                        }
+                        .recharts-default-tooltip {
+                            background-color: var(--surface) !important;
+                            border-color: var(--line) !important;
+                        }
+                        .recharts-tooltip-label {
+                            color: var(--ink) !important;
                         }
                     `}</style>
                     <div className="custom-chart-scrollbar w-full overflow-x-auto overflow-y-hidden pb-4" style={{ minHeight: 550 }}>
@@ -259,29 +276,31 @@ const AttendanceAnalysis = ({ classId, students }) => {
                                             <stop offset="100%" stopColor="#DC2626" stopOpacity={0.6} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#E5E7EB" />
-                                    <XAxis 
+                                    <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--line)" />
+                                     <XAxis 
                                         dataKey="name" 
-                                        axisLine={{ stroke: '#E5E7EB' }} 
+                                        axisLine={{ stroke: 'var(--line)' }} 
                                         tickLine={false} 
-                                        tick={{ fill: '#6B7280', fontSize: 13, fontWeight: 600 }} 
+                                        tick={{ fill: 'currentColor', fontSize: 13, fontWeight: 600 }} 
                                         dy={15} 
                                         interval={0}
-                                        label={{ value: 'TIMELINE PERIOD', position: 'bottom', offset: 25, fill: '#9CA3AF', fontSize: 13, fontWeight: 700, letterSpacing: '0.05em' }}
+                                        className="text-ink-soft font-medium"
+                                        label={{ value: 'TIMELINE PERIOD', position: 'bottom', offset: 25, fill: 'currentColor', fontSize: 13, fontWeight: 700, letterSpacing: '0.05em', className: 'text-ink-soft font-bold' }}
                                     />
                                     <YAxis 
-                                        axisLine={{ stroke: '#E5E7EB' }} 
+                                        axisLine={{ stroke: 'var(--line)' }} 
                                         tickLine={false} 
                                         allowDecimals={false}
                                         domain={[0, dataMax => Math.max(dataMax, 5)]}
                                         tickCount={6}
-                                        tick={{ fill: '#6B7280', fontSize: 13, fontWeight: 600 }} 
+                                        tick={{ fill: 'currentColor', fontSize: 13, fontWeight: 600 }} 
                                         dx={-10}
-                                        label={{ value: 'STUDENT COUNT', angle: -90, position: 'insideLeft', offset: -15, fill: '#9CA3AF', fontSize: 13, fontWeight: 700, letterSpacing: '0.05em' }}
+                                        className="text-ink-soft font-medium"
+                                        label={{ value: 'STUDENT COUNT', angle: -90, position: 'insideLeft', offset: -15, fill: 'currentColor', fontSize: 13, fontWeight: 700, letterSpacing: '0.05em', className: 'text-ink-soft font-bold' }}
                                     />
                                     <Tooltip 
-                                        cursor={{ fill: '#F3F4F6', opacity: 0.4 }}
-                                        contentStyle={{ borderRadius: '14px', border: '1px solid #F3F4F6', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }}
+                                        cursor={{ fill: 'var(--line)', opacity: 0.4 }}
+                                        contentStyle={{ borderRadius: '14px', border: '1px solid var(--line)', backgroundColor: 'var(--surface)', color: 'var(--ink)', padding: '12px' }}
                                     />
                                     <Legend iconType="circle" wrapperStyle={{ paddingBottom: '30px' }} verticalAlign="top" />
                                     <Bar dataKey="Present" fill="url(#colorPresent)" radius={[6, 6, 0, 0]} maxBarSize={45} />
@@ -295,10 +314,10 @@ const AttendanceAnalysis = ({ classId, students }) => {
 
             {/* Side Panel: Pie Chart & Details */}
             <div className="flex flex-col gap-6">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex-1 flex flex-col">
+                <div className="bg-surface p-6 rounded-2xl shadow-sm border border-line flex-1 flex flex-col">
                     <div className="flex items-center gap-2 mb-4">
-                        <PieChartIcon className="w-5 h-5 text-purple-600" />
-                        <h3 className="text-lg font-bold text-gray-800">Distribution</h3>
+                        <PieChartIcon className="w-5 h-5 text-violet-dark" />
+                        <h3 className="text-lg font-semibold font-display text-ink">Distribution</h3>
                     </div>
                     <div className="flex-1 w-full min-h-[200px] flex justify-center items-center">
                         <ResponsiveContainer width="100%" height={220}>
@@ -323,31 +342,31 @@ const AttendanceAnalysis = ({ classId, students }) => {
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
-                    <div className="flex justify-center gap-6 mt-4 pt-4 border-t border-gray-50">
+                    <div className="flex justify-center gap-6 mt-4 pt-4 border-t border-line">
                         <div className="flex flex-col items-center">
                             <div className="flex items-center gap-1.5 mb-1">
                                 <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                                <span className="text-xs text-gray-500 font-medium">Present</span>
+                                <span className="text-xs text-ink-soft font-bold">Present</span>
                             </div>
-                            <span className="text-xl font-bold text-gray-800">{summary.present}</span>
+                            <span className="text-xl font-bold font-display text-ink">{summary.present}</span>
                         </div>
                         <div className="flex flex-col items-center">
                             <div className="flex items-center gap-1.5 mb-1">
                                 <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                                <span className="text-xs text-gray-500 font-medium">Absent</span>
+                                <span className="text-xs text-ink-soft font-bold">Absent</span>
                             </div>
-                            <span className="text-xl font-bold text-gray-800">{summary.absent}</span>
+                            <span className="text-xl font-bold font-display text-ink">{summary.absent}</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-600 to-indigo-700 p-6 rounded-2xl shadow-md text-white">
-                    <h3 className="font-bold text-lg mb-2">Insight Summary</h3>
-                    <p className="text-purple-100 text-sm leading-relaxed opacity-90">
+                <div className="bg-gradient-to-br from-violet-600 to-indigo-700 p-6 rounded-2xl shadow-md text-white">
+                    <h3 className="font-bold text-lg mb-2 font-display">Insight Summary</h3>
+                    <p className="text-white/90 text-sm leading-relaxed opacity-95">
                         Based on {timeFilter} records, the attendance rate is {avgAttendance}%.
                         {parseFloat(avgAttendance) < 75 ? " This is below the recommended threshold. Consider reaching out to absentees." : " Excellent rate, keep up the engagement!"}
                     </p>
-                    <div className="mt-4 flex items-center gap-2 text-xs font-medium text-purple-200 bg-black/10 w-fit px-3 py-1.5 rounded-lg border border-white/10">
+                    <div className="mt-4 flex items-center gap-2 text-xs font-bold text-white/95 bg-white/10 w-fit px-3 py-1.5 rounded-xl border border-white/20">
                         <Calendar className="w-3 h-3" />
                          Total classes: {sessions.length}
                     </div>
