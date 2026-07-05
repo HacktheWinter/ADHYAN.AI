@@ -233,51 +233,58 @@ const PhysicalTestResultsPage = () => {
     parse_error: "AI returned unexpected response — result may be incomplete",
     timeout: "Evaluation took too long — marked for manual review",
   };
-
-  // ── Status badge helper ───────────────────────────────────────────
-  const getStatusBadge = (status, errorType) => {
-    if (status === "checked") return <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800"><CheckCircle className="w-3 h-3" />Checked</span>;
-    if (status === "checking") return <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800"><Loader className="w-3 h-3 animate-spin" />Checking</span>;
-    if (status === "needs_review") return <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800"><AlertTriangle className="w-3 h-3" />Needs Review</span>;
-    if (status === "failed") {
-      const style = errorStyles[errorType] || errorStyles.network_error;
-      return <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${style.badge}`}><XCircle className="w-3 h-3" />{style.label}</span>;
-    }
-    return <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3" />Pending</span>;
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader className="w-10 h-10 text-purple-600 animate-spin" />
+      <div className="min-h-screen bg-paper flex items-center justify-center font-body text-ink">
+        <Loader className="w-10 h-10 text-violet-dark animate-spin" />
       </div>
     );
   }
 
+  // Connect dark/light customized error styles
+  const darkErrorStyles = {
+    illegible: { bg: "bg-amber-500/10", border: "border-amber-500/40", text: "text-amber-600 dark:text-amber-300", badge: "bg-amber-100 dark:bg-amber-955/40 text-amber-800 dark:text-amber-300 border border-line", label: "Handwriting Unclear" },
+    network_error: { bg: "bg-rose-500/10", border: "border-rose-500/40", text: "text-rose-600 dark:text-rose-350", badge: "bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350 border border-line", label: "Network Error" },
+    quota_exceeded: { bg: "bg-rose-500/10", border: "border-rose-500/40", text: "text-rose-600 dark:text-rose-350", badge: "bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350 border border-line", label: "API Quota" },
+    parse_error: { bg: "bg-orange-500/10", border: "border-orange-500/40", text: "text-orange-600 dark:text-orange-300", badge: "bg-orange-100 dark:bg-orange-955/40 text-orange-800 dark:text-orange-300 border border-line", label: "Parse Failed" },
+    timeout: { bg: "bg-amber-500/10", border: "border-amber-500/40", text: "text-amber-600 dark:text-amber-300", badge: "bg-amber-100 dark:bg-amber-955/40 text-amber-800 dark:text-amber-300 border border-line", label: "Timeout" },
+  };
+
+  const customizedStatusBadge = (status, errorType) => {
+    if (status === "checked") return <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300 border border-line"><CheckCircle className="w-3 h-3" />Checked</span>;
+    if (status === "checking") return <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-955/40 text-blue-800 dark:text-blue-300 border border-line"><Loader className="w-3 h-3 animate-spin" />Checking</span>;
+    if (status === "needs_review") return <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-line"><AlertTriangle className="w-3 h-3" />Needs Review</span>;
+    if (status === "failed") {
+      const style = darkErrorStyles[errorType] || darkErrorStyles.network_error;
+      return <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold ${style.badge}`}><XCircle className="w-3 h-3" />{style.label}</span>;
+    }
+    return <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-line text-ink-soft border border-line"><Clock className="w-3 h-3" />Pending</span>;
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-paper font-body text-ink">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
 
         {/* Header */}
         <div className="mb-6">
           <button
             onClick={() => navigate(`/class/${classId}/test-papers`)}
-            className="flex items-center gap-2 text-purple-600 hover:text-purple-700 mb-4 cursor-pointer font-medium"
+            className="flex items-center gap-2 text-violet-dark hover:opacity-80 font-bold transition-all mb-4 cursor-pointer text-sm"
           >
             <ArrowLeft className="w-5 h-5" />
             Back to Test Papers
           </button>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Physical Paper Results</h1>
-              <p className="text-gray-500 text-sm mt-0.5">{submissions.length} total submission(s) across all tests</p>
+              <h1 className="text-2xl font-semibold font-display text-ink">Physical Paper Results</h1>
+              <p className="text-ink-soft text-sm mt-0.5">{submissions.length} total submission(s) across all tests</p>
             </div>
             <div className="flex items-center gap-3">
               {titles.length > 1 && (
                 <select
                   value={selectedTitle}
                   onChange={e => setSelectedTitle(e.target.value)}
-                  className="border border-gray-300 rounded-xl px-4 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none cursor-pointer"
+                  className="border border-line rounded-xl px-4 py-2 text-sm bg-surface text-ink focus:ring-2 focus:ring-violet-dark outline-none cursor-pointer font-semibold"
                 >
                   {titles.map(t => (
                     <option key={t} value={t}>{t === "all" ? "All Tests" : t}</option>
@@ -287,8 +294,8 @@ const PhysicalTestResultsPage = () => {
               {/* Start AI Checking button */}
               {pendingCount > 0 && !isChecking && (
                 <button
-                  onClick={handleStartChecking}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg cursor-pointer text-sm"
+                  onClick={() => handleStartChecking()}
+                  className="flex items-center gap-2 px-5 py-2.5 btn-settings-blue font-bold rounded-xl transition-all shadow-lg cursor-pointer text-sm"
                 >
                   <Sparkles className="w-4 h-4" />
                   Start AI Checking ({pendingCount})
@@ -302,25 +309,25 @@ const PhysicalTestResultsPage = () => {
             REAL-TIME PROGRESS CARD (visible during checking)
         ═══════════════════════════════════════════════════════════════ */}
         {isChecking && (
-          <div className="bg-white rounded-2xl border border-purple-200 shadow-lg mb-6 overflow-hidden">
+          <div className="bg-surface rounded-2xl border border-line shadow-lg mb-6 overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-100">
+            <div className="flex items-center justify-between px-6 py-4 bg-paper border-b border-line">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                <h3 className="font-semibold text-gray-900">AI Checking in Progress</h3>
-                <span className="text-sm text-gray-500">{progress.checkedCount} / {progress.totalCount}</span>
+                <h3 className="font-semibold font-display text-ink">AI Checking in Progress</h3>
+                <span className="text-sm text-ink-soft font-semibold">{progress.checkedCount} / {progress.totalCount}</span>
               </div>
               {/* Stop button */}
               {!stopRequested ? (
                 <button
                   onClick={() => setShowStopConfirm(true)}
-                  className="flex items-center gap-2 px-4 py-2 border-2 border-red-300 text-red-600 font-semibold rounded-xl hover:bg-red-50 transition cursor-pointer text-sm"
+                  className="flex items-center gap-2 px-4 py-2 border border-rose-300 text-rose-600 font-bold rounded-xl hover:bg-rose-50/20 transition cursor-pointer text-sm"
                 >
                   <StopCircle className="w-4 h-4" />
                   Stop Checking
                 </button>
               ) : (
-                <span className="flex items-center gap-2 px-4 py-2 text-amber-600 text-sm font-medium">
+                <span className="flex items-center gap-2 px-4 py-2 text-amber-600 text-sm font-bold">
                   <Loader className="w-4 h-4 animate-spin" />
                   Stopping after current student…
                 </span>
@@ -329,54 +336,54 @@ const PhysicalTestResultsPage = () => {
 
             {/* Progress bar */}
             <div className="px-6 pt-4">
-              <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+              <div className="w-full h-3 bg-paper border border-line rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all duration-700 ease-out"
+                  className="h-full bg-violet-dark rounded-full transition-all duration-700 ease-out"
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
-              <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+              <div className="flex items-center justify-between mt-2 text-xs text-ink-soft font-semibold">
                 <span>{progressPct}% complete</span>
                 <div className="flex items-center gap-4">
-                  <span className="text-green-600">✓ {progress.checkedCount - progress.failedCount} checked</span>
-                  {progress.failedCount > 0 && <span className="text-red-500">✗ {progress.failedCount} failed</span>}
-                  {progress.needsReviewCount > 0 && <span className="text-amber-500">⚠ {progress.needsReviewCount} review</span>}
+                  <span className="text-green-600 dark:text-green-300">✓ {progress.checkedCount - progress.failedCount} checked</span>
+                  {progress.failedCount > 0 && <span className="text-rose-600 dark:text-rose-455">✗ {progress.failedCount} failed</span>}
+                  {progress.needsReviewCount > 0 && <span className="text-orange-600 dark:text-orange-400">⚠ {progress.needsReviewCount} review</span>}
                 </div>
               </div>
             </div>
 
             {/* Currently checking */}
             {progress.currentStudent && (
-              <div className="flex items-center gap-3 px-6 py-3 mt-2 mx-6 bg-blue-50 border border-blue-100 rounded-xl">
+              <div className="flex items-center gap-3 px-6 py-3 mt-2 mx-6 bg-blue-50/50 border border-blue-200/40 text-blue-800 dark:text-blue-300 rounded-xl">
                 <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse" />
-                <span className="text-sm text-blue-800 font-medium">Currently checking:</span>
-                <span className="text-sm text-blue-900 font-semibold">{progress.currentStudent}</span>
+                <span className="text-sm text-blue-800 dark:text-blue-300 font-bold">Currently checking:</span>
+                <span className="text-sm text-blue-900 dark:text-blue-250 font-extrabold">{progress.currentStudent}</span>
               </div>
             )}
 
             {/* Recent results feed */}
             {progress.recentResults.length > 0 && (
               <div className="px-6 py-4 space-y-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Recent Results</p>
+                <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-2">Recent Results</p>
                 {progress.recentResults.map((result, i) => {
                   if (result.status === "failed" || result.errorType) {
-                    const errStyle = errorStyles[result.errorType] || errorStyles.network_error;
+                    const errStyle = darkErrorStyles[result.errorType] || darkErrorStyles.network_error;
                     return (
-                      <div key={i} className={`flex items-center gap-3 p-3 ${errStyle.bg} border-l-4 ${errStyle.border} rounded-lg animate-slideIn`}>
+                      <div key={i} className={`flex items-center gap-3 p-3 ${errStyle.bg} border-l-4 ${errStyle.border} rounded-xl animate-slideIn`}>
                         <XCircle className={`w-4 h-4 ${errStyle.text} flex-shrink-0`} />
-                        <span className="text-sm font-medium text-gray-800 flex-1">{result.studentName}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${errStyle.badge}`}>{errStyle.label}</span>
+                        <span className="text-sm font-semibold text-ink flex-1">{result.studentName}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${errStyle.badge}`}>{errStyle.label}</span>
                       </div>
                     );
                   }
 
-                  const pctColor = result.pct >= 75 ? "bg-green-100 text-green-700" : result.pct >= 40 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700";
+                  const pctColor = result.pct >= 75 ? "bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300" : result.pct >= 40 ? "bg-amber-50 text-amber-800" : "bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350";
                   return (
-                    <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-lg animate-slideIn">
+                    <div key={i} className="flex items-center gap-3 p-3 bg-paper border border-line rounded-xl animate-slideIn">
                       <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                      <span className="text-sm font-medium text-gray-800 flex-1">{result.studentName}</span>
-                      <span className="text-sm font-semibold text-gray-700">{result.marks}/{result.total}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${pctColor}`}>{result.pct}%</span>
+                      <span className="text-sm font-semibold text-ink flex-1">{result.studentName}</span>
+                      <span className="text-sm font-bold text-ink-soft">{result.marks}/{result.total}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold border border-line ${pctColor}`}>{result.pct}%</span>
                       {result.needsReview && <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />}
                     </div>
                   );
@@ -384,9 +391,9 @@ const PhysicalTestResultsPage = () => {
 
                 {/* Bouncing dots loader */}
                 <div className="flex items-center justify-center gap-1.5 py-4">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <div className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <div className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <div className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
               </div>
             )}
@@ -396,21 +403,21 @@ const PhysicalTestResultsPage = () => {
         {/* Stop Confirmation Dialog */}
         {showStopConfirm && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Stop AI Checking?</h3>
-              <p className="text-sm text-gray-600 mb-6">
+            <div className="bg-surface border border-line rounded-2xl p-6 max-w-md w-full shadow-2xl">
+              <h3 className="text-lg font-bold text-ink mb-2">Stop AI Checking?</h3>
+              <p className="text-sm text-ink-soft mb-6">
                 Checking will stop after the current student finishes. Results checked so far will be saved. You can resume checking later.
               </p>
               <div className="flex items-center gap-3 justify-end">
                 <button
                   onClick={() => setShowStopConfirm(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition cursor-pointer"
+                  className="px-4 py-2 text-sm font-bold text-ink bg-paper border border-line rounded-xl hover:bg-line transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleStopChecking}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition cursor-pointer"
+                  className="px-4 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition cursor-pointer"
                 >
                   Stop Checking
                 </button>
@@ -423,15 +430,15 @@ const PhysicalTestResultsPage = () => {
         {filtered.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
             {[
-              { label: "Total", value: filtered.length, color: "text-purple-600" },
-              { label: "Checked", value: checkedSubs.length, color: "text-green-600" },
-              { label: "Pending", value: pendingCount, color: "text-yellow-600" },
-              { label: "Failed", value: failedSubs.length, color: "text-red-500" },
-              { label: "Avg Score", value: `${avgScore}%`, color: "text-blue-600" },
+              { label: "Total", value: filtered.length, color: "text-violet-dark" },
+              { label: "Checked", value: checkedSubs.length, color: "text-green-600 dark:text-green-400" },
+              { label: "Pending", value: pendingCount, color: "text-orange-500 dark:text-orange-400" },
+              { label: "Failed", value: failedSubs.length, color: "text-rose-600 dark:text-rose-455" },
+              { label: "Avg Score", value: `${avgScore}%`, color: "text-blue-600 dark:text-blue-400" },
             ].map(stat => (
-              <div key={stat.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                <div className={`text-2xl font-bold ${stat.color} mb-1`}>{stat.value}</div>
-                <div className="text-xs text-gray-500">{stat.label}</div>
+              <div key={stat.label} className="bg-surface rounded-2xl border border-line p-4 shadow-sm">
+                <div className={`text-2xl font-black font-display ${stat.color} mb-1`}>{stat.value}</div>
+                <div className="text-xs text-ink-soft font-semibold">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -439,67 +446,67 @@ const PhysicalTestResultsPage = () => {
 
         {/* Table or Empty */}
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
-            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 font-medium text-lg">No submissions yet</p>
+          <div className="bg-surface rounded-2xl border border-line p-12 text-center shadow-sm animate-fade-in">
+            <FileText className="w-16 h-16 text-ink-soft opacity-30 mx-auto mb-4" />
+            <p className="text-ink-soft font-semibold font-display text-lg">No submissions yet</p>
             <button
               onClick={() => navigate(`/class/${classId}/test-papers/upload-physical`)}
-              className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition cursor-pointer"
+              className="mt-4 px-6 py-3 btn-settings-blue text-sm rounded-xl font-bold transition cursor-pointer"
             >
               Upload Papers
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="bg-surface rounded-2xl border border-line shadow-sm overflow-hidden animate-fade-in">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-paper border-b border-line">
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Test</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Score</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">%</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-ink-soft uppercase tracking-wider">Student</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-ink-soft uppercase tracking-wider">Test</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-ink-soft uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-ink-soft uppercase tracking-wider">Score</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-ink-soft uppercase tracking-wider">%</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-ink-soft uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-line">
                   {filtered.map(sub => (
-                    <tr key={sub._id} className={`hover:bg-gray-50 transition-colors ${sub.status === "failed" ? "bg-red-50/30" : ""}`}>
+                    <tr key={sub._id} className={`hover:bg-line/20 transition-colors ${sub.status === "failed" ? "bg-rose-500/5" : ""}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                            <User className="w-4 h-4 text-purple-600" />
+                          <div className="w-9 h-9 rounded-full bg-violet-50 text-violet-dark border border-line flex items-center justify-center flex-shrink-0 font-bold font-display">
+                            {sub.studentName?.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-900 text-sm">{sub.studentName}</div>
-                            <div className="text-xs text-gray-400">
+                            <div className="font-semibold text-ink text-sm">{sub.studentName}</div>
+                            <div className="text-xs text-ink-soft">
                               {new Date(sub.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-gray-700 font-medium">{sub.testTitle || "—"}</span>
+                        <span className="text-sm text-ink font-medium">{sub.testTitle || "—"}</span>
                       </td>
                       <td className="px-6 py-4">
-                        {getStatusBadge(sub.status, sub.errorType)}
-                      </td>
-                      <td className="px-6 py-4">
-                        {(sub.status === "checked" || sub.status === "needs_review")
-                          ? <span className="font-semibold text-gray-900 text-sm">{sub.marksObtained}/{sub.totalMarks}</span>
-                          : <span className="text-gray-400">—</span>}
+                        {customizedStatusBadge(sub.status, sub.errorType)}
                       </td>
                       <td className="px-6 py-4">
                         {(sub.status === "checked" || sub.status === "needs_review")
-                          ? <span className={`font-semibold text-sm ${sub.percentage >= 40 ? "text-green-600" : "text-red-500"}`}>{sub.percentage}%</span>
-                          : <span className="text-gray-400">—</span>}
+                          ? <span className="font-semibold text-ink text-sm">{sub.marksObtained}/{sub.totalMarks}</span>
+                          : <span className="text-ink-soft">—</span>}
+                      </td>
+                      <td className="px-6 py-4">
+                        {(sub.status === "checked" || sub.status === "needs_review")
+                          ? <span className={`font-semibold text-sm ${sub.percentage >= 40 ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-455"}`}>{sub.percentage}%</span>
+                          : <span className="text-ink-soft">—</span>}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => navigate(`/class/${classId}/test-papers/physical-results/${sub._id}`)}
-                            className="px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition cursor-pointer"
+                            className="px-3 py-1.5 btn-settings-blue text-xs rounded-xl font-bold transition cursor-pointer"
                           >
                             View
                           </button>
@@ -507,7 +514,7 @@ const PhysicalTestResultsPage = () => {
                             href={getPhysicalSubmissionPDFUrl(sub._id)}
                             target="_blank"
                             rel="noreferrer"
-                            className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition cursor-pointer"
+                            className="px-3 py-1.5 btn-settings-purple text-xs rounded-xl font-bold transition cursor-pointer"
                           >
                             PDF
                           </a>

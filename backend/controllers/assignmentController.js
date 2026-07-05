@@ -353,12 +353,12 @@ export const publishAssignment = async (req, res) => {
     void (async () => {
       try {
         const classroom = await Classroom.findById(assignment.classroomId)
-          .populate("students", "name email")
+          .populate("students", "name email settings")
           .populate("teacherId", "name");
         if (!classroom) return;
 
         let students = (classroom.students || [])
-          .filter((student) => student?.email)
+          .filter((student) => student?.email && student?.settings?.emailNotifications === true)
           .map((student) => ({ name: student.name, email: student.email }));
 
         // Fallback: resolve users by raw ObjectIds if populate did not return docs.
@@ -371,6 +371,7 @@ export const publishAssignment = async (req, res) => {
             const studentDocs = await User.find({
               _id: { $in: studentIds },
               role: "student",
+              "settings.emailNotifications": true,
             }).select("name email");
 
             students = studentDocs

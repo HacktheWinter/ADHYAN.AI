@@ -153,37 +153,37 @@ const LiveMeeting = ({ classId }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+    <div className="bg-surface rounded-2xl border border-line shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="p-4 sm:p-6 border-b border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+      <div className="p-4 sm:p-6 border-b border-line bg-surface flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
         <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
           <div className="p-2 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-md">
             <Video size={20} className="sm:w-6 sm:h-6" />
           </div>
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+            <h2 className="text-lg sm:text-xl font-bold text-ink">
               Broadcast Control
             </h2>
             <div className="flex flex-wrap justify-center sm:justify-start items-center gap-2 mt-1">
               {isLive ? (
-                <div className="flex items-center gap-1.5 bg-red-50 text-red-600 px-3 py-1 rounded-full border border-red-100">
+                <div className="flex items-center gap-1.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 px-3 py-1 rounded-full border border-rose-500/20">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-650"></span>
                   </span>
                   <span className="text-xs font-bold uppercase tracking-wider">
                     On Air
                   </span>
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5 bg-gray-100 text-gray-500 px-3 py-1 rounded-full border border-gray-200">
-                  <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                <div className="flex items-center gap-1.5 bg-paper text-ink-soft px-3 py-1 rounded-full border border-line">
+                  <span className="w-2 h-2 bg-ink-soft/60 rounded-full"></span>
                   <span className="text-xs font-bold uppercase tracking-wider">
                     Offline
                   </span>
                 </div>
               )}
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-ink-soft/40 uppercase tracking-wider">
                 • Class ID: {classId.slice(-6)}
               </span>
             </div>
@@ -195,7 +195,7 @@ const LiveMeeting = ({ classId }) => {
             <button
               onClick={handleStart}
               disabled={loading}
-              className="w-full sm:w-auto flex flex-1 items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full sm:w-auto flex flex-1 items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-emerald-500/10 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={20} />
@@ -208,7 +208,7 @@ const LiveMeeting = ({ classId }) => {
             <button
               onClick={handleEnd}
               disabled={loading}
-              className="w-full sm:w-auto flex flex-1 items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full sm:w-auto flex flex-1 items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-rose-500/10 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={20} />
@@ -222,14 +222,14 @@ const LiveMeeting = ({ classId }) => {
       </div>
 
       {/* Video Container */}
-      <div className="p-4 sm:p-6 bg-gray-50">
+      <div className="p-4 sm:p-6 bg-paper/40">
         <div
           ref={jitsiContainerRef}
           style={{ height: isLive ? "60vh" : "40vh" }} // Slightly reduced for mobile
           className={`w-full rounded-xl transition-all ${
             !isLive
-              ? "bg-white border-2 border-dashed border-gray-300 flex flex-col items-center justify-center min-h-[300px]"
-              : "bg-black border border-gray-900 min-h-[400px]"
+              ? "bg-surface border-2 border-dashed border-line flex flex-col items-center justify-center min-h-[300px]"
+              : "bg-black border border-neutral-900 min-h-[400px]"
           }`}
         >
           <AnimatePresence mode="wait">
@@ -242,13 +242,13 @@ const LiveMeeting = ({ classId }) => {
                 transition={{ duration: 0.2 }}
                 className="text-center p-6 sm:p-8"
               >
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Signal className="text-indigo-600" size={32} />
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-violet-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Signal className="text-violet-600 dark:text-violet-400" size={32} />
                 </div>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
+                <h3 className="text-lg sm:text-xl font-bold text-ink mb-2 font-display">
                   Ready to lead?
                 </h3>
-                <p className="text-sm sm:text-base text-gray-600 max-w-sm mx-auto">
+                <p className="text-sm sm:text-base text-ink-soft max-w-sm mx-auto">
                   Your classroom platform is primed and ready.
                 </p>
               </motion.div>
@@ -258,8 +258,8 @@ const LiveMeeting = ({ classId }) => {
       </div>
 
       {/* Footer */}
-      <div className="px-4 sm:px-6 py-3 sm:py-4 bg-white border-t border-gray-200">
-        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wider">
+      <div className="px-4 sm:px-6 py-3 sm:py-4 bg-surface border-t border-line">
+        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-[10px] sm:text-xs text-ink-soft font-semibold uppercase tracking-wider">
           <span className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500"></div>
             Encrypted Stream

@@ -24,6 +24,13 @@ const userSchema = new mongoose.Schema({
   section: { type: String, default: "" },
   erpId: { type: String, default: "", sparse: true },
   semester: { type: String, default: "" },
+
+  // Settings & Deactivation fields
+  status: { type: String, enum: ["active", "inactive"], default: "active" },
+  settings: {
+    normalNotifications: { type: Boolean, default: true },
+    emailNotifications: { type: Boolean, default: false }
+  }
 }, { timestamps: true });
 
 export default mongoose.model("User", userSchema);

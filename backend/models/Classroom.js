@@ -20,6 +20,7 @@ const classroomSchema = new mongoose.Schema({
   themeImage: { type: String, default: "" },
   themeId: { type: String, default: null },
   isLive: { type: Boolean, default: false },
+  isArchived: { type: Boolean, default: false }
 }, { timestamps: true });
 
 export default mongoose.model("Classroom", classroomSchema);

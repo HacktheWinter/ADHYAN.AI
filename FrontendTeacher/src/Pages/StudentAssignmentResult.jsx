@@ -107,20 +107,20 @@ const StudentAssignmentResult = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Loader className="w-12 h-12 text-purple-600 animate-spin" />
+      <div className="min-h-screen bg-paper flex items-center justify-center p-4 font-body text-ink">
+        <Loader className="w-12 h-12 text-violet-dark animate-spin" />
       </div>
     );
   }
 
   if (!submission || !assignment) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-paper flex items-center justify-center p-4 font-body text-ink">
         <div className="text-center">
-          <p className="text-gray-700 mb-4">Submission not found</p>
+          <p className="text-ink font-semibold font-display mb-4">Submission not found</p>
           <button
             onClick={() => navigate(`/class/${classId}/assignments/results/${assignmentId}`)}
-            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer"
+            className="px-6 py-3 btn-settings-blue text-sm rounded-xl font-bold transition cursor-pointer"
           >
             Back to Results
           </button>
@@ -130,13 +130,13 @@ const StudentAssignmentResult = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-paper font-body text-ink">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Back Button */}
         <div className="mb-4 sm:mb-6">
           <button
             onClick={() => navigate(`/class/${classId}/assignments/results/${assignmentId}`)}
-            className="flex items-center gap-2 text-purple-600 hover:text-purple-700 mb-4 cursor-pointer"
+            className="flex items-center gap-2 text-violet-dark hover:opacity-80 font-bold transition-all mb-4 cursor-pointer text-sm"
           >
             <ChevronLeft className="w-5 h-5" />
             <span className="text-sm sm:text-base">Back to All Results</span>
@@ -144,7 +144,7 @@ const StudentAssignmentResult = () => {
         </div>
 
         {/* Student Summary */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="bg-surface rounded-2xl border border-line p-4 sm:p-6 mb-4 sm:mb-6 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4">
             {/* Student Info */}
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
@@ -152,53 +152,53 @@ const StudentAssignmentResult = () => {
                 <img 
                   src={`${API_BASE_URL.replace('/api', '')}/${submission.studentId.profilePhoto}`}
                   alt={submission.studentName}
-                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0 border-2 border-purple-200"
+                  className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0 border border-line shadow-sm"
                   onError={() => setImageLoadError(true)}
                 />
               ) : (
-                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl sm:text-2xl flex-shrink-0">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-violet-50 text-violet-dark border border-line rounded-full flex items-center justify-center font-bold text-xl sm:text-2xl flex-shrink-0 font-display">
                   {submission.studentName?.charAt(0).toUpperCase()}
                 </div>
               )}
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
+                  <h1 className="text-lg sm:text-2xl font-semibold font-display text-ink truncate">
                     {submission.studentName}
                   </h1>
                   {submission.submissionType === 'pdf' && (
-                    <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-medium border border-purple-200">PDF</span>
+                    <span className="px-2 py-0.5 bg-violet-50 text-violet-dark text-xs rounded-full font-bold border border-line">PDF</span>
                   )}
                 </div>
-                <p className="text-xs sm:text-sm text-gray-500 break-words">
+                <p className="text-xs sm:text-sm text-ink-soft break-words">
                   Submitted: {new Date(submission.submittedAt).toLocaleString()}
                 </p>
-                <p className="text-xs sm:text-sm text-gray-600 mt-1 truncate">{assignment.title}</p>
+                <p className="text-xs sm:text-sm text-ink-soft mt-1 truncate font-medium">{assignment.title}</p>
               </div>
             </div>
 
             {/* Score Section */}
             <div className="w-full sm:w-auto text-left sm:text-right">
               <div className="flex items-center gap-2 mb-2">
-                <Award className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" />
-                <div className="text-2xl sm:text-3xl font-bold text-purple-600">
+                <Award className="w-6 h-6 sm:w-8 sm:h-8 text-violet-dark" />
+                <div className="text-2xl sm:text-3xl font-black font-display text-violet-dark">
                   {submission.marksObtained}/{submission.totalMarks}
                 </div>
               </div>
 
-              <p className="text-sm text-gray-500">{submission.percentage}%</p>
+              <p className="text-xs sm:text-sm text-ink-soft font-semibold">{submission.percentage}%</p>
 
               <div className="flex flex-wrap gap-2 mt-2">
                 <span
-                  className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                    submission.status === 'checked' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                  className={`inline-block px-3 py-1 rounded-full text-xs font-bold border border-line ${
+                    submission.status === 'checked' ? 'bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300' : 'bg-amber-50 text-amber-800'
                   }`}
                 >
                   {submission.status === 'checked' ? 'Checked' : 'Pending'}
                 </span>
 
                 {submission.isResultPublished && (
-                  <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">
+                  <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-violet-50 text-violet-dark border border-line">
                     Published
                   </span>
                 )}
@@ -207,8 +207,8 @@ const StudentAssignmentResult = () => {
           </div>
 
           {submission.status === 'checked' && submission.checkedAt && (
-            <div className="pt-4 border-t border-gray-200">
-              <p className="text-xs sm:text-sm text-gray-600">
+            <div className="pt-4 border-t border-line">
+              <p className="text-xs sm:text-sm text-ink-soft">
                 Checked on: {new Date(submission.checkedAt).toLocaleString()}
               </p>
             </div>
@@ -216,13 +216,13 @@ const StudentAssignmentResult = () => {
         </div>
 
         {submission.submissionType === 'pdf' && submission.pdfFileId && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-between">
+          <div className="bg-surface rounded-2xl border border-line p-4 sm:p-6 mb-4 sm:mb-6 flex items-center justify-between shadow-sm">
             <div>
-              <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <span className="text-purple-600">📄</span>
+              <h4 className="text-lg font-semibold font-display text-ink flex items-center gap-2">
+                <span className="text-violet-dark">📄</span>
                 Submitted PDF
               </h4>
-              <p className="text-gray-500 text-sm mt-1">Review the student's original uploaded document.</p>
+              <p className="text-ink-soft text-sm mt-1">Review the student's original uploaded document.</p>
             </div>
             <button
               onClick={async () => {
@@ -233,7 +233,7 @@ const StudentAssignmentResult = () => {
                   alert('Failed to open PDF');
                 }
               }}
-              className="px-4 py-2 bg-purple-50 text-purple-700 font-medium rounded-lg border border-purple-200 hover:bg-purple-100 transition-colors cursor-pointer"
+              className="px-4 py-2 bg-paper text-violet-dark border border-line rounded-xl hover:bg-violet-50 transition-colors cursor-pointer font-bold text-sm"
             >
               View Document
             </button>
@@ -248,34 +248,34 @@ const StudentAssignmentResult = () => {
             if (!question) return null;
 
             return (
-              <div key={answer.questionId} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+              <div key={answer.questionId} className="bg-surface rounded-2xl border border-line p-4 sm:p-6 shadow-sm">
                 {/* Question Title */}
                 <div className="mb-4">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">Question {index + 1}</h3>
-                    <span className="px-3 py-1 rounded-full text-xs sm:text-sm bg-indigo-100 text-indigo-700 self-start">
+                    <h3 className="text-base sm:text-lg font-semibold font-display text-ink">Question {index + 1}</h3>
+                    <span className="px-3 py-1 rounded-full text-xs sm:text-sm bg-violet-50 text-violet-dark border border-line self-start font-bold">
                       {question.marks} marks
                     </span>
                   </div>
-                  <p className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap break-words">
+                  <p className="text-sm sm:text-base text-ink whitespace-pre-wrap break-words">
                     {question.question}
                   </p>
                 </div>
 
                 {/* Student Answer */}
-                <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
-                  <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">Student's Answer:</h4>
+                <div className="mb-4 p-3 sm:p-4 bg-paper border border-line rounded-xl">
+                  <h4 className="text-xs sm:text-sm font-bold text-ink-soft uppercase tracking-wider mb-2">Student's Answer:</h4>
                   {answer.studentAnswerPoints ? (
-                    <div className="w-full px-3 sm:px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-                      <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-1">Key Points Written by Student</p>
-                      <p className="text-sm text-indigo-900 whitespace-pre-line leading-relaxed">
+                    <div className="w-full px-3 sm:px-4 py-3 bg-violet-50/50 border border-line rounded-xl">
+                      <p className="text-xs font-bold text-violet-dark uppercase tracking-wide mb-1">Key Points Written by Student</p>
+                      <p className="text-sm text-ink whitespace-pre-line leading-relaxed">
                         {answer.studentAnswerPoints}
                       </p>
                     </div>
                   ) : answer.studentAnswer === '(PDF submission)' ? (
-                    <div className="w-full px-3 sm:px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg">
-                      <p className="text-gray-400 italic text-sm">
-                        Answer submitted via PDF — see PDF document above
+                    <div className="w-full px-3 sm:px-4 py-3 bg-paper border border-line rounded-xl">
+                      <p className="text-ink-soft italic text-sm">
+                        Answer submitted via PDF — review document in attachment above
                       </p>
                     </div>
                   ) : (
@@ -283,48 +283,48 @@ const StudentAssignmentResult = () => {
                       value={answer.studentAnswer || ""}
                       readOnly
                       rows={6}
-                      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-white border border-gray-300 rounded-lg text-sm sm:text-base text-gray-900 resize-none"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-surface border border-line rounded-xl text-sm sm:text-base text-ink resize-none"
                     />
                   )}
                 </div>
 
                 {/* Answer Key */}
-                <div className="mb-4 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h4 className="text-xs sm:text-sm font-semibold text-blue-900 mb-2">Answer Key:</h4>
-                  <p className="text-xs sm:text-sm text-blue-800 whitespace-pre-wrap break-words leading-relaxed">
+                <div className="mb-4 p-3 sm:p-4 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/40 dark:border-blue-900/30 text-blue-800 dark:text-blue-300 rounded-xl">
+                  <h4 className="text-xs sm:text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">Answer Key:</h4>
+                  <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-300 whitespace-pre-wrap break-words leading-relaxed">
                     {question.answerKey}
                   </p>
 
                   {question.answerGuidelines && (
-                    <p className="text-xs text-blue-600 mt-2">
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
                       <strong>Guidelines:</strong> {question.answerGuidelines}
                     </p>
                   )}
                 </div>
 
                 {/* GRADING SECTION */}
-                <div className="border-t border-gray-200 pt-4">
+                <div className="border-t border-line pt-4">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 flex-wrap">
                     {/* AI Marks */}
                     {answer.aiMarks !== null && (
                       <>
                         <div>
-                          <p className="text-xs sm:text-sm text-gray-600 mb-1">AI Suggestion</p>
+                          <p className="text-xs sm:text-sm text-ink-soft mb-1 font-bold uppercase tracking-wider">AI Suggestion</p>
                           <div className="flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-purple-600" />
-                            <span className="text-sm sm:text-base font-semibold text-purple-600">
+                            <Sparkles className="w-4 h-4 text-violet-dark" />
+                            <span className="text-sm sm:text-base font-black text-violet-dark">
                               {answer.aiMarks}/{question.marks}
                             </span>
                           </div>
                         </div>
 
-                        <div className="hidden sm:block h-8 w-px bg-gray-300"></div>
+                        <div className="hidden sm:block h-8 w-px bg-line"></div>
                       </>
                     )}
 
                     {/* Marks Awarded */}
                     <div>
-                      <p className="text-xs sm:text-sm text-gray-600 mb-1">Marks Awarded</p>
+                      <p className="text-xs sm:text-sm text-ink-soft mb-1 font-bold uppercase tracking-wider">Marks Awarded</p>
 
                       {isEditing ? (
                         <div className="flex items-center gap-2">
@@ -342,13 +342,13 @@ const StudentAssignmentResult = () => {
                                 )
                               })
                             }
-                            className="w-16 sm:w-20 px-2 sm:px-3 py-1 text-sm sm:text-base border border-gray-300 rounded outline-none focus:ring-2 focus:ring-purple-600"
+                            className="w-16 sm:w-20 px-2 sm:px-3 py-1 text-sm sm:text-base border border-line rounded-xl bg-surface outline-none focus:ring-2 focus:ring-violet-dark"
                           />
 
                           <button
                             onClick={() => saveMarks(answer.questionId)}
                             disabled={isSaving}
-                            className="p-1 text-green-600 hover:bg-green-50 rounded cursor-pointer disabled:opacity-50"
+                            className="p-1 text-green-600 hover:bg-line/80 rounded-xl cursor-pointer disabled:opacity-50"
                             title="Save"
                           >
                             <Save className="w-4 h-4" />
@@ -357,7 +357,7 @@ const StudentAssignmentResult = () => {
                           <button
                             onClick={() => cancelEditingMarks(answer.questionId)}
                             disabled={isSaving}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded cursor-pointer disabled:opacity-50"
+                            className="p-1 text-rose-600 hover:bg-line/80 rounded-xl cursor-pointer disabled:opacity-50"
                             title="Cancel"
                           >
                             <X className="w-4 h-4" />
@@ -368,10 +368,10 @@ const StudentAssignmentResult = () => {
                           <span
                             className={`text-sm sm:text-base font-bold ${
                               answer.marksAwarded === question.marks
-                                ? 'text-green-600'
+                                ? 'text-green-600 dark:text-green-400'
                                 : answer.marksAwarded > 0
-                                ? 'text-yellow-600'
-                                : 'text-red-600'
+                                ? 'text-orange-600 dark:text-orange-400'
+                                : 'text-rose-600 dark:text-rose-455'
                             }`}
                           >
                             {answer.marksAwarded}/{question.marks}
@@ -379,7 +379,7 @@ const StudentAssignmentResult = () => {
 
                           <button
                             onClick={() => startEditingMarks(answer.questionId, answer.marksAwarded)}
-                            className="p-1 text-gray-600 hover:bg-gray-100 rounded cursor-pointer"
+                            className="p-1.5 text-ink-soft hover:bg-line/80 rounded-xl cursor-pointer transition-colors"
                             title="Edit marks"
                           >
                             <Edit2 className="w-4 h-4" />
@@ -391,18 +391,18 @@ const StudentAssignmentResult = () => {
 
                   {/* AI Feedback */}
                   {answer.aiFeedback && (
-                    <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                      <p className="text-xs sm:text-sm text-purple-900 break-words">
-                        <span className="font-semibold">✨ AI Feedback:</span> {answer.aiFeedback}
+                    <div className="mt-3 p-3 bg-violet-50/50 border border-line rounded-xl">
+                      <p className="text-xs sm:text-sm text-ink break-words">
+                        <span className="font-bold text-violet-dark">✨ AI Feedback:</span> {answer.aiFeedback}
                       </p>
                     </div>
                   )}
 
                   {/* Teacher Feedback */}
                   {answer.teacherFeedback && (
-                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-xs sm:text-sm text-blue-900 break-words">
-                        <span className="font-semibold">👨‍🏫 Teacher Feedback:</span> {answer.teacherFeedback}
+                    <div className="mt-3 p-3 bg-blue-50/50 dark:bg-blue-950/10 border border-blue-200/40 dark:border-blue-900/20 rounded-xl">
+                      <p className="text-xs sm:text-sm text-ink break-words">
+                        <span className="font-bold text-blue-700 dark:text-blue-400">👨‍🏫 Teacher Feedback:</span> {answer.teacherFeedback}
                       </p>
                     </div>
                   )}
@@ -410,14 +410,14 @@ const StudentAssignmentResult = () => {
                   {/* Checked By */}
                   <div className="mt-3">
                     <span
-                      className={`inline-block px-2 py-1 text-xs font-semibold rounded ${
+                      className={`inline-block px-2 py-1 text-xs font-bold rounded border border-line ${
                         answer.checkedBy === 'ai'
-                          ? 'bg-purple-100 text-purple-700'
+                          ? 'bg-violet-50 text-violet-dark'
                           : answer.checkedBy === 'teacher'
-                          ? 'bg-blue-100 text-blue-700'
+                          ? 'bg-blue-50 text-blue-750 dark:text-blue-400'
                           : answer.checkedBy === 'both'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-700'
+                          ? 'bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300'
+                          : 'bg-line text-ink'
                       }`}
                     >
                       {answer.checkedBy === 'ai' && '✨ Checked by AI'}
@@ -433,11 +433,11 @@ const StudentAssignmentResult = () => {
         </div>
 
         {/* Final Summary */}
-        <div className="mt-6 sm:mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="mt-6 sm:mt-8 bg-surface rounded-2xl border border-line p-4 sm:p-6 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">Final Score</h3>
-              <p className="text-xs sm:text-sm text-gray-600">
+              <h3 className="text-base sm:text-lg font-semibold font-display text-ink mb-1">Final Score</h3>
+              <p className="text-xs sm:text-sm text-ink-soft">
                 {submission.isResultPublished
                   ? 'Results published and visible to student'
                   : 'Results not published yet (student cannot see)'}
@@ -445,10 +445,10 @@ const StudentAssignmentResult = () => {
             </div>
 
             <div className="text-left sm:text-right w-full sm:w-auto">
-              <div className="text-2xl sm:text-3xl font-bold text-purple-600 mb-1">
+              <div className="text-2xl sm:text-3xl font-black font-display text-violet-dark mb-1">
                 {submission.marksObtained}/{submission.totalMarks}
               </div>
-              <p className="text-sm text-gray-500">{submission.percentage}%</p>
+              <p className="text-xs sm:text-sm text-ink-soft font-semibold">{submission.percentage}%</p>
             </div>
           </div>
         </div>

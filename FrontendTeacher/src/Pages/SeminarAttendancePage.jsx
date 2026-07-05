@@ -175,7 +175,7 @@ const SeminarAttendancePage = () => {
     });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-paper font-body text-ink">
       <Header onLogoClick={() => navigate("/")} />
       <PageTransition className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Page Header */}
@@ -183,15 +183,15 @@ const SeminarAttendancePage = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/")}
-              className="p-2 rounded-lg hover:bg-gray-100 transition cursor-pointer"
+              className="p-2 rounded-xl hover:bg-line transition cursor-pointer text-ink-soft hover:text-purple-700"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              <h1 className="font-display text-2xl sm:text-3xl font-semibold">
                 Seminar Attendance
               </h1>
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p className="text-sm text-ink-soft mt-0.5">
                 View and export seminar/event attendance records
               </p>
             </div>
@@ -201,13 +201,13 @@ const SeminarAttendancePage = () => {
         {/* Search */}
         <div className="mb-6">
           <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-ink-soft" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search seminars..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none transition"
+              className="w-full pl-10 pr-4 py-2.5 border border-line bg-surface rounded-xl text-sm text-ink focus:ring-2 focus:ring-purple-700 focus:border-transparent focus:outline-none transition"
             />
           </div>
         </div>
@@ -216,15 +216,15 @@ const SeminarAttendancePage = () => {
         {loading && (
           <div className="flex items-center justify-center min-h-[300px]">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-4" />
-              <p className="text-sm text-gray-500">Loading records...</p>
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-700 mx-auto mb-4" />
+              <p className="text-sm text-ink-soft">Loading records...</p>
             </div>
           </div>
         )}
 
         {/* Error */}
         {error && !loading && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+          <div className="p-4 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 text-rose-650 dark:text-rose-400 text-sm rounded-xl">
             {error}
           </div>
         )}
@@ -232,11 +232,11 @@ const SeminarAttendancePage = () => {
         {/* Empty */}
         {!loading && !error && sessions.length === 0 && (
           <div className="text-center py-16">
-            <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">
+            <Calendar className="w-12 h-12 text-line mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-ink mb-2">
               No Seminars Yet
             </h2>
-            <p className="text-gray-500 text-sm">
+            <p className="text-ink-soft text-sm">
               Start a seminar session from the dashboard to see records here.
             </p>
           </div>
@@ -248,8 +248,8 @@ const SeminarAttendancePage = () => {
           sessions.length > 0 &&
           filteredSessions.length === 0 && (
             <div className="text-center py-12">
-              <Search className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">
+              <Search className="w-10 h-10 text-line mx-auto mb-3" />
+              <p className="text-ink-soft">
                 No seminars match "{searchQuery.trim()}"
               </p>
             </div>
@@ -268,36 +268,36 @@ const SeminarAttendancePage = () => {
               <motion.div
                 key={session._id}
                 layout
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+                className="bg-surface border border-line rounded-2xl shadow-sm overflow-hidden"
               >
                 {/* Session Header */}
                 <div
                   onClick={() =>
                     setExpandedSession(isExpanded ? null : session._id)
                   }
-                  className="flex items-center justify-between p-4 sm:p-5 cursor-pointer hover:bg-gray-50 transition"
+                  className="flex items-center justify-between p-4 sm:p-5 cursor-pointer hover:bg-paper transition"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                         session.status === "active"
-                          ? "bg-green-100"
-                          : "bg-indigo-100"
+                          ? "bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30"
+                          : "bg-[#F1ECFB] dark:bg-[#26163F] border border-line"
                       }`}
                     >
                       <Calendar
                         className={`w-5 h-5 ${
                           session.status === "active"
-                            ? "text-green-600"
-                            : "text-indigo-600"
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-purple-700 dark:text-[#A78BFA]"
                         }`}
                       />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-bold text-gray-800 truncate">
+                      <h3 className="font-bold text-ink truncate">
                         {session.title}
                       </h3>
-                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5 flex-wrap">
+                      <div className="flex items-center gap-3 text-xs text-ink-soft mt-0.5 flex-wrap">
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {formatDate(session.startedAt)}
@@ -307,7 +307,7 @@ const SeminarAttendancePage = () => {
                           {totalAttendees} attendees
                         </span>
                         {session.status === "active" && (
-                          <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-semibold">
+                          <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-full font-semibold border border-emerald-100 dark:border-emerald-900/50">
                             Live
                           </span>
                         )}
@@ -322,7 +322,7 @@ const SeminarAttendancePage = () => {
                           e.stopPropagation();
                           handleExport(session);
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-semibold hover:bg-green-100 transition cursor-pointer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30 rounded-lg text-xs font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-950/50 transition cursor-pointer"
                         title="Download as Excel"
                       >
                         <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -330,9 +330,9 @@ const SeminarAttendancePage = () => {
                       </button>
                     )}
                     {isExpanded ? (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                      <ChevronDown className="w-5 h-5 text-ink-soft" />
                     ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
+                      <ChevronRight className="w-5 h-5 text-ink-soft" />
                     )}
                   </div>
                 </div>
@@ -347,15 +347,15 @@ const SeminarAttendancePage = () => {
                       transition={{ duration: 0.25 }}
                       className="overflow-hidden"
                     >
-                      <div className="border-t border-gray-100 px-4 sm:px-5 pb-5">
+                      <div className="border-t border-line px-4 sm:px-5 pb-5">
                         {session.description && (
-                          <p className="text-sm text-gray-500 mt-3 mb-4 italic">
+                          <p className="text-sm text-ink-soft mt-3 mb-4 italic">
                             {session.description}
                           </p>
                         )}
 
                         {totalAttendees === 0 ? (
-                          <div className="text-center py-8 text-gray-400 text-sm">
+                          <div className="text-center py-8 text-ink-soft text-sm">
                             No students attended this seminar.
                           </div>
                         ) : (
@@ -374,11 +374,11 @@ const SeminarAttendancePage = () => {
                                 <div key={course}>
                                   {/* ── Course Header ── */}
                                   <div className="flex items-center gap-2 mb-2.5">
-                                    <BookOpen className="w-4 h-4 text-indigo-500" />
-                                    <h4 className="text-sm font-bold text-indigo-700 uppercase tracking-wide">
+                                    <BookOpen className="w-4 h-4 text-purple-700 dark:text-[#A78BFA]" />
+                                    <h4 className="text-sm font-bold text-purple-700 dark:text-[#A78BFA] uppercase tracking-wide">
                                       {course}
                                     </h4>
-                                    <span className="text-xs text-indigo-400 font-medium">
+                                    <span className="text-xs text-ink-soft font-medium">
                                       ({courseTotal})
                                     </span>
                                   </div>
@@ -391,17 +391,17 @@ const SeminarAttendancePage = () => {
                                         <div key={`${course}-${section}`}>
                                           {/* ── Section Header ── */}
                                           <div className="flex items-center gap-1.5 mb-1.5 ml-1">
-                                            <Layers className="w-3.5 h-3.5 text-gray-400" />
-                                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                            <Layers className="w-3.5 h-3.5 text-ink-soft" />
+                                            <span className="text-xs font-semibold text-ink-soft uppercase tracking-wider">
                                               Section {section}
                                             </span>
-                                            <span className="text-[10px] text-gray-400">
+                                            <span className="text-[10px] text-ink-soft">
                                               ({students.length})
                                             </span>
                                           </div>
 
                                           {/* ── Student List ── */}
-                                          <div className="bg-gray-50 rounded-xl border border-gray-100 divide-y divide-gray-100">
+                                          <div className="bg-paper rounded-xl border border-line divide-y divide-line">
                                             {students.map(
                                               (student, idx) => (
                                                 <div
@@ -409,23 +409,23 @@ const SeminarAttendancePage = () => {
                                                   className="flex items-center justify-between px-4 py-3"
                                                 >
                                                   <div className="flex items-center gap-3 min-w-0">
-                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs shrink-0">
+                                                    <div className="w-8 h-8 rounded-full bg-[#F1ECFB] dark:bg-[#26163F] flex items-center justify-center text-purple-700 dark:text-[#A78BFA] font-bold text-xs shrink-0">
                                                       {student.name
                                                         .charAt(0)
                                                         .toUpperCase()}
                                                     </div>
                                                     <div className="min-w-0">
-                                                      <p className="font-semibold text-gray-800 text-sm truncate">
+                                                      <p className="font-semibold text-ink text-sm truncate">
                                                         {student.name}
                                                       </p>
                                                       <div className="flex items-center gap-2 flex-wrap">
                                                         {student.erpId && (
-                                                          <span className="text-xs text-indigo-600 font-mono bg-indigo-50 px-1.5 py-0.5 rounded">
+                                                          <span className="text-xs text-purple-700 dark:text-[#A78BFA] font-mono bg-[#F1ECFB] dark:bg-[#26163F] px-1.5 py-0.5 rounded">
                                                             {student.erpId}
                                                           </span>
                                                         )}
                                                         {student.semester && (
-                                                          <span className="text-xs text-gray-500">
+                                                          <span className="text-xs text-ink-soft">
                                                             Sem{" "}
                                                             {
                                                               student.semester
@@ -435,7 +435,7 @@ const SeminarAttendancePage = () => {
                                                       </div>
                                                     </div>
                                                   </div>
-                                                  <span className="text-xs text-gray-400 shrink-0 ml-2">
+                                                  <span className="text-xs text-ink-soft shrink-0 ml-2">
                                                     {student.markedAt
                                                       ? formatTime(
                                                           student.markedAt
@@ -457,7 +457,7 @@ const SeminarAttendancePage = () => {
                         )}
 
                         {/* Timing details */}
-                        <div className="mt-4 flex items-center gap-4 text-xs text-gray-400">
+                        <div className="mt-4 flex items-center gap-4 text-xs text-ink-soft">
                           <span>
                             Started: {formatTime(session.startedAt)}
                           </span>
