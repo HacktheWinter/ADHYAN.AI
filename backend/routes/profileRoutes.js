@@ -10,6 +10,8 @@ import {
   toggleBackgroundImage,
   backgroundUpload,
   upload,
+  updateUserSettings,
+  deactivateUserAccount,
 } from "../controllers/profileController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -38,5 +40,11 @@ router.delete("/background", authMiddleware, deleteBackgroundImage);
 
 // Toggle background image usage
 router.post("/background/toggle", authMiddleware, toggleBackgroundImage);
+
+// Update user settings preferences
+router.put("/settings", authMiddleware, updateUserSettings);
+
+// Safe account deactivation
+router.post("/deactivate", authMiddleware, deactivateUserAccount);
 
 export default router;

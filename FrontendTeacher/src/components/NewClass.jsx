@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X } from "lucide-react";
+import { X, Upload } from "lucide-react";
 import ThemeSelectionModal from "./ThemeSelectionModal";
 import general5 from '../assets/themes/general/general-5.jpg';
 import { getAllThemes } from '../data/themeData';
@@ -14,6 +14,7 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
     selectedTheme: { id: 'general-5', name: 'Theme 5', type: 'image', value: general5, pattern: 'custom' },
   });
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const fileInputRef = React.useRef(null);
 
   React.useEffect(() => {
     if (!initialData) {
@@ -112,16 +113,16 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-start justify-center z-50 p-4 pt-8 sm:pt-20 overflow-y-auto">
-      <div className="bg-white rounded-2xl sm:rounded-[24px] shadow-2xl w-full max-w-2xl overflow-hidden animate-slideDown my-auto">
-        <div className="p-4 sm:p-5 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+      <div className="bg-surface border border-line rounded-2xl sm:rounded-[24px] shadow-2xl w-full max-w-2xl overflow-hidden animate-slideDown my-auto">
+        <div className="p-4 sm:p-5 border-b border-line flex items-center justify-between">
+          <h2 className="font-display text-lg sm:text-xl font-semibold text-ink">
             {mode === "edit" ? "Edit Class" : "Create New Class"}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-line rounded-full transition-colors text-ink-soft hover:text-ink cursor-pointer"
           >
-            <X className="w-5 h-5 text-gray-500 cursor-pointer" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -129,7 +130,7 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
           {/* Left Column */}
           <div className="space-y-4 sm:space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2">
                 Class Name
               </label>
               <input
@@ -139,13 +140,13 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
                   setFormData({ ...formData, name: e.target.value })
                 }
                 placeholder="e.g., Math 101"
-                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                className="w-full px-3 sm:px-4 py-2.5 text-sm border border-line bg-paper text-ink rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-600 focus:border-transparent focus:outline-none transition"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2">
                 Subject (optional)
               </label>
               <input
@@ -155,62 +156,81 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
                   setFormData({ ...formData, subject: e.target.value })
                 }
                 placeholder="e.g., Mathematics"
-                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                className="w-full px-3 sm:px-4 py-2.5 text-sm border border-line bg-paper text-ink rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-600 focus:border-transparent focus:outline-none transition"
               />
             </div>
 
             <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
+                <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2 sm:mb-3">
                   Theme Style
                 </label>
                 <div className="flex flex-wrap gap-3">
                   <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
                     formData.themeType === "color"
-                      ? "border-purple-500 bg-purple-50"
-                      : "border-gray-300 hover:border-purple-200"
+                      ? "theme-radio-active"
+                      : "border-line hover:border-purple-300"
                   }`}>
                     <input
                       type="radio"
                       name="themeType"
                       value="color"
                       checked={formData.themeType === "color"}
-                      onChange={() => setFormData({ ...formData, themeType: "color", themeImage: "", selectedTheme: null })}
+                      onChange={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          themeType: "color",
+                          themeImage: "",
+                          selectedTheme: prev.selectedTheme || {
+                            id: "general-5",
+                            name: "Theme 5",
+                            type: "image",
+                            value: general5,
+                            pattern: "custom",
+                          },
+                          color: prev.color || general5,
+                        }))
+                      }
                     />
-                    <span className="text-sm font-medium text-gray-700">Class theme</span>
+                    <span className="text-sm font-semibold text-ink">Class theme</span>
                   </label>
 
                   <label className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
                     formData.themeType === "image"
-                      ? "border-purple-500 bg-purple-50"
-                      : "border-gray-300 hover:border-purple-200"
+                      ? "theme-radio-active"
+                      : "border-line hover:border-purple-300"
                   }`}>
                     <input
                       type="radio"
                       name="themeType"
                       value="image"
                       checked={formData.themeType === "image"}
-                      onChange={() => setFormData({ ...formData, themeType: "image", selectedTheme: null })}
+                      onChange={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          themeType: "image",
+                        }))
+                      }
                     />
-                    <span className="text-sm font-medium text-gray-700">Custom image</span>
+                    <span className="text-sm font-semibold text-ink">Custom image</span>
                   </label>
                 </div>
               </div>
 
               {formData.themeType === "color" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
+                  <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2 sm:mb-3">
                     Choose Color Theme
                   </label>
                   {/* Theme Preview Button */}
                   <button
                     type="button"
                     onClick={() => setShowThemeModal(true)}
-                    className="w-full border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-purple-400 transition-colors cursor-pointer"
+                    className="w-full border border-dashed border-line bg-paper rounded-xl p-4 hover:border-purple-455 transition-colors cursor-pointer text-ink"
                   >
                     <div className="flex items-center gap-4">
                       <div 
-                        className="w-20 h-20 rounded-lg flex items-center justify-center overflow-hidden border border-gray-200"
+                        className="w-20 h-20 rounded-lg flex items-center justify-center overflow-hidden border border-line"
                         style={{
                           backgroundImage: formData.color ? `url(${formData.color})` : 'none',
                           backgroundSize: 'cover',
@@ -220,10 +240,10 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
                       >
                       </div>
                       <div className="flex-1 text-left">
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-semibold text-ink">
                           {formData.selectedTheme ? formData.selectedTheme.name : 'Select a theme'}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-ink-soft mt-1">
                           Click to browse theme patterns
                         </p>
                       </div>
@@ -232,7 +252,7 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
 
                   {/* Current Theme Info */}
                   {formData.selectedTheme && (
-                    <div className="mt-2 flex items-center justify-between text-xs text-gray-600">
+                    <div className="mt-2 flex items-center justify-between text-xs text-ink-soft">
                       <span>
                         🎨 {formData.selectedTheme.name}
                       </span>
@@ -243,7 +263,7 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
                           selectedTheme: { id: 'general-5', name: 'Theme 5', type: 'image', value: general5, pattern: 'custom' },
                           color: general5
                         })}
-                        className="text-red-600 hover:text-red-700 cursor-pointer"
+                        className="text-rose-650 hover:text-rose-700 cursor-pointer"
                       >
                         Reset theme
                       </button>
@@ -254,17 +274,31 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
 
               {formData.themeType === "image" && (
                 <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
+                  <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2 sm:mb-3">
                     Upload cover image
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 sm:p-5 bg-gray-50">
+                  <div className="border-2 border-dashed border-line rounded-xl p-4 sm:p-5 bg-paper">
                     <input
+                      ref={fileInputRef}
                       type="file"
                       accept="image/*"
                       onChange={handleImageUpload}
-                      className="w-full text-sm text-gray-700"
+                      className="hidden"
                     />
-                    <p className="mt-2 text-xs text-gray-500">Recommended size 1200x400px. We store the image with the class.</p>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 border border-line bg-surface text-ink hover:bg-line text-xs font-bold rounded-xl shadow-sm transition cursor-pointer flex items-center gap-2"
+                      >
+                        <Upload className="w-4 h-4 text-purple-700 dark:text-[#A78BFA]" />
+                        Choose File
+                      </button>
+                      <span className="text-xs text-ink-soft font-medium">
+                        {formData.themeImage ? "Selected image uploaded" : "No file chosen"}
+                      </span>
+                    </div>
+                    <p className="mt-2.5 text-[11px] text-ink-soft leading-relaxed">Recommended size 1200x400px. We store the image with the class.</p>
 
                     {formData.themeImage && (
                       <div className="mt-3 relative">
@@ -288,12 +322,12 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
             </div>
           </div>
 
-          {/* Right Column - Preview (Hidden on mobile) */}
-          <div className="hidden lg:block space-y-3 sm:space-y-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          {/* Right Column - Preview */}
+          <div className="block space-y-3 sm:space-y-4">
+            <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2">
               Preview
             </label>
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-gray-200">
+            <div className="bg-surface rounded-xl sm:rounded-2xl shadow-sm overflow-hidden border border-line">
               <div
                 className="h-28 sm:h-36 flex items-center justify-center p-4 rounded-t-xl sm:rounded-t-2xl relative overflow-hidden"
                 style={
@@ -319,10 +353,10 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
                 </h3>
               </div>
               <div className="p-4 sm:p-5">
-                <p className="text-gray-700 font-semibold text-sm sm:text-base mb-2">
+                <p className="text-ink font-semibold text-sm sm:text-base mb-2">
                   {formData.subject || "Subject"}
                 </p>
-                <p className="text-gray-500 text-xs sm:text-sm">0 students</p>
+                <p className="text-ink-soft text-xs sm:text-sm">0 students</p>
               </div>
             </div>
           </div>
@@ -332,13 +366,13 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 sm:px-6 py-2.5 text-sm sm:text-base border border-gray-300 text-gray-700 font-medium rounded-lg sm:rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+              className="flex-1 px-4 sm:px-6 py-2.5 text-sm sm:text-base border border-line text-ink-soft hover:text-ink font-semibold rounded-lg sm:rounded-xl hover:bg-line transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 sm:px-6 py-2.5 text-sm sm:text-base bg-purple-600 text-white font-medium rounded-lg sm:rounded-xl hover:bg-purple-700 transition-colors cursor-pointer"
+              className="btn-settings-blue flex-1 px-4 sm:px-6 py-2.5 text-sm sm:text-base font-semibold rounded-lg sm:rounded-xl cursor-pointer"
             >
               {mode === "edit" ? "Save Changes" : "Create Class"}
             </button>

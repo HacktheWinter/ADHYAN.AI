@@ -25,9 +25,9 @@ export const joinClassroom = async (studentId, classCode) => {
 };
 
 // Get classrooms for teacher/student
-export const getClassrooms = async (userId, role) => {
+export const getClassrooms = async (userId, role, showArchived = false) => {
   try {
-    const response = await api.get("/classroom", { params: { userId, role } });
+    const response = await api.get("/classroom", { params: { userId, role, showArchived } });
     return response.data.classrooms;
   } catch (error) {
     console.error("Error fetching classrooms:", error);

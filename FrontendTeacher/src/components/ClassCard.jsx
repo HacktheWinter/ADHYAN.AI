@@ -1,13 +1,14 @@
 // FrontendTeacher/src/components/ClassCard.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Share2, MoreVertical, Trash2, Edit3 } from 'lucide-react';
+import { Share2, MoreVertical, Trash2, Edit3, Users, Archive } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ClassCodeModal from './ClassCodeModal';
 import { getAllThemes } from '../data/themeData';
 
-const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
+const ClassCard = ({ classData, onClick, onDelete, onEdit, onArchive }) => {
   const [showCodeModal, setShowCodeModal] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [copied, setCopied] = useState(false);
   const dropdownRef = useRef(null);
 
   // Close dropdown when clicking outside
@@ -39,6 +40,26 @@ const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
     
     if (window.confirm(`Are you sure you want to delete "${classData.name}"? This action cannot be undone.`)) {
       onDelete(classData._id || classData.id);
+    }
+  };
+
+  const handleArchiveClick = (e) => {
+    e.stopPropagation();
+    setShowDropdown(false);
+    if (onArchive) {
+      onArchive(classData._id || classData.id, true);
+    } else {
+      alert(`Class "${classData.name}" archived successfully!`);
+    }
+  };
+
+  const handleRestoreClick = (e) => {
+    e.stopPropagation();
+    setShowDropdown(false);
+    if (onArchive) {
+      onArchive(classData._id || classData.id, false);
+    } else {
+      alert(`Class "${classData.name}" restored successfully!`);
     }
   };
 
@@ -89,14 +110,14 @@ const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
     <>
       <div
         onClick={onClick}
-        className="cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-xl h-full relative min-h-[260px]"
+        className="cursor-pointer transform transition-all duration-300 hover:-translate-y-1 h-full relative min-h-[240px] sm:min-h-[260px]"
       >
-        <div className="bg-white rounded-xl shadow-lg h-full flex flex-col relative overflow-visible">
+        <div className="bg-surface rounded-2xl shadow-sm border border-line h-full flex flex-col relative overflow-hidden hover:shadow-md transition-all duration-200">
           <div
-            className={`${hasImage ? "bg-gray-900" : headerColor} h-32 flex items-center justify-center relative overflow-visible rounded-t-xl`}
+            className={`${hasImage ? "bg-gray-900" : headerColor} h-28 sm:h-32 flex items-center justify-center relative overflow-visible`}
             style={headerStyle}
           >
-            <h3 className="text-2xl font-bold text-white px-4 text-center">
+            <h3 className="text-lg sm:text-2xl font-display font-semibold text-white px-3 sm:px-4 text-center tracking-tight leading-tight">
               {classData.name}
             </h3>
             
@@ -106,7 +127,7 @@ const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={handleDropdownToggle}
-                className="p-2 bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-all cursor-pointer relative z-20"
+                className="p-1.5 sm:p-2 bg-white/20 hover:bg-white/30 rounded-full backdrop-blur-sm transition-all cursor-pointer relative z-20"
                 title="More options"
               >
                 <MoreVertical className="w-4 h-4 text-white" />
@@ -120,27 +141,47 @@ const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.98, y: -2 }}
                     transition={{ duration: 0.1 }}
-                    className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50 origin-top-right"
+                    className="absolute right-0 mt-2 w-48 bg-surface rounded-lg shadow-xl border border-line py-2 z-50 origin-top-right"
                   >
-                    <button
-                      onClick={handleShareClick}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors cursor-pointer"
-                    >
-                      <Share2 className="w-4 h-4" />
-                      Share Class Code
-                    </button>
+                    {classData.isArchived ? (
+                      <button
+                        onClick={handleRestoreClick}
+                        className="dropdown-item-restore w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-ink transition-colors cursor-pointer"
+                      >
+                        <Archive className="w-4 h-4 text-emerald-600" />
+                        Restore Class
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleShareClick}
+                          className="dropdown-item w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-ink transition-colors cursor-pointer"
+                        >
+                          <Share2 className="w-4 h-4" />
+                          Share Class Code
+                        </button>
 
-                    <button
-                      onClick={handleEditClick}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      Edit Class
-                    </button>
+                        <button
+                          onClick={handleEditClick}
+                          className="dropdown-item w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-ink transition-colors cursor-pointer"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          Edit Class
+                        </button>
+
+                        <button
+                          onClick={handleArchiveClick}
+                          className="dropdown-item w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-ink transition-colors cursor-pointer"
+                        >
+                          <Archive className="w-4 h-4" />
+                          Archive Class
+                        </button>
+                      </>
+                    )}
                     
                     <button
                       onClick={handleDeleteClick}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                      className="dropdown-item-danger w-full flex items-center gap-3 px-4 py-2 text-left text-sm text-rose-600 transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                       Delete Class
@@ -151,21 +192,50 @@ const ClassCard = ({ classData, onClick, onDelete, onEdit }) => {
             </div>
           </div>
           
-            <div className="p-6 flex-1 flex flex-col">
-            <p className="text-gray-700 font-semibold mb-2">{classData.subject}</p>
-              <div className="mt-auto flex items-center justify-between">
-              <p className="text-gray-500 text-sm">
+          <div className="p-4 sm:p-5 flex-1 flex flex-col font-body justify-between gap-3 sm:gap-4">
+            <div>
+              <p className="text-ink font-display text-base sm:text-lg font-semibold mb-1">{classData.subject}</p>
+            </div>
+            
+            <div className="flex items-center justify-between mt-auto">
+              {/* Left side: Student count */}
+              <span className="text-ink-soft text-xs sm:text-sm font-semibold flex items-center gap-1 sm:gap-1.5">
+                <Users className="w-4 h-4 text-ink-soft stroke-[2px]" />
                 {classData.studentCount} student{classData.studentCount !== 1 ? 's' : ''}
-              </p>
-              <p className="text-xs text-gray-400 font-mono bg-gray-100 px-2 py-1 rounded">
-                {classData.classCode || 'N/A'}
-              </p>
+              </span>
+
+              {/* Right side: Unified class code and copy button box */}
+              <div className="flex items-center gap-2 bg-paper border border-line rounded-lg px-2 py-1.5 sm:px-2.5 sm:py-1.5">
+                <span className="text-xs font-mono font-bold text-violet-600 tracking-wider">
+                  {classData.classCode || 'N/A'}
+                </span>
+                {classData.classCode && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(classData.classCode);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1400);
+                    }}
+                    className={`p-0.5 rounded flex items-center justify-center transition-all cursor-pointer ${
+                      copied ? 'text-emerald-600 font-bold' : 'text-[#6B6478] hover:text-[#6D28D9]'
+                    }`}
+                    title="Copy access code"
+                  >
+                    {copied ? (
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Class Code Modal */}
+      {/* Class Code Sharing Overlay Modal */}
       <ClassCodeModal
         isOpen={showCodeModal}
         onClose={() => setShowCodeModal(false)}

@@ -9,7 +9,7 @@ const DoubtsPage = () => {
 
   return (
     <div
-      className="bg-white rounded-xl border overflow-hidden shadow-lg"
+      className="bg-surface rounded-2xl border border-line overflow-hidden shadow-sm"
       style={{ height: "calc(100vh - 280px)" }}
     >
       <DoubtChat

@@ -140,28 +140,28 @@ export default function TeacherDoubts({ classId, user }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500">Loading doubts...</div>
+      <div className="flex items-center justify-center h-full font-body text-ink">
+        <div className="text-ink-soft font-semibold">Loading doubts...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full font-body text-ink bg-paper">
       {/* Header */}
-      <div className="px-6 py-4 border-b bg-gradient-to-r from-purple-50 to-indigo-50">
-        <h1 className="text-2xl font-bold text-gray-800">Student Doubts</h1>
-        <p className="text-sm text-gray-600 mt-1">
+      <div className="px-6 py-4 border-b border-line bg-surface shadow-sm">
+        <h1 className="text-2xl font-bold font-display text-ink">Student Doubts</h1>
+        <p className="text-sm text-ink-soft mt-1">
           {doubts.length} {doubts.length === 1 ? "doubt" : "doubts"} in this class
         </p>
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-6 py-4 bg-paper">
         {doubts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <svg
-              className="w-16 h-16 text-gray-300 mb-4"
+              className="w-16 h-16 text-line mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -173,8 +173,8 @@ export default function TeacherDoubts({ classId, user }) {
                 d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="text-gray-500 text-lg">No doubts yet</p>
-            <p className="text-gray-400 text-sm mt-2">
+            <p className="text-ink font-semibold text-lg">No doubts yet</p>
+            <p className="text-ink-soft text-sm mt-2">
               Students can post their doubts here
             </p>
           </div>
@@ -183,26 +183,26 @@ export default function TeacherDoubts({ classId, user }) {
             {doubts.map((doubt) => (
               <div
                 key={doubt._id}
-                className="bg-white shadow-sm hover:shadow-md transition-shadow rounded-lg p-5 border border-gray-200"
+                className="bg-surface shadow-sm hover:shadow-md transition-shadow rounded-2xl p-5 border border-line text-ink"
               >
                 {/* Header */}
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
-                    <h2 className="text-lg font-semibold text-gray-800 mb-1">
+                    <h2 className="text-lg font-bold font-display text-ink mb-1">
                       {doubt.title}
                     </h2>
-                    <p className="text-gray-700 text-sm leading-relaxed">
-                      <span className="font-medium text-purple-700">
+                    <p className="text-ink text-sm leading-relaxed">
+                      <span className="font-bold text-violet-700 dark:text-violet-400">
                         {doubt.authorName}
                         {doubt.authorRole && (
-                          <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-600 rounded-full text-xs font-medium">
+                          <span className="ml-2 px-2 py-0.5 bg-violet-500/10 text-violet-700 dark:text-violet-400 rounded-full text-xs font-bold border border-violet-500/15">
                             {doubt.authorRole}
                           </span>
                         )}:
                       </span>{" "}
                       {doubt.description}
                     </p>
-                    <p className="text-xs text-gray-400 mt-2">
+                    <p className="text-xs text-ink-soft mt-2">
                       {new Date(doubt.createdAt).toLocaleString()}
                     </p>
                   </div>
@@ -210,7 +210,7 @@ export default function TeacherDoubts({ classId, user }) {
                   {/* Delete doubt */}
                   <button
                     onClick={() => deleteDoubt(doubt._id)}
-                    className="ml-4 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded transition-colors"
+                    className="ml-4 text-error hover:bg-error/10 p-2 rounded-xl transition-colors cursor-pointer border-none bg-transparent"
                     title="Delete doubt"
                   >
                     <svg
@@ -231,17 +231,17 @@ export default function TeacherDoubts({ classId, user }) {
 
                 {/* Replies */}
                 {doubt.replies.length > 0 && (
-                  <div className="mt-4 pl-4 border-l-2 border-purple-300 space-y-3">
+                  <div className="mt-4 pl-4 border-l-2 border-violet-500 space-y-3">
                     {doubt.replies.map((reply, index) => (
                       <div
                         key={index}
-                        className="bg-purple-50 rounded-lg p-3 relative group"
+                        className="bg-paper rounded-xl p-3.5 relative group border border-line text-ink"
                       >
                         <div className="text-sm">
-                          <span className="font-medium text-purple-900">
+                          <span className="font-bold text-violet-700 dark:text-violet-400">
                             {reply.authorName}
                             {reply.authorRole && (
-                              <span className="ml-2 px-2 py-0.5 bg-purple-200 text-purple-800 rounded-full text-xs font-medium">
+                              <span className="ml-2 px-2 py-0.5 bg-violet-500/10 text-violet-700 dark:text-violet-400 rounded-full text-xs font-bold border border-violet-500/15">
                                 {reply.authorRole}
                               </span>
                             )}:
@@ -250,7 +250,7 @@ export default function TeacherDoubts({ classId, user }) {
                           editingReply?.index === index ? (
                             <input
                               type="text"
-                              className="border border-purple-300 px-3 py-2 rounded-lg w-full mt-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              className="border border-line bg-paper text-ink px-3 py-2 rounded-xl w-full mt-2 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:bg-surface"
                               value={editReplyText}
                               onChange={(e) => setEditReplyText(e.target.value)}
                               onKeyPress={(e) =>
@@ -259,19 +259,19 @@ export default function TeacherDoubts({ classId, user }) {
                               autoFocus
                             />
                           ) : (
-                            <span className="text-gray-700">{reply.message}</span>
+                            <span className="text-ink">{reply.message}</span>
                           )}
                         </div>
 
                         {/* Edit/Delete reply buttons */}
                         {reply.authorId === (teacher.id || teacher._id) && (
-                          <div className="flex gap-2 text-xs mt-2">
+                          <div className="flex gap-2 text-xs mt-2 font-bold">
                             {editingReply?.doubtId === doubt._id &&
                             editingReply?.index === index ? (
                               <>
                                 <button
                                   onClick={() => saveReplyEdit(doubt._id, index)}
-                                  className="text-green-600 hover:text-green-800 font-medium"
+                                  className="text-green-600 hover:text-green-800 cursor-pointer border-none bg-transparent"
                                 >
                                   Save
                                 </button>
@@ -280,7 +280,7 @@ export default function TeacherDoubts({ classId, user }) {
                                     setEditingReply(null);
                                     setEditReplyText("");
                                   }}
-                                  className="text-gray-600 hover:text-gray-800 font-medium"
+                                  className="text-ink-soft hover:text-ink cursor-pointer border-none bg-transparent"
                                 >
                                   Cancel
                                 </button>
@@ -292,13 +292,13 @@ export default function TeacherDoubts({ classId, user }) {
                                     setEditingReply({ doubtId: doubt._id, index });
                                     setEditReplyText(reply.message);
                                   }}
-                                  className="text-blue-600 hover:text-blue-800 font-medium"
+                                  className="text-violet-700 dark:text-violet-400 hover:underline cursor-pointer border-none bg-transparent"
                                 >
                                   Edit
                                 </button>
                                 <button
                                   onClick={() => deleteReply(doubt._id, index)}
-                                  className="text-red-600 hover:text-red-800 font-medium"
+                                  className="text-error hover:underline cursor-pointer border-none bg-transparent"
                                 >
                                   Delete
                                 </button>
@@ -316,7 +316,7 @@ export default function TeacherDoubts({ classId, user }) {
                   <input
                     type="text"
                     placeholder="Write your reply..."
-                    className="flex-1 border border-gray-300 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="flex-1 border border-line bg-paper text-ink px-4 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:bg-surface transition-all text-sm"
                     value={replyText[doubt._id] || ""}
                     onChange={(e) =>
                       setReplyText({ ...replyText, [doubt._id]: e.target.value })
@@ -327,7 +327,7 @@ export default function TeacherDoubts({ classId, user }) {
                   <button
                     onClick={() => sendReply(doubt._id)}
                     disabled={!replyText[doubt._id]?.trim()}
-                    className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    className="px-6 py-2 bg-violet-700 text-white hover:bg-violet-800 dark:bg-violet-950/40 dark:text-violet-300 border border-transparent dark:border-violet-700/60 dark:hover:border-violet-500 dark:hover:bg-violet-950/80 text-sm rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
                   >
                     Reply
                   </button>

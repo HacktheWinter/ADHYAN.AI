@@ -55,15 +55,15 @@ const ClassTabs = ({ activeTab, classId }) => {
   };
 
   return (
-    <div className="relative bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
+    <div className="relative bg-surface rounded-xl border border-line mt-6 overflow-hidden">
       {/* Left Arrow */}
       {showLeftArrow && (
         <button
           onClick={() => scroll('left')}
-          className="absolute left-0 top-0 bottom-0 z-10 px-2 bg-gradient-to-r from-white via-white to-transparent hover:from-gray-50 transition-colors"
+          className="absolute left-0 top-0 bottom-0 z-10 px-2 bg-gradient-to-r from-surface via-surface to-transparent hover:from-paper transition-colors"
           aria-label="Scroll left"
         >
-          <ChevronLeft className="w-5 h-5 text-gray-700" />
+          <ChevronLeft className="w-5 h-5 text-ink" />
         </button>
       )}
 
@@ -85,8 +85,8 @@ const ClassTabs = ({ activeTab, classId }) => {
             className={`
               flex-shrink-0 px-6 py-4 text-sm font-medium transition-all whitespace-nowrap cursor-pointer
               ${activeTab === tab.id
-                ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                ? 'text-violet-dark border-b-2 border-purple-600 bg-violet-50 font-bold'
+                : 'text-ink-soft hover:text-ink hover:bg-line/40'
               }
             `}
           >
@@ -99,10 +99,10 @@ const ClassTabs = ({ activeTab, classId }) => {
       {showRightArrow && (
         <button
           onClick={() => scroll('right')}
-          className="absolute right-0 top-0 bottom-0 z-10 px-2 bg-gradient-to-l from-white via-white to-transparent hover:from-gray-50 transition-colors"
+          className="absolute right-0 top-0 bottom-0 z-10 px-2 bg-gradient-to-l from-surface via-surface to-transparent hover:from-paper transition-colors"
           aria-label="Scroll right"
         >
-          <ChevronRight className="w-5 h-5 text-gray-700" />
+          <ChevronRight className="w-5 h-5 text-ink" />
         </button>
       )}
 

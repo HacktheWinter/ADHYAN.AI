@@ -190,23 +190,23 @@ const AssignmentsPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-12 font-body text-ink">
         <Loader className="w-8 h-8 text-purple-600 animate-spin" />
-        <span className="ml-3 text-gray-600">Loading assignments...</span>
+        <span className="ml-3 text-ink-soft font-semibold">Loading assignments...</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 font-body">
       {/* HEADER */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 sm:p-6 border border-indigo-200">
+      <div className="bg-gradient-to-r from-violet-50 to-paper rounded-2xl p-4 sm:p-6 border border-line">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
+            <h2 className="text-xl sm:text-2xl font-semibold font-display text-ink mb-1">
               📝 Assignments
             </h2>
-            <p className="text-gray-600 text-sm">
+            <p className="text-ink-soft text-sm">
               Create and manage student assignments with AI-powered question
               generation
             </p>
@@ -214,9 +214,9 @@ const AssignmentsPage = () => {
 
           <button
             onClick={handleOpenAIModal}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-purple-600 dark:to-indigo-650 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer text-sm sm:text-base"
           >
-            <Sparkles className="w-5 h-5" />
+            <Sparkles className="w-5 h-5 text-white" />
             <span>Create with AI</span>
           </button>
         </div>
@@ -231,10 +231,10 @@ const AssignmentsPage = () => {
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="w-2 h-8 bg-yellow-500 rounded-full"></div>
-            <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+            <h3 className="text-lg sm:text-xl font-semibold font-display text-ink">
               Draft Assignments
             </h3>
-            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs sm:text-sm rounded-full font-semibold">
+            <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-350 text-xs sm:text-sm rounded-full font-semibold">
               {drafts.length}
             </span>
           </div>
@@ -246,27 +246,27 @@ const AssignmentsPage = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-all"
+                className="bg-surface rounded-2xl border border-line p-4 sm:p-6 hover:shadow-lg transition-all font-body text-ink"
               >
                 <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
                   <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
                       <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-1 truncate">
+                      <h4 className="text-base sm:text-lg font-semibold font-display text-ink mb-1 truncate">
                         {assignment.title}
                       </h4>
                       {assignment.description && (
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                        <p className="text-sm text-ink-soft mb-2 line-clamp-2">
                           {assignment.description}
                         </p>
                       )}
 
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-ink-soft">
                         <span className="flex items-center gap-1">
-                          <span className="font-medium text-indigo-600">
+                          <span className="font-bold text-violet-dark">
                             {assignment.questions?.length || 0}
                           </span>{" "}
                           questions
@@ -274,14 +274,14 @@ const AssignmentsPage = () => {
                         <span className="hidden sm:inline">•</span>
 
                         <span className="flex items-center gap-1">
-                          <span className="font-medium text-indigo-600">
+                          <span className="font-bold text-violet-dark">
                             {assignment.totalMarks}
                           </span>{" "}
                           marks
                         </span>
 
                         <span className="hidden sm:inline">•</span>
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full font-semibold">
+                        <span className="px-2.5 py-1 bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-350 text-xs rounded-full font-bold">
                           Draft
                         </span>
                       </div>
@@ -291,7 +291,7 @@ const AssignmentsPage = () => {
                   <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                     <button
                       onClick={() => handleEditAnswerKeys(assignment)}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors cursor-pointer"
                       title="Edit Answer Keys"
                     >
                       <Pencil className="w-4 h-4" />
@@ -300,7 +300,7 @@ const AssignmentsPage = () => {
 
                     <button
                       onClick={() => handleDelete(assignment._id, "draft")}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                       <span>Delete</span>
@@ -308,7 +308,7 @@ const AssignmentsPage = () => {
 
                     <button
                       onClick={() => handlePublish(assignment)}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 btn-settings-blue text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <CheckCircle className="w-4 h-4" />
                       <span>Publish</span>
@@ -330,10 +330,10 @@ const AssignmentsPage = () => {
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="w-2 h-8 bg-green-500 rounded-full"></div>
-            <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+            <h3 className="text-lg sm:text-xl font-semibold font-display text-ink">
               Published Assignments
             </h3>
-            <span className="px-3 py-1 bg-green-100 text-green-800 text-xs sm:text-sm rounded-full font-semibold">
+            <span className="px-3 py-1 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-xs sm:text-sm rounded-full font-semibold">
               {published.length}
             </span>
           </div>
@@ -345,27 +345,27 @@ const AssignmentsPage = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-all"
+                className="bg-surface rounded-2xl border border-line p-4 sm:p-6 hover:shadow-lg transition-all font-body text-ink"
               >
                 <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
                   <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0">
                       <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-1 truncate">
+                      <h4 className="text-base sm:text-lg font-semibold font-display text-ink mb-1 truncate">
                         {assignment.title}
                       </h4>
                       {assignment.description && (
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                        <p className="text-sm text-ink-soft mb-2 line-clamp-2">
                           {assignment.description}
                         </p>
                       )}
 
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-ink-soft">
                         <span className="flex items-center gap-1">
-                          <span className="font-medium text-indigo-600">
+                          <span className="font-bold text-violet-dark">
                             {assignment.questions?.length || 0}
                           </span>{" "}
                           questions
@@ -374,7 +374,7 @@ const AssignmentsPage = () => {
                         <span className="hidden sm:inline">•</span>
 
                         <span className="flex items-center gap-1">
-                          <span className="font-medium text-indigo-600">
+                          <span className="font-bold text-violet-dark">
                             {assignment.totalMarks}
                           </span>{" "}
                           marks
@@ -383,7 +383,7 @@ const AssignmentsPage = () => {
                         {assignment.dueDate && (
                           <>
                             <span className="hidden sm:inline">•</span>
-                            <span className="text-orange-600 font-medium text-xs">
+                            <span className="text-orange-600 dark:text-orange-400 font-bold text-xs">
                               Due:{" "}
                               {new Date(
                                 assignment.dueDate
@@ -394,7 +394,7 @@ const AssignmentsPage = () => {
 
                         <span className="hidden sm:inline">•</span>
 
-                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-semibold">
+                        <span className="px-2.5 py-1 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-xs rounded-full font-bold">
                           Published
                         </span>
                       </div>
@@ -408,7 +408,7 @@ const AssignmentsPage = () => {
                           `/class/${classData.id}/assignments/results/${assignment._id}`
                         )
                       }
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-purple-650 hover:bg-purple-750 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <Eye className="w-4 h-4" />
                       <span>View Results</span>
@@ -416,7 +416,7 @@ const AssignmentsPage = () => {
 
                     <button
                       onClick={() => handleDelete(assignment._id, "published")}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                       <span>Delete</span>
@@ -432,14 +432,14 @@ const AssignmentsPage = () => {
       {/* ------------------- AI GENERATION MODAL ------------------- */}
       {showAIModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+          <div className="bg-surface border border-line rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden font-body text-ink">
             {/* Header */}
-            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
+            <div className="p-4 sm:p-6 border-b border-line flex items-center justify-between">
               <div>
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
+                <h3 className="text-xl sm:text-2xl font-semibold font-display text-ink">
                   Generate Assignment with AI
                 </h3>
-                <p className="text-sm text-gray-600 mt-1 hidden sm:block">
+                <p className="text-sm text-ink-soft mt-1 hidden sm:block">
                   Select notes to generate assignment questions
                 </p>
               </div>
@@ -449,7 +449,7 @@ const AssignmentsPage = () => {
                   setShowAIModal(false);
                   setSelectedNotes([]);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-ink-soft hover:text-ink"
                 disabled={isGenerating}
               >
                 <X className="w-6 h-6 cursor-pointer" />
@@ -457,12 +457,11 @@ const AssignmentsPage = () => {
             </div>
 
             {/* Body */}
-            {/* Body */}
             <div className="p-4 sm:p-6 flex-1 overflow-y-auto space-y-6">
               {/* Assignment Title */}
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-purple-600" />
+                <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
                   Assignment Title (Optional)
                 </label>
                 <input
@@ -470,15 +469,15 @@ const AssignmentsPage = () => {
                   placeholder="e.g. Chapter 1 Review, Weekly Homework..."
                   value={customTitle}
                   onChange={(e) => setCustomTitle(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500 focus:bg-surface transition-all text-sm"
                   disabled={isGenerating}
                 />
               </div>
 
               {/* Notes Selection Group */}
               <div className="space-y-4">
-                <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-indigo-600" />
+                <h4 className="block text-xs font-bold text-ink-soft uppercase tracking-wider flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
                   Select Source Notes
                 </h4>
 
@@ -487,18 +486,18 @@ const AssignmentsPage = () => {
                     <Loader className="w-8 h-8 text-purple-600 animate-spin" />
                   </div>
                 ) : availableNotes.length === 0 ? (
-                  <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                    <p className="text-gray-500 text-sm">No notes found. Upload some first.</p>
+                  <div className="text-center py-10 bg-paper rounded-2xl border border-dashed border-line">
+                    <p className="text-ink-soft text-sm">No notes found. Upload some first.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                     {availableNotes.map((note) => (
                       <label
                         key={note._id}
-                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
+                        className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${
                           selectedNotes.includes(note._id)
-                            ? "border-indigo-600 bg-indigo-50 shadow-sm"
-                            : "border-gray-200 hover:border-gray-300"
+                            ? "border-purple-500 bg-violet-50 text-violet-dark shadow-sm"
+                            : "border-line bg-surface text-ink hover:border-purple-300"
                         } ${isGenerating ? "opacity-50 cursor-not-allowed" : ""}`}
                       >
                         <input
@@ -506,10 +505,10 @@ const AssignmentsPage = () => {
                           checked={selectedNotes.includes(note._id)}
                           onChange={() => toggleNoteSelection(note._id)}
                           disabled={isGenerating}
-                          className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-600 cursor-pointer"
+                          className="w-4 h-4 text-purple-600 rounded border-line focus:ring-purple-650 cursor-pointer bg-paper"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 text-sm truncate">{note.title}</p>
+                          <p className="font-semibold text-sm truncate">{note.title}</p>
                         </div>
                       </label>
                     ))}
@@ -518,10 +517,10 @@ const AssignmentsPage = () => {
               </div>
 
               {/* Advanced Customization Options */}
-              <div className="border-t border-gray-100 pt-4">
+              <div className="border-t border-line pt-4">
                 <button 
                   onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                  className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors mb-4"
+                  className="flex items-center gap-2 text-sm font-semibold text-ink hover:text-purple-650 transition-colors mb-4"
                 >
                   <Settings2 className="w-4 h-4" />
                   Advanced Question Options
@@ -532,11 +531,11 @@ const AssignmentsPage = () => {
                   <motion.div 
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100"
+                    className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-paper p-4 rounded-2xl border border-line"
                   >
                     {/* Q Count */}
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Question Count</label>
+                      <label className="text-xs font-bold text-ink-soft uppercase tracking-wider">Question Count</label>
                       <input 
                         type="number"
                         min="1"
@@ -544,14 +543,14 @@ const AssignmentsPage = () => {
                         step="1"
                         value={questionCount}
                         onChange={(e) => setQuestionCount(clampQuestionCount(e.target.value))}
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
+                        className="w-full px-3 py-2 bg-surface border border-line text-ink rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
                         disabled={isGenerating}
                       />
                     </div>
 
                     {/* Marks Per Q */}
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Marks per Q</label>
+                      <label className="text-xs font-bold text-ink-soft uppercase tracking-wider">Marks per Q</label>
                       <input 
                         type="number"
                         min="1"
@@ -559,23 +558,23 @@ const AssignmentsPage = () => {
                         step="0.1"
                         value={marksPerQuestion}
                         onChange={(e) => setMarksPerQuestion(clampMarksPerQuestion(e.target.value))}
-                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all"
+                        className="w-full px-3 py-2 bg-surface border border-line text-ink rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all"
                         disabled={isGenerating}
                       />
                     </div>
 
                     {/* Difficulty */}
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-500 uppercase tracking-tight flex justify-between">
+                      <label className="text-xs font-bold text-ink-soft uppercase tracking-wider flex justify-between">
                         Difficulty
-                        <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-black">
+                        <span className="bg-indigo-100 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-300 px-2 py-0.5 rounded text-[10px] font-black">
                           {questionCount * marksPerQuestion} MARKS TOTAL
                         </span>
                       </label>
                       <select 
                         value={difficulty}
                         onChange={(e) => setDifficulty(e.target.value)}
-                        className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm"
+                        className="w-full p-2 bg-surface border border-line text-ink rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500"
                         disabled={isGenerating}
                       >
                         <option value="easy">Easy</option>
@@ -590,14 +589,14 @@ const AssignmentsPage = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3 bg-gray-50 rounded-b-xl">
+            <div className="p-4 sm:p-6 border-t border-line flex flex-col sm:flex-row gap-3 bg-paper rounded-b-2xl">
               <button
                 onClick={() => {
                   setShowAIModal(false);
                   setSelectedNotes([]);
                 }}
                 disabled={isGenerating}
-                className="w-full sm:flex-1 px-6 py-3 bg-white text-gray-700 font-semibold rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors disabled:opacity-50 cursor-pointer"
+                className="w-full sm:flex-1 px-6 py-3 bg-line text-ink font-bold rounded-xl hover:bg-line/80 transition-colors disabled:opacity-50 cursor-pointer text-sm"
               >
                 Cancel
               </button>
@@ -605,7 +604,7 @@ const AssignmentsPage = () => {
               <button
                 onClick={handleGenerateWithAI}
                 disabled={selectedNotes.length === 0 || isGenerating}
-                className="w-full sm:flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg cursor-pointer"
+                className="w-full sm:flex-1 px-6 py-3 btn-settings-blue text-sm rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {isGenerating ? (
                   <span className="flex items-center justify-center gap-2">

@@ -424,52 +424,52 @@ const AttendanceRegister = ({ classId, students }) => {
   };
 
   const getPctColor = (pct) => {
-    if (pct === null) return "text-gray-400";
-    if (pct >= 75) return "text-green-600";
-    if (pct >= 60) return "text-yellow-600";
-    return "text-red-600";
+    if (pct === null) return "text-ink-soft";
+    if (pct >= 75) return "text-green-600 dark:text-green-400 font-bold";
+    if (pct >= 60) return "text-orange-600 dark:text-orange-400 font-bold";
+    return "text-rose-600 dark:text-rose-455 font-bold";
   };
 
   const getPctBg = (pct) => {
-    if (pct === null) return "bg-gray-50 border-gray-100";
-    if (pct >= 75) return "bg-green-50 border-green-100";
-    if (pct >= 60) return "bg-yellow-50 border-yellow-100";
-    return "bg-red-50 border-red-100";
+    if (pct === null) return "bg-paper border-line";
+    if (pct >= 75) return "bg-green-100 dark:bg-green-955/40 border border-line";
+    if (pct >= 60) return "bg-amber-50 text-amber-800 border border-line";
+    return "bg-rose-100 dark:bg-rose-955/40 border border-line";
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-ink font-body">
 
       {/* ── Analytics Cards ─────────────────────────────────────── */}
       {!isLoading && registerData.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="text-xs text-gray-400 uppercase tracking-wide mb-1 font-medium">Total Students</div>
-            <div className="text-2xl font-extrabold text-gray-800">{registerData.length}</div>
+          <div className="bg-surface rounded-xl border border-line shadow-sm p-4">
+            <div className="text-xs text-ink-soft uppercase tracking-wide mb-1 font-bold">Total Students</div>
+            <div className="text-2xl font-black font-display text-ink">{registerData.length}</div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="text-xs text-gray-400 uppercase tracking-wide mb-1 font-medium">Working Days</div>
-            <div className="text-2xl font-extrabold text-gray-800">{totalWorkingDays}</div>
-            <div className="text-xs text-gray-400 mt-0.5">this month so far</div>
+          <div className="bg-surface rounded-xl border border-line shadow-sm p-4">
+            <div className="text-xs text-ink-soft uppercase tracking-wide mb-1 font-bold">Working Days</div>
+            <div className="text-2xl font-black font-display text-ink">{totalWorkingDays}</div>
+            <div className="text-xs text-ink-soft mt-0.5">this month so far</div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="text-xs text-gray-400 uppercase tracking-wide mb-1 font-medium flex items-center gap-1">
+          <div className="bg-surface rounded-xl border border-line shadow-sm p-4">
+            <div className="text-xs text-ink-soft uppercase tracking-wide mb-1 font-bold flex items-center gap-1">
               <TrendingUp className="w-3 h-3" /> Avg Attendance
             </div>
-            <div className={`text-2xl font-extrabold ${getPctColor(avgAttendance)}`}>{avgAttendance}%</div>
+            <div className={`text-2xl font-black font-display ${getPctColor(avgAttendance)}`}>{avgAttendance}%</div>
           </div>
           <div
-            className={`rounded-xl border shadow-sm p-4 cursor-pointer transition-all ${lowAttendanceStudents.length > 0 ? 'bg-red-50 border-red-200 hover:bg-red-100' : 'bg-white border-gray-100'}`}
+            className={`rounded-xl border shadow-sm p-4 cursor-pointer transition-all ${lowAttendanceStudents.length > 0 ? 'bg-rose-150/20 border-rose-250 dark:border-rose-800 hover:opacity-90' : 'bg-surface border-line'}`}
             title="Students below threshold"
           >
-            <div className="text-xs text-gray-400 uppercase tracking-wide mb-1 font-medium flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3 text-red-400" /> Below {lowThreshold}%
+            <div className="text-xs text-ink-soft uppercase tracking-wide mb-1 font-bold flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3 text-rose-500" /> Below {lowThreshold}%
             </div>
-            <div className={`text-2xl font-extrabold ${lowAttendanceStudents.length > 0 ? 'text-red-700' : 'text-gray-800'}`}>
+            <div className={`text-2xl font-black font-display ${lowAttendanceStudents.length > 0 ? 'text-rose-700 dark:text-rose-455' : 'text-ink'}`}>
               {lowAttendanceStudents.length}
             </div>
             {lowAttendanceStudents.length > 0 && (
-              <div className="text-xs text-red-500 mt-0.5 font-medium">⚠ Students at risk</div>
+              <div className="text-xs text-rose-500 mt-0.5 font-bold">⚠ Students at risk</div>
             )}
           </div>
         </div>
@@ -477,128 +477,135 @@ const AttendanceRegister = ({ classId, students }) => {
 
       {/* ── Low Attendance Alert Banner ─────────────────────────── */}
       {!isLoading && lowAttendanceStudents.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
+        <div className="bg-rose-100 dark:bg-rose-955/40 border border-line rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-bold text-red-700">
+            <p className="text-sm font-bold text-rose-800 dark:text-rose-350">
               {lowAttendanceStudents.length} student{lowAttendanceStudents.length > 1 ? 's' : ''} below {lowThreshold}% attendance
             </p>
-            <p className="text-xs text-red-500 mt-0.5">
+            <p className="text-xs text-rose-750 dark:text-rose-400 mt-0.5 font-semibold">
               {lowAttendanceStudents.slice(0, 3).map(s => s.name).join(', ')}{lowAttendanceStudents.length > 3 ? ` +${lowAttendanceStudents.length - 3} more` : ''}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-gray-500">Threshold:</span>
+            <span className="text-xs text-ink-soft font-bold">Threshold:</span>
             <input
               type="number"
               min={0} max={100}
               value={lowThreshold}
               onChange={e => setLowThreshold(Number(e.target.value))}
-              className="w-16 px-2 py-1 text-xs border border-red-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-400 bg-white text-center font-semibold"
+              className="w-16 px-2 py-1 text-xs border border-line rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500 bg-paper text-ink text-center font-bold"
             />
-            <span className="text-xs text-gray-500">%</span>
+            <span className="text-xs text-ink-soft font-bold">%</span>
           </div>
         </div>
       )}
 
       {/* ── Filters & Actions Header ─────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface p-6 rounded-2xl shadow-sm border border-line">
         <div>
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <TableIcon className="w-5 h-5 text-purple-600" />
+          <h2 className="text-xl font-semibold font-display text-ink flex items-center gap-2">
+            <TableIcon className="w-5 h-5 text-violet-dark" />
             Attendance Register
           </h2>
-          <p className="text-sm text-gray-500 mt-1">ERP style monthly attendance view</p>
+          <p className="text-sm text-ink-soft mt-1">ERP style monthly attendance view</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          {/* Search */}
-          <div className="relative flex-1 sm:flex-none sm:w-52">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search student..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-gray-50 hover:bg-white text-gray-700 text-sm transition-all"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+        <div className="flex flex-col gap-3 w-full sm:w-auto sm:flex-row sm:items-center">
+          {/* Search & Month row (side-by-side in mobile view) */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Search */}
+            <div className="relative w-[62.5%] sm:w-52 sm:flex-none">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-soft" />
+              <input
+                type="text"
+                placeholder="Search student..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 border border-line rounded-xl outline-none bg-paper hover:bg-surface text-ink text-sm transition-all focus:ring-2 focus:ring-violet-dark"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-soft hover:text-ink cursor-pointer bg-transparent border-none">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Month picker */}
+            <div className="relative group w-[37.5%] sm:w-auto sm:flex-none">
+              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-violet-dark" />
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                min={`${currentYear}-01`}
+                max={`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`}
+                className="w-full pl-8 pr-2 py-2 border border-line rounded-xl outline-none bg-paper hover:bg-surface text-ink font-bold transition-all cursor-pointer shadow-sm text-xs sm:text-sm sm:pl-10 sm:pr-4"
+              />
+            </div>
           </div>
 
-          {/* Month picker */}
-          <div className="relative group">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-600" />
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              min={`${currentYear}-01`}
-              max={`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`}
-              className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none bg-gray-50 hover:bg-white text-gray-700 font-medium transition-all cursor-pointer shadow-sm"
-            />
+          {/* Holidays & Export Excel row (side-by-side in mobile view, hiding switcher) */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Holiday manager button */}
+            <button
+              onClick={() => setShowHolidayModal(true)}
+              className="flex-1 sm:flex-none justify-center flex items-center gap-1.5 px-4 py-2 border border-line bg-orange-100 dark:bg-orange-955/40 text-orange-850 dark:text-orange-300 rounded-xl text-sm font-bold hover:opacity-85 transition cursor-pointer"
+              title="Manage Holidays"
+            >
+              <CalendarOff className="w-4 h-4" />
+              <span>Holidays</span>
+            </button>
+
+            {/* Export Excel */}
+            <button
+              onClick={exportToXLSX}
+              disabled={registerData.length === 0}
+              className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export Excel</span>
+            </button>
           </div>
 
-          {/* Holiday manager button */}
-          <button
-            onClick={() => setShowHolidayModal(true)}
-            className="relative flex items-center gap-1.5 px-3 py-2 border border-orange-200 bg-orange-50 text-orange-700 rounded-lg text-sm font-medium hover:bg-orange-100 transition cursor-pointer"
-            title="Manage Holidays"
-          >
-            <CalendarOff className="w-4 h-4" />
-            Holidays
-          </button>
-
-          {/* View toggle */}
-          <div className="flex border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+          {/* View toggle (desktop only) */}
+          <div className="hidden sm:flex border border-line rounded-xl overflow-hidden bg-paper p-0.5">
             <button
               onClick={() => setViewMode("table")}
-              className={`p-2 transition cursor-pointer ${viewMode === 'table' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:bg-gray-100'}`}
+              className={`p-2 transition cursor-pointer ${viewMode === 'table' ? 'bg-violet-dark text-white rounded-lg' : 'text-ink-soft hover:bg-line/40 rounded-lg'}`}
               title="Table view"
             >
               <LayoutList className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode("cards")}
-              className={`p-2 transition cursor-pointer ${viewMode === 'cards' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:bg-gray-100'}`}
+              className={`p-2 transition cursor-pointer ${viewMode === 'cards' ? 'bg-violet-dark text-white rounded-lg' : 'text-ink-soft hover:bg-line/40 rounded-lg'}`}
               title="Card view"
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
           </div>
-
-          <button
-            onClick={exportToXLSX}
-            disabled={registerData.length === 0}
-            className="flex items-center gap-2 px-5 py-2 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            Export Excel
-          </button>
         </div>
       </div>
 
       {/* ── Main Content ─────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+      <div className="bg-surface rounded-2xl shadow-sm border border-line overflow-hidden flex flex-col">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">
-            <div className="w-10 h-10 border-4 border-purple-100 border-t-purple-600 rounded-full animate-spin mb-4" />
-            <p className="text-gray-500 font-medium animate-pulse">Loading Register Data...</p>
+            <div className="w-10 h-10 border-4 border-violet-100 border-t-violet-dark rounded-full animate-spin mb-4" />
+            <p className="text-ink-soft font-bold animate-pulse">Loading Register Data...</p>
           </div>
         ) : registerData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-12 text-ink-soft">
             <TableIcon className="w-16 h-16 mb-4 opacity-30" />
-            <p className="font-medium text-lg text-gray-500 mb-1">No attendance records found</p>
-            <p className="text-sm text-gray-400">Select a different month or ensure students are enrolled.</p>
+            <p className="font-semibold text-lg text-ink mb-1">No attendance records found</p>
+            <p className="text-sm text-ink-soft">Select a different month or ensure students are enrolled.</p>
           </div>
         ) : viewMode === "cards" ? (
           /* ── Card View (mobile-friendly) ─────────────────────── */
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredData.length === 0 ? (
-              <div className="col-span-full text-center py-10 text-gray-400">
+              <div className="col-span-full text-center py-10 text-ink-soft">
                 <Search className="w-10 h-10 mx-auto mb-2 opacity-30" />
                 <p>No students match your search.</p>
               </div>
@@ -606,33 +613,33 @@ const AttendanceRegister = ({ classId, students }) => {
               const pct = getAttendancePct(row);
               const isLow = pct !== null && pct < lowThreshold;
               return (
-                <div key={row.id} className={`rounded-xl border-2 p-4 transition-all ${isLow ? 'border-red-200 bg-red-50/30' : 'border-gray-100 bg-white hover:border-purple-200'}`}>
+                <div key={row.id} className={`rounded-xl border-2 p-4 transition-all ${isLow ? 'border-rose-500 dark:border-rose-450 bg-rose-500/10' : 'border-line bg-surface hover:border-violet-dark'}`}>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm border border-purple-200 shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-violet-50 text-violet-dark flex items-center justify-center font-bold text-sm border border-line shrink-0">
                         {row.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <div className="font-semibold text-gray-800 text-sm leading-tight">{row.name}</div>
-                        <div className="text-xs text-gray-400 truncate max-w-[140px]">{row.email}</div>
+                        <div className="font-bold text-ink text-sm leading-tight">{row.name}</div>
+                        <div className="text-xs text-ink-soft truncate max-w-[140px]">{row.email}</div>
                       </div>
                     </div>
-                    {isLow && <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />}
+                    {isLow && <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5 animate-pulse" />}
                   </div>
 
                   {/* Stats row */}
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="flex-1 bg-green-50 rounded-lg px-3 py-2 text-center border border-green-100">
-                      <div className="text-lg font-extrabold text-green-700">{row.totalPresent}</div>
-                      <div className="text-[10px] text-green-600 font-medium uppercase tracking-wide">Present</div>
+                    <div className="flex-1 bg-green-100 dark:bg-green-955/40 rounded-xl px-3 py-2 text-center border border-line">
+                      <div className="text-lg font-black font-display text-green-700 dark:text-green-300">{row.totalPresent}</div>
+                      <div className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase tracking-wide">Present</div>
                     </div>
-                    <div className="flex-1 bg-red-50 rounded-lg px-3 py-2 text-center border border-red-100">
-                      <div className="text-lg font-extrabold text-red-700">{row.totalAbsent}</div>
-                      <div className="text-[10px] text-red-600 font-medium uppercase tracking-wide">Absent</div>
+                    <div className="flex-1 bg-rose-100 dark:bg-rose-955/40 rounded-xl px-3 py-2 text-center border border-line">
+                      <div className="text-lg font-black font-display text-rose-700 dark:text-rose-350">{row.totalAbsent}</div>
+                      <div className="text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase tracking-wide">Absent</div>
                     </div>
-                    <div className={`flex-1 rounded-lg px-3 py-2 text-center border ${getPctBg(pct)}`}>
-                      <div className={`text-lg font-extrabold ${getPctColor(pct)}`}>{pct !== null ? `${pct}%` : '-'}</div>
-                      <div className="text-[10px] text-gray-500 font-medium uppercase tracking-wide">Rate</div>
+                    <div className={`flex-1 rounded-xl px-3 py-2 text-center border ${getPctBg(pct)}`}>
+                      <div className="text-lg font-black font-display">{pct !== null ? `${pct}%` : '-'}</div>
+                      <div className="text-[10px] text-ink-soft font-bold uppercase tracking-wide">Rate</div>
                     </div>
                   </div>
 
@@ -640,7 +647,7 @@ const AttendanceRegister = ({ classId, students }) => {
                   <div className="grid grid-cols-7 gap-1">
                     {/* Weekday headers */}
                     {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
-                      <div key={d} className="text-center text-[9px] font-semibold text-gray-400 uppercase pb-0.5">{d}</div>
+                      <div key={d} className="text-center text-[9px] font-bold text-ink-soft uppercase pb-0.5">{d}</div>
                     ))}
                     {/* Leading empty cells to align first day */}
                     {Array.from({ length: dates.length > 0 ? new Date(dates[0] + 'T00:00:00').getDay() : 0 }).map((_, i) => (
@@ -652,17 +659,17 @@ const AttendanceRegister = ({ classId, students }) => {
                       const status = row.attendance[date];
                       const dayNumber = new Date(date + 'T00:00:00').getDate();
 
-                      let boxClassName = "bg-gray-100 border border-gray-200 text-gray-500";
+                      let boxClassName = "bg-line border border-line text-ink-soft";
                       let label = "Not marked";
 
                       if (isHol) {
-                        boxClassName = "bg-orange-100 border border-orange-200 text-orange-700";
+                        boxClassName = "bg-orange-100 dark:bg-orange-955/40 border border-line text-orange-850 dark:text-orange-300";
                         label = holidayName || "Holiday";
                       } else if (status === 'P') {
-                        boxClassName = "bg-green-400 border border-green-500 text-green-900";
+                        boxClassName = "bg-green-600 border border-transparent text-white";
                         label = "Present";
                       } else if (status === 'A') {
-                        boxClassName = "bg-red-400 border border-red-500 text-red-900";
+                        boxClassName = "bg-rose-600 border border-transparent text-white";
                         label = "Absent";
                       }
 
@@ -683,24 +690,24 @@ const AttendanceRegister = ({ classId, students }) => {
 
             {/* ── Card View Footer: Month Nav + Legend ─────────── */}
             {filteredData.length > 0 && (
-              <div className="col-span-full mt-2 border-t border-gray-100 pt-4 space-y-3">
+              <div className="col-span-full mt-2 border-t border-line pt-4 space-y-3">
                 {/* Month navigation */}
                 <div className="flex items-center justify-between">
-                  <button onClick={goToPrevMonth} className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition cursor-pointer border border-gray-200">
+                  <button onClick={goToPrevMonth} className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-ink bg-paper border border-line hover:bg-line/45 rounded-xl transition cursor-pointer">
                     <ChevronLeft className="w-4 h-4" /> Prev
                   </button>
-                  <div className="text-sm font-bold text-gray-700">{getMonthLabel()}</div>
-                  <button onClick={goToNextMonth} disabled={selectedMonth === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`} className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition cursor-pointer border border-gray-200 disabled:opacity-40 disabled:cursor-not-allowed">
+                  <div className="text-sm font-bold text-ink">{getMonthLabel()}</div>
+                  <button onClick={goToNextMonth} disabled={selectedMonth === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`} className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-ink bg-paper border border-line hover:bg-line/45 rounded-xl transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
                     Next <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
                 {/* Legend */}
-                <div className="flex flex-wrap items-center justify-center gap-4 pt-3 border-t border-gray-100">
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded bg-green-400 border border-green-500"></span> Present</div>
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded bg-red-400 border border-red-500"></span> Absent</div>
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded bg-orange-100 border border-orange-200"></span> Holiday</div>
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-200"></span> Not Marked</div>
-                  <div className="flex items-center gap-1.5 text-xs text-red-500"><AlertTriangle className="w-3 h-3" /> Below {lowThreshold}%</div>
+                <div className="flex flex-wrap items-center justify-center gap-4 pt-3 border-t border-line">
+                  <div className="flex items-center gap-1.5 text-xs text-ink-soft font-bold"><span className="w-3 h-3 rounded bg-green-500 border border-transparent"></span> Present</div>
+                  <div className="flex items-center gap-1.5 text-xs text-ink-soft font-bold"><span className="w-3 h-3 rounded bg-rose-600 border border-transparent"></span> Absent</div>
+                  <div className="flex items-center gap-1.5 text-xs text-ink-soft font-bold"><span className="w-3 h-3 rounded bg-orange-100 dark:bg-orange-955/40 border border-line"></span> Holiday</div>
+                  <div className="flex items-center gap-1.5 text-xs text-ink-soft font-bold"><span className="w-3 h-3 rounded bg-line border border-line"></span> Not Marked</div>
+                  <div className="flex items-center gap-1.5 text-xs text-rose-550 font-bold"><AlertTriangle className="w-3 h-3" /> Below {lowThreshold}%</div>
                 </div>
               </div>
             )}
@@ -715,15 +722,15 @@ const AttendanceRegister = ({ classId, students }) => {
             >
               <table className="w-full text-sm text-left border-collapse border-spacing-0 whitespace-nowrap min-w-max">
                 <thead className="sticky top-0 z-20 shadow-sm">
-                  <tr className="bg-gray-100 text-gray-700 text-xs uppercase tracking-wider divide-x divide-gray-200 border-b border-gray-300">
-                    <th rowSpan={2} className="sticky left-0 bg-gray-100 z-30 py-3 px-4 font-bold w-[56px] min-w-[56px] max-w-[56px] text-center border-r-2 border-gray-300">S.No</th>
-                    <th rowSpan={2} className="sticky left-[56px] bg-gray-100 z-30 py-3 px-6 font-bold w-[260px] min-w-[260px] max-w-[260px] border-r-2 border-gray-300">Student Name</th>
+                  <tr className="bg-paper text-ink text-xs uppercase tracking-wider divide-x divide-line border-b border-line">
+                    <th rowSpan={2} className="sticky left-0 bg-paper z-30 py-3 px-4 font-bold w-[56px] min-w-[56px] max-w-[56px] text-center border-r border-line">S.No</th>
+                    <th rowSpan={2} className="sticky left-[56px] bg-paper z-30 py-3 px-6 font-bold w-[260px] min-w-[260px] max-w-[260px] border-r border-line">Student Name</th>
                     {dates.map(date => {
                       const { isHol, name: holName } = isHoliday(date);
                       return (
-                        <th rowSpan={2} key={date} className={`py-3 px-1.5 min-w-[44px] text-center font-bold tracking-tighter ${isHol ? 'bg-orange-50 text-orange-700' : ''}`} title={isHol ? holName : ''}>
+                        <th rowSpan={2} key={date} className={`py-3 px-1.5 min-w-[44px] text-center font-bold tracking-tighter border-r border-line ${isHol ? 'bg-orange-100 dark:bg-orange-955/40 text-orange-850 dark:text-orange-300' : ''}`} title={isHol ? holName : ''}>
                           <div className="flex flex-col items-center justify-center -space-y-1">
-                            <span className={`text-[10px] ${isHol ? 'text-orange-500' : 'text-gray-400'}`}>
+                            <span className={`text-[10px] ${isHol ? 'text-orange-500' : 'text-ink-soft'}`}>
                               {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
                             </span>
                             <span className="text-[13px]">{new Date(date + 'T00:00:00').getDate()}</span>
@@ -733,20 +740,20 @@ const AttendanceRegister = ({ classId, students }) => {
                     })}
                     <th
                       colSpan={2}
-                      className="sticky right-0 bg-gray-100 z-30 py-2 px-2 w-[192px] min-w-[192px] text-center text-[11px] text-gray-700 font-bold border-l-2 border-b-2 border-gray-300 whitespace-nowrap"
+                      className="sticky right-0 bg-paper z-30 py-2 px-2 w-[192px] min-w-[192px] text-center text-[11px] text-ink font-bold border-l border-b border-line whitespace-nowrap"
                     >
                       Total
                     </th>
                   </tr>
-                  <tr className="bg-gray-100 text-gray-700 text-[11px] uppercase tracking-wider divide-x divide-gray-200 border-b-2 border-gray-300">
-                    <th className="sticky right-[96px] bg-gray-100 z-30 py-2 px-2 w-[96px] min-w-[96px] text-center text-green-700 font-bold border-l-2 border-r border-gray-300 whitespace-nowrap">Pre.</th>
-                    <th className="sticky right-0 bg-gray-100 z-30 py-2 px-2 w-[96px] min-w-[96px] text-center text-red-600 font-bold border-l border-gray-300 whitespace-nowrap">Abs.</th>
+                  <tr className="bg-paper text-ink text-[11px] uppercase tracking-wider divide-x divide-line border-b border-line">
+                    <th className="sticky right-[96px] bg-paper z-30 py-2 px-2 w-[96px] min-w-[96px] text-center text-green-700 dark:text-green-400 font-bold border-l border-r border-line whitespace-nowrap">Pre.</th>
+                    <th className="sticky right-0 bg-paper z-30 py-2 px-2 w-[96px] min-w-[96px] text-center text-rose-600 dark:text-rose-455 font-bold border-l border-line whitespace-nowrap">Abs.</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-line">
                   {filteredData.length === 0 ? (
                     <tr>
-                      <td colSpan={dates.length + 4} className="py-10 text-center text-gray-400 text-sm">
+                      <td colSpan={dates.length + 4} className="py-10 text-center text-ink-soft text-sm">
                         No students match "{searchQuery}"
                       </td>
                     </tr>
@@ -754,16 +761,16 @@ const AttendanceRegister = ({ classId, students }) => {
                     const pct = getAttendancePct(row);
                     const isLow = pct !== null && pct < lowThreshold;
                     return (
-                      <tr key={row.id} className={`hover:bg-purple-50/50 transition-colors group cursor-default ${isLow ? 'bg-red-50/30' : ''}`}>
-                        <td className="sticky left-0 bg-white group-hover:bg-purple-50/50 z-10 py-2 px-4 w-[56px] min-w-[56px] max-w-[56px] text-center text-gray-500 font-medium border-r-2 border-gray-300">
+                      <tr key={row.id} className={`hover:bg-line/20 transition-colors group cursor-default ${isLow ? 'bg-rose-500/10' : ''}`}>
+                        <td className="sticky left-0 bg-surface group-hover:bg-line/20 z-10 py-2 px-4 w-[56px] min-w-[56px] max-w-[56px] text-center text-ink-soft font-bold border-r border-line">
                           {index + 1}
                         </td>
-                        <td className="sticky left-[56px] bg-white group-hover:bg-purple-50/50 z-10 py-2 px-6 w-[260px] min-w-[260px] max-w-[260px] border-r-2 border-gray-300">
+                        <td className="sticky left-[56px] bg-surface group-hover:bg-line/20 z-10 py-2 px-6 w-[260px] min-w-[260px] max-w-[260px] border-r border-line">
                           <div className="flex items-center gap-2">
-                            {isLow && <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" title={`Attendance: ${pct}%`} />}
+                            {isLow && <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0 animate-pulse" title={`Attendance: ${pct}%`} />}
                             <div>
-                              <div className="font-semibold text-gray-800 truncate" title={row.name}>{row.name}</div>
-                              <div className="text-[11px] text-gray-400 truncate" title={row.email}>{row.email}</div>
+                              <div className="font-semibold text-ink truncate" title={row.name}>{row.name}</div>
+                              <div className="text-[11px] text-ink-soft truncate" title={row.email}>{row.email}</div>
                             </div>
                           </div>
                         </td>
@@ -771,23 +778,23 @@ const AttendanceRegister = ({ classId, students }) => {
                           const status = row.attendance[date];
                           const { isHol } = isHoliday(date);
                           return (
-                            <td key={date} className={`py-1 px-1 min-w-[44px] text-center border-r border-gray-100 ${isHol ? 'bg-orange-50/40' : ''}`}>
+                            <td key={date} className={`py-1 px-1 min-w-[44px] text-center border-r border-line ${isHol ? 'bg-orange-100/30 dark:bg-orange-950/20' : ''}`}>
                               {isHol ? (
-                                <span className="inline-flex items-center justify-center w-6 h-6 text-orange-300 text-xs font-medium">–</span>
+                                <span className="inline-flex items-center justify-center w-6 h-6 text-orange-400 dark:text-orange-300 text-xs font-bold">–</span>
                               ) : status === 'P' ? (
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-green-100 text-green-700 font-bold text-xs shadow-sm border border-green-200">P</span>
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300 font-black text-xs shadow-sm border border-line">P</span>
                               ) : status === 'A' ? (
-                                <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-red-100 text-red-700 font-bold text-xs shadow-sm border border-red-200">A</span>
+                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350 font-black text-xs shadow-sm border border-line">A</span>
                               ) : (
-                                <span className="inline-flex items-center justify-center w-6 h-6 text-gray-300 text-xs font-medium">-</span>
+                                <span className="inline-flex items-center justify-center w-6 h-6 text-ink-soft opacity-30 text-xs font-bold">-</span>
                               )}
                             </td>
                           );
                         })}
-                        <td className="sticky right-[96px] bg-green-50 z-10 py-2 px-2 w-[96px] min-w-[96px] text-center text-green-700 font-bold text-sm border-l-2 border-r border-gray-300">
+                        <td className="sticky right-[96px] bg-green-150/15 dark:bg-green-955/10 z-10 py-2 px-2 w-[96px] min-w-[96px] text-center text-green-700 dark:text-green-400 font-black text-sm border-l border-r border-line">
                           {row.totalPresent}
                         </td>
-                        <td className="sticky right-0 bg-red-50 z-10 py-2 px-2 w-[96px] min-w-[96px] text-center text-red-600 font-bold text-sm border-l border-gray-300">
+                        <td className="sticky right-0 bg-rose-150/15 dark:bg-rose-955/10 z-10 py-2 px-2 w-[96px] min-w-[96px] text-center text-rose-600 dark:text-rose-350 font-black text-sm border-l border-line">
                           {row.totalAbsent}
                         </td>
                       </tr>
@@ -798,7 +805,7 @@ const AttendanceRegister = ({ classId, students }) => {
             </div>
 
             {/* Custom scrollbar */}
-            <div className="px-5 pt-2 pb-1 border-t border-gray-100 bg-white">
+            <div className="px-5 pt-2 pb-1 border-t border-line bg-surface">
               <div className="mx-0 sm:ml-[316px] sm:mr-[192px]">
                 <div ref={dateScrollbarRef} onScroll={handleDateScrollbarScroll} className="date-only-scrollbar overflow-x-auto overflow-y-hidden" aria-label="Scroll date columns">
                   <div style={{ width: `${Math.max(dates.length * 44, 1)}px`, height: '1px' }} />
@@ -807,22 +814,22 @@ const AttendanceRegister = ({ classId, students }) => {
             </div>
 
             {/* Month nav + legend */}
-            <div className="px-5 py-4 border-t border-gray-100 bg-gray-50/30 rounded-b-2xl">
+            <div className="px-5 py-4 border-t border-line bg-paper rounded-b-2xl">
               <div className="flex items-center justify-between mb-3">
-                <button onClick={goToPrevMonth} className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition cursor-pointer border border-gray-200">
+                <button onClick={goToPrevMonth} className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-ink bg-paper border border-line hover:bg-line/45 rounded-xl transition cursor-pointer">
                   <ChevronLeft className="w-4 h-4" /> Prev
                 </button>
-                <div className="text-sm font-bold text-gray-700">{getMonthLabel()}</div>
-                <button onClick={goToNextMonth} disabled={selectedMonth === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`} className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition cursor-pointer border border-gray-200 disabled:opacity-40 disabled:cursor-not-allowed">
+                <div className="text-sm font-bold text-ink">{getMonthLabel()}</div>
+                <button onClick={goToNextMonth} disabled={selectedMonth === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`} className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-ink bg-paper border border-line hover:bg-line/45 rounded-xl transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
                   Next <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-4 pt-3 border-t border-gray-100">
-                <div className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded bg-green-100 border border-green-200"></span> Present</div>
-                <div className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded bg-red-100 border border-red-200"></span> Absent</div>
-                <div className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded bg-orange-100 border border-orange-200"></span> Holiday</div>
-                <div className="flex items-center gap-1.5 text-xs text-gray-500"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-200"></span> Not Marked</div>
-                <div className="flex items-center gap-1.5 text-xs text-red-500"><AlertTriangle className="w-3 h-3" /> Below {lowThreshold}%</div>
+              <div className="flex flex-wrap items-center justify-center gap-4 pt-3 border-t border-line">
+                <div className="flex items-center gap-1.5 text-xs text-ink-soft font-bold"><span className="w-3 h-3 rounded-md bg-green-100 dark:bg-green-955/40 border border-line"></span> Present</div>
+                <div className="flex items-center gap-1.5 text-xs text-ink-soft font-bold"><span className="w-3 h-3 rounded-md bg-rose-100 dark:bg-rose-955/40 border border-line"></span> Absent</div>
+                <div className="flex items-center gap-1.5 text-xs text-ink-soft font-bold"><span className="w-3 h-3 rounded-md bg-orange-100 dark:bg-orange-955/40 border border-line"></span> Holiday</div>
+                <div className="flex items-center gap-1.5 text-xs text-ink-soft font-bold"><span className="w-3 h-3 rounded-md bg-line border border-line"></span> Not Marked</div>
+                <div className="flex items-center gap-1.5 text-xs text-rose-550 font-bold"><AlertTriangle className="w-3 h-3 text-rose-500" /> Below {lowThreshold}%</div>
               </div>
             </div>
           </>
@@ -832,22 +839,22 @@ const AttendanceRegister = ({ classId, students }) => {
       {/* ── Holiday Manager Modal ─────────────────────────────────── */}
       {showHolidayModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div ref={holidayModalRef} className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100 bg-gradient-to-r from-orange-50 to-white">
+          <div ref={holidayModalRef} className="bg-surface rounded-2xl shadow-2xl border border-line w-full max-w-md overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between p-5 border-b border-line bg-paper">
               <div>
-                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <h3 className="text-lg font-semibold font-display text-ink flex items-center gap-2">
                   <CalendarOff className="w-5 h-5 text-orange-500" />
                   Manage Holidays
                 </h3>
-                <p className="text-sm text-gray-500 mt-0.5">Add custom holidays for this class</p>
+                <p className="text-sm text-ink-soft mt-0.5">Add custom holidays for this class</p>
               </div>
-              <button onClick={() => setShowHolidayModal(false)} className="p-2 rounded-lg hover:bg-gray-100 transition cursor-pointer text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowHolidayModal(false)} className="p-2 rounded-xl hover:bg-line/80 transition cursor-pointer text-ink-soft hover:text-ink">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Add holiday form */}
-            <div className="p-5 border-b border-gray-100 space-y-3">
+            <div className="p-5 border-b border-line space-y-3">
               {/* Holiday name */}
               <input
                 type="text"
@@ -855,13 +862,13 @@ const AttendanceRegister = ({ classId, students }) => {
                 value={newHolidayName}
                 onChange={e => setNewHolidayName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAddHoliday()}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                className="w-full px-3 py-2 text-sm border border-line rounded-xl bg-paper text-ink focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
               />
 
               {/* From – To date row */}
               <div className="flex items-center gap-2">
                 <div className="flex-1">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 block">From</label>
+                  <label className="text-[10px] font-bold text-ink-soft uppercase tracking-wide mb-1 block">From</label>
                   <input
                     type="date"
                     value={newHolidayFrom}
@@ -871,15 +878,15 @@ const AttendanceRegister = ({ classId, students }) => {
                       if (newHolidayTo && e.target.value > newHolidayTo) setNewHolidayTo("");
                     }}
                     max={`${today.getFullYear()}-12-31`}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                    className="w-full px-3 py-2 text-sm border border-line rounded-xl bg-paper text-ink focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
                   />
                 </div>
 
-                <div className="text-gray-300 text-lg font-light mt-4">–</div>
+                <div className="text-ink-soft text-lg font-light mt-4">–</div>
 
                 <div className="flex-1">
-                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 block">
-                    To <span className="text-gray-300 font-normal normal-case">(optional)</span>
+                  <label className="text-[10px] font-bold text-ink-soft uppercase tracking-wide mb-1 block">
+                    To <span className="text-ink-soft font-normal normal-case">(optional)</span>
                   </label>
                   <input
                     type="date"
@@ -888,7 +895,7 @@ const AttendanceRegister = ({ classId, students }) => {
                     min={newHolidayFrom || undefined}
                     max={`${today.getFullYear()}-12-31`}
                     disabled={!newHolidayFrom}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 text-sm border border-line rounded-xl bg-paper text-ink focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -899,7 +906,7 @@ const AttendanceRegister = ({ classId, students }) => {
                 const to = new Date(newHolidayTo + 'T00:00:00');
                 const diff = Math.round((to - from) / 86400000) + 1;
                 return (
-                  <div className="flex items-center gap-2 text-xs bg-orange-50 border border-orange-200 text-orange-700 px-3 py-2 rounded-lg font-medium">
+                  <div className="flex items-center gap-2 text-xs bg-orange-100 dark:bg-orange-955/40 border border-line text-orange-850 dark:text-orange-300 px-3 py-2 rounded-xl font-bold">
                     <CalendarOff className="w-3.5 h-3.5 shrink-0" />
                     {diff} day{diff > 1 ? 's' : ''} holiday
                     {newHolidayName ? ` — ${newHolidayName}` : ''}
@@ -913,7 +920,7 @@ const AttendanceRegister = ({ classId, students }) => {
               <button
                 onClick={handleAddHoliday}
                 disabled={!newHolidayFrom || (newHolidayTo && newHolidayTo < newHolidayFrom)}
-                className="w-full flex items-center justify-center gap-2 py-2 bg-orange-500 text-white text-sm font-semibold rounded-lg hover:bg-orange-600 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-2 bg-orange-600 text-white text-sm font-bold rounded-xl hover:bg-orange-700 transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Add Holiday
@@ -921,9 +928,9 @@ const AttendanceRegister = ({ classId, students }) => {
             </div>
 
             {/* Holiday list — grouped */}
-            <div className="max-h-60 overflow-y-auto divide-y divide-gray-50">
+            <div className="max-h-60 overflow-y-auto divide-y divide-line">
               {groupedHolidays.length === 0 ? (
-                <div className="py-8 text-center text-gray-400 text-sm">
+                <div className="py-8 text-center text-ink-soft text-sm">
                   <CalendarOff className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   No custom holidays added yet
                 </div>
@@ -932,24 +939,24 @@ const AttendanceRegister = ({ classId, students }) => {
                 const fromLabel = new Date(g.from + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                 const toLabel = new Date(g.to + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                 return (
-                  <div key={g.groupId} className="flex items-center justify-between px-5 py-3 hover:bg-orange-50/30 transition-colors">
+                  <div key={g.groupId} className="flex items-center justify-between px-5 py-3 hover:bg-orange-50/10 dark:hover:bg-orange-950/20 transition-colors">
                     <div className="flex items-center gap-3">
                       {/* Orange pill showing day count */}
                       {!isSingle && (
-                        <span className="shrink-0 bg-orange-100 text-orange-600 text-[11px] font-bold px-2 py-0.5 rounded-full border border-orange-200">
+                        <span className="shrink-0 bg-orange-100 dark:bg-orange-955/40 text-orange-800 dark:text-orange-300 text-[11px] font-bold px-2 py-0.5 rounded-full border border-line">
                           {g.count}d
                         </span>
                       )}
                       <div>
-                        <div className="font-semibold text-gray-800 text-sm">{g.name}</div>
-                        <div className="text-xs text-gray-400">
+                        <div className="font-semibold text-ink text-sm">{g.name}</div>
+                        <div className="text-xs text-ink-soft">
                           {isSingle ? fromLabel : `${fromLabel} – ${toLabel}`}
                         </div>
                       </div>
                     </div>
                     <button
                       onClick={() => handleRemoveHoliday(g.groupId)}
-                      className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition cursor-pointer shrink-0"
+                      className="p-1.5 text-ink-soft hover:text-rose-600 hover:bg-line/40 rounded-xl transition cursor-pointer shrink-0"
                       title={isSingle ? "Remove holiday" : `Remove all ${g.count} days`}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -959,8 +966,8 @@ const AttendanceRegister = ({ classId, students }) => {
               })}
             </div>
 
-            <div className="p-4 border-t border-gray-100 bg-gray-50/50">
-              <p className="text-xs text-gray-400 text-center">Sundays are automatically marked as holidays. Custom holidays apply to all months.</p>
+            <div className="p-4 border-t border-line bg-paper">
+              <p className="text-xs text-ink-soft text-center font-semibold">Sundays are automatically marked as holidays. Custom holidays apply to all months.</p>
             </div>
           </div>
         </div>
@@ -972,18 +979,18 @@ const AttendanceRegister = ({ classId, students }) => {
         .date-only-scrollbar:focus, .date-only-scrollbar:focus-visible { outline: none; box-shadow: none; }
         .excel-table-wrapper::-webkit-scrollbar:horizontal { height: 0; }
         .excel-table-wrapper::-webkit-scrollbar-track:horizontal,
-        .date-only-scrollbar::-webkit-scrollbar-track:horizontal { background: #f1f5f9; border-radius: 9999px; }
+        .date-only-scrollbar::-webkit-scrollbar-track:horizontal { background: var(--paper); border-radius: 9999px; }
         .excel-table-wrapper::-webkit-scrollbar-thumb:horizontal,
-        .date-only-scrollbar::-webkit-scrollbar-thumb:horizontal { background: #cbd5e1; border-radius: 9999px; }
+        .date-only-scrollbar::-webkit-scrollbar-thumb:horizontal { background: var(--line); border-radius: 9999px; }
         .excel-table-wrapper::-webkit-scrollbar-thumb:horizontal:hover,
-        .date-only-scrollbar::-webkit-scrollbar-thumb:horizontal:hover { background: #94a3b8; }
-        .date-only-scrollbar { scrollbar-width: thin; scrollbar-color: #cbd5e1 #f1f5f9; }
+        .date-only-scrollbar::-webkit-scrollbar-thumb:horizontal:hover { background: var(--ink-soft); }
+        .date-only-scrollbar { scrollbar-width: thin; scrollbar-color: var(--line) var(--paper); }
         .date-only-scrollbar::-webkit-scrollbar:horizontal { height: 7px; }
         table { border-collapse: separate; }
         ::-webkit-scrollbar { width: 8px; height: 10px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 8px; }
-        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 8px; }
-        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        ::-webkit-scrollbar-track { background: var(--paper); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--ink-soft); }
       `}} />
     </div>
   );
