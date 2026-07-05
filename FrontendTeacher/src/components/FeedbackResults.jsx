@@ -200,8 +200,8 @@ const FeedbackResults = ({ classId }) => {
     return (
       <div className="flex items-center justify-center p-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="text-gray-500 mt-4">Loading results...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-700 mx-auto"></div>
+          <p className="text-ink-soft mt-4 font-semibold">Loading results...</p>
         </div>
       </div>
     );
@@ -232,8 +232,8 @@ const FeedbackResults = ({ classId }) => {
             size={16}
             className={`${
               i <= rounded
-                ? "text-yellow-400 fill-yellow-400"
-                : "text-gray-300"
+                ? "text-yellow-500 fill-yellow-500"
+                : "text-ink-soft/30"
             }`}
           />
         ))}
@@ -245,7 +245,7 @@ const FeedbackResults = ({ classId }) => {
     <div>
       {/* History Toggle */}
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-lg font-semibold text-ink font-display">
           Student Feedback
         </h3>
         <motion.button
@@ -255,7 +255,7 @@ const FeedbackResults = ({ classId }) => {
             setShowHistory(!showHistory);
             if (!showHistory) fetchHistory();
           }}
-          className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-medium cursor-pointer transition"
+          className="flex items-center gap-2 text-sm text-violet-700 dark:text-violet-400 hover:text-violet-800 font-semibold cursor-pointer transition border-none bg-transparent"
         >
           <History size={16} />
           {showHistory ? "Hide History" : "View History"}
@@ -279,7 +279,7 @@ const FeedbackResults = ({ classId }) => {
             className="mb-6 space-y-3 overflow-hidden"
           >
             {historyLoading && (
-              <p className="text-gray-500 text-sm">
+              <p className="text-ink-soft text-sm font-semibold">
                 Loading feedback history...
               </p>
             )}
@@ -292,28 +292,28 @@ const FeedbackResults = ({ classId }) => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05, duration: 0.2 }}
                   whileHover={{ scale: 1.01 }}
-                  className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm cursor-pointer hover:border-purple-200 transition group"
+                  className="bg-surface border border-line rounded-2xl p-4 shadow-sm cursor-pointer hover:border-violet-300 transition group"
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="text-sm font-medium text-gray-700">
+                      <p className="text-sm font-semibold text-ink">
                         {fb.isActive
                           ? "🟢 Current Feedback"
                           : "📋 Past Feedback"}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-ink-soft mt-1">
                         {new Date(fb.createdAt).toLocaleDateString()} •{" "}
                         {fb.responses.length} responses
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold">
-                        <Star size={14} className="fill-purple-700" />
+                        <div className="flex items-center gap-2 bg-violet-500/10 text-violet-700 dark:text-violet-300 px-3 py-1 rounded-full text-sm font-bold">
+                        <Star size={14} className="fill-violet-700 dark:fill-violet-400" />
                         {getRoundAverage(fb.responses)} / 5
                         </div>
                         <button 
                             onClick={(e) => handleDeleteFeedback(fb._id, e)}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition opacity-0 group-hover:opacity-100"
+                            className="p-2 text-ink-soft hover:text-error hover:bg-error/10 rounded-full transition opacity-0 group-hover:opacity-100 cursor-pointer border-none bg-transparent"
                             title="Delete this feedback history"
                         >
                             <Trash2 size={16} />
@@ -324,7 +324,7 @@ const FeedbackResults = ({ classId }) => {
               ))}
 
             {!historyLoading && history.length === 0 && (
-              <p className="text-gray-500 text-sm text-center py-4">
+              <p className="text-ink-soft text-sm text-center py-4">
                 No feedback history available
               </p>
             )}
@@ -338,15 +338,15 @@ const FeedbackResults = ({ classId }) => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
-          className="bg-white rounded-2xl border border-gray-200 p-12 text-center"
+          className="bg-surface rounded-2xl border border-line p-12 text-center"
         >
-          <div className="text-gray-400 mb-4">
+          <div className="text-ink-soft/40 mb-4">
             <Star size={48} className="mx-auto" />
           </div>
-          <p className="text-gray-500 text-lg font-medium">
+          <p className="text-ink text-lg font-semibold">
             No feedback submitted yet
           </p>
-          <p className="text-gray-400 text-sm mt-2">
+          <p className="text-ink-soft text-sm mt-2">
             Students will see the feedback form once you publish it
           </p>
         </motion.div>
@@ -362,7 +362,7 @@ const FeedbackResults = ({ classId }) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.08, duration: 0.3 }}
                 whileHover={{ scale: 1.02, y: -4 }}
-                className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md hover:border-purple-200 transition cursor-pointer group relative"
+                className="bg-surface rounded-2xl border border-line p-5 shadow-sm hover:shadow-md hover:border-violet-300 transition cursor-pointer group relative"
               >
                 {/* Delete Button for individual response */}
                 <button
@@ -370,7 +370,7 @@ const FeedbackResults = ({ classId }) => {
                         e.stopPropagation();
                         deleteActiveResponse(r.studentId);
                     }}
-                    className="absolute top-2 right-2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition"
+                    className="absolute top-2 right-2 p-1.5 text-ink-soft/55 hover:text-error hover:bg-error/10 rounded-full opacity-0 group-hover:opacity-100 transition cursor-pointer border-none bg-transparent"
                     title="Delete this response"
                 >
                     <Trash2 size={14} />
@@ -378,15 +378,15 @@ const FeedbackResults = ({ classId }) => {
 
                 <div className="flex items-start justify-between mb-3 pr-6">
                   <div>
-                    <h3 className="text-base font-semibold text-gray-900">
+                    <h3 className="text-base font-semibold text-ink font-display">
                       {r.studentName}
                     </h3>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-ink-soft mt-1">
                       Student Feedback
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold">
-                    <Star size={14} className="fill-purple-700" />
+                  <div className="flex items-center gap-1 bg-violet-500/10 text-violet-700 dark:text-violet-400 px-3 py-1 rounded-full text-sm font-bold">
+                    <Star size={14} className="fill-violet-700" />
                     {avgRating ? avgRating.toFixed(1) : "N/A"}
                   </div>
                 </div>
@@ -396,14 +396,14 @@ const FeedbackResults = ({ classId }) => {
                 )}
 
                 {r.comment && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
+                  <div className="mt-3 pt-3 border-t border-line">
                     <div className="flex items-center gap-2 mb-2">
-                      <MessageSquare size={14} className="text-gray-400" />
-                      <p className="text-xs font-medium text-gray-600">
+                      <MessageSquare size={14} className="text-ink-soft" />
+                      <p className="text-xs font-semibold text-ink-soft">
                         Comment
                       </p>
                     </div>
-                    <p className="text-sm text-gray-700 leading-relaxed italic">
+                    <p className="text-sm text-ink leading-relaxed italic">
                       "{r.comment}"
                     </p>
                   </div>

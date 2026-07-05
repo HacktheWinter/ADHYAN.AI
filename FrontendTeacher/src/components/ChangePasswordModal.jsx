@@ -93,36 +93,36 @@ export default function ChangePasswordModal({ isOpen, onClose, currentPage = 'da
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-surface border border-line rounded-2xl shadow-2xl max-w-md w-full mx-4 font-body text-ink">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-line bg-surface rounded-t-2xl">
           <div className="flex items-center gap-3">
             <button
               onClick={handleClose}
-              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-line/50 rounded-xl text-ink-soft hover:text-ink transition-colors cursor-pointer"
             >
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-sm font-bold text-ink-soft uppercase tracking-wider">
               Back to {currentPage === 'dashboard' ? 'Dashboard' : 'Course'}
             </h2>
           </div>
           <button
             onClick={handleClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-line/50 rounded-xl text-ink-soft hover:text-ink transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5 text-gray-600" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <form onSubmit={handleChangePassword} className="p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Change Password</h3>
+        <form onSubmit={handleChangePassword} className="p-6 space-y-4 bg-surface rounded-b-2xl">
+          <h3 className="text-xl font-semibold font-display text-ink mb-6">Change Password</h3>
 
           {/* Current Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider">
               Current Password
             </label>
             <div className="relative">
@@ -130,13 +130,13 @@ export default function ChangePasswordModal({ isOpen, onClose, currentPage = 'da
                 type={showCurrentPassword ? 'text' : 'password'}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-700 focus:border-transparent transition-all"
+                className="w-full px-4 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500 focus:bg-surface transition-all text-sm"
                 placeholder="Enter current password"
               />
               <button
                 type="button"
                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-ink-soft hover:text-ink transition-colors cursor-pointer"
               >
                 {showCurrentPassword ? (
                   <EyeOff className="w-5 h-5" />
@@ -148,8 +148,8 @@ export default function ChangePasswordModal({ isOpen, onClose, currentPage = 'da
           </div>
 
           {/* New Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider">
               New Password
             </label>
             <div className="relative">
@@ -157,13 +157,13 @@ export default function ChangePasswordModal({ isOpen, onClose, currentPage = 'da
                 type={showNewPassword ? 'text' : 'password'}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-700 focus:border-transparent transition-all"
+                className="w-full px-4 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500 focus:bg-surface transition-all text-sm"
                 placeholder="Enter new password"
               />
               <button
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-ink-soft hover:text-ink transition-colors cursor-pointer"
               >
                 {showNewPassword ? (
                   <EyeOff className="w-5 h-5" />
@@ -175,8 +175,8 @@ export default function ChangePasswordModal({ isOpen, onClose, currentPage = 'da
           </div>
 
           {/* Confirm Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider">
               Confirm New Password
             </label>
             <div className="relative">
@@ -184,13 +184,13 @@ export default function ChangePasswordModal({ isOpen, onClose, currentPage = 'da
                 type={showConfirmPassword ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-700 focus:border-transparent transition-all"
+                className="w-full px-4 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500 focus:bg-surface transition-all text-sm"
                 placeholder="Confirm new password"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-ink-soft hover:text-ink transition-colors cursor-pointer"
               >
                 {showConfirmPassword ? (
                   <EyeOff className="w-5 h-5" />
@@ -203,15 +203,15 @@ export default function ChangePasswordModal({ isOpen, onClose, currentPage = 'da
 
           {/* Error Message */}
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="p-3 bg-rose-50 dark:bg-rose-955/40 border border-rose-250 dark:border-rose-900/30 text-rose-800 dark:text-rose-350 rounded-xl">
+              <p className="text-sm">{error}</p>
             </div>
           )}
 
           {/* Success Message */}
           {success && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-sm text-green-600">{success}</p>
+            <div className="p-3 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900/30 text-green-800 dark:text-green-300 rounded-xl">
+              <p className="text-sm">{success}</p>
             </div>
           )}
 
@@ -219,7 +219,7 @@ export default function ChangePasswordModal({ isOpen, onClose, currentPage = 'da
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-purple-700 text-white py-2 rounded-lg font-medium hover:bg-purple-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+            className="w-full btn-settings-blue text-sm rounded-xl font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer mt-6 py-2.5"
           >
             {loading ? 'Changing Password...' : 'Change Password'}
           </button>

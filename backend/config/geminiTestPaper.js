@@ -278,6 +278,204 @@ IMPORTANT:
     }
   }
 
+};
+
+/**
+ * Generate Test Paper from topics using Gemini AI
+ * @param {string[]} topics - List of topics to generate test from
+ * @param {object} config - Configuration for generation
+ */
+export const generateTestPaperFromTopics = async (topics, config = {}) => {
+  const counts = config.counts || { 
+    short: { count: 5, optional: 0 }, 
+    medium: { count: 4, optional: 0 }, 
+    long: { count: 2, optional: 0 } 
+  };
+  const difficulty = config.difficulty || "mixed";
+  const excludeQuestions = config.excludeQuestions || [];
+
+  const getCount = (section, key, fallback) => {
+    const raw = counts?.[section]?.[key];
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(0, parsed);
+  };
+
+  const shortCount = getCount("short", "count", 5);
+  const shortOptional = getCount("short", "optional", 0);
+  const mediumCount = getCount("medium", "count", 4);
+  const mediumOptional = getCount("medium", "optional", 0);
+  const longCount = getCount("long", "count", 2);
+  const longOptional = getCount("long", "optional", 0);
+  
+  const totalShort = shortCount + shortOptional;
+  const totalMedium = mediumCount + mediumOptional;
+  const totalLong = longCount + longOptional;
+  
+  const directShort = Math.max(0, shortCount - shortOptional);
+  const directMedium = Math.max(0, mediumCount - mediumOptional);
+  const directLong = Math.max(0, longCount - longOptional);
+  const totalQuestions = totalShort + totalMedium + totalLong;
+
+  let attempts = 0;
+
+  while (attempts < MAX_TRANSIENT_RETRIES) {
+    try {
+      console.log(`🤖 Preparing Gemini prompt for Test Paper from topics (Total ${totalQuestions} Qs)...`);
+      console.log("Topics:", topics);
+      console.log(`Config: ${totalShort}S, ${totalMedium}M, ${totalLong}L, difficulty: ${difficulty}`);
+
+      const topicsText = Array.isArray(topics) ? topics.join(", ") : topics;
+
+      const difficultyInstruction = difficulty === "mixed"
+        ? "Mix difficulty levels for each category"
+        : `All questions should be ${difficulty.toUpperCase()} difficulty level`;
+
+      const excludeInstruction = excludeQuestions.length > 0
+        ? `\nDO NOT repeat or generate questions similar to these existing ones:\n- ${excludeQuestions.join('\n- ')}\n`
+        : "";
+
+      const prompt = `
+You are an expert exam question paper generator. Generate questions with answer keys grouped by sections based on the following topics.
+
+TOPICS:
+${topicsText}
+
+${excludeInstruction}
+
+CRITICAL JSON RULES:
+1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
+2. NO LITERAL NEWLINES inside JSON string values. Use spaces or /n instead.
+3. Escape all double quotes (\") within question or answer text.
+4. Each answerKey MUST be detailed (7-9 lines) but formatted as a SINGLE-LINE string with no literal line breaks.
+
+STRUCTURE RULE (Repeat for Section A, B, and C):
+1. For a section with R Required and O Optional questions:
+   - Generate (R-O) Direct Questions (Numbered normally).
+   - Generate O Internal Choice Pairs (e.g., "Question 4(a) OR 4(b)").
+2. For this specific paper:
+  - Section A: ${directShort} direct questions + ${shortOptional} internal choice pairs.
+  - Section B: ${directMedium} direct questions + ${mediumOptional} internal choice pairs.
+  - Section C: ${directLong} direct questions + ${longOptional} internal choice pairs.
+
+REQUIREMENTS:
+1. CONTINUOUS NUMBERING: Use a single global sequence (1, 2, 3... N) for the entire paper. 
+   - If Section A has 5 items, Section B MUST start at Question 6. 
+   - NEVER reset numbering for a new section.
+2. Format Paired Questions: Use "Q[GlobalNumber](a)" and "Q[GlobalNumber](b)" in the choiceLabel field.
+3. Link Pairs: Paired questions MUST share the same choiceGroup (e.g., "group_sectionA_6").
+4. Separator: Include the text "[OR]" between the question text of internal choice pairs.
+5. Each question MUST include: question, type, marks, section, choiceLabel, choiceGroup, answerKey, answerGuidelines.
+
+RESPONSE FORMAT (Valid JSON only):
+{
+  "questions": [
+    {
+      "question": "Direct question text...",
+      "type": "short", "marks": 2, "section": "Section A", "choiceLabel": "", "choiceGroup": "",
+      "answerKey": "Detailed 7-9 line explanation on a single line.", "answerGuidelines": "4-5 words only"
+    }
+  ]
+}
+
+IMPORTANT: 
+- Total unique items generated: ${totalQuestions}
+- EXACTLY match the Direct + Pair structure for ALL sections.
+`;
+
+      console.log("Sending request to Gemini...");
+
+      const model = getModel();
+
+      const chatSession = model.startChat({
+        generationConfig,
+        history: [],
+      });
+
+      const result = await chatSession.sendMessage(prompt);
+      const response = result.response.text();
+
+      console.log("Received response from Gemini");
+
+      let cleanedResponse = response.trim();
+      if (cleanedResponse.startsWith("```json")) {
+        cleanedResponse = cleanedResponse
+          .replace(/```json\n?/g, "")
+          .replace(/```\n?/g, "");
+      }
+      if (cleanedResponse.startsWith("```")) {
+        cleanedResponse = cleanedResponse.replace(/```\n?/g, "");
+      }
+
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(cleanedResponse);
+      } catch (parseError) {
+        console.error("JSON Parse Error:", parseError.message);
+        throw new Error("Invalid JSON response from AI");
+      }
+
+      if (
+        !parsedResponse.questions ||
+        !Array.isArray(parsedResponse.questions)
+      ) {
+        throw new Error("Invalid response format from AI");
+      }
+
+      const validQuestions = parsedResponse.questions.filter((q) => {
+        return (
+          q.question &&
+          q.type &&
+          ["short", "medium", "long"].includes(q.type) &&
+          q.marks &&
+          q.answerKey
+        );
+      });
+
+      if (validQuestions.length === 0) {
+        throw new Error("No valid questions generated");
+      }
+
+      console.log(`Generated ${validQuestions.length} valid questions`);
+
+      return validQuestions;
+    } catch (error) {
+      console.error(
+        ` Gemini API Error (Key #${currentKeyIndex + 1}):`,
+        error.message
+      );
+
+      attempts++;
+
+      if (isQuotaOrRateLimitError(error)) {
+        console.log(
+          ` API Key #${currentKeyIndex + 1} quota exceeded. Rotating...`
+        );
+        rotateApiKey();
+
+        if (attempts < MAX_TRANSIENT_RETRIES) {
+          console.log(` Retrying with API Key #${currentKeyIndex + 1}...`);
+          continue;
+        }
+      }
+
+      if (isTransientServiceError(error)) {
+        const backoffMs = getBackoffMs(attempts);
+        console.log(
+          ` Gemini service is temporarily busy (attempt ${attempts}/${MAX_TRANSIENT_RETRIES}). Retrying in ${backoffMs}ms...`
+        );
+        rotateApiKey();
+
+        if (attempts < MAX_TRANSIENT_RETRIES) {
+          await wait(backoffMs);
+          continue;
+        }
+      }
+
+      throw error;
+    }
+  }
+
   throw new Error(
     "Gemini service is busy right now after multiple retries. Please try again in a minute."
   );
@@ -436,4 +634,4 @@ CRITICAL REQUIREMENTS:
   );
 };
 
-export default { generateTestPaperFromText, checkAnswersWithAI };
+export default { generateTestPaperFromText, generateTestPaperFromTopics, checkAnswersWithAI };

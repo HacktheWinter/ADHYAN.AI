@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Classroom from "../models/Classroom.js";
 import User from "../models/User.js";
+import Attendance from "../models/Attendance.js";
 import { nanoid } from "nanoid";
 import { sendLiveClassStartedEmails } from "../utils/emailNotifications.js";
 import {
@@ -183,12 +184,39 @@ export const getClassrooms = async (req, res) => {
     }
 
     let classrooms;
+    const showArchived = req.query.showArchived === "true";
     if (role === "teacher") {
-      classrooms = await Classroom.find({ teacherId: userId })
+      const filter = { teacherId: userId };
+      if (!showArchived) {
+        filter.isArchived = { $ne: true };
+      }
+      const rawClassrooms = await Classroom.find(filter)
         .populate("students", "name email")
         .populate("leftStudents.studentId", "name email");
+
+      // Compute average attendance dynamically for each classroom
+      classrooms = await Promise.all(rawClassrooms.map(async (cls) => {
+        const clsObj = cls.toObject();
+        const sessions = await Attendance.find({ classId: cls._id, status: "completed" });
+        
+        let totalRatio = 0;
+        let count = 0;
+        for (const session of sessions) {
+          if (session.summary && session.summary.totalStudents > 0) {
+            totalRatio += (session.summary.presentCount || 0) / session.summary.totalStudents;
+            count++;
+          }
+        }
+        
+        clsObj.avgAttendance = count > 0 ? Math.round((totalRatio / count) * 100) : 100;
+        return clsObj;
+      }));
     } else if (role === "student") {
-      classrooms = await Classroom.find({ students: userId }).populate(
+      const filter = { students: userId };
+      if (!showArchived) {
+        filter.isArchived = { $ne: true };
+      }
+      classrooms = await Classroom.find(filter).populate(
         "teacherId",
         "name email"
       );
@@ -290,6 +318,7 @@ export const updateClassroom = async (req, res) => {
     if (colorTheme !== undefined) classroom.colorTheme = colorTheme;
     if (themeImage !== undefined) classroom.themeImage = themeImage;
     if (req.body.themeId !== undefined) classroom.themeId = req.body.themeId;
+    if (req.body.isArchived !== undefined) classroom.isArchived = req.body.isArchived;
 
     await classroom.save();
 
@@ -379,7 +408,11 @@ export const startMeeting = async (req, res) => {
         }
 
         const [students, teacher] = await Promise.all([
-          User.find({ _id: { $in: studentIds }, role: "student" }).select("name email"),
+          User.find({
+            _id: { $in: studentIds },
+            role: "student",
+            "settings.emailNotifications": true,
+          }).select("name email"),
           User.findById(classroom.teacherId).select("name"),
         ]);
 

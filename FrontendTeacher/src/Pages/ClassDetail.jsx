@@ -125,7 +125,7 @@ const ClassDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-paper flex items-center justify-center">
         <div className="animate-spin h-12 w-12 border-b-2 border-purple-600 rounded-full" />
       </div>
     );
@@ -134,8 +134,14 @@ const ClassDetail = () => {
   if (!classData) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {!isLiveClassroom && <Header onLogoClick={handleLogoClick} />}
+    <div className="min-h-screen bg-paper font-body text-ink">
+      {isLiveClassroom ? (
+        <div className="sm:hidden sticky top-0 z-[100]">
+          <Header onLogoClick={handleLogoClick} />
+        </div>
+      ) : (
+        <Header onLogoClick={handleLogoClick} />
+      )}
       
       <PageTransition
         className={
@@ -153,9 +159,9 @@ const ClassDetail = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleAttendanceClick}
-                  className="group flex h-12 items-center gap-3 px-4 bg-white text-purple-700 rounded-xl border border-purple-200 shadow-md hover:shadow-lg hover:bg-purple-50 transition-all duration-200 cursor-pointer"
+                  className="group flex h-12 items-center gap-3 px-4 bg-surface text-violet-dark rounded-xl border border-line shadow-md hover:shadow-lg hover:bg-violet-50 transition-all duration-200 cursor-pointer"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600 border border-purple-100">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-dark border border-line">
                     <svg
                       className="w-5 h-5 group-hover:scale-110 transition-transform duration-150"
                       fill="none"
@@ -170,11 +176,11 @@ const ClassDetail = () => {
                       />
                     </svg>
                   </span>
-                  <span className="hidden sm:flex sm:items-center font-semibold text-base text-purple-700">
+                  <span className="hidden sm:flex sm:items-center font-semibold text-base text-violet-dark">
                     Attendance
                   </span>
                 </MotionButton>
-
+ 
                 <div className="relative dropdown-container">
                   <MotionButton
                     whileHover={{ scale: 1.02 }}
@@ -198,7 +204,7 @@ const ClassDetail = () => {
                       <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
                     </svg>
                   </MotionButton>
-
+ 
                   <AnimatePresence>
                     {isDropdownOpen && (
                       <MotionDiv
@@ -206,7 +212,7 @@ const ClassDetail = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-0 top-full mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
+                        className="absolute right-0 top-full mt-3 w-56 bg-surface rounded-2xl shadow-2xl border border-line overflow-hidden z-50"
                       >
                         {[
                           { name: "Dashboard", icon: "M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", highlight: true },
@@ -218,13 +224,13 @@ const ClassDetail = () => {
                           <button
                             key={idx}
                             onClick={() => handleDropdownOption(item.name.toLowerCase())}
-                            className={`w-full flex items-center gap-3 px-5 py-3.5 transition-all duration-150 cursor-pointer group border-b border-gray-50 last:border-b-0 ${
+                            className={`w-full flex items-center gap-3 px-5 py-3.5 transition-all duration-150 cursor-pointer group border-b border-line last:border-b-0 ${
                               item.highlight 
-                                ? "bg-purple-50 text-purple-700 hover:bg-purple-100 font-semibold" 
-                                : "text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 hover:text-purple-700"
+                                ? "bg-violet-50 text-violet-dark font-semibold" 
+                                : "dropdown-item text-ink"
                             }`}
                           >
-                            <svg className={`w-5 h-5 group-hover:scale-110 transition-transform duration-150 ${item.highlight ? "text-purple-600" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className={`w-5 h-5 group-hover:scale-110 transition-transform duration-150 ${item.highlight ? "text-violet-dark" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                             </svg>
                             <span className={item.highlight ? "font-bold" : "font-medium"}>{item.name}</span>
