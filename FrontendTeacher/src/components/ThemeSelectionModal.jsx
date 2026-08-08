@@ -23,29 +23,29 @@ const ThemeSelectionModal = ({ isOpen, onClose, onSelectTheme, currentTheme }) =
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden animate-slideDown">
+      <div className="bg-surface border border-line rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden animate-slideDown">
         {/* Header */}
-        <div className="p-5 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Select class theme</h2>
+        <div className="p-5 border-b border-line flex items-center justify-between">
+          <h2 className="font-display text-xl font-semibold text-ink">Select class theme</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-line rounded-full transition-colors text-ink-soft hover:text-ink cursor-pointer"
           >
-            <X className="w-5 h-5 text-gray-500 cursor-pointer" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Category Tabs */}
-        <div className="border-b border-gray-200 bg-gray-50">
+        <div className="border-b border-line bg-paper">
           <div className="flex overflow-x-auto px-4">
             {themeCategories.map((category) => (
               <button
                 key={category.id}
                 onClick={() => setActiveCategory(category.id)}
-                className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                className={`px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors border-b-2 cursor-pointer ${
                   activeCategory === category.id
-                    ? 'border-purple-600 text-purple-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    ? 'border-purple-700 text-purple-700 dark:text-[#A78BFA]'
+                    : 'border-transparent text-ink-soft hover:text-ink'
                 }`}
               >
                 <span className="mr-1">{category.icon}</span>
@@ -64,8 +64,8 @@ const ThemeSelectionModal = ({ isOpen, onClose, onSelectTheme, currentTheme }) =
                 onClick={() => handleThemeClick(theme)}
                 className={`cursor-pointer rounded-xl overflow-hidden border-4 transition-all transform hover:scale-105 ${
                   selectedTheme?.id === theme.id
-                    ? 'border-purple-600 shadow-lg'
-                    : 'border-transparent hover:border-purple-200'
+                    ? 'border-purple-700 dark:border-[#A78BFA] shadow-md'
+                    : 'border-transparent hover:border-purple-300'
                 }`}
               >
                 <div
@@ -144,17 +144,17 @@ const ThemeSelectionModal = ({ isOpen, onClose, onSelectTheme, currentTheme }) =
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-gray-200 flex justify-end gap-3">
+        <div className="p-5 border-t border-line flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+            className="px-6 py-2.5 text-sm border border-line text-ink-soft hover:text-ink font-semibold rounded-xl hover:bg-line transition-colors cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleSelectTheme}
             disabled={!selectedTheme}
-            className="px-6 py-2.5 text-sm font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="btn-settings-blue px-6 py-2.5 text-sm font-semibold rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Select class theme
           </button>

@@ -23,21 +23,21 @@ const PdfPreview = ({ url, title, onClose }) => {
 
   return (
     <div 
-      className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-md flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div 
-        className="relative bg-white rounded-lg shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden"
+        className="relative bg-surface border border-line rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Simple Header */}
-        <div className="flex items-center justify-between bg-gray-100 px-4 sm:px-6 py-3 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between bg-paper px-4 sm:px-6 py-3 border-b border-line flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-white font-bold text-xs">PDF</span>
               </div>
-              <h3 className="font-semibold text-gray-800 truncate text-sm sm:text-base" title={title}>
+              <h3 className="font-bold text-ink font-display truncate text-sm sm:text-base" title={title}>
                 {title || "Document.pdf"}
               </h3>
             </div>
@@ -47,28 +47,28 @@ const PdfPreview = ({ url, title, onClose }) => {
             {/* Download Button */}
             <button 
               onClick={handleDownload}
-              className="p-2 hover:bg-gray-200 rounded transition-colors cursor-pointer"
+              className="p-2 hover:bg-paper-hover text-ink-soft hover:text-ink rounded-xl transition-colors cursor-pointer"
               title="Download PDF"
             >
-              <Download className="w-5 h-5 text-gray-700" />
+              <Download className="w-5 h-5" />
             </button>
 
             {/* Close Button */}
             <button 
               onClick={onClose}
-              className="p-2 hover:bg-gray-200 rounded transition-colors cursor-pointer"
+              className="p-2 hover:bg-paper-hover text-ink-soft hover:text-ink rounded-xl transition-colors cursor-pointer"
               title="Close"
             >
-              <X className="w-5 h-5 text-gray-700" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {/* PDF Viewer */}
-        <div className="flex-1 bg-gray-300 overflow-hidden">
+        <div className="flex-1 bg-paper-hover overflow-hidden">
           <iframe 
             src={embedUrl}
-            className="w-full h-full border-0"
+            className="w-full h-full border-none"
             style={{ 
               border: 'none',
               display: 'block'

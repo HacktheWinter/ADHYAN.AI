@@ -11,6 +11,8 @@ import {
 import { getNotesByClassroom } from '../api/notesApi';
 import PublishTestModal from './PublishTestModal';
 import EditAnswerKeysModal from './EditAnswerKeysModal';
+import AddTopicsButton from "./AddTopicsButton";
+import TopicsInputCard from "./TopicsInputCard";
 
 const TestPapersPage = () => {
   const { classData } = useOutletContext();
@@ -30,6 +32,8 @@ const TestPapersPage = () => {
 
   const [availableNotes, setAvailableNotes] = useState([]);
   const [selectedNotes, setSelectedNotes] = useState([]);
+  const [showTopicsInput, setShowTopicsInput] = useState(false);
+  const [topics, setTopics] = useState([]);
 
   // AI Gen Config states
   const [customTitle, setCustomTitle] = useState("");
@@ -73,6 +77,8 @@ const TestPapersPage = () => {
     setLoadingNotes(true);
     // Reset config
     setCustomTitle("");
+    setTopics([]);
+    setShowTopicsInput(false);
     setQuestionCounts({ 
       short: { count: 5, optional: 0 }, 
       medium: { count: 4, optional: 0 }, 
@@ -93,7 +99,11 @@ const TestPapersPage = () => {
   };
 
   const handleGenerateWithAI = async () => {
-    if (selectedNotes.length === 0) {
+    if (showTopicsInput && topics.length === 0) {
+      alert('Please add at least one topic');
+      return;
+    }
+    if (!showTopicsInput && selectedNotes.length === 0) {
       alert('Please select at least one note');
       return;
     }
@@ -107,7 +117,15 @@ const TestPapersPage = () => {
         difficulty
       };
 
-      const response = await generateTestPaperWithAI(selectedNotes, classData.id, config);
+      if (showTopicsInput) {
+        config.topics = topics;
+      }
+
+      const response = await generateTestPaperWithAI(
+        showTopicsInput ? [] : selectedNotes, 
+        classData.id, 
+        config
+      );
 
       setDrafts(prev => [response.testPaper, ...prev]);
 
@@ -116,11 +134,15 @@ const TestPapersPage = () => {
         `• Questions: ${response.stats.questionsGenerated}\n` +
         `• Total Marks: ${response.stats.totalMarks}\n` +
         `• Difficulty: ${response.stats.difficulty}\n` +
-        `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}\n`
+        (showTopicsInput 
+          ? `• Generated from custom topics\n`
+          : `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}\n`)
       );
 
       setSelectedNotes([]);
       setCustomTitle("");
+      setTopics([]);
+      setShowTopicsInput(false);
       setShowAIModal(false);
     } catch (error) {
       console.error('Generation error:', error);
@@ -171,25 +193,33 @@ const TestPapersPage = () => {
     );
   };
 
+  const handleToggleTopicsInput = () => {
+    setShowTopicsInput(!showTopicsInput);
+    if (!showTopicsInput) {
+      setSelectedNotes([]);
+      setTopics([]);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-12 font-body text-ink">
         <Loader className="w-8 h-8 text-purple-600 animate-spin" />
-        <span className="ml-3 text-gray-600">Loading test papers...</span>
+        <span className="ml-3 text-ink-soft font-semibold">Loading test papers...</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 font-body">
       {/* HEADER */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-200">
+      <div className="bg-gradient-to-r from-violet-50 to-paper rounded-2xl p-4 sm:p-6 border border-line">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
+            <h2 className="text-xl sm:text-2xl font-semibold font-display text-ink mb-1">
               📄 Test Papers
             </h2>
-            <p className="text-gray-600 text-sm">
+            <p className="text-ink-soft text-sm">
               Create and manage test papers with AI-powered question generation
             </p>
           </div>
@@ -197,9 +227,9 @@ const TestPapersPage = () => {
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={handleOpenAIModal}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-purple-600 dark:to-indigo-650 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer text-sm sm:text-base"
             >
-              <Sparkles className="w-5 h-5" />
+              <Sparkles className="w-5 h-5 text-white" />
               <span>Create with AI</span>
             </button>
 
@@ -209,32 +239,32 @@ const TestPapersPage = () => {
                   e.stopPropagation();
                   setShowHeaderMenu(!showHeaderMenu);
                 }}
-                className="flex items-center justify-center w-12 h-[3.2rem] bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer shadow-sm"
+                className="flex items-center justify-center w-12 h-[3.2rem] bg-surface border border-line hover:bg-line rounded-xl transition-colors cursor-pointer shadow-sm text-ink"
               >
-                <MoreVertical className="w-5 h-5 text-indigo-700" />
+                <MoreVertical className="w-5 h-5" />
               </button>
 
               {showHeaderMenu && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-xl border border-line py-2 z-50 overflow-hidden">
                   <button
                     onClick={() => {
                       setShowHeaderMenu(false);
                       navigate(`/class/${classData.id}/test-papers/upload-physical`);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors cursor-pointer"
+                    className="dropdown-item w-full flex items-center gap-3 px-4 py-3 text-sm text-ink transition-colors cursor-pointer"
                   >
-                    <Upload className="w-4 h-4" />
-                    Upload Copies
+                    <Upload className="w-4 h-4 text-purple-650 dark:text-[#A78BFA]" />
+                    <span>Upload Copies</span>
                   </button>
                   <button
                     onClick={() => {
                       setShowHeaderMenu(false);
                       navigate(`/class/${classData.id}/test-papers/physical-results`);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors cursor-pointer"
+                    className="dropdown-item w-full flex items-center gap-3 px-4 py-3 text-sm text-ink transition-colors cursor-pointer"
                   >
-                    <Eye className="w-4 h-4" />
-                    See Results
+                    <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>See Results</span>
                   </button>
                 </div>
               )}
@@ -250,10 +280,10 @@ const TestPapersPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-4 font-body">
             <div className="w-2 h-8 bg-yellow-500 rounded-full"></div>
-            <h3 className="text-lg sm:text-xl font-bold text-gray-900">Draft Test Papers</h3>
-            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs sm:text-sm rounded-full font-semibold">
+            <h3 className="text-lg sm:text-xl font-semibold font-display text-ink">Draft Test Papers</h3>
+            <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-350 text-xs sm:text-sm rounded-full font-semibold">
               {drafts.length}
             </span>
           </div>
@@ -265,35 +295,35 @@ const TestPapersPage = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-all"
+                className="bg-surface rounded-2xl border border-line p-4 sm:p-6 hover:shadow-lg transition-all font-body text-ink"
               >
                 <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
                   <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
                       <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-1 truncate">
+                      <h4 className="text-base sm:text-lg font-semibold font-display text-ink mb-1 truncate">
                         {test.title}
                       </h4>
 
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-ink-soft">
                         <span className="flex items-center gap-1">
-                          <span className="font-medium text-indigo-600">
+                          <span className="font-bold text-violet-dark">
                             {test.questions?.length || 0}
                           </span>{' '}
                           questions
                         </span>
                         <span className="hidden sm:inline">•</span>
                         <span className="flex items-center gap-1">
-                          <span className="font-medium text-indigo-600">
+                          <span className="font-bold text-violet-dark">
                             {test.totalMarks}
                           </span>{' '}
                           marks
                         </span>
                         <span className="hidden sm:inline">•</span>
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full font-semibold">
+                        <span className="px-2.5 py-1 bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-350 text-xs rounded-full font-bold">
                           Draft
                         </span>
                       </div>
@@ -303,7 +333,7 @@ const TestPapersPage = () => {
                   <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                     <button
                       onClick={() => handleEditAnswerKeys(test)}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors cursor-pointer"
                       title="Edit Answer Keys"
                     >
                       <Pencil className="w-4 h-4" />
@@ -312,7 +342,7 @@ const TestPapersPage = () => {
 
                     <button
                       onClick={() => handleDelete(test._id, 'draft')}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                       <span>Delete</span>
@@ -320,7 +350,7 @@ const TestPapersPage = () => {
 
                     <button
                       onClick={() => handlePublish(test)}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 btn-settings-blue text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <CheckCircle className="w-4 h-4" />
                       <span>Publish</span>
@@ -340,10 +370,10 @@ const TestPapersPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
         >
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-4 font-body">
             <div className="w-2 h-8 bg-green-500 rounded-full"></div>
-            <h3 className="text-lg sm:text-xl font-bold text-gray-900">Published Test Papers</h3>
-            <span className="px-3 py-1 bg-green-100 text-green-800 text-xs sm:text-sm rounded-full font-semibold">
+            <h3 className="text-lg sm:text-xl font-semibold font-display text-ink">Published Test Papers</h3>
+            <span className="px-3 py-1 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-xs sm:text-sm rounded-full font-semibold">
               {published.length}
             </span>
           </div>
@@ -355,35 +385,35 @@ const TestPapersPage = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:shadow-lg transition-all"
+                className="bg-surface rounded-2xl border border-line p-4 sm:p-6 hover:shadow-lg transition-all font-body text-ink"
               >
                 <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
                   <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0">
                       <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-1 truncate">
+                      <h4 className="text-base sm:text-lg font-semibold font-display text-ink mb-1 truncate">
                         {test.title}
                       </h4>
 
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-ink-soft">
                         <span className="flex items-center gap-1">
-                          <span className="font-medium text-indigo-600">
+                          <span className="font-bold text-violet-dark">
                             {test.questions?.length || 0}
                           </span>{' '}
                           questions
                         </span>
                         <span className="hidden sm:inline">•</span>
                         <span className="flex items-center gap-1">
-                          <span className="font-medium text-indigo-600">
+                          <span className="font-bold text-violet-dark">
                             {test.totalMarks}
                           </span>{' '}
                           marks
                         </span>
                         <span className="hidden sm:inline">•</span>
-                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-semibold">
+                        <span className="px-2.5 py-1 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-xs rounded-full font-bold">
                           Published
                         </span>
                       </div>
@@ -393,7 +423,7 @@ const TestPapersPage = () => {
                   <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto relative">
                     <button
                       onClick={() => handleViewResults(test._id)}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-purple-650 hover:bg-purple-750 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <Eye className="w-4 h-4" />
                       <span>View Results</span>
@@ -401,12 +431,11 @@ const TestPapersPage = () => {
 
                     <button
                       onClick={() => handleDelete(test._id, "published")}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                       <span>Delete</span>
                     </button>
-
                   </div>
                 </div>
               </motion.div>
@@ -418,13 +447,13 @@ const TestPapersPage = () => {
       {/* ------------------- AI GENERATION MODAL ------------------- */}
       {showAIModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
+          <div className="bg-surface border border-line rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden font-body text-ink">
+            <div className="p-4 sm:p-6 border-b border-line flex items-center justify-between">
               <div>
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
+                <h3 className="text-xl sm:text-2xl font-semibold font-display text-ink">
                   Generate Test Paper with AI
                 </h3>
-                <p className="text-sm text-gray-600 mt-1 hidden sm:block">
+                <p className="text-sm text-ink-soft mt-1 hidden sm:block">
                   Select notes to generate test questions
                 </p>
               </div>
@@ -434,7 +463,7 @@ const TestPapersPage = () => {
                   setShowAIModal(false);
                   setSelectedNotes([]);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-ink-soft hover:text-ink"
                 disabled={isGenerating}
               >
                 <X className="w-6 h-6 cursor-pointer" />
@@ -445,8 +474,8 @@ const TestPapersPage = () => {
             <div className="p-4 sm:p-6 flex-1 overflow-y-auto space-y-6">
               {/* Custom Title Group */}
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-purple-600" />
+                <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
                   Test Paper Name (Optional)
                 </label>
                 <input
@@ -454,35 +483,59 @@ const TestPapersPage = () => {
                   placeholder="e.g. Unit 1 Class Test, Final Examination..."
                   value={customTitle}
                   onChange={(e) => setCustomTitle(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500 focus:bg-surface transition-all text-sm"
                   disabled={isGenerating}
                 />
               </div>
 
-              {/* Notes Selection Group */}
+              {/* Notes / Topics Selection Group */}
               <div className="space-y-4">
-                <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                  <Upload className="w-4 h-4 text-blue-600" />
-                  Select Source Notes
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="block text-xs font-bold text-ink-soft uppercase tracking-wider flex items-center gap-2">
+                    {showTopicsInput ? (
+                      <>
+                        <Sparkles className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
+                        Generate from Topics
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        Select Source Notes
+                      </>
+                    )}
+                  </h4>
+                  <AddTopicsButton
+                    onClick={handleToggleTopicsInput}
+                    isActive={showTopicsInput}
+                    disabled={isGenerating}
+                  />
+                </div>
 
-                {loadingNotes ? (
+                {showTopicsInput ? (
+                  <TopicsInputCard
+                    topics={topics}
+                    onAddTopic={(t) => setTopics([...topics, t])}
+                    onRemoveTopic={(idx) => setTopics(topics.filter((_, i) => i !== idx))}
+                    onBack={handleToggleTopicsInput}
+                    isGenerating={isGenerating}
+                  />
+                ) : loadingNotes ? (
                   <div className="flex items-center justify-center py-10">
                     <Loader className="w-8 h-8 text-purple-600 animate-spin" />
                   </div>
                 ) : availableNotes.length === 0 ? (
-                  <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                    <p className="text-gray-500 text-sm">No notes found. Upload some first.</p>
+                  <div className="text-center py-10 bg-paper rounded-2xl border border-dashed border-line">
+                    <p className="text-ink-soft text-sm">No notes found. Upload some first.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-2 max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
                     {availableNotes.map(note => (
                       <label
                         key={note._id}
-                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
+                        className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${
                           selectedNotes.includes(note._id)
-                            ? 'border-indigo-600 bg-indigo-50 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? 'border-purple-500 bg-violet-50 text-violet-dark shadow-sm'
+                            : 'border-line bg-surface text-ink hover:border-purple-300'
                         } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         <input
@@ -490,10 +543,10 @@ const TestPapersPage = () => {
                           checked={selectedNotes.includes(note._id)}
                           onChange={() => toggleNoteSelection(note._id)}
                           disabled={isGenerating}
-                          className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-600 cursor-pointer"
+                          className="w-4 h-4 text-purple-600 rounded border-line focus:ring-purple-650 cursor-pointer bg-paper"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 text-sm truncate">{note.title}</p>
+                          <p className="font-semibold text-sm truncate">{note.title}</p>
                         </div>
                       </label>
                     ))}
@@ -502,10 +555,10 @@ const TestPapersPage = () => {
               </div>
 
               {/* Advanced Customization Options */}
-              <div className="border-t border-gray-100 pt-4">
+              <div className="border-t border-line pt-4">
                 <button 
                   onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                  className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-purple-600 transition-colors mb-4"
+                  className="flex items-center gap-2 text-sm font-semibold text-ink hover:text-purple-650 transition-colors mb-4"
                 >
                   <Settings2 className="w-4 h-4" />
                   Advanced Question Count & Difficulty
@@ -516,12 +569,12 @@ const TestPapersPage = () => {
                   <motion.div 
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-100"
+                    className="space-y-4 bg-paper p-4 rounded-2xl border border-line"
                   >
                     {/* Counts Table */}
                     <div className="space-y-3">
                       {/* Table Header */}
-                      <div className="grid grid-cols-4 gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">
+                      <div className="grid grid-cols-4 gap-2 text-[10px] font-bold text-ink-soft uppercase tracking-wider px-1">
                         <div className="col-span-1">Section</div>
                         <div className="text-center">Required</div>
                         <div className="text-center">Optional</div>
@@ -529,8 +582,8 @@ const TestPapersPage = () => {
                       </div>
 
                       {/* Short Qs Row */}
-                      <div className="grid grid-cols-4 gap-2 items-center bg-white p-2 rounded-lg border border-gray-100">
-                        <div className="text-xs font-semibold text-gray-600">Short (2m)</div>
+                      <div className="grid grid-cols-4 gap-2 items-center bg-surface p-2 rounded-xl border border-line">
+                        <div className="text-xs font-semibold text-ink">Short (2m)</div>
                         <select 
                           value={questionCounts.short.count}
                           onChange={(e) => {
@@ -543,7 +596,7 @@ const TestPapersPage = () => {
                               }
                             });
                           }}
-                          className="p-1 bg-gray-50 border border-gray-200 rounded text-xs outline-none"
+                          className="p-1 bg-paper border border-line text-ink rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500"
                           disabled={isGenerating}
                         >
                           {[0, 1, 2, 3, 4, 5, 8, 10].map(c => <option key={c} value={c}>{c}</option>)}
@@ -551,21 +604,21 @@ const TestPapersPage = () => {
                         <select 
                           value={questionCounts.short.optional}
                           onChange={(e) => setQuestionCounts({...questionCounts, short: {...questionCounts.short, optional: Number(e.target.value)}})}
-                          className="p-1 bg-purple-50 border border-purple-100 rounded text-xs outline-none cursor-pointer"
+                          className="p-1 bg-violet-50 border border-purple-200 text-violet-dark rounded-lg text-xs outline-none cursor-pointer"
                           disabled={isGenerating || questionCounts.short.count === 0}
                         >
                           {Array.from({ length: questionCounts.short.count + 1 }, (_, i) => i).map(c => (
                             <option key={c} value={c}>+{c} Opt</option>
                           ))}
                         </select>
-                        <div className="text-center text-xs font-bold text-gray-500">
+                        <div className="text-center text-xs font-bold text-ink">
                           {questionCounts.short.count + questionCounts.short.optional}
                         </div>
                       </div>
 
                       {/* Medium Qs Row */}
-                      <div className="grid grid-cols-4 gap-2 items-center bg-white p-2 rounded-lg border border-gray-100">
-                        <div className="text-xs font-semibold text-gray-600">Medium (5m)</div>
+                      <div className="grid grid-cols-4 gap-2 items-center bg-surface p-2 rounded-xl border border-line">
+                        <div className="text-xs font-semibold text-ink">Medium (5m)</div>
                         <select 
                           value={questionCounts.medium.count}
                           onChange={(e) => {
@@ -578,7 +631,7 @@ const TestPapersPage = () => {
                               }
                             });
                           }}
-                          className="p-1 bg-gray-50 border border-gray-200 rounded text-xs outline-none"
+                          className="p-1 bg-paper border border-line text-ink rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500"
                           disabled={isGenerating}
                         >
                           {[0, 1, 2, 3, 4, 5, 8].map(c => <option key={c} value={c}>{c}</option>)}
@@ -586,21 +639,21 @@ const TestPapersPage = () => {
                         <select 
                           value={questionCounts.medium.optional}
                           onChange={(e) => setQuestionCounts({...questionCounts, medium: {...questionCounts.medium, optional: Number(e.target.value)}})}
-                          className="p-1 bg-purple-50 border border-purple-100 rounded text-xs outline-none cursor-pointer"
+                          className="p-1 bg-violet-50 border border-purple-200 text-violet-dark rounded-lg text-xs outline-none cursor-pointer"
                           disabled={isGenerating || questionCounts.medium.count === 0}
                         >
                           {Array.from({ length: questionCounts.medium.count + 1 }, (_, i) => i).map(c => (
                             <option key={c} value={c}>+{c} Opt</option>
                           ))}
                         </select>
-                        <div className="text-center text-xs font-bold text-gray-500">
+                        <div className="text-center text-xs font-bold text-ink">
                           {questionCounts.medium.count + questionCounts.medium.optional}
                         </div>
                       </div>
 
                       {/* Long Qs Row */}
-                      <div className="grid grid-cols-4 gap-2 items-center bg-white p-2 rounded-lg border border-gray-100">
-                        <div className="text-xs font-semibold text-gray-600">Long (10m)</div>
+                      <div className="grid grid-cols-4 gap-2 items-center bg-surface p-2 rounded-xl border border-line">
+                        <div className="text-xs font-semibold text-ink">Long (10m)</div>
                         <select 
                           value={questionCounts.long.count}
                           onChange={(e) => {
@@ -613,7 +666,7 @@ const TestPapersPage = () => {
                               }
                             });
                           }}
-                          className="p-1 bg-gray-50 border border-gray-200 rounded text-xs outline-none"
+                          className="p-1 bg-paper border border-line text-ink rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500"
                           disabled={isGenerating}
                         >
                           {[0, 1, 2, 3, 4].map(c => <option key={c} value={c}>{c}</option>)}
@@ -621,14 +674,14 @@ const TestPapersPage = () => {
                         <select 
                           value={questionCounts.long.optional}
                           onChange={(e) => setQuestionCounts({...questionCounts, long: {...questionCounts.long, optional: Number(e.target.value)}})}
-                          className="p-1 bg-purple-50 border border-purple-100 rounded text-xs outline-none cursor-pointer"
+                          className="p-1 bg-violet-50 border border-purple-200 text-violet-dark rounded-lg text-xs outline-none cursor-pointer"
                           disabled={isGenerating || questionCounts.long.count === 0}
                         >
                           {Array.from({ length: questionCounts.long.count + 1 }, (_, i) => i).map(c => (
                             <option key={c} value={c}>+{c} Opt</option>
                           ))}
                         </select>
-                        <div className="text-center text-xs font-bold text-gray-500">
+                        <div className="text-center text-xs font-bold text-ink">
                           {questionCounts.long.count + questionCounts.long.optional}
                         </div>
                       </div>
@@ -637,11 +690,11 @@ const TestPapersPage = () => {
                     {/* Difficulty & Summary */}
                     <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
                       <div className="flex-1 w-full space-y-1">
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-tight">Paper Difficulty</label>
+                        <label className="text-xs font-bold text-ink-soft uppercase tracking-tight">Paper Difficulty</label>
                         <select 
                           value={difficulty}
                           onChange={(e) => setDifficulty(e.target.value)}
-                          className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm"
+                          className="w-full p-2 bg-surface border border-line text-ink rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500"
                           disabled={isGenerating}
                         >
                           <option value="easy">Easy</option>
@@ -652,7 +705,7 @@ const TestPapersPage = () => {
                       </div>
                       
                       <div className="flex gap-2">
-                        <div className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-bold flex flex-col items-center min-w-[90px]">
+                        <div className="px-3 py-2 bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 rounded-xl text-sm font-bold flex flex-col items-center min-w-[90px] border border-line">
                           <span className="text-[9px] opacity-70">TOTAL Qs</span>
                           <span>{ 
                             (questionCounts.short.count + questionCounts.short.optional) + 
@@ -660,7 +713,7 @@ const TestPapersPage = () => {
                             (questionCounts.long.count + questionCounts.long.optional) 
                           }</span>
                         </div>
-                        <div className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-bold flex flex-col items-center min-w-[90px]">
+                        <div className="px-3 py-2 bg-violet-50 text-violet-dark rounded-xl text-sm font-bold flex flex-col items-center min-w-[90px] border border-line">
                           <span className="text-[9px] opacity-70">TOTAL MARKS</span>
                           <span>{ 
                             (questionCounts.short.count * 2) + 
@@ -676,21 +729,21 @@ const TestPapersPage = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-4 sm:p-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3 bg-gray-50 rounded-b-xl">
+            <div className="p-4 sm:p-6 border-t border-line flex flex-col sm:flex-row gap-3 bg-paper rounded-b-2xl">
               <button
                 onClick={() => {
                   setShowAIModal(false);
                   setSelectedNotes([]);
                 }}
                 disabled={isGenerating}
-                className="w-full sm:flex-1 px-6 py-3 bg-white text-gray-700 font-semibold rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors disabled:opacity-50 cursor-pointer"
+                className="w-full sm:flex-1 px-6 py-3 bg-line text-ink font-bold rounded-xl hover:bg-line/80 transition-colors disabled:opacity-50 cursor-pointer text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleGenerateWithAI}
-                disabled={selectedNotes.length === 0 || isGenerating}
-                className="w-full sm:flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg cursor-pointer"
+                disabled={((showTopicsInput ? topics.length === 0 : selectedNotes.length === 0) || isGenerating)}
+                className="w-full sm:flex-1 px-6 py-3 btn-settings-blue text-sm rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {isGenerating ? (
                   <span className="flex items-center justify-center gap-2">

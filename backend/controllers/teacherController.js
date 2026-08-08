@@ -75,6 +75,10 @@ export const loginTeacher = async (req, res) => {
     const teacher = await User.findOne({ email, role: "teacher" });
     if (!teacher) return res.status(404).json({ error: "Teacher not found" });
 
+    if (teacher.status === "inactive") {
+      return res.status(403).json({ error: "This account has been deactivated." });
+    }
+
     if (!teacher.password) {
       return res.status(400).json({
         error: "Password is not set for this teacher. Please re-register.",

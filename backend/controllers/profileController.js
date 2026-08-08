@@ -321,3 +321,66 @@ export const toggleBackgroundImage = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// Update user notification settings
+export const updateUserSettings = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { normalNotifications, emailNotifications } = req.body;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          "settings.normalNotifications": normalNotifications,
+          "settings.emailNotifications": emailNotifications,
+        },
+      },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "Settings updated successfully",
+      settings: user.settings,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Safe user account deactivation (no data loss)
+export const deactivateUserAccount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { password } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Verify the password confirmation
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Incorrect password confirmation" });
+    }
+
+    // Lock account by marking status as inactive and scrambling credentials
+    user.status = "inactive";
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash("DEACTIVATED_LOCKED_" + Date.now(), salt);
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Account deactivated successfully. All classroom records and attendance statistics are preserved.",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
