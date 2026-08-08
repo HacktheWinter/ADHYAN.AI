@@ -3,7 +3,7 @@ import TestPaper from "../models/TestPaper.js";
 import Note from "../models/Note.js";
 import Classroom from "../models/Classroom.js";
 import { getBucket } from "../config/gridfs.js";
-import { generateTestPaperFromText } from "../config/geminiTestPaper.js";
+import { generateTestPaperFromText, generateTestPaperFromTopics } from "../config/geminiTestPaper.js";
 import {
   extractTextFromPDF,
   cleanText,
@@ -17,20 +17,11 @@ import { logActivity } from "../utils/activityTracker.js";
  */
 export const generateTestPaperWithAI = async (req, res) => {
   try {
-    const bucket = getBucket();
-    if (!bucket) {
-      console.error("GridFS bucket not ready");
-      return;
-    }
-    const { noteIds, classroomId, customTitle, counts, difficulty } = req.body;
+    const { noteIds, topics, classroomId, customTitle, counts, difficulty } = req.body;
     const teacherId = req.user?._id?.toString();
 
     console.log("=== TEST PAPER GENERATION STARTED ===");
-    console.log("Request:", { noteIds, classroomId, customTitle, counts, difficulty });
-
-    if (!noteIds || !Array.isArray(noteIds) || noteIds.length === 0) {
-      return res.status(400).json({ error: "Please select at least one note" });
-    }
+    console.log("Request:", { noteIds, topics, classroomId, customTitle, counts, difficulty });
 
     if (!classroomId) {
       return res.status(400).json({ error: "classroomId is required" });
@@ -46,12 +37,10 @@ export const generateTestPaperWithAI = async (req, res) => {
       }
     }
 
-    const normalizedNoteIds = [...new Set(noteIds.map(String))]
-      .filter((id) => mongoose.Types.ObjectId.isValid(id))
-      .map((id) => new mongoose.Types.ObjectId(id));
+    const isTopicBased = topics && (Array.isArray(topics) ? topics.length > 0 : String(topics).trim());
 
-    if (normalizedNoteIds.length === 0) {
-      return res.status(400).json({ error: "No valid note IDs provided" });
+    if (!isTopicBased && (!noteIds || !Array.isArray(noteIds) || noteIds.length === 0)) {
+      return res.status(400).json({ error: "Please select at least one note or provide topics" });
     }
 
     const toNonNegativeNumberOrDefault = (value, defaultValue) => {
@@ -91,92 +80,142 @@ export const generateTestPaperWithAI = async (req, res) => {
       difficulty: difficulty || "mixed",
     };
 
-    // Fetch notes
-    const notes = await Note.find({ _id: { $in: normalizedNoteIds } });
-
-    if (notes.length === 0) {
-      return res.status(404).json({ error: "No notes found" });
-    }
-
-    console.log(`Found ${notes.length} notes`);
-
-    // Extract text from PDFs
-    let combinedText = "";
+    let questions;
+    let testTitle;
+    let normalizedNoteIds = [];
     let successfulExtractions = 0;
+    let notesCount = 0;
+    let topicsArray = [];
 
-    for (const note of notes) {
-      try {
-        console.log(`Processing: ${note.title}`);
+    if (isTopicBased) {
+      topicsArray = [...new Set((Array.isArray(topics) ? topics : [topics])
+        .map((topic) => String(topic || "").trim())
+        .filter(Boolean))];
 
-        const fileId = new mongoose.Types.ObjectId(note.fileId);
-        const chunks = [];
-        const readstream = bucket.openDownloadStream(fileId);
-
-        await new Promise((resolve, reject) => {
-          readstream.on("data", (chunk) => chunks.push(chunk));
-          readstream.on("error", reject);
-          readstream.on("end", resolve);
-        });
-
-        const buffer = Buffer.concat(chunks);
-        const text = await extractTextFromPDF(buffer);
-
-        if (text && text.trim().length > 0) {
-          combinedText += `\n\n=== ${note.title} ===\n\n${text}`;
-          successfulExtractions++;
-          console.log(`Extracted ${text.length} characters`);
-        }
-      } catch (error) {
-        console.error(`Error processing ${note.title}:`, error.message);
+      if (topicsArray.length === 0) {
+        return res.status(400).json({ error: "Please provide at least one valid topic" });
       }
+
+      // Fetch existing questions for this classroom AND same topics to avoid repetition
+      const existingPapers = await TestPaper.find({ 
+        classroomId, 
+        generatedFromTopics: { $all: topicsArray, $size: topicsArray.length },
+      })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .select("questions.question");
+      
+      const excludeQuestions = existingPapers.flatMap(p => p.questions.map(extQ => extQ.question));
+
+      console.log("Calling Gemini API for topic-based test paper...");
+      questions = await generateTestPaperFromTopics(topicsArray, { ...testConfig, excludeQuestions });
+
+      testTitle = customTitle?.trim()
+        ? customTitle.trim()
+        : topicsArray.length > 2
+          ? `Test Paper on ${topicsArray.slice(0, 2).join(", ")} and ${topicsArray.length - 2} more`
+          : `Test Paper on ${topicsArray.join(", ")}`;
+    } else {
+      const bucket = getBucket();
+      if (!bucket) {
+        console.error("GridFS bucket not ready");
+        return res.status(500).json({ error: "Storage service not ready" });
+      }
+
+      normalizedNoteIds = [...new Set(noteIds.map(String))]
+        .filter((id) => mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
+
+      if (normalizedNoteIds.length === 0) {
+        return res.status(400).json({ error: "No valid note IDs provided" });
+      }
+
+      // Fetch notes
+      const notes = await Note.find({ _id: { $in: normalizedNoteIds } });
+
+      if (notes.length === 0) {
+        return res.status(404).json({ error: "No notes found" });
+      }
+
+      notesCount = notes.length;
+      console.log(`Found ${notes.length} notes`);
+
+      // Extract text from PDFs
+      let combinedText = "";
+
+      for (const note of notes) {
+        try {
+          console.log(`Processing: ${note.title}`);
+
+          const fileId = new mongoose.Types.ObjectId(note.fileId);
+          const chunks = [];
+          const readstream = bucket.openDownloadStream(fileId);
+
+          await new Promise((resolve, reject) => {
+            readstream.on("data", (chunk) => chunks.push(chunk));
+            readstream.on("error", reject);
+            readstream.on("end", resolve);
+          });
+
+          const buffer = Buffer.concat(chunks);
+          const text = await extractTextFromPDF(buffer);
+
+          if (text && text.trim().length > 0) {
+            combinedText += `\n\n=== ${note.title} ===\n\n${text}`;
+            successfulExtractions++;
+            console.log(`Extracted ${text.length} characters`);
+          }
+        } catch (error) {
+          console.error(`Error processing ${note.title}:`, error.message);
+        }
+      }
+
+      if (successfulExtractions === 0) {
+        return res.status(400).json({
+          error: "Could not extract text from any PDF",
+        });
+      }
+
+      if (!combinedText || combinedText.trim().length < 500) {
+        return res.status(400).json({
+          error: "Not enough content in notes (min 500 characters required)",
+        });
+      }
+
+      console.log("Content validation passed");
+
+      // Clean text
+      const cleanedText = cleanText(combinedText, 15001);
+
+      // Fetch existing questions for this classroom AND same notes to avoid repetition
+      const existingPapers = await TestPaper.find({ 
+        classroomId, 
+        generatedFrom: { $all: normalizedNoteIds, $size: normalizedNoteIds.length },
+      })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .select("questions.question");
+      
+      const excludeQuestions = existingPapers.flatMap(p => p.questions.map(extQ => extQ.question));
+
+      // Generate test paper using Gemini
+      console.log("Calling Gemini API...");
+      questions = await generateTestPaperFromText(cleanedText, { ...testConfig, excludeQuestions });
+
+      console.log(`Generated ${questions.length} questions`);
+
+      // Create title
+      const noteNames = notes
+        .slice(0, 2)
+        .map((n) => n.title)
+        .join(", ");
+      
+      testTitle = customTitle?.trim()
+        ? customTitle.trim()
+        : notes.length > 2
+          ? `Test Paper from ${noteNames} and ${notes.length - 2} more`
+          : `Test Paper from ${noteNames}`;
     }
-
-    if (successfulExtractions === 0) {
-      return res.status(400).json({
-        error: "Could not extract text from any PDF",
-      });
-    }
-
-    if (!combinedText || combinedText.trim().length < 500) {
-      return res.status(400).json({
-        error: "Not enough content in notes (min 500 characters required)",
-      });
-    }
-
-    console.log("Content validation passed");
-
-    // Clean text
-    const cleanedText = cleanText(combinedText, 15001);
-
-    // Fetch existing questions for this classroom to avoid repetition
-    // Fetch existing questions for this classroom AND same notes to avoid repetition
-    const existingPapers = await TestPaper.find({ 
-      classroomId, 
-      generatedFrom: { $all: normalizedNoteIds, $size: normalizedNoteIds.length },
-    })
-      .sort({ createdAt: -1 })
-      .limit(10) // Can increase limit since we're filtering more strictly
-      .select("questions.question");
-    
-    const excludeQuestions = existingPapers.flatMap(p => p.questions.map(extQ => extQ.question));
-
-    // Generate test paper using Gemini
-    console.log("Calling Gemini API...");
-    const questions = await generateTestPaperFromText(cleanedText, { ...testConfig, excludeQuestions });
-
-    console.log(`Generated ${questions.length} questions`);
-
-    // Create title
-    const noteNames = notes
-      .slice(0, 2)
-      .map((n) => n.title)
-      .join(", ");
-    
-    const testTitle = customTitle?.trim()
-      ? customTitle.trim()
-      : notes.length > 2
-        ? `Test Paper from ${noteNames} and ${notes.length - 2} more`
-        : `Test Paper from ${noteNames}`;
 
     // Normalize marks per generated question and derive total from actual saved content.
     const normalizedQuestions = questions.map((q) => {
@@ -213,6 +252,7 @@ export const generateTestPaperWithAI = async (req, res) => {
       classroomId,
       title: testTitle,
       generatedFrom: normalizedNoteIds,
+      generatedFromTopics: topicsArray,
       questions: normalizedQuestions,
       questionCounts: testConfig.counts,
       totalMarks: calculatedTotalMarks,
@@ -228,8 +268,8 @@ export const generateTestPaperWithAI = async (req, res) => {
       message: `Generated test paper with ${questions.length} questions`,
       testPaper,
       stats: {
-        totalNotes: notes.length,
-        processedNotes: successfulExtractions,
+        totalNotes: isTopicBased ? 0 : notesCount,
+        processedNotes: isTopicBased ? 0 : successfulExtractions,
         questionsGenerated: questions.length,
         totalMarks: calculatedTotalMarks,
         difficulty: testConfig.difficulty,

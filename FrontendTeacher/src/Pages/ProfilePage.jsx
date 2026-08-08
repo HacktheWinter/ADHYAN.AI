@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Camera, X, Save, Calendar, User as UserIcon, Building2, ArrowLeft, Image } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Header from '../components/Header';
 import { getStoredToken, updateStoredUser } from '../utils/authStorage';
 import API_BASE_URL from '../config';
 
@@ -251,28 +252,30 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-paper font-body text-ink flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading profile...</p>
+          <p className="mt-4 text-ink-soft">Loading profile...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen bg-paper font-body text-ink">
+      <Header />
+      <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Back to Dashboard Button */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-gray-600 hover:text-purple-600 mb-4 transition-colors group cursor-pointer"
-        >
-          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-medium">Back to Dashboard</span>
-        </button>
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => navigate('/')}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-ink-soft hover:text-purple-700 transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-5 h-5" /> Back to Dashboard
+          </button>
+        </div>
 
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="bg-surface border border-line rounded-2xl shadow-sm overflow-hidden">
           {/* Header Section with Background */}
           <div 
             className="relative px-8 py-12 bg-cover bg-center"
@@ -290,7 +293,7 @@ export default function ProfilePage() {
             <div className="absolute top-4 right-4 z-10 flex gap-2">
               <label
                 htmlFor="bg-upload"
-                className="flex items-center justify-center px-3 py-2 bg-white bg-opacity-90 rounded-lg cursor-pointer hover:bg-opacity-100 transition-all shadow-md text-sm font-medium text-gray-700"
+                className="flex items-center justify-center px-3 py-2 bg-surface rounded-lg cursor-pointer hover:bg-line text-ink transition-all shadow-md text-sm font-medium border border-line"
               >
                 {uploadingBackground ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-2"></div>
@@ -324,20 +327,20 @@ export default function ProfilePage() {
               <div className="absolute bottom-4 right-4 z-10 flex gap-2">
                 <button
                   onClick={() => handleToggleBackground(true)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
                     user?.useCustomBackground
-                      ? 'bg-white text-purple-600 shadow-md'
-                      : 'bg-white bg-opacity-50 text-gray-700 hover:bg-opacity-70'
+                      ? 'bg-white text-purple-700 shadow-sm'
+                      : 'bg-white/30 backdrop-blur-sm text-white hover:bg-white/55'
                   }`}
                 >
                   Custom
                 </button>
                 <button
                   onClick={() => handleToggleBackground(false)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
                     !user?.useCustomBackground
-                      ? 'bg-white text-purple-600 shadow-md'
-                      : 'bg-white bg-opacity-50 text-gray-700 hover:bg-opacity-70'
+                      ? 'bg-white text-purple-700 shadow-sm'
+                      : 'bg-white/30 backdrop-blur-sm text-white hover:bg-white/55'
                   }`}
                 >
                   Default
@@ -357,7 +360,7 @@ export default function ProfilePage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-4xl font-bold text-purple-600">
+                    <span className="text-4xl font-bold text-purple-700 dark:text-[#A78BFA]">
                       {getInitials(user?.name)}
                     </span>
                   )}
@@ -411,27 +414,27 @@ export default function ProfilePage() {
 
           {/* Alert Messages */}
           {error && (
-            <div className="mx-8 mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm">{error}</p>
+            <div className="mx-6 sm:mx-8 mt-6 p-4 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 text-rose-650 dark:text-rose-400 rounded-xl">
+              <p className="text-sm font-medium">{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="mx-8 mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-600 text-sm">{success}</p>
+            <div className="mx-6 sm:mx-8 mt-6 p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 text-emerald-650 dark:text-emerald-400 rounded-xl">
+              <p className="text-sm font-medium">{success}</p>
             </div>
           )}
 
           {/* Form Section */}
-          <form onSubmit={handleSaveProfile} className="p-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Additional Details</h2>
+          <form onSubmit={handleSaveProfile} className="p-6 sm:p-8">
+            <h2 className="font-display text-2xl font-semibold mb-6">Additional Details</h2>
 
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* Name Field */}
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="name" className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2">
                   <div className="flex items-center gap-2">
-                    <UserIcon className="w-4 h-4" />
+                    <UserIcon className="w-3.5 h-3.5" />
                     Full Name
                   </div>
                 </label>
@@ -441,16 +444,16 @@ export default function ProfilePage() {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-line bg-paper rounded-xl text-ink outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
                   placeholder="Enter your full name"
                 />
               </div>
 
               {/* Date of Birth */}
               <div>
-                <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="dateOfBirth" className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
+                    <Calendar className="w-3.5 h-3.5" />
                     Date of Birth
                   </div>
                 </label>
@@ -460,13 +463,13 @@ export default function ProfilePage() {
                   name="dateOfBirth"
                   value={formData.dateOfBirth}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-line bg-paper rounded-xl text-ink outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
                 />
               </div>
 
               {/* Gender */}
               <div>
-                <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="gender" className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2">
                   Gender
                 </label>
                 <select
@@ -474,7 +477,7 @@ export default function ProfilePage() {
                   name="gender"
                   value={formData.gender}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-line bg-paper rounded-xl text-ink outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
                 >
                   <option value="">Select gender</option>
                   <option value="male">Male</option>
@@ -486,9 +489,9 @@ export default function ProfilePage() {
 
               {/* College Name */}
               <div>
-                <label htmlFor="collegeName" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="collegeName" className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2">
                   <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4" />
+                    <Building2 className="w-3.5 h-3.5" />
                     College/University Name
                   </div>
                 </label>
@@ -498,7 +501,7 @@ export default function ProfilePage() {
                   name="collegeName"
                   value={formData.collegeName}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-line bg-paper rounded-xl text-ink outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent transition-all"
                   placeholder="Enter your college/university name"
                 />
               </div>
@@ -509,7 +512,7 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:bg-purple-400 disabled:cursor-not-allowed font-medium"
+                className="btn-settings-blue flex items-center gap-2 px-6 py-3 font-semibold rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 {saving ? (
                   <>

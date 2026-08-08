@@ -108,13 +108,13 @@ export const uploadNote = [
 
               if (mongoose.Types.ObjectId.isValid(classroomId)) {
                 populatedClassroom = await Classroom.findById(classroomId)
-                  .populate("students", "name email")
+                  .populate("students", "name email settings")
                   .populate("teacherId", "name");
               }
 
               if (!populatedClassroom) {
                 populatedClassroom = await Classroom.findOne({ classCode: classroomId })
-                  .populate("students", "name email")
+                  .populate("students", "name email settings")
                   .populate("teacherId", "name");
               }
 
@@ -126,7 +126,7 @@ export const uploadNote = [
               }
 
               let students = (populatedClassroom.students || [])
-                .filter((student) => student?.email)
+                .filter((student) => student?.email && student?.settings?.emailNotifications === true)
                 .map((student) => ({ name: student.name, email: student.email }));
 
               // Fallback: resolve users by raw ObjectIds if populate did not return docs.
@@ -139,6 +139,7 @@ export const uploadNote = [
                   const studentDocs = await User.find({
                     _id: { $in: studentIds },
                     role: "student",
+                    "settings.emailNotifications": true,
                   }).select("name email");
 
                   students = studentDocs

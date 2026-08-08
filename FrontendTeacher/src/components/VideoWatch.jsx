@@ -224,7 +224,7 @@ const VideoWatch = ({ videoUrl, title = "Video", topic, description, onClose }) 
                 onChange={handleSeek}
                 className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
                 style={{
-                  background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${(currentTime / duration) * 100}%, #4b5563 ${(currentTime / duration) * 100}%, #4b5563 100%)`
+                  background: `linear-gradient(to right, #7c3aed 0%, #7c3aed ${(currentTime / duration) * 100}%, #4b5563 ${(currentTime / duration) * 100}%, #4b5563 100%)`
                 }}
               />
             </div>
@@ -328,7 +328,7 @@ const VideoWatch = ({ videoUrl, title = "Video", topic, description, onClose }) 
           width: 16px;
           height: 16px;
           border-radius: 50%;
-          background: #6366f1;
+          background: #7c3aed;
           cursor: pointer;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
@@ -337,7 +337,7 @@ const VideoWatch = ({ videoUrl, title = "Video", topic, description, onClose }) 
           width: 16px;
           height: 16px;
           border-radius: 50%;
-          background: #6366f1;
+          background: #7c3aed;
           cursor: pointer;
           border: none;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);

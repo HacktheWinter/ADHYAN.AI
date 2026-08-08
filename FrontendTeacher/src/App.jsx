@@ -1,10 +1,23 @@
 // FrontendTeacher/src/App.jsx
 import React, { Suspense, lazy } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import Loader from "./components/Loader";
+import Header from "./components/Header";
+
+// Layout component to render navigation header only on mobile viewport for standalone pages
+const MobileHeaderLayout = () => {
+  return (
+    <>
+      <div className="sm:hidden sticky top-0 z-[100]">
+        <Header />
+      </div>
+      <Outlet />
+    </>
+  );
+};
 
 // Lazy loaded components
 const Dashboard = lazy(() => import("./Pages/Dashboard"));
@@ -109,42 +122,44 @@ export default function App() {
           }
         />
 
-        {/* Full Screen Routes for Announcement and Calendar */}
-        <Route
-          path="/class/:classId/announcement"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <Announcement />
-            </ProtectedRoute>
-          }
-        />
+        {/* Full Screen Routes for Announcement, Calendar and Attendance with Mobile Header Layout */}
+        <Route element={<MobileHeaderLayout />}>
+          <Route
+            path="/class/:classId/announcement"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <Announcement />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/class/:classId/calendar"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <CalendarPage />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/class/:classId/calendar"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <CalendarPage />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/class/:classId/attendance"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <AttendancePage />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/class/:classId/attendance"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <AttendancePage />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/class/:classId/attendance/:panel"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <AttendancePage />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/class/:classId/attendance/:panel"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <AttendancePage />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
 
         <Route
           path="/class/:classId"
@@ -165,97 +180,100 @@ export default function App() {
           <Route path="doubts" element={<DoubtsPage />} />
         </Route>
 
-        {/* Test Results Routes */}
-        <Route
-          path="/class/:classId/test-papers/results/:testId"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <TestResultsViewer />
-            </ProtectedRoute>
-          }
-        />
+        {/* Standalone results and dashboard views with Mobile Header Layout */}
+        <Route element={<MobileHeaderLayout />}>
+          {/* Test Results Routes */}
+          <Route
+            path="/class/:classId/test-papers/results/:testId"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <TestResultsViewer />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/class/:classId/test-papers/results/:testId/student/:studentId"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <StudentTestResult />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/class/:classId/test-papers/results/:testId/student/:studentId"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <StudentTestResult />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/class/:classId/test-papers/upload-physical"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <PhysicalTestUploadPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/class/:classId/test-papers/physical-results"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <PhysicalTestResultsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/class/:classId/test-papers/physical-results/:submissionId"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <PhysicalTestStudentResult />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/class/:classId/test-papers/upload-physical"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <PhysicalTestUploadPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/class/:classId/test-papers/physical-results"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <PhysicalTestResultsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/class/:classId/test-papers/physical-results/:submissionId"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <PhysicalTestStudentResult />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Quiz Results Routes */}
-        <Route
-          path="/class/:classId/quizzes/results/:quizId"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <QuizResultsViewer />
-            </ProtectedRoute>
-          }
-        />
+          {/* Quiz Results Routes */}
+          <Route
+            path="/class/:classId/quizzes/results/:quizId"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <QuizResultsViewer />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/class/:classId/quizzes/results/:quizId/student/:studentId"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <StudentQuizResult />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/class/:classId/quizzes/results/:quizId/student/:studentId"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <StudentQuizResult />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Class Dashboard Route */}
-        <Route
-          path="/class/:classId/dashboard"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <ClassDashboard />
-            </ProtectedRoute>
-          }
-        />
+          {/* Class Dashboard Route */}
+          <Route
+            path="/class/:classId/dashboard"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <ClassDashboard />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Assignment Results Routes */}
-        <Route
-          path="/class/:classId/assignments/results/:assignmentId"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <AssignmentResultsViewer />
-            </ProtectedRoute>
-          }
-        />
+          {/* Assignment Results Routes */}
+          <Route
+            path="/class/:classId/assignments/results/:assignmentId"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <AssignmentResultsViewer />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/class/:classId/assignments/results/:assignmentId/student/:studentId"
-          element={
-            <ProtectedRoute requiredRole="teacher">
-              <StudentAssignmentResult />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/class/:classId/assignments/results/:assignmentId/student/:studentId"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <StudentAssignmentResult />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
 
         {/* Redirect unknown routes */}
         <Route path="*" element={<Navigate to="/" replace />} />

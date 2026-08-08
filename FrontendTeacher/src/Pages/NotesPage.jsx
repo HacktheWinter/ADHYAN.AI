@@ -197,10 +197,10 @@ const NotesPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-[400px] font-body text-ink">
         <div className="text-center">
           <Loader className="w-8 sm:w-12 h-8 sm:h-12 text-purple-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-500 text-sm sm:text-base">Loading notes...</p>
+          <p className="text-ink-soft text-sm sm:text-base font-semibold">Loading notes...</p>
         </div>
       </div>
     );
@@ -209,15 +209,15 @@ const NotesPage = () => {
   return (
     <PageTransition className="space-y-6">
       {/* Upload Form */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div className="p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+      <div className="bg-surface rounded-2xl border border-line shadow-sm">
+        <div className="p-4 sm:p-6 font-body">
+          <h3 className="text-base sm:text-lg font-semibold font-display text-ink mb-4">
             Upload New Note
           </h3>
 
           <form onSubmit={handleUpload} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2">
                 Note Title
               </label>
               <input
@@ -227,13 +227,13 @@ const NotesPage = () => {
                   setUploadForm({ ...uploadForm, title: e.target.value })
                 }
                 placeholder="Enter note title..."
-                className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-purple-600"
+                className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-600 focus:bg-surface transition-all"
                 disabled={uploading}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2">
                 PDF File
               </label>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -247,22 +247,22 @@ const NotesPage = () => {
                 />
                 <label
                   htmlFor="file-upload"
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 cursor-pointer transition-colors w-full sm:w-auto justify-center sm:justify-start"
+                  className="flex items-center gap-2 px-4 py-2 border border-line bg-surface text-ink hover:bg-line text-xs font-bold rounded-xl shadow-sm cursor-pointer w-full sm:w-auto justify-center sm:justify-start transition-colors"
                 >
-                  <Upload className="w-4 h-4" />
+                  <Upload className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
                   Choose File
                 </label>
                 {uploadForm.file && (
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 w-full sm:w-auto">
-                    <FileText className="w-4 h-4 flex-shrink-0" />
-                    <span className="truncate flex-1">{uploadForm.file.name}</span>
-                    <span className="text-gray-400 flex-shrink-0">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-ink w-full sm:w-auto">
+                    <FileText className="w-4 h-4 flex-shrink-0 text-purple-600 dark:text-[#A78BFA]" />
+                    <span className="truncate flex-1 font-semibold">{uploadForm.file.name}</span>
+                    <span className="text-ink-soft flex-shrink-0 text-xs">
                       ({formatFileSize(uploadForm.file.size)})
                     </span>
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-ink-soft mt-1">
                 Only PDF files up to 10MB are allowed
               </p>
             </div>
@@ -274,7 +274,7 @@ const NotesPage = () => {
               disabled={
                 uploading || !uploadForm.title.trim() || !uploadForm.file
               }
-              className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-purple-600 text-white text-sm sm:text-base font-semibold rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              className="w-full btn-settings-blue py-2.5 sm:py-3 text-sm sm:text-base rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
               {uploading ? (
                 <>
@@ -294,15 +294,15 @@ const NotesPage = () => {
 
       {/* Notes List */}
       <div>
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+        <h3 className="text-base sm:text-lg font-semibold font-display text-ink mb-4">
           Uploaded Notes ({notes.length})
         </h3>
 
         {notes.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-8 sm:p-12 text-center">
-            <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 font-medium text-sm sm:text-base">No notes uploaded yet</p>
-            <p className="text-gray-400 text-xs sm:text-sm mt-1">
+          <div className="bg-surface rounded-2xl border border-line p-8 sm:p-12 text-center font-body">
+            <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-line mx-auto mb-4" />
+            <p className="text-ink font-semibold text-sm sm:text-base">No notes uploaded yet</p>
+            <p className="text-ink-soft text-xs sm:text-sm mt-1">
               Upload your first note using the form above
             </p>
           </div>
@@ -318,19 +318,19 @@ const NotesPage = () => {
                 key={note._id}
                 variants={itemVariants}
                 whileHover={{ scale: 1.005 }}
-                className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                className="bg-surface rounded-2xl border border-line shadow-sm hover:shadow-md transition-shadow font-body"
               >
                 <div className="p-4 sm:p-6">
                   <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-line">
+                      <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-violet-dark" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-1 truncate">
+                      <h4 className="text-base sm:text-lg font-semibold text-ink mb-1 truncate">
                         {note.title}
                       </h4>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-ink-soft">
                         <span className="truncate">Uploaded by {note.uploadedBy}</span>
                         <span className="hidden sm:inline">•</span>
                         <span className="text-xs">{formatDate(note.createdAt)}</span>
@@ -342,9 +342,9 @@ const NotesPage = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => toggleMenu(note._id)}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                        className="p-2 hover:bg-line rounded-lg transition-colors cursor-pointer text-ink-soft hover:text-ink"
                       >
-                        <MoreVertical className="w-5 h-5 text-gray-600" />
+                        <MoreVertical className="w-5 h-5" />
                       </motion.button>
 
                       <AnimatePresence>
@@ -354,28 +354,28 @@ const NotesPage = () => {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.98, y: -2 }}
                             transition={{ duration: 0.1 }}
-                            className="absolute right-0 bottom-full mb-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10"
+                            className="absolute right-0 bottom-full mb-2 w-48 bg-surface rounded-xl shadow-lg border border-line py-1.5 z-10"
                           >
                             <button
                               onClick={() => handlePreview(note)}
-                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                              className="dropdown-item w-full flex items-center gap-3 px-4 py-2.5 text-sm text-ink transition-colors cursor-pointer"
                             >
-                              <Eye className="w-4 h-4 text-purple-600" />
+                              <Eye className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
                               <span>Preview</span>
                             </button>
 
                             <button
                               onClick={() => handleDownload(note)}
-                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                              className="dropdown-item w-full flex items-center gap-3 px-4 py-2.5 text-sm text-ink transition-colors cursor-pointer"
                             >
-                              <Download className="w-4 h-4 text-blue-600" />
+                              <Download className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                               <span>Download</span>
                             </button>
 
                             <button
                               onClick={() => handleDelete(note._id, note.title)}
                               disabled={deleting === note._id}
-                              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                              className="dropdown-item-danger w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                             >
                               {deleting === note._id ? (
                                 <>

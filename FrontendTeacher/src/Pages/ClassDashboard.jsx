@@ -179,17 +179,17 @@ const ClassDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-paper flex items-center justify-center font-body">
         <div className="flex flex-col items-center">
             <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-500 font-medium">Loading {viewMode} dashboard...</p>
+            <p className="text-ink-soft font-semibold">Loading {viewMode} dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8" onClick={() => setShowMenu(false)}>
+    <div className="min-h-screen bg-paper p-4 sm:p-8 font-body text-ink" onClick={() => setShowMenu(false)}>
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header */}
@@ -197,28 +197,28 @@ const ClassDashboard = () => {
             <div>
                 <button 
                     onClick={() => navigate(`/class/${classId}/quizzes`)}
-                    className="flex items-center gap-2 text-gray-500 hover:text-gray-800 transition-colors mb-2 cursor-pointer"
+                    className="flex items-center gap-2 text-ink-soft hover:text-ink transition-colors mb-2 cursor-pointer font-semibold"
                 >
                     <ChevronLeft className="w-4 h-4" />
                     Back to Class
                 </button>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                <h1 className="text-2xl sm:text-3xl font-semibold font-display text-ink">
                     {classroom?.name} - Performance Dashboard
                 </h1>
-                <p className="text-gray-500 mt-1 capitalize">
+                <p className="text-ink-soft mt-1 capitalize text-sm">
                     Viewing {viewMode} Performance
                 </p>
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
                 <div className="relative flex-1 sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-soft" />
                     <input 
                         type="text" 
                         placeholder="Search student..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all"
+                        className="w-full pl-9 pr-4 py-2 bg-surface border border-line rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-ink text-sm"
                     />
                 </div>
 
@@ -226,17 +226,17 @@ const ClassDashboard = () => {
                 <div className="relative" onClick={e => e.stopPropagation()}>
                     <button 
                         onClick={() => setShowMenu(!showMenu)}
-                        className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-gray-600 cursor-pointer"
+                        className="p-2 bg-surface border border-line rounded-lg hover:bg-line transition-colors text-ink cursor-pointer"
                     >
                         <MoreVertical className="w-5 h-5" />
                     </button>
 
                     {showMenu && (
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-10 overflow-hidden">
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-surface rounded-xl shadow-lg border border-line py-1 z-10 overflow-hidden">
                             <button
                                 onClick={() => { setViewMode('quiz'); setShowMenu(false); }}
                                 className={`w-full px-4 py-3 text-left flex items-center justify-between text-sm cursor-pointer ${
-                                    viewMode === 'quiz' ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                                    viewMode === 'quiz' ? 'bg-[#F1ECFB] dark:bg-[#26163F]/50 text-purple-700 dark:text-[#A78BFA] font-semibold' : 'dropdown-item text-ink'
                                 }`}
                             >
                                 Quiz
@@ -245,7 +245,7 @@ const ClassDashboard = () => {
                             <button
                                 onClick={() => { setViewMode('assignment'); setShowMenu(false); }}
                                 className={`w-full px-4 py-3 text-left flex items-center justify-between text-sm cursor-pointer ${
-                                    viewMode === 'assignment' ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                                    viewMode === 'assignment' ? 'bg-[#F1ECFB] dark:bg-[#26163F]/50 text-purple-700 dark:text-[#A78BFA] font-semibold' : 'dropdown-item text-ink'
                                 }`}
                             >
                                 Assignment
@@ -254,7 +254,7 @@ const ClassDashboard = () => {
                             <button
                                 onClick={() => { setViewMode('testpaper'); setShowMenu(false); }}
                                 className={`w-full px-4 py-3 text-left flex items-center justify-between text-sm cursor-pointer ${
-                                    viewMode === 'testpaper' ? 'bg-purple-50 text-purple-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                                    viewMode === 'testpaper' ? 'bg-[#F1ECFB] dark:bg-[#26163F]/50 text-purple-700 dark:text-[#A78BFA] font-semibold' : 'dropdown-item text-ink'
                                 }`}
                             >
                                 Test Paper
@@ -266,7 +266,7 @@ const ClassDashboard = () => {
 
                 <button 
                     onClick={exportToCSV}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm cursor-pointer"
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors shadow-sm cursor-pointer text-sm font-semibold"
                 >
                     <Download className="w-4 h-4" />
                     <span className="hidden sm:inline">Export CSV</span>
@@ -275,19 +275,19 @@ const ClassDashboard = () => {
         </div>
 
         {/* Table Container */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="bg-surface rounded-xl border border-line shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full min-w-[800px]">
                     <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">
+                        <tr className="bg-paper border-b border-line">
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-ink-soft uppercase tracking-wider w-16">
                                 S.No
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-64">
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-ink-soft uppercase tracking-wider w-64">
                                 Student Details
                             </th>
                             {items.map((item, index) => (
-                                <th key={item._id} className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">
+                                <th key={item._id} className="px-6 py-4 text-left text-xs font-semibold text-ink-soft uppercase tracking-wider min-w-[140px]">
                                     <div className="flex items-center gap-2" title={item.title}>
                                         <FileText className="w-3 h-3 text-purple-500" />
                                         <span className="truncate max-w-[120px] block">{getItemLabel(index)}</span>
@@ -296,11 +296,11 @@ const ClassDashboard = () => {
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-line">
                         {filteredStudents.length > 0 ? (
                             filteredStudents.map((student, index) => (
-                                <tr key={student._id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <tr key={student._id} className="hover:bg-line/40 transition-colors">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-soft">
                                         {index + 1}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -309,20 +309,20 @@ const ClassDashboard = () => {
                                                 <img 
                                                     src={`${API_BASE_URL.replace('/api', '')}/${student.profilePhoto}`} 
                                                     alt={student.name}
-                                                    className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                                                    className="w-8 h-8 rounded-full object-cover border border-line"
                                                     onError={(e) => {
                                                         e.target.style.display = 'none';
                                                         e.target.nextElementSibling.style.display = 'flex';
                                                     }}
                                                 />
                                             ) : (
-                                                <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                                                    <User className="w-4 h-4" />
+                                                <div className="w-8 h-8 rounded-full bg-[#F1ECFB] dark:bg-[#26163F] flex items-center justify-center text-purple-700 dark:text-[#A78BFA] font-bold text-xs">
+                                                    {student.name ? student.name.charAt(0).toUpperCase() : 'S'}
                                                 </div>
                                             )}
                                             <div>
-                                                <div className="font-medium text-gray-900">{student.name}</div>
-                                                <div className="text-xs text-gray-500">{student.email}</div>
+                                                <div className="font-semibold text-ink text-sm">{student.name}</div>
+                                                <div className="text-xs text-ink-soft">{student.email}</div>
                                             </div>
                                         </div>
                                     </td>
@@ -333,19 +333,19 @@ const ClassDashboard = () => {
                                                 {sub ? (
                                                     <div className="flex flex-col">
                                                         <span className={`text-sm font-semibold ${
-                                                            sub.percentage >= 40 ? 'text-green-600' : 'text-red-500'
+                                                            sub.percentage >= 40 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-450'
                                                         }`}>
                                                             {sub.percentage}%
                                                         </span>
-                                                        <span className="text-xs text-gray-500">
+                                                        <span className="text-xs text-ink-soft">
                                                             {sub.score}/{sub.total}
                                                             {sub.status && sub.status !== 'checked' && (
-                                                                <span className="text-yellow-500 ml-1">({sub.status})</span>
+                                                                <span className="text-amber-500 dark:text-amber-400 ml-1">({sub.status})</span>
                                                             )}
                                                         </span>
                                                     </div>
                                                 ) : (
-                                                    <span className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-500 text-xs font-medium">
+                                                    <span className="inline-flex items-center px-2 py-1 rounded bg-paper text-ink-soft text-xs font-semibold">
                                                         Absent
                                                     </span>
                                                 )}
@@ -356,7 +356,7 @@ const ClassDashboard = () => {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={items.length + 2} className="px-6 py-12 text-center text-gray-500">
+                                <td colSpan={items.length + 2} className="px-6 py-12 text-center text-ink-soft">
                                     No students found matching your search.
                                 </td>
                             </tr>
@@ -366,11 +366,11 @@ const ClassDashboard = () => {
             </div>
             
             {/* Footer Summary */}
-            <div className="bg-gray-50 border-t border-gray-200 px-6 py-4">
-                <div className="text-xs text-gray-500 flex items-center gap-4">
+            <div className="bg-paper border-t border-line px-6 py-4">
+                <div className="text-xs text-ink-soft flex items-center gap-4 font-semibold">
                     <span>Total Students: {students.length}</span>
                     <span>•</span>
-                    <span className="capitalize">Total {viewMode}es: {items.length}</span>
+                    <span className="capitalize">Total {viewMode}s: {items.length}</span>
                 </div>
             </div>
         </div>
