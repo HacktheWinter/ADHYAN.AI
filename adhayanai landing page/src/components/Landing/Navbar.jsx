@@ -7,8 +7,8 @@ const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  const STUDENT_URL = import.meta.env.VITE_STUDENT_URL || "https://adhyanai-student.onrender.com/";
-  const TEACHER_URL = import.meta.env.VITE_TEACHER_URL || "https://adhyanai-teacher.onrender.com/";
+  const STUDENT_URL = import.meta.env.VITE_STUDENT_URL || "https://student.adhyanai.tech/";
+  const TEACHER_URL = import.meta.env.VITE_TEACHER_URL || "https://teacher.adhyanai.tech/login";
 
   useEffect(() => {
     const handleScroll = () => {
