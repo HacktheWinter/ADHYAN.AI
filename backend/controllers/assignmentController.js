@@ -8,10 +8,72 @@ import { generateAssignmentFromText } from "../config/geminiAssignment.js";
 import { sendAssignmentPublishedEmails } from "../utils/emailNotifications.js";
 import { logActivity } from "../utils/activityTracker.js";
 import {
-  extractTextFromPDF,
-  cleanText,
+  extractTextFromFile,
+  cleanTextFull,
   validateTextContent,
-} from "../utils/pdfExtractor.js";
+} from "../utils/fileExtractor.js";
+
+/**
+ * Create assignment manually (teacher enters questions)
+ * POST /api/assignment/create-manual
+ */
+export const createAssignmentManually = async (req, res) => {
+  try {
+    const { classroomId, title, description, questions, marksPerQuestion, difficulty, dueDate } = req.body;
+    const teacherId = req.user?._id?.toString();
+
+    if (!classroomId) return res.status(400).json({ error: "classroomId is required" });
+    if (!title?.trim()) return res.status(400).json({ error: "Title is required" });
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ error: "At least one question is required" });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(classroomId).select("teacherId");
+      if (!classroom) return res.status(404).json({ error: "Classroom not found" });
+      if (classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    }
+
+    // Validate each question
+    for (const q of questions) {
+      if (!q.question?.trim()) return res.status(400).json({ error: "Each question must have text" });
+      if (!q.answerKey?.trim()) return res.status(400).json({ error: "Each question must have an answer key" });
+    }
+
+    const mPerQ = marksPerQuestion || 2;
+    const totalMarks = questions.length * mPerQ;
+
+    const assignment = await Assignment.create({
+      classroomId,
+      title: title.trim(),
+      description: description?.trim() || "",
+      questions: questions.map((q) => ({
+        question: q.question.trim(),
+        marks: mPerQ,
+        answerKey: q.answerKey.trim(),
+        answerGuidelines: q.answerGuidelines || "",
+      })),
+      marksPerQuestion: mPerQ,
+      totalMarks,
+      difficulty: difficulty || "mixed",
+      dueDate: dueDate || null,
+      status: "draft",
+    });
+
+    console.log("Manual assignment created:", assignment._id);
+
+    res.status(201).json({
+      success: true,
+      message: `Created assignment with ${questions.length} questions`,
+      assignment,
+    });
+  } catch (error) {
+    console.error("Manual assignment creation failed:", error);
+    res.status(500).json({ error: "Failed to create assignment", details: error.message });
+  }
+};
 
 export const generateAssignmentWithAI = async (req, res) => {
   try {
@@ -20,14 +82,10 @@ export const generateAssignmentWithAI = async (req, res) => {
       console.error("GridFS bucket not ready");
       return;
     }
-    const { noteIds, classroomId, customTitle, questionCount, marksPerQuestion, difficulty } = req.body;
+    const { noteIds, classroomId, customTitle, questionCount, marksPerQuestion, difficulty, topics } = req.body;
 
     console.log("=== ASSIGNMENT GENERATION STARTED ===");
-    console.log("Request:", { noteIds, classroomId, customTitle, questionCount, marksPerQuestion, difficulty });
-
-    if (!noteIds || !Array.isArray(noteIds) || noteIds.length === 0) {
-      return res.status(400).json({ error: "Please select at least one note" });
-    }
+    console.log("Request:", { noteIds, classroomId, customTitle, questionCount, marksPerQuestion, difficulty, topics });
 
     if (!classroomId) {
       return res.status(400).json({ error: "classroomId is required" });
@@ -46,12 +104,10 @@ export const generateAssignmentWithAI = async (req, res) => {
       }
     }
 
-    const normalizedNoteIds = [...new Set(noteIds.map(String))]
-      .filter((id) => mongoose.Types.ObjectId.isValid(id))
-      .map((id) => new mongoose.Types.ObjectId(id));
+    const isTopicBased = topics && (Array.isArray(topics) ? topics.length > 0 : String(topics).trim());
 
-    if (normalizedNoteIds.length === 0) {
-      return res.status(400).json({ error: "No valid note IDs provided" });
+    if (!isTopicBased && (!noteIds || !Array.isArray(noteIds) || noteIds.length === 0)) {
+      return res.status(400).json({ error: "Please select at least one note or provide topics" });
     }
 
     const toClampedInt = (value, defaultValue, min, max) => {
@@ -73,89 +129,136 @@ export const generateAssignmentWithAI = async (req, res) => {
       difficulty: difficulty || "mixed"
     };
 
-    // Fetch notes
-    const notes = await Note.find({ _id: { $in: normalizedNoteIds } });
-
-    if (notes.length === 0) {
-      return res.status(404).json({ error: "No notes found" });
-    }
-
-    console.log(`Found ${notes.length} notes`);
-
-    // Extract text from PDFs
-    let combinedText = "";
-    let successfulExtractions = 0;
-
-    for (const note of notes) {
-      try {
-        console.log(`Processing: ${note.title}`);
-
-        const fileId = new mongoose.Types.ObjectId(note.fileId);
-        const chunks = [];
-        const readstream = bucket.openDownloadStream(fileId);
-
-        await new Promise((resolve, reject) => {
-          readstream.on("data", (chunk) => chunks.push(chunk));
-          readstream.on("error", reject);
-          readstream.on("end", resolve);
-        });
-
-        const buffer = Buffer.concat(chunks);
-        const text = await extractTextFromPDF(buffer);
-
-        if (text && text.trim().length > 0) {
-          combinedText += `\n\n=== ${note.title} ===\n\n${text}`;
-          successfulExtractions++;
-          console.log(`Extracted ${text.length} characters`);
-        }
-      } catch (error) {
-        console.error(`Error processing ${note.title}:`, error.message);
-      }
-    }
-
-    if (successfulExtractions === 0) {
-      return res.status(400).json({
-        error: "Could not extract text from any PDF",
-      });
-    }
-
-    if (!combinedText || combinedText.trim().length < 500) {
-      return res.status(400).json({
-        error: "Not enough content in notes (min 500 characters required)",
-      });
-    }
-
-    console.log("Content validation passed");
-
-    // Clean text
-    const cleanedText = cleanText(combinedText, 15001);
-
-    // Fetch existing questions for this classroom to avoid repetition
-    // Fetch existing questions for this classroom AND same notes to avoid repetition
-    const existingAssignments = await Assignment.find({ 
-      classroomId, 
-      generatedFrom: { $all: normalizedNoteIds, $size: normalizedNoteIds.length },
-    })
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .select("questions.question");
-    
-    const excludeQuestions = existingAssignments.flatMap(a => a.questions.map(extQ => extQ.question));
-
-    // Generate assignment using Gemini
-    console.log("Calling Gemini API for assignment generation...");
-    
     let questions;
-    try {
-      questions = await generateAssignmentFromText(cleanedText, { ...aiConfig, excludeQuestions });
-      console.log(`Generated ${questions.length} questions`);
-    } catch (aiError) {
-      console.error("AI Generation Error:", aiError.message);
-      return res.status(500).json({
-        error: "Failed to generate assignment using AI",
-        details: aiError.message,
-      });
-    }
+    let assignmentTitle;
+    let normalizedNoteIds = [];
+    let successfulExtractions = 0;
+    let totalNotesCount = 0;
+
+    if (isTopicBased) {
+      const topicsArray = Array.isArray(topics) ? topics : [topics];
+      console.log(`Generating assignment from ${topicsArray.length} topics...`);
+
+      assignmentTitle = customTitle?.trim()
+        ? customTitle.trim()
+        : topicsArray.length > 2
+          ? `Assignment: ${topicsArray.slice(0, 2).join(", ")} and ${topicsArray.length - 2} more`
+          : `Assignment: ${topicsArray.join(", ")}`;
+
+      try {
+        questions = await geminiAssignment.generateAssignmentFromTopics(topicsArray, aiConfig);
+        console.log(`Generated ${questions.length} questions from topics`);
+      } catch (aiError) {
+        console.error("AI Generation from Topics Error:", aiError.message);
+        return res.status(500).json({
+          error: "Failed to generate assignment from topics using AI",
+          details: aiError.message,
+        });
+      }
+    } else {
+      normalizedNoteIds = [...new Set(noteIds.map(String))]
+        .filter((id) => mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
+
+      if (normalizedNoteIds.length === 0) {
+        return res.status(400).json({ error: "No valid note IDs provided" });
+      }
+
+      // Fetch notes
+      const notes = await Note.find({ _id: { $in: normalizedNoteIds } });
+      totalNotesCount = notes.length;
+
+      if (notes.length === 0) {
+        return res.status(404).json({ error: "No notes found" });
+      }
+
+      console.log(`Found ${notes.length} notes`);
+
+      // Extract text from PDFs
+      let combinedText = "";
+
+      for (const note of notes) {
+        try {
+          console.log(`Processing: ${note.title}`);
+
+          const fileId = new mongoose.Types.ObjectId(note.fileId);
+          const chunks = [];
+          const readstream = bucket.openDownloadStream(fileId);
+
+          await new Promise((resolve, reject) => {
+            readstream.on("data", (chunk) => chunks.push(chunk));
+            readstream.on("error", reject);
+            readstream.on("end", resolve);
+          });
+
+          const buffer = Buffer.concat(chunks);
+          const mimetype = note.mimetype || "application/pdf";
+          const text = await extractTextFromFile(buffer, mimetype);
+
+          if (text && text.trim().length > 0) {
+            combinedText += `\n\n=== ${note.title} ===\n\n${text}`;
+            successfulExtractions++;
+            console.log(`Extracted ${text.length} characters`);
+          }
+        } catch (error) {
+          console.error(`Error processing ${note.title}:`, error.message);
+        }
+      }
+
+      if (successfulExtractions === 0) {
+        return res.status(400).json({
+          error: "Could not extract text from any PDF",
+        });
+      }
+
+      if (!combinedText || combinedText.trim().length < 500) {
+        return res.status(400).json({
+          error: "Not enough content in notes (min 500 characters required)",
+        });
+      }
+
+      console.log("Content validation passed");
+
+      // Clean text — no truncation, chunking is handled in AI layer
+      const cleanedText = cleanTextFull(combinedText);
+
+      // Fetch existing questions for this classroom AND same notes to avoid repetition
+      const existingAssignments = await Assignment.find({ 
+        classroomId, 
+        generatedFrom: { $all: normalizedNoteIds, $size: normalizedNoteIds.length },
+      })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .select("questions.question");
+      
+      const excludeQuestions = existingAssignments.flatMap(a => a.questions.map(extQ => extQ.question));
+
+      // Generate assignment using Gemini
+      console.log("Calling Gemini API for assignment generation...");
+      
+      try {
+        questions = await generateAssignmentFromText(cleanedText, { ...aiConfig, excludeQuestions });
+        console.log(`Generated ${questions.length} questions`);
+      } catch (aiError) {
+        console.error("AI Generation Error:", aiError.message);
+        return res.status(500).json({
+          error: "Failed to generate assignment using AI",
+          details: aiError.message,
+        });
+      }
+
+      // Create title
+      const noteNames = notes
+        .slice(0, 2)
+        .map((n) => n.title)
+        .join(", ");
+      
+      assignmentTitle = customTitle?.trim() 
+        ? customTitle.trim() 
+        : notes.length > 2
+          ? `Assignment from ${noteNames} and ${notes.length - 2} more`
+          : `Assignment from ${noteNames}`;
+    } // End of Notes block
 
     // Validate questions count (allowing some flexibility but not too much)
     if (!questions || questions.length === 0) {
@@ -164,18 +267,6 @@ export const generateAssignmentWithAI = async (req, res) => {
       });
     }
 
-    // Create title
-    const noteNames = notes
-      .slice(0, 2)
-      .map((n) => n.title)
-      .join(", ");
-    
-    const assignmentTitle = customTitle?.trim() 
-      ? customTitle.trim() 
-      : notes.length > 2
-        ? `Assignment from ${noteNames} and ${notes.length - 2} more`
-        : `Assignment from ${noteNames}`;
-
     const totalMarks = questions.reduce((acc, q) => acc + (q.marks || aiConfig.marksPerQuestion), 0);
 
     // Save to database
@@ -183,7 +274,8 @@ export const generateAssignmentWithAI = async (req, res) => {
       classroomId,
       title: assignmentTitle,
       description: `Complete all ${questions.length} questions. Each question is worth ${aiConfig.marksPerQuestion} marks.`,
-      generatedFrom: normalizedNoteIds,
+      generatedFrom: isTopicBased ? [] : normalizedNoteIds,
+      generatedFromTopics: isTopicBased ? (Array.isArray(topics) ? topics : [topics]) : [],
       questions: questions.map((q) => ({
         question: q.question,
         marks: q.marks || aiConfig.marksPerQuestion,

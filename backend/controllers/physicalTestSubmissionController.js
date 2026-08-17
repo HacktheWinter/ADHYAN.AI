@@ -42,7 +42,7 @@ let currentKeyIndex = 0;
 const getModel = (useSystemInstruction = false, systemText = "") => {
   const apiKey = API_KEYS[currentKeyIndex];
   const genAI = new GoogleGenerativeAI(apiKey);
-  const config = { model: "gemini-2.5-flash" };
+  const config = { model: "gemini-3.1-flash-lite" };
   if (useSystemInstruction && systemText) {
     config.systemInstruction = systemText;
   }

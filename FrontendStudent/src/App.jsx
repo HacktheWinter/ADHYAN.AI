@@ -28,9 +28,6 @@ const StudentFeedbackPage = lazy(() => import("./Pages/StudentFeedbackPage"));
 const StudentAnnouncement = lazy(() => import("./Pages/StudentAnnouncement"));
 const StudentCalendarPage = lazy(() => import("./Pages/StudentCalendarPage"));
 const SettingsPage = lazy(() => import("./Pages/SettingsPage"));
-
-
-
 function StudentLayout() {
   const [searchQuery, setSearchQuery] = useState("");
 

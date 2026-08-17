@@ -23,6 +23,7 @@ import PublishQuizModal from "./PublishQuizModal";
 import EditQuizModal from "./EditQuizModal";
 import AddTopicsButton from "./AddTopicsButton";
 import TopicsInputCard from "./TopicsInputCard";
+import CreateManualQuizModal from "./CreateManualQuizModal";
 
 const QuizzesPage = () => {
   const { classId } = useParams();
@@ -31,6 +32,8 @@ const QuizzesPage = () => {
   const [drafts, setDrafts] = useState([]);
   const [published, setPublished] = useState([]);
   const [showAIModal, setShowAIModal] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -74,6 +77,12 @@ const QuizzesPage = () => {
   useEffect(() => {
     fetchQuizzes();
   }, [fetchQuizzes]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setShowCreateMenu(false);
+    if (showCreateMenu) document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showCreateMenu]);
 
   const handleOpenAIModal = async () => {
     setShowAIModal(true);
@@ -296,13 +305,43 @@ const QuizzesPage = () => {
             </p>
           </div>
 
-          <button
-            onClick={handleOpenAIModal}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-purple-600 dark:to-indigo-650 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer text-sm sm:text-base"
-          >
-            <Sparkles className="w-5 h-5 text-white" />
-            <span>Create with AI</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowCreateMenu(!showCreateMenu);
+              }}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-purple-600 dark:to-indigo-650 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer text-sm sm:text-base"
+            >
+              <span>Create Question</span>
+              <ChevronDown className="w-5 h-5 text-white" />
+            </button>
+
+            {showCreateMenu && (
+              <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-2xl border border-line p-1.5 z-50 overflow-hidden flex flex-col gap-1">
+                <button
+                  onClick={() => {
+                    setShowCreateMenu(false);
+                    handleOpenAIModal();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
+                  <span>Generate with AI</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCreateMenu(false);
+                    setShowManualModal(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Pencil className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
+                  <span>Create Manually</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -477,7 +516,7 @@ const QuizzesPage = () => {
                   <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                     <button
                       onClick={() => handleViewResults(quiz._id)}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-purple-650 hover:bg-purple-750 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <Eye className="w-4 h-4" />
                       <span>View Results</span>
@@ -612,7 +651,7 @@ const QuizzesPage = () => {
               <div className="border-t border-line pt-4">
                 <button
                   onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                  className="flex items-center gap-2 text-sm font-semibold text-ink hover:text-purple-650 transition-colors mb-4"
+                  className="flex items-center gap-2 text-sm font-semibold text-ink hover:text-violet-600 transition-colors mb-4"
                 >
                   <Settings2 className="w-4 h-4" />
                   Advanced Generation Options
@@ -735,6 +774,18 @@ const QuizzesPage = () => {
             setPublishingQuiz(null);
           }}
           onPublished={handlePublished}
+        />
+      )}
+
+      {/* Create Manual Modal */}
+      {showManualModal && (
+        <CreateManualQuizModal
+          classId={classId}
+          onClose={() => setShowManualModal(false)}
+          onCreated={(newQuiz) => {
+            setShowManualModal(false);
+            setDrafts((prev) => [newQuiz, ...prev]);
+          }}
         />
       )}
     </div>

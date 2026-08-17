@@ -1,6 +1,7 @@
 import express from 'express';
 import { authMiddleware, authorizeRoles } from "../middleware/authMiddleware.js";
 import {
+  createAssignmentManually,
   generateAssignmentWithAI,
   getAssignment,
   getAssignmentsByClassroom,
@@ -11,6 +12,9 @@ import {
 } from '../controllers/assignmentController.js';
 
 const router = express.Router();
+
+// Manual creation route
+router.post('/create-manual', authMiddleware, authorizeRoles("teacher"), createAssignmentManually);
 
 // Generate assignment with AI
 router.post('/generate-ai', authMiddleware, authorizeRoles("teacher"), generateAssignmentWithAI);

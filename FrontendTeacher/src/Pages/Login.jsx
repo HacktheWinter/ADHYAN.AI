@@ -8,6 +8,8 @@ import API_BASE_URL, {
   STUDENT_FRONTEND_URL,
   TEACHER_FRONTEND_URL,
 } from "../config";
+import { FiBookOpen, FiTarget, FiMessageSquare } from "react-icons/fi";
+import { MdWavingHand } from "react-icons/md";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -105,8 +107,8 @@ export default function Login() {
             </a>
 
             <div className="space-y-4">
-              <h2 className="text-3xl font-bold text-gray-800">
-                Welcome Back! 👋
+              <h2 className="text-3xl font-bold text-gray-800 flex items-center justify-center md:justify-start gap-2">
+                Welcome Back! <MdWavingHand className="text-yellow-500" />
               </h2>
               <p className="text-lg text-gray-600">
                 Continue your learning journey with AI-powered note-taking and
@@ -114,37 +116,43 @@ export default function Login() {
               </p>
             </div>
 
-            <div className="bg-gradient-to-r from-purple-600 to-purple-700 rounded-3xl p-8 text-white shadow-xl">
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">📚</span>
+            <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden mt-8">
+              {/* Subtle background decoration */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-white opacity-5 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+              
+              <div className="space-y-6 relative z-10">
+                <div className="flex items-center space-x-4 group">
+                  <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm group-hover:bg-white/20 transition-all duration-300 shadow-inner">
+                    <FiBookOpen className="text-2xl text-purple-100 group-hover:scale-110 transition-transform duration-300" />
                   </div>
-                  <div className="text-left">
-                    <p className="font-semibold">Smart Notes</p>
-                    <p className="text-sm text-purple-100">
+                  <div className="text-left flex-1">
+                    <p className="font-semibold text-lg tracking-wide text-white">Smart Notes</p>
+                    <p className="text-sm text-purple-200 font-light">
                       AI-powered organization
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">🎯</span>
+                
+                <div className="flex items-center space-x-4 group">
+                  <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm group-hover:bg-white/20 transition-all duration-300 shadow-inner">
+                    <FiTarget className="text-2xl text-purple-100 group-hover:scale-110 transition-transform duration-300" />
                   </div>
-                  <div className="text-left">
-                    <p className="font-semibold">Track Progress</p>
-                    <p className="text-sm text-purple-100">
+                  <div className="text-left flex-1">
+                    <p className="font-semibold text-lg tracking-wide text-white">Track Progress</p>
+                    <p className="text-sm text-purple-200 font-light">
                       Monitor your learning
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">💬</span>
+                
+                <div className="flex items-center space-x-4 group">
+                  <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm group-hover:bg-white/20 transition-all duration-300 shadow-inner">
+                    <FiMessageSquare className="text-2xl text-purple-100 group-hover:scale-110 transition-transform duration-300" />
                   </div>
-                  <div className="text-left">
-                    <p className="font-semibold">Collaborate</p>
-                    <p className="text-sm text-purple-100">
+                  <div className="text-left flex-1">
+                    <p className="font-semibold text-lg tracking-wide text-white">Collaborate</p>
+                    <p className="text-sm text-purple-200 font-light">
                       Connect with classmates
                     </p>
                   </div>
@@ -197,36 +205,6 @@ export default function Login() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Role Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Login as
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleRoleClick("student")}
-                    className={`p-3 border-2 rounded-xl transition-all cursor-pointer ${
-                      formData.role === "student"
-                        ? "border-purple-600 bg-purple-50 text-purple-600"
-                        : "border-gray-300 hover:border-gray-400 text-gray-600"
-                    }`}
-                  >
-                    <span className="text-sm font-medium">Student</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRoleClick("teacher")}
-                    className={`p-3 border-2 rounded-xl transition-all cursor-pointer ${
-                      formData.role === "teacher"
-                        ? "border-purple-600 bg-purple-50 text-purple-600"
-                        : "border-gray-300 hover:border-gray-400 text-gray-600"
-                    }`}
-                  >
-                    <span className="text-sm font-medium">Teacher</span>
-                  </button>
-                </div>
-              </div>
 
               {/* Email Input */}
               <div>
