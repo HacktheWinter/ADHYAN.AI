@@ -11,6 +11,17 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const [activeForm, setActiveForm] = useState('list'); // 'list' | 'password' | 'delete'
 
+  // Theme state
+  const [isDarkTheme, setIsDarkTheme] = useState(() => document.documentElement.classList.contains('dark'));
+  
+  React.useEffect(() => {
+    const handleThemeChange = () => {
+      setIsDarkTheme(document.documentElement.classList.contains('dark'));
+    };
+    window.addEventListener('themeChange', handleThemeChange);
+    return () => window.removeEventListener('themeChange', handleThemeChange);
+  }, []);
+
   // Notifications toggles
   const [notifNormal, setNotifNormal] = useState(true);
   const [notifEmail, setNotifEmail] = useState(false);
@@ -245,7 +256,50 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Section 2: Account */}
+        {/* Section 2: Appearance */}
+        <h2 className="font-display text-2xl font-semibold mb-4 mt-8">Appearance</h2>
+        <div className="bg-surface border border-line rounded-2xl p-6 shadow-sm mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-1 pr-4">
+              <strong className="text-sm sm:text-base text-ink font-semibold">Theme</strong>
+              <span className="text-xs sm:text-sm text-ink-soft">Choose your preferred appearance</span>
+            </div>
+            <div className="flex bg-line/30 p-1 rounded-lg border border-line">
+              <button
+                onClick={() => {
+                  document.documentElement.classList.remove('dark');
+                  localStorage.setItem('theme', 'light');
+                  window.dispatchEvent(new Event('themeChange'));
+                  setIsDarkTheme(false);
+                }}
+                className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors cursor-pointer ${
+                  !isDarkTheme 
+                    ? 'bg-surface text-ink shadow-sm' 
+                    : 'text-ink-soft hover:text-ink hover:bg-surface/50'
+                }`}
+              >
+                Light Theme
+              </button>
+              <button
+                onClick={() => {
+                  document.documentElement.classList.add('dark');
+                  localStorage.setItem('theme', 'dark');
+                  window.dispatchEvent(new Event('themeChange'));
+                  setIsDarkTheme(true);
+                }}
+                className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors cursor-pointer ${
+                  isDarkTheme 
+                    ? 'bg-surface text-ink shadow-sm' 
+                    : 'text-ink-soft hover:text-ink hover:bg-surface/50'
+                }`}
+              >
+                Dark Theme
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3: Account */}
         <h2 className="font-display text-2xl font-semibold mb-4">Account</h2>
 
         {/* Unified Accordion Card List */}

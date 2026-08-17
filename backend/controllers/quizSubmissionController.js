@@ -183,20 +183,29 @@ export const getQuizResult = async (req, res) => {
       "You can only access your own quiz results."
     );
 
-    await getAuthorizedQuizForStudent(req, quizId);
+    const quiz = await getAuthorizedQuizForStudent(req, quizId);
 
     const submission = await QuizSubmission.findOne({
       quizId,
       studentId,
-    }).populate("quizId", "title questions");
+    }).populate("quizId", "title questions resultsPublished");
 
     if (!submission) {
       return res.status(404).json({ error: "No submission found" });
     }
 
+    if (!quiz.resultsPublished) {
+      return res.status(403).json({
+        error: "Results are pending",
+        message: "Your results will be available once the teacher publishes them.",
+        resultsPublished: false,
+      });
+    }
+
     res.status(200).json({
       success: true,
       submission,
+      resultsPublished: true,
     });
   } catch (error) {
     console.error("Error fetching result:", error);
@@ -219,13 +228,14 @@ export const checkSubmission = async (req, res) => {
       "You can only check submissions for your own account."
     );
 
-    await getAuthorizedQuizForStudent(req, quizId);
+    const quiz = await getAuthorizedQuizForStudent(req, quizId);
 
     const submission = await QuizSubmission.findOne({ quizId, studentId });
 
     res.status(200).json({
       hasSubmitted: !!submission,
       submissionId: submission?._id || null,
+      resultsPublished: quiz.resultsPublished || false,
     });
   } catch (error) {
     console.error("Error checking submission:", error);

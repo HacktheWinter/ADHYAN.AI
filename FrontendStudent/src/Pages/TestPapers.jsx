@@ -13,8 +13,13 @@ export default function TestPapers() {
   const [testPapers, setTestPapers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submissions, setSubmissions] = useState({});
-  const [selectedTest, setSelectedTest] = useState(null);
-  const [showTakingModal, setShowTakingModal] = useState(false);
+  const [selectedTest, setSelectedTest] = useState(() => {
+    const saved = localStorage.getItem('activeTest');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [showTakingModal, setShowTakingModal] = useState(() => {
+    return !!localStorage.getItem('activeTest');
+  });
   const [showResultModal, setShowResultModal] = useState(false);
 
   useEffect(() => {
@@ -54,6 +59,7 @@ export default function TestPapers() {
   const handleTakeTest = (test) => {
     setSelectedTest(test);
     setShowTakingModal(true);
+    localStorage.setItem('activeTest', JSON.stringify(test));
   };
 
   const handleViewResult = (test) => {
@@ -64,6 +70,7 @@ export default function TestPapers() {
   const handleTestSubmitted = () => {
     setShowTakingModal(false);
     setSelectedTest(null);
+    localStorage.removeItem('activeTest');
     fetchTestPapers();
   };
 
@@ -230,6 +237,7 @@ export default function TestPapers() {
           onClose={() => {
             setShowTakingModal(false);
             setSelectedTest(null);
+            localStorage.removeItem('activeTest');
           }}
           onSubmit={handleTestSubmitted}
         />

@@ -13,6 +13,7 @@ import PublishTestModal from './PublishTestModal';
 import EditAnswerKeysModal from './EditAnswerKeysModal';
 import AddTopicsButton from "./AddTopicsButton";
 import TopicsInputCard from "./TopicsInputCard";
+import CreateManualTestModal from "./CreateManualTestModal";
 
 const TestPapersPage = () => {
   const { classData } = useOutletContext();
@@ -22,6 +23,8 @@ const TestPapersPage = () => {
   const [published, setPublished] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAIModal, setShowAIModal] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [editingTest, setEditingTest] = useState(null);
@@ -56,6 +59,12 @@ const TestPapersPage = () => {
     if (showHeaderMenu) document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [showHeaderMenu]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setShowCreateMenu(false);
+    if (showCreateMenu) document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showCreateMenu]);
 
   const fetchTestPapers = async () => {
     try {
@@ -225,19 +234,51 @@ const TestPapersPage = () => {
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              onClick={handleOpenAIModal}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-purple-600 dark:to-indigo-650 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer text-sm sm:text-base"
-            >
-              <Sparkles className="w-5 h-5 text-white" />
-              <span>Create with AI</span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCreateMenu(!showCreateMenu);
+                  setShowHeaderMenu(false);
+                }}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-purple-600 dark:to-indigo-650 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer text-sm sm:text-base"
+              >
+                <span>Create Question</span>
+                <ChevronDown className="w-5 h-5 text-white" />
+              </button>
+
+              {showCreateMenu && (
+                <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-2 w-56 bg-surface rounded-xl shadow-2xl border border-line p-1.5 z-50 overflow-hidden flex flex-col gap-1">
+                  <button
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      handleOpenAIModal();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
+                    <span>Generate with AI</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      setShowManualModal(true);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Pencil className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
+                    <span>Create Manually</span>
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="relative">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowHeaderMenu(!showHeaderMenu);
+                  setShowCreateMenu(false);
                 }}
                 className="flex items-center justify-center w-12 h-[3.2rem] bg-surface border border-line hover:bg-line rounded-xl transition-colors cursor-pointer shadow-sm text-ink"
               >
@@ -253,7 +294,7 @@ const TestPapersPage = () => {
                     }}
                     className="dropdown-item w-full flex items-center gap-3 px-4 py-3 text-sm text-ink transition-colors cursor-pointer"
                   >
-                    <Upload className="w-4 h-4 text-purple-650 dark:text-[#A78BFA]" />
+                    <Upload className="w-4 h-4 text-violet-600 dark:text-[#A78BFA]" />
                     <span>Upload Copies</span>
                   </button>
                   <button
@@ -423,7 +464,7 @@ const TestPapersPage = () => {
                   <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto relative">
                     <button
                       onClick={() => handleViewResults(test._id)}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-purple-650 hover:bg-purple-750 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <Eye className="w-4 h-4" />
                       <span>View Results</span>
@@ -543,7 +584,7 @@ const TestPapersPage = () => {
                           checked={selectedNotes.includes(note._id)}
                           onChange={() => toggleNoteSelection(note._id)}
                           disabled={isGenerating}
-                          className="w-4 h-4 text-purple-600 rounded border-line focus:ring-purple-650 cursor-pointer bg-paper"
+                          className="w-4 h-4 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
                         />
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm truncate">{note.title}</p>
@@ -558,7 +599,7 @@ const TestPapersPage = () => {
               <div className="border-t border-line pt-4">
                 <button 
                   onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                  className="flex items-center gap-2 text-sm font-semibold text-ink hover:text-purple-650 transition-colors mb-4"
+                  className="flex items-center gap-2 text-sm font-semibold text-ink hover:text-violet-600 transition-colors mb-4"
                 >
                   <Settings2 className="w-4 h-4" />
                   Advanced Question Count & Difficulty
@@ -802,6 +843,17 @@ const TestPapersPage = () => {
         />
       )}
 
+      {/* Create Manual Modal */}
+      {showManualModal && (
+        <CreateManualTestModal
+          classId={classData.id}
+          onClose={() => setShowManualModal(false)}
+          onCreated={(newTest) => {
+            setShowManualModal(false);
+            setDrafts((prev) => [newTest, ...prev]);
+          }}
+        />
+      )}
     </div>
   );
 };

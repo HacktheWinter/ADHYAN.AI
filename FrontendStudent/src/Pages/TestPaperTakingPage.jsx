@@ -1,20 +1,30 @@
+// FrontendStudent/src/Pages/TestPaperTakingPage.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, X } from 'lucide-react';
-import { submitTest } from '../api/testApi';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info } from 'lucide-react';
+import { getTestPaperById, submitTest } from '../api/testApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
-import ViolationAlertModal from './ViolationAlertModal';
+import ViolationAlertModal from '../components/ViolationAlertModal';
 
-export default function TakeTestModal({ testPaper, studentId, studentName, onClose, onSubmit }) {
+export default function TestPaperTakingPage() {
+  const { id: classId, testId } = useParams();
+  const navigate = useNavigate();
+
+  const [testPaper, setTestPaper] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
+
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [studentId, setStudentId] = useState(null);
 
   const timerRef = useRef(null);
   const answersRef = useRef({});
 
+  // ==================== FULL-SCREEN PROCTORING ====================
   const {
     isFullScreen,
     showViolationAlert,
@@ -23,19 +33,40 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
     exitFullScreen,
     handleViolationAlertOk,
     setIsSubmitting: setProctorSubmitting,
-    enterFullScreen
+    requestFullScreen
   } = useFullScreenProctor({
     enabled: hasStarted,
     maxViolations: 2,
     onAutoSubmit: (reason) => handleAutoSubmit(reason)
   });
 
-  const isResuming = !!localStorage.getItem(`test_start_time_${testPaper._id}`);
+  // ==================== INITIALIZATION ====================
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    setStudentId(user._id);
+
+    fetchTestPaper();
+  }, [testId]);
+
+  const fetchTestPaper = async () => {
+    try {
+      setLoading(true);
+      const res = await getTestPaperById(testId);
+      setTestPaper(res.testPaper);
+    } catch (error) {
+      console.error('Failed to fetch test paper', error);
+      alert('Failed to load test paper data');
+      navigate(`/course/${classId}/test`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     answersRef.current = answers;
   }, [answers]);
 
+  // ==================== TIMER SETUP ====================
   useEffect(() => {
     if (!hasStarted || !testPaper) return;
 
@@ -43,7 +74,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
       let calcTimeLeft = Infinity;
 
       if (testPaper.duration) {
-        const storageKey = `test_start_time_${testPaper._id}`;
+        const storageKey = `test_start_time_${testId}`;
         let startTime = localStorage.getItem(storageKey);
         
         if (!startTime) {
@@ -70,7 +101,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
     };
 
     setupTimer();
-  }, [hasStarted, testPaper]);
+  }, [hasStarted, testPaper, testId]);
 
   useEffect(() => {
     if (timeLeft !== null && timeLeft > 0) {
@@ -100,18 +131,17 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // ==================== START EXAM ====================
   const handleStartExam = async () => {
     try {
+      await requestFullScreen();
       setHasStarted(true);
-      // Wait for state update to enable the hook, then enter full screen
-      setTimeout(async () => {
-        await enterFullScreen();
-      }, 50);
     } catch (error) {
       alert("Please allow full screen to start the exam.");
     }
   };
 
+  // ==================== ANSWER HANDLING ====================
   const handleAnswerChange = (questionId, answer) => {
     setAnswers(prev => {
       const currentQ = testPaper.questions.find(q => q._id === questionId);
@@ -128,7 +158,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
           q => q.choiceGroup === currentQ.choiceGroup && q._id !== questionId
         );
         if (otherInGroup && prev[otherInGroup._id]) {
-          alert(`You have already answered a choice in this group. Please clear that answer first if you want to switch.`);
+          alert(`You have already answered ${otherInGroup.choiceLabel || 'another choice'} in this group. Please clear that answer first if you want to switch.`);
           return prev;
         }
       }
@@ -151,6 +181,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
     }
   };
 
+  // ==================== SUBMIT HANDLING ====================
   const handleAutoSubmit = async (reason) => {
     if (!isSubmitting) {
       await handleSubmitTest(true, reason);
@@ -176,6 +207,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
       timerRef.current && clearInterval(timerRef.current);
 
       const currentAnswers = answersRef.current;
+
       const answersArray = testPaper.questions.map(q => ({
         questionId: q._id,
         answer: currentAnswers[q._id] || ''
@@ -185,18 +217,21 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
       const answeredCount = Object.keys(currentAnswers).length;
 
       await submitTest(testPaper._id, studentId, answersArray);
-      localStorage.removeItem(`test_start_time_${testPaper._id}`);
+
+      // Clean up local storage
+      localStorage.removeItem(`test_start_time_${testId}`);
+
       exitFullScreen();
 
       if (autoSubmit) {
         alert(
-          ` AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${testPaper.questions.length}\n\nYour results will be visible when the teacher publishes them.`
+          ` AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${testPaper.questions.length}`
         );
       } else {
-        alert(" Test Submitted Successfully!\n\nYour results will be visible when the teacher publishes them.");
+        alert(" Test Submitted Successfully!");
       }
 
-      onSubmit();
+      navigate(`/course/${classId}/test`);
     } catch (error) {
       console.error('Submit error:', error);
       exitFullScreen();
@@ -215,95 +250,70 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
     return 5;
   };
 
+  // ==================== RENDER ====================
+  if (loading || !testPaper) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <Loader className="w-10 h-10 text-purple-600 animate-spin mb-4" />
+        <p className="text-gray-600 font-medium">Loading Exam...</p>
+      </div>
+    );
+  }
+
+  // --- INSTRUCTION VIEW ---
   if (!hasStarted) {
     return (
-      <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="max-w-3xl w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-          {/* Header - Clean, less purple */}
-          <div className="bg-white px-8 py-6 border-b border-gray-100 flex items-center justify-between sticky top-0 z-10">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">{testPaper.title}</h1>
-              <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-                {isResuming ? 'Resume Your Exam' : 'Exam Instructions'}
-              </p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-8 text-center">
+            <h1 className="text-3xl font-bold text-white mb-2">{testPaper.title}</h1>
+            <p className="text-purple-100 font-medium">Test Instructions</p>
+          </div>
+          
+          <div className="p-8 space-y-6">
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <p className="text-sm text-gray-500 mb-1">Total Questions</p>
+                <p className="text-xl font-bold text-gray-900">{testPaper.questions.length}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <p className="text-sm text-gray-500 mb-1">Duration</p>
+                <p className="text-xl font-bold text-gray-900">{testPaper.duration ? `${testPaper.duration} Minutes` : 'No Limit'}</p>
+              </div>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors">
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-          
-          <div className="p-8 overflow-y-auto">
-            {!isResuming && (
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 flex flex-col items-center justify-center">
-                  <p className="text-sm font-semibold text-gray-500 mb-1">Total Questions</p>
-                  <p className="text-3xl font-bold text-gray-900">{testPaper.questions.length}</p>
-                </div>
-                <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 flex flex-col items-center justify-center">
-                  <p className="text-sm font-semibold text-gray-500 mb-1">Duration</p>
-                  <p className="text-3xl font-bold text-gray-900">{testPaper.duration ? `${testPaper.duration} Minutes` : 'No Limit'}</p>
+
+            <div className="space-y-4">
+              <div className="flex gap-4 items-start bg-blue-50 p-4 rounded-xl border border-blue-100 text-blue-900">
+                <Info className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold mb-1">Full Screen Required</h4>
+                  <p className="text-sm leading-relaxed">This exam is proctored. You must remain in full-screen mode at all times. <strong>If you exit full-screen 2 times, your exam will be automatically submitted.</strong></p>
                 </div>
               </div>
-            )}
-
-            {isResuming ? (
-              <div className="bg-blue-50/80 p-8 rounded-xl border border-blue-100 text-center space-y-4 my-8">
-                <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Clock className="w-10 h-10 animate-pulse" />
-                </div>
-                <h3 className="text-2xl font-bold text-blue-900">Exam in Progress</h3>
-                <p className="text-base text-blue-800">You have already started this exam. Click resume to re-enter full screen and continue.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Important Guidelines</h3>
-                
-                <div className="flex gap-4 items-start p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <Shield className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">Full Screen Proctored</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">This exam is strictly proctored. You must remain in full-screen mode at all times. <strong>Exiting full-screen twice will automatically submit your exam.</strong></p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 items-start p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">No Tab Switching</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">Do not switch tabs, open new windows, or use other applications. These actions will be recorded as full-screen violations.</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 items-start p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <Clock className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">Timer & Auto-Submit</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">The countdown begins immediately upon starting. The exam will automatically submit when the timer reaches zero.</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 items-start p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <Info className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">Do Not Refresh</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">Avoid refreshing the page. Although your timer will persist, refreshing may count as exiting full-screen and cause a violation.</p>
-                  </div>
+              
+              <div className="flex gap-4 items-start bg-red-50 p-4 rounded-xl border border-red-100 text-red-900">
+                <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold mb-1">Do Not Refresh</h4>
+                  <p className="text-sm leading-relaxed">Do not refresh the page during the exam. While the timer will resume properly, refreshing may count as exiting full-screen or disrupt your session.</p>
                 </div>
               </div>
-            )}
-          </div>
-          
-          {/* Footer */}
-          <div className="p-6 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-4 mt-auto">
-            <button onClick={onClose} className="px-6 py-2.5 font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors">
-              Cancel
-            </button>
-            <button 
-              onClick={handleStartExam} 
-              className="px-8 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20"
-            >
-              {isResuming ? 'Resume Exam' : 'I Understand, Start Exam'}
-            </button>
+            </div>
+            
+            <div className="pt-6 mt-6 border-t border-gray-100 flex items-center justify-between">
+              <button
+                onClick={() => navigate(`/course/${classId}/test`)}
+                className="px-6 py-3 font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={handleStartExam}
+                className="px-8 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/30"
+              >
+                Start Exam
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -312,9 +322,12 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
 
   const question = testPaper.questions[currentQuestion];
 
+  // --- EXAM VIEW ---
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
       <div className="bg-white w-screen h-screen flex flex-col">
+
+        {/* HEADER */}
         <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -326,25 +339,31 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
                 </p>
               </div>
             </div>
+
             {violations.length > 0 && (
               <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-semibold">
                {violations.length}/2 Violation{violations.length > 1 ? 's' : ''}
               </div>
             )}
           </div>
+
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">
               Question {currentQuestion + 1} of {testPaper.questions.length}
             </span>
+
             {timeLeft !== null && (
               <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${
-                timeLeft < 60 ? 'bg-red-100 text-red-700' : timeLeft < 300 ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'
+                timeLeft < 60 ? 'bg-red-100 text-red-700'
+                : timeLeft < 300 ? 'bg-yellow-100 text-yellow-700'
+                : 'bg-blue-100 text-blue-700'
               }`}>
                 <Clock className="w-4 h-4" />
                 <span className="font-semibold">{formatTime(timeLeft)}</span>
               </div>
             )}
           </div>
+
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-purple-600 h-2 rounded-full transition-all duration-300"
@@ -353,6 +372,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
           </div>
         </div>
 
+        {/* QUESTION CONTENT */}
         <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
           <div className="max-w-4xl mx-auto">
             <div className="mb-6 bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-100">
@@ -360,13 +380,20 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
                 <h3 className="text-xl font-semibold text-gray-900">
                   Question {currentQuestion + 1}
                 </h3>
+
                 <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  question.type === 'short' ? 'bg-blue-100 text-blue-700' : question.type === 'medium' ? 'bg-purple-100 text-purple-700' : 'bg-pink-100 text-pink-700'
+                  question.type === 'short'
+                    ? 'bg-blue-100 text-blue-700'
+                    : question.type === 'medium'
+                    ? 'bg-purple-100 text-purple-700'
+                    : 'bg-pink-100 text-pink-700'
                 }`}>
                   {question.marks} marks
                 </span>
               </div>
+
               <p className="text-gray-800 mb-6 whitespace-pre-wrap leading-relaxed">{question.question}</p>
+
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center justify-between">
                   <span>Your Answer:</span>
@@ -376,6 +403,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
                     </span>
                   )}
                 </label>
+
                 {question.choiceGroup && testPaper.questions.some(q => q.choiceGroup === question.choiceGroup && q._id !== question._id && answers[q._id]) ? (
                   <div className="absolute inset-0 z-10 bg-gray-50/80 flex items-center justify-center rounded-lg border border-dashed border-gray-300">
                      <div className="text-center px-4">
@@ -385,6 +413,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
                      </div>
                   </div>
                 ) : null}
+
                 <textarea
                   value={answers[question._id] || ''}
                   onChange={(e) => handleAnswerChange(question._id, e.target.value)}
@@ -397,6 +426,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
                 />
               </div>
             </div>
+
             <div className="mt-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
@@ -407,6 +437,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
                     (Includes both mandatory and selected optional choices)
                   </span>
                 </div>
+
                 {Object.keys(answers).length < testPaper.questions.filter(q => !q.isOptional).length && (
                   <span className="text-sm text-orange-600 font-medium flex items-center gap-1.5 animate-pulse">
                     <AlertTriangle className="w-4 h-4" />
@@ -418,6 +449,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
           </div>
         </div>
 
+        {/* FOOTER */}
         <div className="p-6 border-t bg-white">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <button
@@ -427,6 +459,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
             >
               Previous
             </button>
+
             {currentQuestion < testPaper.questions.length - 1 ? (
               <button
                 onClick={handleNext}
@@ -458,6 +491,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
         </div>
       </div>
 
+      {/* VIOLATION MODAL */}
       <ViolationAlertModal
         show={showViolationAlert}
         message={violationMessage}
@@ -466,6 +500,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
         onOk={handleViolationAlertOk}
       />
 
+      {/* CONFIRMATION MODAL */}
       {showConfirmation && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
@@ -473,6 +508,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
               <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
                 <AlertTriangle className="w-6 h-6 text-yellow-600" />
               </div>
+
               <div className="flex-1 pt-1">
                 <h3 className="text-xl font-bold mb-2">Submit Test?</h3>
                 <p className="text-gray-600 text-sm">
@@ -481,6 +517,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
                 </p>
               </div>
             </div>
+
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirmation(false)}
@@ -488,6 +525,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
               >
                 Go Back
               </button>
+
               <button
                 onClick={() => handleSubmitTest(false)}
                 disabled={isSubmitting}

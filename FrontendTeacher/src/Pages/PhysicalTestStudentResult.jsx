@@ -14,7 +14,7 @@ const PhysicalTestStudentResult = () => {
   const [loading, setLoading] = useState(true);
   const [editingMarks, setEditingMarks] = useState({});
   const [saving, setSaving] = useState(false);
-  const [showPDF, setShowPDF] = useState(false);
+  const [pdfViewType, setPdfViewType] = useState(null); // null, 'student', 'answerKey'
 
   // ── Resizable columns ─────────────────────────────────────────────
   const [leftWidthPercent, setLeftWidthPercent] = useState(50);
@@ -117,6 +117,11 @@ const PhysicalTestStudentResult = () => {
   const totalEdited = Object.keys(editingMarks).length > 0;
   const isErrorState = submission.status === "failed";
   const isNeedsReview = submission.status === "needs_review";
+
+  const needsReviewQuestions = submission.answers?.reduce((acc, ans, idx) => {
+    if (ans.needs_human_review) acc.push(`Q${idx + 1}`);
+    return acc;
+  }, []) || [];
 
   // ── Error banner styles ───────────────────────────────────────────
   const errorBannerStyles = {
@@ -486,7 +491,7 @@ const PhysicalTestStudentResult = () => {
 
   return (
     <div className="min-h-screen bg-paper font-body text-ink">
-      <div className={`mx-auto px-4 sm:px-6 py-6 transition-all duration-300 ${showPDF ? "max-w-[1800px]" : "max-w-5xl"}`}>
+      <div className={`mx-auto px-4 sm:px-6 py-6 transition-all duration-300 ${pdfViewType ? "max-w-[1800px]" : "max-w-5xl"}`}>
 
         {/* Back */}
         <button
@@ -518,7 +523,14 @@ const PhysicalTestStudentResult = () => {
             <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
             <div>
               <p className="font-semibold text-sm text-amber-800">Manual Review Required</p>
-              <p className="text-sm text-ink-soft mt-0.5">Some answers in this submission need manual review by the teacher.</p>
+              <p className="text-sm text-ink-soft mt-0.5">
+                Some answers in this submission need manual review by the teacher.
+                {needsReviewQuestions.length > 0 && (
+                  <span className="font-medium text-amber-700 ml-1">
+                    Please check: {needsReviewQuestions.join(", ")}
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         )}
@@ -555,25 +567,39 @@ const PhysicalTestStudentResult = () => {
 
           <div className="flex flex-wrap gap-3 mt-4">
             <button
-              onClick={() => setShowPDF(!showPDF)}
+              onClick={() => setPdfViewType(pdfViewType === 'student' ? null : 'student')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl transition cursor-pointer text-sm font-bold border border-line ${
-                showPDF
+                pdfViewType === 'student'
                   ? "bg-violet-50 text-violet-dark"
                   : "btn-settings-blue text-white"
               }`}
             >
-              {showPDF ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
-              {showPDF ? "Hide PDF Panel" : "View Student's PDF"}
+              {pdfViewType === 'student' ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+              {pdfViewType === 'student' ? "Hide PDF Panel" : "View Student's PDF"}
             </button>
-            <a
-              href={getPhysicalSubmissionPDFUrl(submissionId)}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-2 px-4 py-2 bg-paper border border-line text-ink rounded-xl hover:bg-line/45 transition cursor-pointer text-sm font-bold"
+            <button
+              onClick={() => setPdfViewType(pdfViewType === 'answerKey' ? null : 'answerKey')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition cursor-pointer text-sm font-bold border border-line ${
+                pdfViewType === 'answerKey'
+                  ? "bg-violet-50 text-violet-dark"
+                  : "bg-paper text-ink hover:bg-line/45"
+              }`}
             >
-              <FileText className="w-4 h-4" />
-              Open in New Tab
-            </a>
+              {pdfViewType === 'answerKey' ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
+              {pdfViewType === 'answerKey' ? "Hide Answer Key" : "View AI Answer Key"}
+            </button>
+
+            {pdfViewType === 'student' && (
+              <a
+                href={getPhysicalSubmissionPDFUrl(submissionId)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 px-4 py-2 bg-paper border border-line text-ink rounded-xl hover:bg-line/45 transition cursor-pointer text-sm font-bold"
+              >
+                <FileText className="w-4 h-4" />
+                Open in New Tab
+              </a>
+            )}
           </div>
         </div>
 
@@ -596,7 +622,7 @@ const PhysicalTestStudentResult = () => {
         )}
 
         {/* Two-Column Layout (when PDF open) / Single column */}
-        {showPDF ? (
+        {pdfViewType ? (
           <div
             ref={containerRef}
             className="flex flex-col lg:flex-row"
@@ -642,7 +668,7 @@ const PhysicalTestStudentResult = () => {
               </div>
             </div>
 
-            {/* Right Column — Sticky PDF Viewer */}
+            {/* Right Column — Sticky Panel */}
             <div
               className="min-w-0"
               style={{ width: `${100 - leftWidthPercent}%`, paddingLeft: "8px" }}
@@ -651,23 +677,69 @@ const PhysicalTestStudentResult = () => {
                 <div className="bg-surface rounded-2xl border border-line shadow-sm overflow-hidden h-full flex flex-col">
                   <div className="px-4 py-3 border-b border-line bg-paper flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-violet-dark" />
-                      <h3 className="font-semibold font-display text-ink text-sm">Student's Handwritten Paper</h3>
+                      {pdfViewType === 'student' ? <FileText className="w-4 h-4 text-violet-dark" /> : <BookOpen className="w-4 h-4 text-emerald-600" />}
+                      <h3 className="font-semibold font-display text-ink text-sm">
+                        {pdfViewType === 'student' ? "Student's Handwritten Paper" : "AI Generated Answer Key"}
+                      </h3>
                     </div>
                     <button
-                      onClick={() => setShowPDF(false)}
+                      onClick={() => setPdfViewType(null)}
                       className="p-1.5 hover:bg-line/80 rounded-xl cursor-pointer transition"
-                      title="Close PDF panel"
+                      title="Close panel"
                     >
                       <X className="w-4 h-4 text-ink-soft" />
                     </button>
                   </div>
-                  <iframe
-                     src={`${getPhysicalSubmissionPDFUrl(submissionId)}#toolbar=0`}
-                    className="w-full border-0 flex-1"
-                    style={{ minHeight: "calc(100vh - 6rem)" }}
-                    title="Student Paper"
-                  />
+                  {pdfViewType === 'student' ? (
+                    <iframe
+                      src={`${getPhysicalSubmissionPDFUrl(submissionId)}#toolbar=0`}
+                      className="w-full border-0 flex-1"
+                      style={{ minHeight: "calc(100vh - 6rem)" }}
+                      title="Student Paper"
+                    />
+                  ) : (
+                    <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-5 bg-paper max-h-[calc(100vh-6rem)]">
+                      {submission.answers.map((ans, idx) => (
+                        <div key={idx} className="bg-surface p-5 rounded-2xl border border-line shadow-sm">
+                          <div className="flex gap-3 mb-4 pb-4 border-b border-line">
+                            <span className="w-8 h-8 bg-violet-50 text-violet-dark rounded-full text-sm font-bold flex items-center justify-center flex-shrink-0">
+                              {idx + 1}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold font-display text-ink text-sm leading-relaxed">{ans.question || `Question ${idx + 1}`}</h4>
+                              <div className="flex gap-2 mt-2">
+                                <span className="text-xs text-violet-dark font-bold bg-violet-50 px-2.5 py-0.5 rounded-full border border-line">
+                                  {ans.marks} Marks
+                                </span>
+                                {ans.topic && (
+                                  <span className="text-xs text-ink-soft bg-line px-2.5 py-0.5 rounded-full border border-line font-bold">
+                                    {ans.topic}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-green-50/50 dark:bg-green-955/20 rounded-xl p-4 border border-green-200/50 dark:border-green-900/30">
+                            <div className="flex items-center gap-2 mb-2">
+                              <BookOpen className="w-4 h-4 text-green-600 dark:text-green-400" />
+                              <h5 className="font-bold text-green-800 dark:text-green-300 text-xs uppercase tracking-wide">Model Answer</h5>
+                            </div>
+                            <p className="text-sm text-green-900 dark:text-green-100 leading-relaxed whitespace-pre-wrap">{ans.answerKey || "No answer key available for this question."}</p>
+                          </div>
+                          
+                          {ans.rubric?.mandatoryKeywords && ans.rubric.mandatoryKeywords.length > 0 && (
+                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-bold text-ink-soft uppercase tracking-wide">Expected Keywords:</span>
+                              {ans.rubric.mandatoryKeywords.map((kw, i) => (
+                                <span key={i} className="px-2.5 py-1 bg-paper text-ink text-xs font-bold rounded-xl border border-line">{kw}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

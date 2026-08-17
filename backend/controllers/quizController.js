@@ -6,11 +6,75 @@ import Classroom from "../models/Classroom.js";
 import { getBucket } from "../config/gridfs.js";
 import { generateQuizFromText, generateQuizFromTopics } from "../config/gemini.js";
 import {
-  extractTextFromPDF,
-  cleanText,
+  extractTextFromFile,
+  cleanTextFull,
   validateTextContent,
-} from "../utils/pdfExtractor.js";
+} from "../utils/fileExtractor.js";
 import { logActivity } from "../utils/activityTracker.js";
+
+/**
+ * Create quiz manually (teacher enters questions)
+ * POST /api/quiz/create-manual
+ */
+export const createQuizManually = async (req, res) => {
+  try {
+    const { classroomId, title, questions, marksPerQuestion, difficulty } = req.body;
+    const teacherId = req.user?._id?.toString();
+
+    if (!classroomId) return res.status(400).json({ error: "classroomId is required" });
+    if (!title?.trim()) return res.status(400).json({ error: "Title is required" });
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ error: "At least one question is required" });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(classroomId).select("teacherId");
+      if (!classroom) return res.status(404).json({ error: "Classroom not found" });
+      if (classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    }
+
+    // Validate each question
+    for (const q of questions) {
+      if (!q.question?.trim()) return res.status(400).json({ error: "Each question must have text" });
+      if (!Array.isArray(q.options) || q.options.length !== 4) {
+        return res.status(400).json({ error: "Each question must have exactly 4 options" });
+      }
+      if (!q.correctAnswer || !q.options.includes(q.correctAnswer)) {
+        return res.status(400).json({ error: "correctAnswer must match one of the options" });
+      }
+    }
+
+    const mPerQ = marksPerQuestion || 1;
+    const totalMarks = questions.length * mPerQ;
+
+    const quiz = await Quiz.create({
+      classroomId,
+      title: title.trim(),
+      questions: questions.map((q) => ({
+        question: q.question.trim(),
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+      })),
+      marksPerQuestion: mPerQ,
+      totalMarks,
+      difficulty: difficulty || "mixed",
+      status: "draft",
+    });
+
+    console.log("Manual quiz created:", quiz._id);
+
+    res.status(201).json({
+      success: true,
+      message: `Created quiz with ${questions.length} questions`,
+      quiz,
+    });
+  } catch (error) {
+    console.error("Manual quiz creation failed:", error);
+    res.status(500).json({ error: "Failed to create quiz", details: error.message });
+  }
+};
 
 /**
  * Generate quiz from topics
@@ -265,7 +329,8 @@ export const generateQuizWithAI = async (req, res) => {
         const buffer = Buffer.concat(chunks);
         console.log(`Buffer size: ${buffer.length} bytes`);
 
-        const text = await extractTextFromPDF(buffer);
+        const mimetype = note.mimetype || "application/pdf";
+        const text = await extractTextFromFile(buffer, mimetype);
 
         if (text && text.trim().length > 0) {
           combinedText += `\n\n=== ${note.title} ===\n\n${text}`;
@@ -311,10 +376,10 @@ export const generateQuizWithAI = async (req, res) => {
 
     console.log("Content validation passed");
 
-    // Clean text for AI processing (limit to 15001 chars for faster processing)
+    // Clean text for AI processing — no truncation, chunking is handled in AI layer
     let cleanedText;
     try {
-      cleanedText = cleanText(combinedText, 15001);
+      cleanedText = cleanTextFull(combinedText);
       console.log(`Text cleaned: ${cleanedText.length} characters`);
     } catch (error) {
       return res.status(400).json({
@@ -667,5 +732,43 @@ export const getActiveQuizzesForStudent = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });
+  }
+};
+
+/**
+ * Publish quiz results so students can view them
+ * PUT /api/quiz/:quizId/publish-results
+ */
+export const publishQuizResults = async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    const teacherId = req.user?._id?.toString();
+
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({ error: "Quiz not found" });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(quiz.classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    }
+
+    quiz.resultsPublished = true;
+    await quiz.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Quiz results published successfully",
+      quiz,
+    });
+  } catch (error) {
+    console.error("Publish results error:", error);
+    res.status(500).json({
+      error: "Failed to publish quiz results",
+      details: error.message,
+    });
   }
 };

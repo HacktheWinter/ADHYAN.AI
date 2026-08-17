@@ -2,6 +2,7 @@
 import express from "express";
 import { authMiddleware, authorizeRoles } from "../middleware/authMiddleware.js";
 import {
+  createQuizManually,
   generateQuizWithAI,
   generateQuizFromTopicsAPI,
   getQuiz,
@@ -10,9 +11,13 @@ import {
   deleteQuiz,
   publishQuizWithTiming,
   getActiveQuizzesForStudent,
+  publishQuizResults,
 } from "../controllers/quizController.js";
 
 const router = express.Router();
+
+// Manual creation route
+router.post("/create-manual", authMiddleware, authorizeRoles("teacher"), createQuizManually);
 
 // AI Generation route from notes
 router.post("/generate-ai", authMiddleware, authorizeRoles("teacher"), generateQuizWithAI);
@@ -36,6 +41,9 @@ router.get("/active/classroom/:classroomId", getActiveQuizzesForStudent);
 
 // Publish quiz with timing
 router.put("/:quizId/publish", authMiddleware, authorizeRoles("teacher"), publishQuizWithTiming);
+
+// Publish quiz results to students
+router.put("/:quizId/publish-results", authMiddleware, authorizeRoles("teacher"), publishQuizResults);
 
 // Update quiz
 router.put("/:quizId", authMiddleware, authorizeRoles("teacher"), updateQuiz);

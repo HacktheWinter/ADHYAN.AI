@@ -8,6 +8,8 @@ import {
   getActiveSeminarSession,
   getSeminarAttendanceRecords,
   getSeminarSessionById,
+  deleteSeminarSession,
+  deleteMultipleSeminarSessions,
 } from "../controllers/seminarController.js";
 
 const router = express.Router();
@@ -66,6 +68,22 @@ router.post(
   authMiddleware,
   authorizeRoles("student"),
   markSeminarAttendance
+);
+
+// Teacher: Delete a seminar session
+router.delete(
+  "/session/:sessionId",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  deleteSeminarSession
+);
+
+// Teacher: Delete multiple seminar sessions
+router.post(
+  "/sessions/bulk-delete",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  deleteMultipleSeminarSessions
 );
 
 export default router;

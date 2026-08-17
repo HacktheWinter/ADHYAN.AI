@@ -39,7 +39,25 @@ const StudentNotesPage = () => {
   };
 
   const handlePreview = (note) => {
-    setPreviewNote(note);
+    const isWord = note.mimetype === 'application/msword' || 
+                   note.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+                   note.title?.toLowerCase().match(/\.(doc|docx)$/);
+                   
+    const isExcel = note.mimetype === 'application/vnd.ms-excel' || 
+                    note.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                    note.title?.toLowerCase().match(/\.(xls|xlsx)$/);
+
+    if (isWord) {
+      const url = `${API_BASE_URL}/notes/file/${note.fileId}`;
+      const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}`;
+      window.open(viewerUrl, "_blank");
+    } else if (isExcel) {
+      const url = `${API_BASE_URL}/notes/file/${note.fileId}`;
+      const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+      window.open(viewerUrl, "_blank");
+    } else {
+      setPreviewNote(note);
+    }
   };
 
   const closePreview = () => {

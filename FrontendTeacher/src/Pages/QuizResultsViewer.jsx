@@ -18,6 +18,8 @@ const QuizResultsViewer = () => {
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
 
+  const [isPublishing, setIsPublishing] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, [quizId]);
@@ -82,6 +84,26 @@ const QuizResultsViewer = () => {
     navigate(`/class/${classId}/quizzes/results/${quizId}/student/${submission.studentId._id || submission.studentId}`, {
       state: { submissionId: submission._id }
     });
+  };
+
+  const handlePublishResults = async () => {
+    if (!confirm("Are you sure you want to publish results? Students will now be able to see their scores.")) {
+      return;
+    }
+    
+    try {
+      setIsPublishing(true);
+      await axios.put(`${API_BASE_URL}/quiz/${quizId}/publish-results`, {}, {
+        withCredentials: true
+      });
+      alert("Results published successfully!");
+      setQuiz({...quiz, resultsPublished: true});
+    } catch (error) {
+      console.error("Error publishing results:", error);
+      alert(error.response?.data?.error || "Failed to publish results");
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   if (loading) {
@@ -231,6 +253,23 @@ const QuizResultsViewer = () => {
             <RefreshCw className="w-5 h-5" />
             Refresh
           </button>
+
+          {quiz && !quiz.resultsPublished && (
+            <button
+              onClick={handlePublishResults}
+              disabled={isPublishing}
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-indigo-600 text-white text-sm sm:text-base font-bold rounded-xl hover:bg-indigo-700 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <CheckCircle className="w-5 h-5" />
+              {isPublishing ? "Publishing..." : "Publish Results"}
+            </button>
+          )}
+          {quiz && quiz.resultsPublished && (
+            <div className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300 text-sm sm:text-base font-bold rounded-xl border border-green-200 dark:border-green-800/30">
+              <CheckCircle className="w-5 h-5" />
+              Results Published
+            </div>
+          )}
         </div>
 
         {/* Submissions Table */}

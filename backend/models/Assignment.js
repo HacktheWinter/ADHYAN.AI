@@ -37,6 +37,9 @@ const assignmentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Note",
   }],
+  generatedFromTopics: [{
+    type: String,
+  }],
   questions: [questionSchema],
   marksPerQuestion: {
     type: Number,

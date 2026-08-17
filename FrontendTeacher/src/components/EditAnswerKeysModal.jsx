@@ -192,7 +192,7 @@ export default function EditAnswerKeysModal({ testPaper, onClose, onSave }) {
           {shortQuestions.length > 0 && (
             <div>
               <div className="flex items-center gap-2 bg-violet-50 p-3 rounded-xl border border-line mb-4">
-                <span className="w-8 h-8 bg-purple-650 text-white rounded-full flex items-center justify-center font-bold text-sm">A</span>
+                <span className="w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center font-bold text-sm">A</span>
                 <h3 className="text-lg font-semibold font-display text-ink">
                   Section A: Short Answer Questions (2 marks each)
                 </h3>
@@ -244,7 +244,7 @@ export default function EditAnswerKeysModal({ testPaper, onClose, onSave }) {
           {mediumQuestions.length > 0 && (
             <div>
               <div className="flex items-center gap-2 bg-violet-50 p-3 rounded-xl border border-line mb-4">
-                <span className="w-8 h-8 bg-purple-650 text-white rounded-full flex items-center justify-center font-bold text-sm">B</span>
+                <span className="w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center font-bold text-sm">B</span>
                 <h3 className="text-lg font-semibold font-display text-ink">
                   Section B: Medium Answer Questions (5 marks each)
                 </h3>
@@ -296,7 +296,7 @@ export default function EditAnswerKeysModal({ testPaper, onClose, onSave }) {
           {longQuestions.length > 0 && (
             <div>
               <div className="flex items-center gap-2 bg-violet-50 p-3 rounded-xl border border-line mb-4">
-                <span className="w-8 h-8 bg-purple-650 text-white rounded-full flex items-center justify-center font-bold text-sm">C</span>
+                <span className="w-8 h-8 bg-violet-600 text-white rounded-full flex items-center justify-center font-bold text-sm">C</span>
                 <h3 className="text-lg font-semibold font-display text-ink">
                   Section C: Long Answer Questions (10 marks each)
                 </h3>
