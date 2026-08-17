@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { X, Upload } from "lucide-react";
+import { motion } from "framer-motion";
 import ThemeSelectionModal from "./ThemeSelectionModal";
 import general5 from '../assets/themes/general/general-5.jpg';
 import { getAllThemes } from '../data/themeData';
@@ -112,8 +113,20 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-start justify-center z-50 p-4 pt-8 sm:pt-20 overflow-y-auto">
-      <div className="bg-surface border border-line rounded-2xl sm:rounded-[24px] shadow-2xl w-full max-w-2xl overflow-hidden animate-slideDown my-auto">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
+      className="fixed inset-0 bg-black/60 flex items-start justify-center z-50 p-4 pt-8 sm:pt-20 overflow-y-auto"
+    >
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="bg-surface border border-line rounded-2xl sm:rounded-[24px] shadow-2xl w-full max-w-2xl overflow-hidden my-auto"
+      >
         <div className="p-4 sm:p-5 border-b border-line flex items-center justify-between">
           <h2 className="font-display text-lg sm:text-xl font-semibold text-ink">
             {mode === "edit" ? "Edit Class" : "Create New Class"}
@@ -378,7 +391,7 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
 
       {/* Theme Selection Modal */}
       <ThemeSelectionModal
@@ -387,7 +400,7 @@ const NewClass = ({ isOpen, onClose, onCreate, onUpdate, initialData, mode = "cr
         onSelectTheme={handleThemeSelect}
         currentTheme={formData.selectedTheme}
       />
-    </div>
+    </motion.div>
   );
 };
 

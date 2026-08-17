@@ -87,8 +87,15 @@ const NotesPage = () => {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.type !== "application/pdf") {
-        alert("Only PDF files are allowed");
+      const allowedTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        alert("Only PDF, Word (.doc/.docx), and Excel (.xls/.xlsx) files are allowed");
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
@@ -160,8 +167,28 @@ const NotesPage = () => {
   };
 
   const handlePreview = (note) => {
-    setPreviewNote(note);
-    setOpenMenuId(null);
+    const isWord = note.mimetype === 'application/msword' || 
+                   note.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+                   note.title?.toLowerCase().match(/\.(doc|docx)$/);
+                   
+    const isExcel = note.mimetype === 'application/vnd.ms-excel' || 
+                    note.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                    note.title?.toLowerCase().match(/\.(xls|xlsx)$/);
+
+    if (isWord) {
+      const url = getNoteFileUrl(note.fileId);
+      const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}`;
+      window.open(viewerUrl, "_blank");
+      setOpenMenuId(null);
+    } else if (isExcel) {
+      const url = getNoteFileUrl(note.fileId);
+      const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+      window.open(viewerUrl, "_blank");
+      setOpenMenuId(null);
+    } else {
+      setPreviewNote(note);
+      setOpenMenuId(null);
+    }
   };
 
   const closePreview = () => {
@@ -234,13 +261,13 @@ const NotesPage = () => {
 
             <div>
               <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-2">
-                PDF File
+                Upload File (PDF, Word, Excel)
               </label>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <input
                   type="file"
                   id="file-upload"
-                  accept="application/pdf"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   onChange={handleFileSelect}
                   className="hidden"
                   disabled={uploading}
@@ -263,7 +290,7 @@ const NotesPage = () => {
                 )}
               </div>
               <p className="text-xs text-ink-soft mt-1">
-                Only PDF files up to 10MB are allowed
+                PDF, Word, or Excel files up to 10MB are allowed
               </p>
             </div>
 

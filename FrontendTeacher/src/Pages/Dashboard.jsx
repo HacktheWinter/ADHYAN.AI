@@ -55,6 +55,15 @@ const Dashboard = () => {
     return Math.round(total / activeClasses.length);
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 5) return "Hello";
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    if (hour < 21) return "Good evening";
+    return "Hello";
+  };
+
   useEffect(() => {
     const fetchClasses = async () => {
       try {
@@ -240,7 +249,7 @@ const Dashboard = () => {
           <div>
             <p className="font-mono text-xs uppercase tracking-wider text-violet-600 font-semibold mb-2">{todayDate}</p>
             <h1 className="font-display font-semibold text-3xl sm:text-4xl mb-1.5 tracking-tight text-ink">
-              Good morning, <span className="text-violet-600 font-bold">{user.name ? user.name.split(' ')[0] : 'Teacher'}</span>
+              {getGreeting()}, <span className="text-violet-600 font-bold">{user.name ? user.name.split(' ')[0] : 'Teacher'}</span>
             </h1>
             <p className="text-sm sm:text-base text-ink-soft">Here's what's happening across your classes today.</p>
           </div>
@@ -465,21 +474,23 @@ const Dashboard = () => {
       </PageTransition>
 
       {/* Modal overlays */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50">
-          <NewClass
-            isOpen={isModalOpen}
-            onClose={() => {
-              setIsModalOpen(false);
-              setEditingClass(null);
-            }}
-            onCreate={handleCreateClass}
-            onUpdate={handleUpdateClass}
-            initialData={editingClass}
-            mode={editingClass ? "edit" : "create"}
-          />
-        </div>
-      )}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50">
+            <NewClass
+              isOpen={isModalOpen}
+              onClose={() => {
+                setIsModalOpen(false);
+                setEditingClass(null);
+              }}
+              onCreate={handleCreateClass}
+              onUpdate={handleUpdateClass}
+              initialData={editingClass}
+              mode={editingClass ? "edit" : "create"}
+            />
+          </div>
+        )}
+      </AnimatePresence>
       {showSeminarQR && (
         <SeminarQRGenerator onClose={() => setShowSeminarQR(false)} />
       )}

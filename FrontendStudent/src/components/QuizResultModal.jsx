@@ -21,6 +21,10 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
       setResult(response.submission);
       setSelectedIndex(0);
     } catch (error) {
+      if (error.response?.status === 403 && error.response?.data?.resultsPublished === false) {
+        setResult({ isPending: true });
+        return;
+      }
       console.error('Error fetching result:', error);
       alert('Failed to load result');
       onClose();
@@ -52,6 +56,28 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
   }
 
   if (!result) return null;
+
+  if (result.isPending) {
+    return (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl p-8 max-w-md w-full text-center space-y-4">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Award className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Results Pending</h2>
+          <p className="text-gray-600">
+            Your quiz has been submitted successfully. The results will be available here once your teacher publishes them.
+          </p>
+          <button
+            onClick={onClose}
+            className="w-full mt-6 px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const gradeInfo = getGrade(result.percentage);
   const quiz = result.quizId;

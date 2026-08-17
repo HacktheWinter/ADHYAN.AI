@@ -1,19 +1,29 @@
+// FrontendStudent/src/Pages/QuizTakingPage.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, X } from 'lucide-react';
-import { submitQuiz } from '../api/quizApi';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info } from 'lucide-react';
+import { getQuizById, submitQuiz } from '../api/quizApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
-import ViolationAlertModal from './ViolationAlertModal';
+import ViolationAlertModal from '../components/ViolationAlertModal';
 
-export default function QuizTakingModal({ quiz, studentId, studentName, onClose, onSubmit }) {
+export default function QuizTakingPage() {
+  const { id: classId, quizId } = useParams();
+  const navigate = useNavigate();
+
+  const [quiz, setQuiz] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
+
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [studentId, setStudentId] = useState(null); // Will get from localStorage or context
 
   const timerRef = useRef(null);
   const answersRef = useRef({});
 
+  // ==================== FULL-SCREEN PROCTORING ====================
   const {
     isFullScreen,
     showViolationAlert,
@@ -22,27 +32,50 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     exitFullScreen,
     handleViolationAlertOk,
     setIsSubmitting: setProctorSubmitting,
-    enterFullScreen
+    requestFullScreen
   } = useFullScreenProctor({
-    enabled: hasStarted,
+    enabled: hasStarted, // Only enable if exam has started
     maxViolations: 2,
     onAutoSubmit: (reason) => handleAutoSubmit(reason)
   });
 
-  const isResuming = !!localStorage.getItem(`quiz_start_time_${quiz._id}`);
+  // ==================== INITIALIZATION ====================
+  useEffect(() => {
+    // Get user info
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    setStudentId(user._id);
+
+    fetchQuiz();
+  }, [quizId]);
+
+  const fetchQuiz = async () => {
+    try {
+      setLoading(true);
+      const res = await getQuizById(quizId);
+      setQuiz(res.quiz);
+    } catch (error) {
+      console.error('Failed to fetch quiz', error);
+      alert('Failed to load quiz data');
+      navigate(`/course/${classId}/quiz`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     answersRef.current = answers;
   }, [answers]);
 
+  // ==================== TIMER SETUP ====================
   useEffect(() => {
     if (!hasStarted || !quiz) return;
 
     const setupTimer = () => {
       let calcTimeLeft = Infinity;
 
+      // 1. Duration based constraint
       if (quiz.duration) {
-        const storageKey = `quiz_start_time_${quiz._id}`;
+        const storageKey = `quiz_start_time_${quizId}`;
         let startTime = localStorage.getItem(storageKey);
         
         if (!startTime) {
@@ -57,6 +90,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
         calcTimeLeft = Math.min(calcTimeLeft, remainingDuration > 0 ? remainingDuration : 0);
       }
 
+      // 2. End Time constraint
       if (quiz.endTime) {
         const end = new Date(quiz.endTime).getTime();
         const remainingEndTime = Math.floor((end - Date.now()) / 1000);
@@ -69,7 +103,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     };
 
     setupTimer();
-  }, [hasStarted, quiz]);
+  }, [hasStarted, quiz, quizId]);
 
   useEffect(() => {
     if (timeLeft !== null && timeLeft > 0) {
@@ -89,24 +123,24 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     };
   }, [timeLeft]);
 
+  // ==================== START EXAM ====================
   const handleStartExam = async () => {
     try {
+      await requestFullScreen();
       setHasStarted(true);
-      setTimeout(async () => {
-        await enterFullScreen();
-      }, 50);
     } catch (error) {
       alert("Please allow full screen to start the exam.");
     }
   };
 
+  // ==================== SUBMIT HANDLERS ====================
   const handleAutoSubmit = async (reason) => {
     if (isSubmitting) return;
     await handleSubmitQuiz(true, reason);
   };
 
   const handleSubmitClick = () => {
-    if (window.confirm("Are you sure you want to submit your quiz? You cannot change your answers after submission.")) {
+    if (confirm("Are you sure you want to submit your quiz? You cannot change your answers after submission.")) {
       handleSubmitQuiz(false);
     }
   };
@@ -132,16 +166,20 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
       await submitQuiz(quiz._id, studentId, answersArray);
 
-      localStorage.removeItem(`quiz_start_time_${quiz._id}`);
+      // Clean up local storage
+      localStorage.removeItem(`quiz_start_time_${quizId}`);
+
       exitFullScreen();
 
       const scoreMessage = autoSubmit 
         ? ` AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${quiz.questions.length}\n\n`
         : ` Quiz Submitted!\n\n`;
 
-      alert(`${scoreMessage}Your results will be visible when the teacher publishes them.`);
+      alert(
+        `${scoreMessage}Your results will be available once the teacher publishes them.`
+      );
 
-      onSubmit();
+      navigate(`/course/${classId}/quiz`);
     } catch (error) {
       console.error('Submit error:', error);
       exitFullScreen();
@@ -154,6 +192,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     }
   };
 
+  // ==================== NAVIGATION ====================
   const handleAnswerSelect = (questionId, answer) => {
     setAnswers(prev => {
       const updated = {
@@ -191,106 +230,83 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // ==================== RENDER ====================
+  if (loading || !quiz) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <Loader className="w-10 h-10 text-purple-600 animate-spin mb-4" />
+        <p className="text-gray-600 font-medium">Loading Exam...</p>
+      </div>
+    );
+  }
+
+  // --- INSTRUCTION VIEW ---
   if (!hasStarted) {
     return (
-      <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="max-w-3xl w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-          {/* Header - Clean, less purple */}
-          <div className="bg-white px-8 py-6 border-b border-gray-100 flex items-center justify-between sticky top-0 z-10">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">{quiz.title}</h1>
-              <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-                {isResuming ? 'Resume Your Exam' : 'Exam Instructions'}
-              </p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+          <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-8 text-center">
+            <h1 className="text-3xl font-bold text-white mb-2">{quiz.title}</h1>
+            <p className="text-purple-100 font-medium">Exam Instructions</p>
+          </div>
+          
+          <div className="p-8 space-y-6">
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <p className="text-sm text-gray-500 mb-1">Total Questions</p>
+                <p className="text-xl font-bold text-gray-900">{quiz.questions.length}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <p className="text-sm text-gray-500 mb-1">Duration</p>
+                <p className="text-xl font-bold text-gray-900">{quiz.duration ? `${quiz.duration} Minutes` : 'No Limit'}</p>
+              </div>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors">
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-          
-          <div className="p-8 overflow-y-auto">
-            {!isResuming && (
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 flex flex-col items-center justify-center">
-                  <p className="text-sm font-semibold text-gray-500 mb-1">Total Questions</p>
-                  <p className="text-3xl font-bold text-gray-900">{quiz.questions.length}</p>
-                </div>
-                <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 flex flex-col items-center justify-center">
-                  <p className="text-sm font-semibold text-gray-500 mb-1">Duration</p>
-                  <p className="text-3xl font-bold text-gray-900">{quiz.duration ? `${quiz.duration} Minutes` : 'No Limit'}</p>
+
+            <div className="space-y-4">
+              <div className="flex gap-4 items-start bg-blue-50 p-4 rounded-xl border border-blue-100 text-blue-900">
+                <Info className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold mb-1">Full Screen Required</h4>
+                  <p className="text-sm leading-relaxed">This exam is proctored. You must remain in full-screen mode at all times. <strong>If you exit full-screen 2 times, your exam will be automatically submitted.</strong></p>
                 </div>
               </div>
-            )}
-
-            {isResuming ? (
-              <div className="bg-blue-50/80 p-8 rounded-xl border border-blue-100 text-center space-y-4 my-8">
-                <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Clock className="w-10 h-10 animate-pulse" />
-                </div>
-                <h3 className="text-2xl font-bold text-blue-900">Exam in Progress</h3>
-                <p className="text-base text-blue-800">You have already started this exam. Click resume to re-enter full screen and continue.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Important Guidelines</h3>
-                
-                <div className="flex gap-4 items-start p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <Shield className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">Full Screen Proctored</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">This exam is strictly proctored. You must remain in full-screen mode at all times. <strong>Exiting full-screen twice will automatically submit your exam.</strong></p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 items-start p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">No Tab Switching</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">Do not switch tabs, open new windows, or use other applications. These actions will be recorded as full-screen violations.</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 items-start p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <Clock className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">Timer & Auto-Submit</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">The countdown begins immediately upon starting. The exam will automatically submit when the timer reaches zero.</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 items-start p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
-                  <Info className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">Do Not Refresh</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">Avoid refreshing the page. Although your timer will persist, refreshing may count as exiting full-screen and cause a violation.</p>
-                  </div>
+              
+              <div className="flex gap-4 items-start bg-red-50 p-4 rounded-xl border border-red-100 text-red-900">
+                <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold mb-1">Do Not Refresh</h4>
+                  <p className="text-sm leading-relaxed">Do not refresh the page during the exam. While the timer will resume properly, refreshing may count as exiting full-screen or disrupt your session.</p>
                 </div>
               </div>
-            )}
-          </div>
-          
-          {/* Footer */}
-          <div className="p-6 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-4 mt-auto">
-            <button onClick={onClose} className="px-6 py-2.5 font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors">
-              Cancel
-            </button>
-            <button 
-              onClick={handleStartExam} 
-              className="px-8 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20"
-            >
-              {isResuming ? 'Resume Exam' : 'I Understand, Start Exam'}
-            </button>
+            </div>
+            
+            <div className="pt-6 mt-6 border-t border-gray-100 flex items-center justify-between">
+              <button
+                onClick={() => navigate(`/course/${classId}/quiz`)}
+                className="px-6 py-3 font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={handleStartExam}
+                className="px-8 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/30"
+              >
+                Start Exam
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
+  // --- EXAM VIEW ---
   const question = quiz.questions[currentQuestion];
 
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center z-50 font-body">
       <div className="bg-white w-screen h-screen flex flex-col">
+        {/* HEADER */}
         <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -302,12 +318,14 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                 </p>
               </div>
             </div>
+            
             {violations.length > 0 && (
               <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold">
                {violations.length}/2 Violation{violations.length > 1 ? 's' : ''}
               </div>
             )}
           </div>
+
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">
               Question {currentQuestion + 1} of {quiz.questions.length}
@@ -323,6 +341,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
               </div>
             )}
           </div>
+          
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-purple-600 h-2 rounded-full transition-all duration-300"
@@ -331,12 +350,14 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
           </div>
         </div>
 
+        {/* QUESTION */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50">
           <div className="max-w-4xl mx-auto">
             <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-100 mb-6">
               <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-6 leading-relaxed">
                 {currentQuestion + 1}. {question.question}
               </h3>
+
               <div className="space-y-3">
                 {question.options.map((option, index) => {
                   const isSelected = answers[question._id] === option;
@@ -387,6 +408,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
           </div>
         </div>
 
+        {/* FOOTER */}
         <div className="p-4 sm:p-6 border-t border-gray-200 bg-white">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <button
@@ -396,6 +418,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
             >
               Previous
             </button>
+
             {currentQuestion < quiz.questions.length - 1 ? (
               <button
                 onClick={handleNext}
@@ -427,6 +450,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
         </div>
       </div>
 
+      {/* VIOLATION ALERT MODAL */}
       <ViolationAlertModal
         show={showViolationAlert}
         message={violationMessage}

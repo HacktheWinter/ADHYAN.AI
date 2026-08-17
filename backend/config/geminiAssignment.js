@@ -23,7 +23,7 @@ const getModel = () => {
   );
 
   return genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-flash-lite",
   });
 };
 
@@ -46,13 +46,30 @@ const generationConfig = {
 };
 
 /**
- *  Generate Assignment from text using Gemini AI
- * @param {string} extractedText - Content extracted from PDFs
+ * Split text into chunks of approximately `size` characters,
+ * breaking at a space boundary when possible.
+ */
+const chunkText = (text, size = 25000) => {
+  if (text.length <= size) return [text];
+  const chunks = [];
+  let start = 0;
+  while (start < text.length) {
+    let end = Math.min(start + size, text.length);
+    if (end < text.length) {
+      const spaceIdx = text.lastIndexOf(" ", end);
+      if (spaceIdx > start) end = spaceIdx;
+    }
+    chunks.push(text.slice(start, end));
+    start = end;
+  }
+  return chunks;
+};
+
+/**
+ * Generate Assignment from text using Gemini AI
+ * Supports large documents via multi-turn chat chunking.
+ * @param {string} extractedText - Content extracted from files
  * @param {object} config - Configuration for generation
- * @param {number} config.questionCount - Number of questions (default 5)
- * @param {number} config.marksPerQuestion - Marks per question (default 2)
- * @param {string} config.difficulty - easy, medium, hard, mixed (default mixed)
- * @param {string[]} config.excludeQuestions - List of existing questions to avoid
  */
 export const generateAssignmentFromText = async (extractedText, config = {}) => {
   const questionCount = config.questionCount || 5;
@@ -64,10 +81,12 @@ export const generateAssignmentFromText = async (extractedText, config = {}) => 
 
   while (attempts < MAX_RETRIES) {
     try {
-      console.log(` Preparing Gemini prompt for Assignment (${questionCount} Qs)...`);
+      console.log(`Preparing Gemini prompt for Assignment (${questionCount} Qs)...`);
       console.log(`Config: ${questionCount} questions, ${marksPerQuestion} marks each, difficulty: ${difficulty}`);
+      console.log(`Full text length: ${extractedText.length} chars`);
 
-      const limitedText = extractedText.slice(0, 12000);
+      const textChunks = chunkText(extractedText);
+      console.log(`Split into ${textChunks.length} chunk(s)`);
 
       const difficultyInstruction = difficulty === "mixed"
         ? "Mix difficulty levels among the questions"
@@ -77,13 +96,35 @@ export const generateAssignmentFromText = async (extractedText, config = {}) => 
         ? `\nDO NOT repeat or generate questions similar to these existing ones:\n- ${excludeQuestions.join('\n- ')}\n`
         : "";
 
+      const model = getModel();
+      const chatSession = model.startChat({ generationConfig, history: [] });
+
+      // ── Feed chunks to the model ──────────────────────────────
+      if (textChunks.length > 1) {
+        for (let i = 0; i < textChunks.length - 1; i++) {
+          const chunkMsg = `I am providing study material in multiple parts. This is Part ${i + 1} of ${textChunks.length}. Read and memorize this content. Do NOT generate anything yet — just reply with the single word "Understood".\n\nCONTENT PART ${i + 1}:\n${textChunks[i]}`;
+          console.log(`  Sending chunk ${i + 1}/${textChunks.length} (${textChunks[i].length} chars)...`);
+          await chatSession.sendMessage(chunkMsg);
+        }
+      }
+
+      // ── Final prompt (includes the last chunk) ────────────────
+      const lastChunk = textChunks[textChunks.length - 1];
+      const contentHeader = textChunks.length > 1
+        ? `This is the FINAL Part ${textChunks.length} of ${textChunks.length} of the study material. Now you have the complete content. Generate questions from ALL parts combined.\n\nFINAL CONTENT PART:\n${lastChunk}`
+        : `CONTENT:\n${lastChunk}`;
+
       const prompt = `
-You are an expert assignment question generator. Generate EXACTLY ${questionCount} short-answer assignment questions from the following educational content.
+You are an expert assignment question generator.
+
+DYNAMIC GENERATION RULE:
+1. Check the CONTENT provided below. If the CONTENT already contains explicit questions, you MUST extract those EXACT questions and use them, generating appropriate answer keys for them. Do not create new questions if sufficient questions already exist in the text.
+2. If the CONTENT is just study material without a sufficient set of explicit questions, then generate completely new short-answer assignment questions based on the concepts.
+Generate EXACTLY ${questionCount} questions.
 
 ${excludeInstruction}
 
-CONTENT:
-${limitedText}
+${contentHeader}
 
 CRITICAL JSON RULES:
 1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
@@ -131,18 +172,13 @@ IMPORTANT:
 - Keep everything properly formatted
 `;
 
-      console.log("Sending request to Gemini...");
-
-      const model = getModel();
-      const chatSession = model.startChat({ generationConfig, history: [] });
+      console.log("Sending final generation prompt to Gemini...");
 
       const result = await chatSession.sendMessage(prompt);
       const response = result.response.text();
 
       console.log("Assignment response received");
       console.log("Raw response length:", response.length);
-      console.log("First 200 chars:", response.substring(0, 200));
-      console.log("Last 200 chars:", response.substring(response.length - 200));
 
       // Check if response seems truncated
       const trimmedResponse = response.trim();
@@ -151,7 +187,7 @@ IMPORTANT:
         throw new Error("Incomplete JSON response - response seems truncated");
       }
 
-      // 🔹 ROBUST JSON CLEANING & HEALING
+      // ROBUST JSON CLEANING & HEALING
       let cleaned = response.trim();
 
       // 1. Remove markdown code blocks if present
@@ -165,15 +201,12 @@ IMPORTANT:
       }
       cleaned = cleaned.substring(firstBrace, lastBrace + 1);
 
-      // 3. SMART HEALING: Escape unescaped quotes within text while protecting keys and key-delimiters
-      // This regex attempts to find quotes inside JSON string values and escapes them.
+      // 3. SMART HEALING
       const healed = cleaned
         .replace(/:\s*"(.*)"\s*(,?)\s*(\n|}|,)/g, (match, p1, p2, p3) => {
-          // Escape quotes within the captured content, then restore the surrounding structure
           const escapedContent = p1.replace(/"/g, '\\"');
           return `: "${escapedContent}"${p2}${p3}`;
         })
-        // Remove literal newlines within values that occasionally break parsers
         .replace(/\r?\n|\r/g, " ");
 
       let parsed;
@@ -181,17 +214,15 @@ IMPORTANT:
         parsed = JSON.parse(healed);
         console.log("JSON successfully healed and parsed!");
       } catch (parseError) {
-        console.error(" Healer failed, attempting direct parse as fallback...");
+        console.error("Healer failed, attempting direct parse as fallback...");
         try {
           parsed = JSON.parse(cleaned);
         } catch (f) {
-          console.error("All parse attempts failed. Problematic JSON segment:");
-          console.error(cleaned.substring(0, 500));
+          console.error("All parse attempts failed.");
           throw new Error(`JSON Structure Error: ${parseError.message}`);
         }
       }
 
-      // Validate structure
       if (!parsed || typeof parsed !== "object") {
         throw new Error("Invalid format: Response is not an object");
       }
@@ -200,7 +231,7 @@ IMPORTANT:
         throw new Error("Invalid format: 'questions' array missing");
       }
 
-      // Validate questions with answer key length check
+      // Validate questions
       const validQuestions = parsed.questions.filter((q) => {
         const hasBasicFields =
           q.question &&
@@ -210,14 +241,10 @@ IMPORTANT:
 
         if (!hasBasicFields) return false;
 
-        // Check answer key length (should be detailed - at least 200 characters)
         const answerKeyLength = q.answerKey.trim().length;
         if (answerKeyLength < 200) {
           console.warn(
-            `Answer key too short (${answerKeyLength} chars) for question: "${q.question.substring(
-              0,
-              50
-            )}..."`
+            `Answer key too short (${answerKeyLength} chars) for question: "${q.question.substring(0, 50)}..."`
           );
         }
 
@@ -225,7 +252,7 @@ IMPORTANT:
       });
 
       console.log(
-        ` Found ${validQuestions.length} valid questions out of ${parsed.questions.length}`
+        `Found ${validQuestions.length} valid questions out of ${parsed.questions.length}`
       );
 
       if (validQuestions.length < questionCount) {
@@ -235,16 +262,13 @@ IMPORTANT:
         );
       }
 
-      // Log answer key lengths for verification
       validQuestions.forEach((q, idx) => {
         console.log(
-          ` Q${idx + 1} Answer Key Length: ${q.answerKey.length} characters`
+          `Q${idx + 1} Answer Key Length: ${q.answerKey.length} characters`
         );
       });
 
-      console.log(
-        "Assignment Generated Successfully (5 questions × 2 marks = 10 marks)"
-      );
+      console.log("Assignment Generated Successfully");
       return validQuestions;
     } catch (error) {
       console.error(
@@ -254,14 +278,13 @@ IMPORTANT:
 
       attempts++;
 
-      // Check for quota/rate limit errors
       if (
         error.message.includes("quota") ||
         error.message.includes("429") ||
         error.message.includes("RESOURCE_EXHAUSTED") ||
         error.message.includes("rate limit")
       ) {
-        console.log(" Quota/Rate limit exceeded — rotating API key...");
+        console.log("Quota/Rate limit exceeded — rotating API key...");
         rotateApiKey();
 
         if (attempts < MAX_RETRIES) {
@@ -272,14 +295,12 @@ IMPORTANT:
         }
       }
 
-      // If we've exhausted all retries, throw the error
       if (attempts >= MAX_RETRIES) {
         throw new Error(
           `Failed after ${MAX_RETRIES} attempts: ${error.message}`
         );
       }
 
-      // For other errors, throw immediately
       throw error;
     }
   }
@@ -583,5 +604,148 @@ Ensure EVERY questionId from the answer keys appears in checkedAnswers.
   return results;
 };
 
+export const generateAssignmentFromTopics = async (topics, config = {}) => {
+  const questionCount = config.questionCount || 5;
+  const marksPerQuestion = config.marksPerQuestion || 2;
+  const difficulty = config.difficulty || "mixed";
+  const excludeQuestions = config.excludeQuestions || [];
 
-export default { generateAssignmentFromText, checkAssignmentWithAI, checkPDFSubmissionsBatch };
+  let attempts = 0;
+
+  while (attempts < MAX_RETRIES) {
+    try {
+      console.log(`Preparing Gemini prompt for Topic-based Assignment (${questionCount} Qs)...`);
+      console.log(`Topics: ${topics.join(", ")}`);
+
+      const difficultyInstruction = difficulty === "mixed"
+        ? "Mix difficulty levels among the questions"
+        : `All questions should be ${difficulty.toUpperCase()} difficulty level`;
+
+      const excludeInstruction = excludeQuestions.length > 0
+        ? `\nDO NOT repeat or generate questions similar to these existing ones:\n- ${excludeQuestions.join('\n- ')}\n`
+        : "";
+
+      const prompt = `
+You are an expert assignment question generator.
+
+TOPICS:
+${topics.join("\n")}
+
+Generate EXACTLY ${questionCount} high-quality short-answer assignment questions based on the above topics.
+
+${excludeInstruction}
+
+CRITICAL JSON RULES:
+1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
+2. NO LITERAL NEWLINES inside JSON string values. Use spaces or /n instead.
+3. Escape all double quotes (\") within question or answer text.
+4. Total answer keys MUST be detailed (7-9 lines) but must be a SINGLE-LINE string with no breaks.
+5. Answer guidelines MUST be EXACTLY 4-5 words only.
+
+REQUIREMENTS:
+1. Generate EXACTLY ${questionCount} questions
+2. Each question is worth ${marksPerQuestion} mark(s)
+3. Questions should be direct and clear
+4. ${difficultyInstruction}
+5. Each question MUST have:
+   - Question text (concise and clear)
+   - Marks = ${marksPerQuestion}
+   - Detailed answer key (MUST be 7-9 lines, comprehensive explanation)
+   - Very short guidelines (4-5 words ONLY)
+
+ANSWER KEY REQUIREMENTS:
+- MUST contain 7-9 lines of detailed explanation
+- Include key concepts, definitions, and examples
+- Cover all important points related to the question
+- Be comprehensive enough for proper evaluation
+- Use clear, educational language
+- Provide context and detailed information
+
+EXACT JSON FORMAT:
+{
+  "questions": [
+    {
+      "question": "Define photosynthesis and explain its importance",
+      "marks": ${marksPerQuestion},
+      "answerKey": "Photosynthesis is the biological process... (7-9 lines of text)",
+      "answerGuidelines": "Define process clearly"
+    }
+  ]
+}
+
+IMPORTANT:
+- Return ONLY JSON, nothing else
+- No markdown code blocks
+- Answer keys: MUST be 7-9 lines long with detailed explanations
+- Answer guidelines: EXACTLY 4-5 words (e.g., "Explain with examples", "Define key terms", "List main points")
+- Keep everything properly formatted
+`;
+
+      const model = getModel();
+      const chatSession = model.startChat({ generationConfig, history: [] });
+
+      console.log("Sending prompt to Gemini...");
+      const result = await chatSession.sendMessage(prompt);
+      const response = result.response.text();
+
+      // ROBUST JSON CLEANING & HEALING
+      let cleaned = response.trim();
+      cleaned = cleaned.replace(/```json\n?/gi, "").replace(/```\n?/g, "");
+
+      const firstBrace = cleaned.indexOf("{");
+      const lastBrace = cleaned.lastIndexOf("}");
+      if (firstBrace === -1 || lastBrace === -1) {
+        throw new Error("No valid JSON structure found in AI response");
+      }
+      cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+
+      const healed = cleaned
+        .replace(/:\s*"(.*)"\s*(,?)\s*(\n|}|,)/g, (match, p1, p2, p3) => {
+          const escapedContent = p1.replace(/"/g, '\\"');
+          return `: "${escapedContent}"${p2}${p3}`;
+        })
+        .replace(/\r?\n|\r/g, " ");
+
+      let parsed;
+      try {
+        parsed = JSON.parse(healed);
+      } catch (parseError) {
+        try {
+          parsed = JSON.parse(cleaned);
+        } catch (f) {
+          throw new Error(`JSON Structure Error: ${parseError.message}`);
+        }
+      }
+
+      if (!parsed || !Array.isArray(parsed.questions)) {
+        throw new Error("Invalid format: 'questions' array missing");
+      }
+
+      const validQuestions = parsed.questions.filter((q) => {
+        return q.question && typeof q.question === "string" && q.answerKey && typeof q.answerKey === "string";
+      });
+
+      if (validQuestions.length < questionCount) {
+        throw new Error(`AI generated only ${validQuestions.length} valid questions instead of ${questionCount}`);
+      }
+
+      console.log("Topic Assignment Generated Successfully");
+      return validQuestions;
+    } catch (error) {
+      console.error(`Gemini Topic Assignment Error (Key #${currentKeyIndex + 1}):`, error.message);
+      attempts++;
+      if (
+        error.message.includes("quota") ||
+        error.message.includes("429") ||
+        error.message.includes("RESOURCE_EXHAUSTED") ||
+        error.message.includes("rate limit")
+      ) {
+        rotateApiKey();
+        if (attempts < MAX_RETRIES) continue;
+      }
+      if (attempts >= MAX_RETRIES) throw error;
+    }
+  }
+};
+
+export default { generateAssignmentFromText, generateAssignmentFromTopics, checkAssignmentWithAI, checkPDFSubmissionsBatch };

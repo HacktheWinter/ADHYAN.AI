@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   BookOpen,
   Layers,
+  Trash2,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import api from "../api/axios";
@@ -69,6 +70,8 @@ const SeminarAttendancePage = () => {
   const [error, setError] = useState("");
   const [expandedSession, setExpandedSession] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSessions, setSelectedSessions] = useState([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   useEffect(() => {
     const fetchRecords = async () => {
@@ -160,6 +163,45 @@ const SeminarAttendancePage = () => {
     }
   };
 
+  const handleDeleteSession = async (e, sessionId, sessionTitle) => {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete the seminar "${sessionTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await api.delete(`/seminar/session/${sessionId}`);
+      if (res.data?.success) {
+        setSessions((prev) => prev.filter((s) => s._id !== sessionId));
+      }
+    } catch (err) {
+      alert("Failed to delete seminar session");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Are you sure you want to delete ${selectedSessions.length} seminar(s)? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await api.post("/seminar/sessions/bulk-delete", { sessionIds: selectedSessions });
+      if (res.data?.success) {
+        setSessions((prev) => prev.filter((s) => !selectedSessions.includes(s._id)));
+        setSelectedSessions([]);
+        setIsSelectionMode(false);
+      }
+    } catch (err) {
+      alert("Failed to delete selected seminars");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatDate = (dateStr) =>
     new Date(dateStr).toLocaleDateString("en-US", {
       weekday: "short",
@@ -198,17 +240,67 @@ const SeminarAttendancePage = () => {
           </div>
         </div>
 
-        {/* Search */}
+        {/* Search & Bulk Actions */}
         <div className="mb-6">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-ink-soft" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search seminars..."
-              className="w-full pl-10 pr-4 py-2.5 border border-line bg-surface rounded-xl text-sm text-ink focus:ring-2 focus:ring-purple-700 focus:border-transparent focus:outline-none transition"
-            />
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
+            <div className="relative max-w-md w-full">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-ink-soft" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search seminars..."
+                className="w-full pl-10 pr-4 py-2.5 border border-line bg-surface rounded-xl text-sm text-ink focus:ring-2 focus:ring-purple-700 focus:border-transparent focus:outline-none transition"
+              />
+            </div>
+            
+            <div className="flex items-center gap-4">
+              {filteredSessions.length > 0 && !isSelectionMode && (
+                <button
+                  onClick={() => {
+                    setIsSelectionMode(true);
+                    setSelectedSessions(filteredSessions.map((s) => s._id));
+                  }}
+                  className="px-4 py-2 bg-surface border border-line rounded-xl text-sm font-semibold text-ink hover:bg-paper transition"
+                >
+                  Select All
+                </button>
+              )}
+
+              {isSelectionMode && (
+                <>
+                  <label className="flex items-center gap-2 text-sm font-medium cursor-pointer text-ink hover:text-purple-700 transition">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-line text-purple-700 focus:ring-purple-700 cursor-pointer"
+                      checked={
+                        filteredSessions.length > 0 &&
+                        selectedSessions.length === filteredSessions.length
+                      }
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedSessions(filteredSessions.map((s) => s._id));
+                        } else {
+                          setSelectedSessions([]);
+                          setIsSelectionMode(false);
+                        }
+                      }}
+                    />
+                    Select All
+                  </label>
+                  
+                  {selectedSessions.length > 0 && (
+                    <button
+                      onClick={handleBulkDelete}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 rounded-xl text-sm font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/40 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete Selected ({selectedSessions.length})
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -278,6 +370,25 @@ const SeminarAttendancePage = () => {
                   className="flex items-center justify-between p-4 sm:p-5 cursor-pointer hover:bg-paper transition"
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {isSelectionMode && (
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-line text-purple-700 focus:ring-purple-700 cursor-pointer"
+                        checked={selectedSessions.includes(session._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedSessions((prev) => [...prev, session._id]);
+                          } else {
+                            setSelectedSessions((prev) => {
+                              const newSessions = prev.filter((id) => id !== session._id);
+                              if (newSessions.length === 0) setIsSelectionMode(false);
+                              return newSessions;
+                            });
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    )}
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                         session.status === "active"
@@ -329,6 +440,13 @@ const SeminarAttendancePage = () => {
                         <span className="hidden sm:inline">Excel</span>
                       </button>
                     )}
+                    <button
+                      onClick={(e) => handleDeleteSession(e, session._id, session.title)}
+                      className="flex items-center justify-center p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition"
+                      title="Delete Session"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                     {isExpanded ? (
                       <ChevronDown className="w-5 h-5 text-ink-soft" />
                     ) : (

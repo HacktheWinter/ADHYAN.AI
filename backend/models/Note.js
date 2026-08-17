@@ -5,6 +5,7 @@ const noteSchema = new mongoose.Schema({
   uploadedBy: { type: String, required: true },
   classroomId: { type: String },
   fileId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  mimetype: { type: String, default: "application/pdf" },
   createdAt: { type: Date, default: Date.now },
 });
 

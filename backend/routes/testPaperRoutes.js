@@ -1,6 +1,7 @@
 import express from 'express';
 import { authMiddleware, authorizeRoles } from "../middleware/authMiddleware.js";
 import {
+  createTestPaperManually,
   generateTestPaperWithAI,
   getTestPaper,
   getTestPapersByClassroom,
@@ -11,6 +12,9 @@ import {
 } from '../controllers/testPaperController.js';
 
 const router = express.Router();
+
+// Manual creation route
+router.post('/create-manual', authMiddleware, authorizeRoles("teacher"), createTestPaperManually);
 
 // Generate test paper with AI
 router.post('/generate-ai', authMiddleware, authorizeRoles("teacher"), generateTestPaperWithAI);

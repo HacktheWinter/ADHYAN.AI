@@ -304,15 +304,15 @@ const getRoleBaseUrl = (role = "student") => {
   const teacherBaseUrl =
     process.env.TEACHER_URL ||
     process.env.TEACHER_FRONTEND_URL ||
-    "https://adhyanai-teacher.onrender.com";
+    "https://teacher.adhyanai.tech";
   const studentBaseUrl =
     process.env.STUDENT_URL ||
     process.env.STUDENT_FRONTEND_URL ||
-    "https://adhyanai-student.onrender.com";
+    "https://student.adhyanai.tech";
   const principalBaseUrl =
     process.env.PRINCIPAL_URL ||
     process.env.PRINCIPAL_FRONTEND_URL ||
-    "https://adhyanai-principal.onrender.com";
+    "https://principal.adhyanai.tech";
 
   if (role === "teacher") return teacherBaseUrl;
   if (role === "principal") return principalBaseUrl;

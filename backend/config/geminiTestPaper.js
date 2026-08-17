@@ -57,7 +57,7 @@ const getModel = () => {
   console.log(`Using API Key #${currentKeyIndex + 1}/${API_KEYS.length}`);
 
   return genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-flash-lite",
   });
 };
 
@@ -78,12 +78,31 @@ const generationConfig = {
 };
 
 /**
+ * Split text into chunks of approximately `size` characters,
+ * breaking at a space boundary when possible.
+ */
+const chunkText = (text, size = 25000) => {
+  if (text.length <= size) return [text];
+  const chunks = [];
+  let start = 0;
+  while (start < text.length) {
+    let end = Math.min(start + size, text.length);
+    // try to break at a space boundary
+    if (end < text.length) {
+      const spaceIdx = text.lastIndexOf(" ", end);
+      if (spaceIdx > start) end = spaceIdx;
+    }
+    chunks.push(text.slice(start, end));
+    start = end;
+  }
+  return chunks;
+};
+
+/**
  * Generate Test Paper from text using Gemini AI
- * @param {string} extractedText - Content extracted from PDFs
+ * Supports large documents via multi-turn chat chunking.
+ * @param {string} extractedText - Content extracted from files
  * @param {object} config - Configuration for generation
- * @param {object} config.counts - {short: {count, optional}, medium: {count, optional}, long: {count, optional}}
- * @param {string} config.difficulty - easy, medium, hard, mixed
- * @param {string[]} config.excludeQuestions - List of existing questions to avoid
  */
 export const generateTestPaperFromText = async (extractedText, config = {}) => {
   const counts = config.counts || { 
@@ -108,12 +127,10 @@ export const generateTestPaperFromText = async (extractedText, config = {}) => {
   const longCount = getCount("long", "count", 2);
   const longOptional = getCount("long", "optional", 0);
   
-  // Total to generate for each section
   const totalShort = shortCount + shortOptional;
   const totalMedium = mediumCount + mediumOptional;
   const totalLong = longCount + longOptional;
   
-  // Rule for Direct + Pairs
   const directShort = Math.max(0, shortCount - shortOptional);
   const directMedium = Math.max(0, mediumCount - mediumOptional);
   const directLong = Math.max(0, longCount - longOptional);
@@ -125,8 +142,10 @@ export const generateTestPaperFromText = async (extractedText, config = {}) => {
     try {
       console.log(`Preparing Gemini prompt for Test Paper (Total ${totalQuestions} Qs)...`);
       console.log(`Config: ${totalShort}S, ${totalMedium}M, ${totalLong}L, difficulty: ${difficulty}`);
+      console.log(`Full text length: ${extractedText.length} chars`);
 
-      const limitedText = extractedText.slice(0, 12000);
+      const textChunks = chunkText(extractedText);
+      console.log(`Split into ${textChunks.length} chunk(s)`);
 
       const difficultyInstruction = difficulty === "mixed"
         ? "Mix difficulty levels for each category"
@@ -136,11 +155,36 @@ export const generateTestPaperFromText = async (extractedText, config = {}) => {
         ? `\nDO NOT repeat or generate questions similar to these existing ones:\n- ${excludeQuestions.join('\n- ')}\n`
         : "";
 
-      const prompt = `
-You are an expert exam question paper generator. Generate questions with answer keys grouped by sections from the following content.
+      const model = getModel();
 
-CONTENT:
-${limitedText}
+      const chatSession = model.startChat({
+        generationConfig,
+        history: [],
+      });
+
+      // ── Feed chunks to the model ──────────────────────────────
+      if (textChunks.length > 1) {
+        for (let i = 0; i < textChunks.length - 1; i++) {
+          const chunkMsg = `I am providing study material in multiple parts. This is Part ${i + 1} of ${textChunks.length}. Read and memorize this content. Do NOT generate anything yet — just reply with the single word "Understood".\n\nCONTENT PART ${i + 1}:\n${textChunks[i]}`;
+          console.log(`  Sending chunk ${i + 1}/${textChunks.length} (${textChunks[i].length} chars)...`);
+          await chatSession.sendMessage(chunkMsg);
+        }
+      }
+
+      // ── Final prompt (includes the last chunk) ────────────────
+      const lastChunk = textChunks[textChunks.length - 1];
+      const contentHeader = textChunks.length > 1
+        ? `This is the FINAL Part ${textChunks.length} of ${textChunks.length} of the study material. Now you have the complete content. Generate questions from ALL parts combined.\n\nFINAL CONTENT PART:\n${lastChunk}`
+        : `CONTENT:\n${lastChunk}`;
+
+      const prompt = `
+You are an expert exam question paper generator.
+
+DYNAMIC GENERATION RULE:
+1. Check the CONTENT provided below. If the CONTENT already contains a list of explicit questions (e.g. it is a previous question paper, a worksheet, or a test), you MUST extract those EXACT questions and use them, generating appropriate answer keys for them. Do not create new questions if sufficient questions already exist in the text.
+2. If the CONTENT is just study material or notes without a sufficient set of explicit questions, then generate completely new questions based on the concepts in the CONTENT.
+
+${contentHeader}
 
 ${excludeInstruction}
 
@@ -184,14 +228,7 @@ IMPORTANT:
 - EXACTLY match the Direct + Pair structure for ALL sections.
 `;
 
-      console.log("Sending request to Gemini...");
-
-      const model = getModel(); // Get current model
-
-      const chatSession = model.startChat({
-        generationConfig,
-        history: [],
-      });
+      console.log("Sending final generation prompt to Gemini...");
 
       const result = await chatSession.sendMessage(prompt);
       const response = result.response.text();
@@ -279,6 +316,7 @@ IMPORTANT:
   }
 
 };
+
 
 /**
  * Generate Test Paper from topics using Gemini AI

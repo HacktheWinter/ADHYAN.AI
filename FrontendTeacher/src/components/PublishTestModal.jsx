@@ -125,7 +125,7 @@ export default function PublishTestModal({ testPaper, onClose, onPublished }) {
               <label
                 className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
                   timingOption === 'no-limit'
-                    ? 'border-purple-650 bg-violet-50 text-violet-dark shadow-sm'
+                    ? 'border-violet-600 bg-violet-50 text-violet-dark shadow-sm'
                     : 'border-line bg-surface text-ink hover:border-purple-300'
                 }`}
               >
@@ -135,7 +135,7 @@ export default function PublishTestModal({ testPaper, onClose, onPublished }) {
                   value="no-limit"
                   checked={timingOption === 'no-limit'}
                   onChange={(e) => setTimingOption(e.target.value)}
-                  className="mt-1 text-purple-600 rounded border-line focus:ring-purple-650 cursor-pointer bg-paper"
+                  className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
                 />
                 <div className="flex-1">
                   <div className="font-bold text-ink mb-1">No Time Limit</div>
@@ -149,7 +149,7 @@ export default function PublishTestModal({ testPaper, onClose, onPublished }) {
               <label
                 className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
                   timingOption === 'duration'
-                    ? 'border-purple-650 bg-violet-50 text-violet-dark shadow-sm'
+                    ? 'border-violet-600 bg-violet-50 text-violet-dark shadow-sm'
                     : 'border-line bg-surface text-ink hover:border-purple-300'
                 }`}
               >
@@ -159,7 +159,7 @@ export default function PublishTestModal({ testPaper, onClose, onPublished }) {
                   value="duration"
                   checked={timingOption === 'duration'}
                   onChange={(e) => setTimingOption(e.target.value)}
-                  className="mt-1 text-purple-600 rounded border-line focus:ring-purple-650 cursor-pointer bg-paper"
+                  className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -190,7 +190,7 @@ export default function PublishTestModal({ testPaper, onClose, onPublished }) {
               <label
                 className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
                   timingOption === 'schedule'
-                    ? 'border-purple-650 bg-violet-50 text-violet-dark shadow-sm'
+                    ? 'border-violet-600 bg-violet-50 text-violet-dark shadow-sm'
                     : 'border-line bg-surface text-ink hover:border-purple-300'
                 }`}
               >
@@ -200,7 +200,7 @@ export default function PublishTestModal({ testPaper, onClose, onPublished }) {
                   value="schedule"
                   checked={timingOption === 'schedule'}
                   onChange={(e) => setTimingOption(e.target.value)}
-                  className="mt-1 text-purple-600 rounded border-line focus:ring-purple-650 cursor-pointer bg-paper"
+                  className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">

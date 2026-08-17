@@ -1,7 +1,7 @@
 const API_BASE_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:5001/api"
-    : "https://adhyanai-backend.onrender.com/api";
+    : "https://adhyanai.tech/api";
 
 export const LANDING_PAGE_URL =
   import.meta.env.VITE_LANDING_PAGE_URL || "https://adhyan-ai.onrender.com/";
@@ -9,17 +9,17 @@ export const LANDING_PAGE_URL =
 export const SOCKET_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:5001"
-    : "https://adhyanai-backend.onrender.com";
+    : "https://adhyanai.tech";
 
 export const TEACHER_FRONTEND_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:5174"
-    : "https://adhyanai-teacher.onrender.com";
+    : "https://teacher.adhyanai.tech";
 
 export const STUDENT_FRONTEND_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:5173"
-    : "https://adhyanai-student.onrender.com";
+    : "https://student.adhyanai.tech";
 
 export const PRINCIPAL_FRONTEND_URL =
   window.location.hostname === "localhost"

@@ -11,15 +11,15 @@ const frontendBaseUrls = {
   teacher:
     process.env.TEACHER_URL ||
     process.env.TEACHER_FRONTEND_URL ||
-    "https://adhyanai-teacher.onrender.com",
+    "https://teacher.adhyanai.tech",
   student:
     process.env.STUDENT_URL ||
     process.env.STUDENT_FRONTEND_URL ||
-    "https://adhyanai-student.onrender.com",
+    "https://student.adhyanai.tech",
   principal:
     process.env.PRINCIPAL_URL ||
     process.env.PRINCIPAL_FRONTEND_URL ||
-    "https://adhyanai-principal.onrender.com",
+    "https://principal.adhyanai.tech",
 };
 
 const genericSuccessResponse = {

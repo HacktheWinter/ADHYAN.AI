@@ -34,9 +34,23 @@ const Header = ({ onLogoClick }) => {
     globalTheme = theme;
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
+    window.dispatchEvent(new Event('themeChange'));
+  }, [theme]);
+
+  useEffect(() => {
+    const handleThemeEvent = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      if (theme !== (isDark ? 'dark' : 'light')) {
+        setTheme(isDark ? 'dark' : 'light');
+      }
+    };
+    window.addEventListener('themeChange', handleThemeEvent);
+    return () => window.removeEventListener('themeChange', handleThemeEvent);
   }, [theme]);
 
   useEffect(() => {
@@ -224,34 +238,7 @@ const Header = ({ onLogoClick }) => {
  
             <div className="flex items-center gap-2 sm:gap-4">
               
-              {/* Theme Toggle Switch */}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-                className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all cursor-pointer focus:outline-none ${
-                  theme === 'light' 
-                    ? 'border-black bg-black text-white hover:bg-gray-900 hover:border-gray-900' 
-                    : 'dark-sun-bg text-yellow-500 hover:bg-gray-100 hover:border-gray-100'
-                }`}
-                aria-label="Toggle Theme"
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={theme}
-                    initial={{ rotate: -45, opacity: 0, scale: 0.8 }}
-                    animate={{ rotate: 0, opacity: 1, scale: 1 }}
-                    exit={{ rotate: 45, opacity: 0, scale: 0.8 }}
-                    transition={{ duration: 0.15 }}
-                  >
-                    {theme === 'light' ? (
-                      <Moon className="w-5 h-5 stroke-[2px] text-white fill-white" />
-                    ) : (
-                      <Sun className="w-5 h-5 stroke-[2px] text-yellow-500 fill-yellow-500" />
-                    )}
-                  </motion.div>
-                </AnimatePresence>
-              </motion.button>
+
 
               {/* Notifications bell icon & popover */}
               <div className="relative" ref={notifRef}>
@@ -356,8 +343,8 @@ const Header = ({ onLogoClick }) => {
                 {/* Profile Avatar Dropdown */}
                 <div className="relative" ref={dropdownRef}>
                   <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                     onClick={() => { setIsDropdownOpen(!isDropdownOpen); setIsNotifOpen(false); setIsMoreOpen(false); }}
                     className="w-10 h-10 rounded-full bg-purple-600 border border-line flex items-center justify-center text-white font-semibold hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 cursor-pointer overflow-hidden"
                   >
@@ -445,45 +432,7 @@ const Header = ({ onLogoClick }) => {
                   </AnimatePresence>
                 </div>
 
-                {/* 3-dot More Options Dropdown */}
-                <div className="relative" ref={moreRef}>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => { setIsMoreOpen(!isMoreOpen); setIsDropdownOpen(false); setIsNotifOpen(false); }}
-                    className="w-10 h-10 rounded-full hover:bg-line flex items-center justify-center text-ink-soft hover:text-ink transition-colors focus:outline-none cursor-pointer"
-                    title="More actions"
-                  >
-                    <MoreVertical className="w-5 h-5 stroke-[2px]" />
-                  </motion.button>
 
-                  <AnimatePresence>
-                    {isMoreOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute right-0 mt-2 w-48 bg-surface rounded-xl shadow-lg border border-line py-1.5 z-50"
-                      >
-                        <button
-                          onClick={() => setIsMoreOpen(false)}
-                          className="dropdown-item w-full flex items-center px-4 py-2.5 text-sm text-ink transition-colors text-left cursor-pointer font-medium"
-                        >
-                          <MessageSquare className="w-4 h-4 mr-3 text-purple-600" />
-                          Send feedback
-                        </button>
-                        <button
-                          onClick={() => setIsMoreOpen(false)}
-                          className="dropdown-item w-full flex items-center px-4 py-2.5 text-sm text-ink transition-colors text-left cursor-pointer font-medium"
-                        >
-                          <HelpCircle className="w-4 h-4 mr-3 text-purple-600" />
-                          Help
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
               </div>
             </div>
 
