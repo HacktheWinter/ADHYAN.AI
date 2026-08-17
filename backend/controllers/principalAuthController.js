@@ -53,17 +53,22 @@ export const registerPrincipal = async (req, res) => {
 export const loginPrincipal = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log(`[Principal Login] Attempt for email: ${email}`);
 
     if (!email || !password) {
+      console.log(`[Principal Login] Failed: Email or password missing`);
       return res.status(400).json({ error: "Email and password are required" });
     }
 
     const principal = await User.findOne({ email, role: "principal" });
+    console.log(`[Principal Login] User exists: ${!!principal}`);
     if (!principal) {
       return res.status(404).json({ error: "Principal not found" });
     }
 
+    console.log(`[Principal Login] Password hash exists: ${!!principal.password}`);
     const isMatch = await bcrypt.compare(password, principal.password);
+    console.log(`[Principal Login] bcrypt.compare() result: ${isMatch}`);
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid credentials" });
     }
@@ -73,7 +78,9 @@ export const loginPrincipal = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
+    console.log(`[Principal Login] JWT generation success: ${!!token}`);
 
+    console.log(`[Principal Login] Success: Sending final response`);
     res.status(200).json({
       message: "Principal login successful",
       token,
@@ -85,9 +92,13 @@ export const loginPrincipal = async (req, res) => {
         role: principal.role,
       },
     });
-  } catch (error) {
-    console.error("Principal Login Error:", error);
-    res.status(500).json({ error: "Server error during principal login" });
+  } catch (err) {
+    console.error("Principal Login Error:", err);
+    res.status(500).json({
+      error: "Server error during login",
+      message: err.message,
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined
+    });
   }
 };
 
