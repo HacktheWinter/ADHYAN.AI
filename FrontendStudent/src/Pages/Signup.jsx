@@ -184,7 +184,7 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50 flex items-center justify-center px-8 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50 flex items-center justify-center px-4 md:px-8 py-8 md:py-12">
       <div className="w-full max-w-6xl grid md:grid-cols-2 gap-8 items-center">
         {/* Left Side - Branding */}
         <div className="hidden md:block">
@@ -262,25 +262,25 @@ export default function Signup() {
 
         {/* Right Side - Signup Form */}
         <div className="w-full">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10">
+          <div className="md:bg-white md:rounded-3xl md:shadow-2xl py-6 md:p-10">
             <div className="md:hidden text-center mb-6">
-              <div className="flex items-center justify-center space-x-2 mb-4">
+              <div className="flex items-center justify-center space-x-2 mb-2">
                 <img 
                   src="/logo02.png" 
                   alt="ADHYAN.AI Logo" 
-                  className="w-12 h-12 object-contain"
+                  className="w-10 h-10 object-contain"
                 />
-                <span className="text-2xl font-bold text-gray-900">
+                <span className="text-xl font-bold text-gray-900 tracking-tight">
                   ADHYAN.AI
                 </span>
               </div>
             </div>
 
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                 Create Account
               </h2>
-              <p className="text-gray-600">
+              <p className="text-sm md:text-base text-gray-600">
                 Sign up to get started with ADHYAN.AI
               </p>
             </div>

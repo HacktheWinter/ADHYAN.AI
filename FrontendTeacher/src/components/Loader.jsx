@@ -2,8 +2,14 @@ import React from 'react';
 
 const Loader = () => {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-paper">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-600"></div>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-paper w-full">
+      <div className="flex items-center space-x-4">
+        <div className="w-10 h-10 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin"></div>
+        <span className="text-3xl font-bold text-gray-800 tracking-wide">
+          ADHYAN.AI
+        </span>
+      </div>
+      <p className="mt-3 text-sm text-gray-500 animate-pulse font-medium">Loading...</p>
     </div>
   );
 };

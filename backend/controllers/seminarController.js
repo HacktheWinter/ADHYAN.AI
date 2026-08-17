@@ -412,3 +412,90 @@ export const getSeminarSessionById = async (req, res) => {
     });
   }
 };
+
+// ── Delete Seminar Session ─────────────────────────────────────────
+
+export const deleteSeminarSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const teacherId = req.user._id;
+
+    if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
+      return res.status(400).json({
+        success: false,
+        error: "Valid sessionId is required",
+      });
+    }
+
+    const session = await SeminarSession.findById(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: "Seminar session not found",
+      });
+    }
+
+    if (session.teacherId.toString() !== teacherId.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: "Unauthorized: Not your seminar session",
+      });
+    }
+
+    await SeminarSession.findByIdAndDelete(sessionId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Seminar session deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete Seminar Session Error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Server error while deleting seminar session",
+    });
+  }
+};
+
+// ── Delete Multiple Seminar Sessions ───────────────────────────────
+
+export const deleteMultipleSeminarSessions = async (req, res) => {
+  try {
+    const { sessionIds } = req.body;
+    const teacherId = req.user._id;
+
+    if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "An array of valid sessionIds is required",
+      });
+    }
+
+    // Ensure all provided IDs are valid
+    const validIds = sessionIds.filter(id => mongoose.Types.ObjectId.isValid(id));
+    if (validIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "No valid sessionIds provided",
+      });
+    }
+
+    // Delete only the sessions that belong to the requesting teacher
+    const result = await SeminarSession.deleteMany({
+      _id: { $in: validIds },
+      teacherId: teacherId
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} seminar sessions deleted successfully`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Delete Multiple Seminar Sessions Error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Server error while deleting seminar sessions",
+    });
+  }
+};

@@ -7,6 +7,7 @@ import User from "../models/User.js";
 import { getBucket } from "../config/gridfs.js";
 import { sendNoteUploadedEmails } from "../utils/emailNotifications.js";
 import { logActivity } from "../utils/activityTracker.js";
+import { ALLOWED_MIMETYPES } from "../utils/fileExtractor.js";
 
 // Multer setup for GridFS (memory storage for streaming to bucket)
 const storage = multer.memoryStorage();
@@ -14,10 +15,10 @@ const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === "application/pdf") {
+    if (ALLOWED_MIMETYPES.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only PDF files are allowed!"), false);
+      cb(new Error("Only PDF, Word (.doc/.docx), and Excel (.xls/.xlsx) files are allowed!"), false);
     }
   },
 });
@@ -81,6 +82,7 @@ export const uploadNote = [
             uploadedBy,
             classroomId,
             fileId: fileId,
+            mimetype: req.file.mimetype,
           });
 
           res.status(201).json({
@@ -255,6 +257,10 @@ export const getNoteFile = async (req, res) => {
 
     const _id = new mongoose.Types.ObjectId(fileId);
 
+    // Look up file metadata to determine the correct content type
+    const files = await bucket.find({ _id }).toArray();
+    const contentType = files?.[0]?.contentType || "application/pdf";
+
     const readStream = bucket.openDownloadStream(_id);
 
     readStream.on("error", (err) => {
@@ -267,7 +273,7 @@ export const getNoteFile = async (req, res) => {
       }
     });
 
-    res.set("Content-Type", "application/pdf");
+    res.set("Content-Type", contentType);
     readStream.pipe(res);
   } catch (error) {
     console.error(error);

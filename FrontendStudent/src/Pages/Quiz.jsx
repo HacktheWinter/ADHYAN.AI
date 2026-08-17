@@ -13,8 +13,13 @@ export default function Quiz() {
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submissions, setSubmissions] = useState({});
-  const [selectedQuiz, setSelectedQuiz] = useState(null);
-  const [showTakingModal, setShowTakingModal] = useState(false);
+  const [selectedQuiz, setSelectedQuiz] = useState(() => {
+    const saved = localStorage.getItem('activeQuiz');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [showTakingModal, setShowTakingModal] = useState(() => {
+    return !!localStorage.getItem('activeQuiz');
+  });
   const [showResultModal, setShowResultModal] = useState(false);
 
   // Helper function to truncate title
@@ -57,6 +62,7 @@ export default function Quiz() {
   const handleTakeQuiz = (quiz) => {
     setSelectedQuiz(quiz);
     setShowTakingModal(true);
+    localStorage.setItem('activeQuiz', JSON.stringify(quiz));
   };
 
   const handleViewResult = (quiz) => {
@@ -67,6 +73,7 @@ export default function Quiz() {
   const handleQuizSubmitted = () => {
     setShowTakingModal(false);
     setSelectedQuiz(null);
+    localStorage.removeItem('activeQuiz');
     fetchQuizzes(); // Refresh to update status
   };
 
@@ -223,6 +230,7 @@ export default function Quiz() {
           onClose={() => {
             setShowTakingModal(false);
             setSelectedQuiz(null);
+            localStorage.removeItem('activeQuiz');
           }}
           onSubmit={handleQuizSubmitted}
         />

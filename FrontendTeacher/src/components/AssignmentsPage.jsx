@@ -24,6 +24,9 @@ import { getNotesByClassroom } from "../api/notesApi";
 
 import PublishAssignmentModal from "./PublishAssignmentModal";
 import EditAssignmentModal from "./EditAssignmentModal";
+import CreateManualAssignmentModal from "./CreateManualAssignmentModal";
+import AddTopicsButton from "./AddTopicsButton";
+import TopicsInputCard from "./TopicsInputCard";
 
 const AssignmentsPage = () => {
   const { classData } = useOutletContext();
@@ -34,6 +37,8 @@ const AssignmentsPage = () => {
   const [loading, setLoading] = useState(true);
 
   const [showAIModal, setShowAIModal] = useState(false);
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
 
@@ -44,6 +49,8 @@ const AssignmentsPage = () => {
 
   const [availableNotes, setAvailableNotes] = useState([]);
   const [selectedNotes, setSelectedNotes] = useState([]);
+  const [showTopicsInput, setShowTopicsInput] = useState(false);
+  const [topics, setTopics] = useState([]);
 
   // AI Gen Config
   const [customTitle, setCustomTitle] = useState("");
@@ -70,6 +77,12 @@ const AssignmentsPage = () => {
     }
   }, [classData?.id]);
 
+  useEffect(() => {
+    const handleClickOutside = () => setShowCreateMenu(false);
+    if (showCreateMenu) document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showCreateMenu]);
+
   const fetchAssignments = async () => {
     try {
       setLoading(true);
@@ -88,6 +101,8 @@ const AssignmentsPage = () => {
   const handleOpenAIModal = async () => {
     setShowAIModal(true);
     setLoadingNotes(true);
+    setTopics([]);
+    setShowTopicsInput(false);
     // Reset config
     setCustomTitle("");
     setQuestionCount(5);
@@ -107,7 +122,11 @@ const AssignmentsPage = () => {
   };
 
   const handleGenerateWithAI = async () => {
-    if (selectedNotes.length === 0) {
+    if (showTopicsInput && topics.length === 0) {
+      alert("Please add at least one topic");
+      return;
+    }
+    if (!showTopicsInput && selectedNotes.length === 0) {
       alert("Please select at least one note");
       return;
     }
@@ -122,8 +141,12 @@ const AssignmentsPage = () => {
         difficulty
       };
 
+      if (showTopicsInput) {
+        config.topics = topics;
+      }
+
       const response = await generateAssignmentWithAI(
-        selectedNotes,
+        showTopicsInput ? [] : selectedNotes,
         classData.id,
         config
       );
@@ -137,10 +160,14 @@ const AssignmentsPage = () => {
           `• Marks per Q: ${response.stats.marksPerQuestion}\n` +
           `• Total Marks: ${response.stats.totalMarks}\n` +
           `• Difficulty: ${response.stats.difficulty}\n` +
-          `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}\n`
+          (showTopicsInput 
+            ? `• Generated from custom topics\n`
+            : `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}\n`)
       );
 
       setSelectedNotes([]);
+      setTopics([]);
+      setShowTopicsInput(false);
       setCustomTitle("");
       setShowAIModal(false);
     } catch (error) {
@@ -173,6 +200,18 @@ const AssignmentsPage = () => {
   const handleEditAnswerKeys = (assignment) => {
     setEditingAssignment(assignment);
     setShowEditModal(true);
+  };
+
+  const handleViewSubmissions = (assignmentId) => {
+    navigate(`/class/${classData.id}/assignments/${assignmentId}/submissions`);
+  };
+
+  const handleToggleTopicsInput = () => {
+    setShowTopicsInput(!showTopicsInput);
+    if (!showTopicsInput) {
+      setSelectedNotes([]);
+      setTopics([]);
+    }
   };
 
   const handlePublish = (assignment) => {
@@ -212,13 +251,43 @@ const AssignmentsPage = () => {
             </p>
           </div>
 
-          <button
-            onClick={handleOpenAIModal}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-purple-600 dark:to-indigo-650 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer text-sm sm:text-base"
-          >
-            <Sparkles className="w-5 h-5 text-white" />
-            <span>Create with AI</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowCreateMenu(!showCreateMenu);
+              }}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-purple-600 dark:to-indigo-650 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer text-sm sm:text-base"
+            >
+              <span>Create Question</span>
+              <ChevronDown className="w-5 h-5 text-white" />
+            </button>
+
+            {showCreateMenu && (
+              <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-2xl border border-line p-1.5 z-50 overflow-hidden flex flex-col gap-1">
+                <button
+                  onClick={() => {
+                    setShowCreateMenu(false);
+                    handleOpenAIModal();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
+                  <span>Generate with AI</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCreateMenu(false);
+                    setShowManualModal(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Pencil className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
+                  <span>Create Manually</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -408,7 +477,7 @@ const AssignmentsPage = () => {
                           `/class/${classData.id}/assignments/results/${assignment._id}`
                         )
                       }
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-purple-650 hover:bg-purple-750 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <Eye className="w-4 h-4" />
                       <span>View Results</span>
@@ -476,11 +545,21 @@ const AssignmentsPage = () => {
 
               {/* Notes Selection Group */}
               <div className="space-y-4">
-                <h4 className="block text-xs font-bold text-ink-soft uppercase tracking-wider flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
-                  Select Source Notes
-                </h4>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <h4 className="font-semibold text-ink flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-500" />
+                {showTopicsInput ? "Enter Topics" : "Select Source Materials"}
+              </h4>
+              <AddTopicsButton 
+                isActive={showTopicsInput}
+                onClick={handleToggleTopicsInput}
+              />
+            </div>
 
+            {showTopicsInput ? (
+              <TopicsInputCard topics={topics} setTopics={setTopics} />
+            ) : (
+              <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                 {loadingNotes ? (
                   <div className="flex items-center justify-center py-10">
                     <Loader className="w-8 h-8 text-purple-600 animate-spin" />
@@ -490,7 +569,7 @@ const AssignmentsPage = () => {
                     <p className="text-ink-soft text-sm">No notes found. Upload some first.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                  <>
                     {availableNotes.map((note) => (
                       <label
                         key={note._id}
@@ -505,22 +584,24 @@ const AssignmentsPage = () => {
                           checked={selectedNotes.includes(note._id)}
                           onChange={() => toggleNoteSelection(note._id)}
                           disabled={isGenerating}
-                          className="w-4 h-4 text-purple-600 rounded border-line focus:ring-purple-650 cursor-pointer bg-paper"
+                          className="w-4 h-4 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
                         />
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm truncate">{note.title}</p>
                         </div>
                       </label>
                     ))}
-                  </div>
+                  </>
                 )}
+              </div>
+            )}
               </div>
 
               {/* Advanced Customization Options */}
               <div className="border-t border-line pt-4">
                 <button 
                   onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                  className="flex items-center gap-2 text-sm font-semibold text-ink hover:text-purple-650 transition-colors mb-4"
+                  className="flex items-center gap-2 text-sm font-semibold text-ink hover:text-violet-600 transition-colors mb-4"
                 >
                   <Settings2 className="w-4 h-4" />
                   Advanced Question Options
@@ -651,6 +732,18 @@ const AssignmentsPage = () => {
             setShowPublishModal(false);
             setPublishingAssignment(null);
             fetchAssignments();
+          }}
+        />
+      )}
+
+      {/* Create Manual Modal */}
+      {showManualModal && (
+        <CreateManualAssignmentModal
+          classId={classData.id}
+          onClose={() => setShowManualModal(false)}
+          onCreated={(newAssignment) => {
+            setShowManualModal(false);
+            setDrafts((prev) => [newAssignment, ...prev]);
           }}
         />
       )}

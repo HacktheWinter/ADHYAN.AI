@@ -53,6 +53,10 @@ const quizSchema = new mongoose.Schema({
     enum: ["draft", "published"],
     default: "draft",
   },
+  resultsPublished: {
+    type: Boolean,
+    default: false,
+  },
 
   duration: {
     type: Number,

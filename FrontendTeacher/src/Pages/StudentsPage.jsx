@@ -136,7 +136,7 @@ const StudentsPage = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-paper rounded-xl border border-line">
           <div className="flex-1 w-full">
             <p className="text-xs sm:text-sm text-ink-soft mb-1">Class Code</p>
-            <p className="text-xl sm:text-2xl font-mono font-black text-purple-650 dark:text-[#A78BFA]">
+            <p className="text-xl sm:text-2xl font-mono font-black text-violet-600 dark:text-[#A78BFA]">
               {classData?.classCode || 'N/A'}
             </p>
           </div>
@@ -215,7 +215,7 @@ const StudentsPage = () => {
             placeholder="Search students by name or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 sm:pl-10 pr-4 py-2 bg-paper text-ink text-sm sm:text-base border border-line rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-purple-650 focus:bg-surface transition-all"
+            className="w-full pl-9 sm:pl-10 pr-4 py-2 bg-paper text-ink text-sm sm:text-base border border-line rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-violet-600 focus:bg-surface transition-all"
           />
         </div>
       </div>

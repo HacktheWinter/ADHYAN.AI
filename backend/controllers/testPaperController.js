@@ -5,11 +5,76 @@ import Classroom from "../models/Classroom.js";
 import { getBucket } from "../config/gridfs.js";
 import { generateTestPaperFromText, generateTestPaperFromTopics } from "../config/geminiTestPaper.js";
 import {
-  extractTextFromPDF,
-  cleanText,
+  extractTextFromFile,
+  cleanTextFull,
   validateTextContent,
-} from "../utils/pdfExtractor.js";
+} from "../utils/fileExtractor.js";
 import { logActivity } from "../utils/activityTracker.js";
+
+/**
+ * Create test paper manually (teacher enters questions)
+ * POST /api/test-paper/create-manual
+ */
+export const createTestPaperManually = async (req, res) => {
+  try {
+    const { classroomId, title, questions } = req.body;
+    const teacherId = req.user?._id?.toString();
+
+    if (!classroomId) return res.status(400).json({ error: "classroomId is required" });
+    if (!title?.trim()) return res.status(400).json({ error: "Title is required" });
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ error: "At least one question is required" });
+    }
+
+    if (teacherId) {
+      const classroom = await Classroom.findById(classroomId).select("teacherId");
+      if (!classroom) return res.status(404).json({ error: "Classroom not found" });
+      if (classroom.teacherId?.toString() !== teacherId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    }
+
+    // Validate each question
+    for (const q of questions) {
+      if (!q.question?.trim()) return res.status(400).json({ error: "Each question must have text" });
+      if (!q.type || !["short", "medium", "long"].includes(q.type)) {
+        return res.status(400).json({ error: "Each question must have a type (short/medium/long)" });
+      }
+      if (!q.marks || q.marks <= 0) return res.status(400).json({ error: "Each question must have positive marks" });
+      if (!q.answerKey?.trim()) return res.status(400).json({ error: "Each question must have an answer key" });
+    }
+
+    const totalMarks = questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0);
+
+    const testPaper = await TestPaper.create({
+      classroomId,
+      title: title.trim(),
+      questions: questions.map((q) => ({
+        question: q.question.trim(),
+        type: q.type,
+        marks: Number(q.marks),
+        section: q.section || "",
+        answerKey: q.answerKey.trim(),
+        answerGuidelines: q.answerGuidelines || "",
+        choiceLabel: "",
+        choiceGroup: "",
+      })),
+      totalMarks,
+      status: "draft",
+    });
+
+    console.log("Manual test paper created:", testPaper._id);
+
+    res.status(201).json({
+      success: true,
+      message: `Created test paper with ${questions.length} questions`,
+      testPaper,
+    });
+  } catch (error) {
+    console.error("Manual test paper creation failed:", error);
+    res.status(500).json({ error: "Failed to create test paper", details: error.message });
+  }
+};
 
 /**
  * Generate test paper using AI
@@ -158,7 +223,8 @@ export const generateTestPaperWithAI = async (req, res) => {
           });
 
           const buffer = Buffer.concat(chunks);
-          const text = await extractTextFromPDF(buffer);
+          const mimetype = note.mimetype || "application/pdf";
+          const text = await extractTextFromFile(buffer, mimetype);
 
           if (text && text.trim().length > 0) {
             combinedText += `\n\n=== ${note.title} ===\n\n${text}`;
@@ -184,8 +250,8 @@ export const generateTestPaperWithAI = async (req, res) => {
 
       console.log("Content validation passed");
 
-      // Clean text
-      const cleanedText = cleanText(combinedText, 15001);
+      // Clean text — no truncation, chunking is handled in AI layer
+      const cleanedText = cleanTextFull(combinedText);
 
       // Fetch existing questions for this classroom AND same notes to avoid repetition
       const existingPapers = await TestPaper.find({ 

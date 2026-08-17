@@ -56,7 +56,7 @@ const getModel = () => {
   console.log(`Using API Key #${currentKeyIndex + 1}/${API_KEYS.length}`);
 
   return genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-flash-lite",
   });
 };
 
@@ -79,13 +79,29 @@ const generationConfig = {
 };
 
 /**
- *  Generate MCQ Quiz from PDF Text
- * @param {string} extractedText - Text extracted from PDFs
+ * Split text into chunks of approximately `size` characters,
+ * breaking at a space boundary when possible.
+ */
+const chunkText = (text, size = 25000) => {
+  if (text.length <= size) return [text];
+  const chunks = [];
+  let start = 0;
+  while (start < text.length) {
+    let end = Math.min(start + size, text.length);
+    if (end < text.length) {
+      const spaceIdx = text.lastIndexOf(" ", end);
+      if (spaceIdx > start) end = spaceIdx;
+    }
+    chunks.push(text.slice(start, end));
+    start = end;
+  }
+  return chunks;
+};
+
+/**
+ * Generate MCQ Quiz from text (supports large docs via multi-turn chat chunking)
+ * @param {string} extractedText - Text extracted from files
  * @param {object} config - Quiz configuration
- * @param {number} config.questionCount - Number of questions to generate (default 20)
- * @param {number} config.marksPerQuestion - Marks per question (default 1)
- * @param {string} config.difficulty - Difficulty level: easy, medium, hard, mixed (default mixed)
- * @param {string[]} config.excludeQuestions - List of existing questions to avoid
  */
 export const generateQuizFromText = async (extractedText, config = {}) => {
   const questionCount = config.questionCount || 20;
@@ -97,11 +113,12 @@ export const generateQuizFromText = async (extractedText, config = {}) => {
 
   while (attempts < MAX_TRANSIENT_RETRIES) {
     try {
-      console.log("🤖 Preparing Gemini prompt for MCQ Quiz...");
+      console.log("Preparing Gemini prompt for MCQ Quiz...");
       console.log(`Config: ${questionCount} questions, ${marksPerQuestion} marks each, difficulty: ${difficulty}`);
+      console.log(`Full text length: ${extractedText.length} chars`);
 
-      // Limit text to avoid token overflow
-      const limitedText = extractedText.slice(0, 10000);
+      const textChunks = chunkText(extractedText);
+      console.log(`Split into ${textChunks.length} chunk(s)`);
 
       const difficultyInstruction = difficulty === "mixed"
         ? "Mix difficulty levels (easy, medium, hard)"
@@ -111,8 +128,34 @@ export const generateQuizFromText = async (extractedText, config = {}) => {
         ? `\nDO NOT repeat or generate questions similar to these existing ones:\n- ${excludeQuestions.join('\n- ')}\n`
         : "";
 
+      const model = getModel();
+      const chatSession = model.startChat({
+        generationConfig,
+        history: [],
+      });
+
+      // ── Feed chunks to the model ──────────────────────────────
+      if (textChunks.length > 1) {
+        for (let i = 0; i < textChunks.length - 1; i++) {
+          const chunkMsg = `I am providing study material in multiple parts. This is Part ${i + 1} of ${textChunks.length}. Read and memorize this content. Do NOT generate anything yet — just reply with the single word "Understood".\n\nCONTENT PART ${i + 1}:\n${textChunks[i]}`;
+          console.log(`  Sending chunk ${i + 1}/${textChunks.length} (${textChunks[i].length} chars)...`);
+          await chatSession.sendMessage(chunkMsg);
+        }
+      }
+
+      // ── Final prompt (includes the last chunk) ────────────────
+      const lastChunk = textChunks[textChunks.length - 1];
+      const contentHeader = textChunks.length > 1
+        ? `This is the FINAL Part ${textChunks.length} of ${textChunks.length} of the study material. Now you have the complete content. Generate questions from ALL parts combined.\n\nFINAL CONTENT PART:\n${lastChunk}`
+        : `CONTENT:\n${lastChunk}`;
+
       const prompt = `
-You are an expert quiz generator. Generate exactly ${questionCount} multiple-choice questions from the following educational content.
+You are an expert quiz generator.
+
+DYNAMIC GENERATION RULE:
+1. Check the CONTENT provided below. If the CONTENT already contains explicit multiple-choice questions or questions that can easily be converted to MCQs, you MUST extract those EXACT questions and use them as much as possible.
+2. If the CONTENT is just study material without explicit questions, then generate completely new questions based on the concepts.
+Generate exactly ${questionCount} multiple-choice questions.
 
 ${excludeInstruction}
 
@@ -122,8 +165,7 @@ CRITICAL JSON RULES:
 3. Escape all double quotes (\") within question or option text.
 4. Each option and explanation must be a single-line string.
 
-CONTENT:
-${limitedText}
+${contentHeader}
 
 REQUIREMENTS:
 1. Generate EXACTLY ${questionCount} questions
@@ -158,19 +200,12 @@ IMPORTANT:
 - correctAnswer must EXACTLY match one of the options
 `;
 
-      console.log(" Sending request to Gemini...");
-
-      const model = getModel();
-
-      const chatSession = model.startChat({
-        generationConfig,
-        history: [],
-      });
+      console.log("Sending final generation prompt to Gemini...");
 
       const result = await chatSession.sendMessage(prompt);
       const response = result.response.text();
 
-      console.log(" Received response from Gemini");
+      console.log("Received response from Gemini");
 
       // Cleanup
       let cleanedResponse = response.trim();
@@ -188,7 +223,7 @@ IMPORTANT:
       try {
         parsedResponse = JSON.parse(cleanedResponse);
       } catch (err) {
-        console.error("❌ JSON Parse Error:", err.message);
+        console.error("JSON Parse Error:", err.message);
         throw new Error("Invalid JSON response from AI");
       }
 
@@ -242,7 +277,6 @@ IMPORTANT:
           ` Gemini service is temporarily busy (attempt ${attempts}/${MAX_TRANSIENT_RETRIES}). Retrying in ${backoffMs}ms...`
         );
 
-        // Rotate key to spread request load even for transient spikes.
         rotateApiKey();
 
         if (attempts < MAX_TRANSIENT_RETRIES) {
@@ -259,6 +293,7 @@ IMPORTANT:
     "Gemini service is busy right now after multiple retries. Please try again in a minute."
   );
 };
+
 
 /**
  *  Generate MCQ Quiz from Topics (without PDF)

@@ -38,9 +38,10 @@ dotenv.config();
 connectDB();
 
 const staticAllowedOrigins = [
-  "https://adhyanai-teacher.onrender.com",
-  "https://adhyanai-student.onrender.com",
-  "https://adhyanai-principal.onrender.com",
+  "https://teacher.adhyanai.tech",
+  "https://student.adhyanai.tech",
+  "https://principal.adhyanai.tech",
+  "https://adhyanai.tech",
   ...(process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(",").map((origin) => origin.trim())
     : []),
