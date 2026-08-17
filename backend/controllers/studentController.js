@@ -77,13 +77,20 @@ export const registerStudent = async (req, res) => {
 export const loginStudent = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password)
+    console.log(`[Student Login] Attempt for email: ${email}`);
+
+    if (!email || !password) {
+      console.log(`[Student Login] Failed: Email or password missing`);
       return res.status(400).json({ error: "Email and password required" });
+    }
       
     const student = await User.findOne({ email, role: "student" });
+    console.log(`[Student Login] User exists: ${!!student}`);
     if (!student) return res.status(404).json({ error: "Student not found" });
 
+    console.log(`[Student Login] Password hash exists: ${!!student.password}`);
     const isMatch = await bcrypt.compare(password, student.password);
+    console.log(`[Student Login] bcrypt.compare() result: ${isMatch}`);
     if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
 
     const token = jwt.sign(
@@ -91,7 +98,9 @@ export const loginStudent = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
+    console.log(`[Student Login] JWT generation success: ${!!token}`);
 
+    console.log(`[Student Login] Success: Sending final response`);
     res.status(200).json({
       message: "Student login successful",
       token,
@@ -104,7 +113,12 @@ export const loginStudent = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Student Login Error:", err);
+    res.status(500).json({
+      error: "Server error during login",
+      message: err.message,
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined
+    });
   }
 };
 
