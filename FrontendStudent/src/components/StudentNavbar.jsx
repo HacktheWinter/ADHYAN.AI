@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, LogOut, Settings, User, UserPlus, X } from 'lucide-react';
+import { LogIn, LogOut, Settings, User, UserPlus, X, Search, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import NotificationDropdown from './NotificationDropdown';
 import { clearAuth, getStoredUser } from '../utils/authStorage';
@@ -8,6 +8,7 @@ import API_BASE_URL, { LANDING_PAGE_URL } from '../config';
 
 export default function StudentNavbar({ searchQuery = '', onSearchChange = () => {} }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [user, setUser] = useState(null);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -91,61 +92,92 @@ export default function StudentNavbar({ searchQuery = '', onSearchChange = () =>
       <nav className="bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm sticky top-0 z-50 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
-            <a 
-              href={LANDING_PAGE_URL}
-              className="flex items-center space-x-1 focus:outline-none"
-            >
-              <img 
-                src="/logo02.png" 
-                alt="ADHYAN.AI Logo" 
-                className="w-16 object-contain"
-              />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">ADHYAN.AI</h1>
-                <p className="text-sm text-gray-500">Student Panel</p>
-              </div>
-            </a>
-
-            <div className="flex-1 max-w-2xl mx-8">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search your courses..."
-                  className="w-full px-4 py-2 pl-10 pr-4 text-gray-700 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:bg-white"
-                  value={searchQuery}
-                  onChange={(e) => handleSearchInput(e.target.value)}
-                  onClick={handleSearchClick}
-                  aria-label="Search courses"
-                />
-                <svg
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+            {isMobileSearchOpen ? (
+              <div className="flex items-center w-full gap-2">
+                <button
+                  onClick={() => setIsMobileSearchOpen(false)}
+                  className="p-2 text-gray-600 hover:text-gray-900 focus:outline-none rounded-full hover:bg-gray-100 transition-colors"
+                  aria-label="Back"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Search your courses..."
+                    className="w-full px-4 py-2 pl-10 pr-10 text-gray-700 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:bg-white"
+                    value={searchQuery}
+                    onChange={(e) => handleSearchInput(e.target.value)}
+                    onClick={handleSearchClick}
+                    autoFocus
                   />
-                </svg>
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={clearSearch}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
-                    aria-label="Clear search"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={clearSearch}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <a 
+                  href={LANDING_PAGE_URL}
+                  className="flex items-center space-x-1 focus:outline-none"
+                >
+                  <img 
+                    src="/logo02.png" 
+                    alt="ADHYAN.AI Logo" 
+                    className="w-16 object-contain"
+                  />
+                  <div className="hidden sm:block">
+                    <h1 className="text-xl font-bold text-gray-900 leading-tight">ADHYAN.AI</h1>
+                    <p className="text-sm text-gray-500 leading-tight">Student Panel</p>
+                  </div>
+                </a>
 
-            <div className="flex items-center gap-4">
-              {/* Notification Dropdown */}
-              <NotificationDropdown />
+                {/* Desktop Search */}
+                <div className="hidden md:block flex-1 max-w-2xl mx-8">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search your courses..."
+                      className="w-full px-4 py-2 pl-10 pr-10 text-gray-700 bg-gray-50 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all hover:bg-white"
+                      value={searchQuery}
+                      onChange={(e) => handleSearchInput(e.target.value)}
+                      onClick={handleSearchClick}
+                      aria-label="Search courses"
+                    />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={clearSearch}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
+                        aria-label="Clear search"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-4">
+                  {/* Mobile Search Icon */}
+                  <button
+                    onClick={() => setIsMobileSearchOpen(true)}
+                    className="md:hidden p-2 text-gray-600 hover:text-gray-900 focus:outline-none rounded-full hover:bg-gray-100 transition-colors"
+                    aria-label="Search"
+                  >
+                    <Search className="w-5 h-5" />
+                  </button>
+
+                  {/* Notification Dropdown */}
+                  <NotificationDropdown />
             
               {/* Profile Dropdown */}
               <div className="relative" ref={dropdownRef}>
@@ -231,7 +263,9 @@ export default function StudentNavbar({ searchQuery = '', onSearchChange = () =>
                   )}
                 </AnimatePresence>
               </div>
-            </div>
+              </div>
+              </>
+            )}
           </div>
         </div>
       </nav>
