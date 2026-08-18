@@ -4,12 +4,12 @@ const API_BASE_URL =
     : "https://adhyanai.tech/api";
 
 export const LANDING_PAGE_URL =
-  import.meta.env.VITE_LANDING_PAGE_URL || "https://adhyan-ai.onrender.com/";
+  import.meta.env.VITE_LANDING_PAGE_URL || "https://adhyanai.tech/";
 
 export const PRINCIPAL_FRONTEND_URL =
   window.location.hostname === "localhost"
     ? window.location.origin
-    : "https://adhyanai-principal.onrender.com";
+    : "https://principal.adhyanai.tech";
 
 export const TEACHER_FRONTEND_URL =
   window.location.hostname === "localhost"
