@@ -3,8 +3,8 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Wand2 } from 'lucide-react';
 
 const FinalCTA = () => {
-  const STUDENT_URL = import.meta.env.VITE_STUDENT_URL || "https://adhyanai-student.onrender.com/";
-  const TEACHER_URL = import.meta.env.VITE_TEACHER_URL || "https://adhyanai-teacher.onrender.com/";
+  const STUDENT_URL = import.meta.env.VITE_STUDENT_URL || "https://student.adhyanai.tech/";
+  const TEACHER_URL = import.meta.env.VITE_TEACHER_URL || "https://teacher.adhyanai.tech/login";
 
   return (
     <section className="py-24 relative overflow-hidden">
