@@ -44,6 +44,22 @@ const getAuthorizedQuizSubmissionForTeacher = async (req, submissionId) => {
   return submission;
 };
 
+const finalizeExpiredDrafts = async (quizId) => {
+  try {
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) return;
+    
+    if (quiz.endTime && new Date() > new Date(quiz.endTime)) {
+      await QuizSubmission.updateMany(
+        { quizId, isDraft: true },
+        { $set: { isDraft: false, submittedAt: new Date() } }
+      );
+    }
+  } catch (error) {
+    console.error("Error finalizing expired drafts:", error);
+  }
+};
+
 /**
  * Submit quiz answers and auto-grade
  * POST /api/quiz-submission/submit
@@ -75,20 +91,34 @@ export const submitQuiz = async (req, res) => {
     const quiz = await getAuthorizedQuizForStudent(req, quizId);
     const student = req.user;
 
-    // Check if already submitted
-    const existingSubmission = await QuizSubmission.findOne({
+    // Check if already submitted (and not a draft)
+    let existingSubmission = await QuizSubmission.findOne({
       quizId,
       studentId,
     });
-    if (existingSubmission) {
+    
+    if (existingSubmission && !existingSubmission.isDraft) {
       return res.status(400).json({
         error: "Quiz already submitted",
         submission: existingSubmission,
       });
     }
 
-    // REMOVED: Time expiry check - allow submission anytime
-    // Students can submit even after deadline (for partial/auto-submit cases)
+    const now = new Date();
+    
+    if (quiz.startTime && now < new Date(quiz.startTime)) {
+      return res.status(403).json({ error: "Quiz has not started yet." });
+    }
+
+    if (quiz.endTime) {
+      const endTime = new Date(quiz.endTime);
+      // Give a 2-minute grace period for network latency on auto-submit
+      endTime.setMinutes(endTime.getMinutes() + 2);
+      
+      if (now > endTime) {
+        return res.status(403).json({ error: "Quiz time has expired. Submissions are no longer accepted." });
+      }
+    }
 
     // Auto-grade answers (handle unanswered questions)
     let correctCount = 0;
@@ -128,17 +158,28 @@ export const submitQuiz = async (req, res) => {
         ? ((correctCount / totalQuestions) * 100).toFixed(2)
         : 0;
 
-    // Save submission
-    const submission = await QuizSubmission.create({
-      quizId,
-      studentId,
-      studentName: student.name,
-      answers: gradedAnswers,
-      score: correctCount,
-      totalQuestions,
-      percentage: parseFloat(percentage),
-      submittedAt: new Date(),
-    });
+    // Save or update submission
+    let submission;
+    if (existingSubmission) {
+      existingSubmission.answers = gradedAnswers;
+      existingSubmission.score = correctCount;
+      existingSubmission.percentage = parseFloat(percentage);
+      existingSubmission.submittedAt = new Date();
+      existingSubmission.isDraft = false;
+      submission = await existingSubmission.save();
+    } else {
+      submission = await QuizSubmission.create({
+        quizId,
+        studentId,
+        studentName: student.name,
+        answers: gradedAnswers,
+        score: correctCount,
+        totalQuestions,
+        percentage: parseFloat(percentage),
+        submittedAt: new Date(),
+        isDraft: false,
+      });
+    }
 
     console.log("Quiz graded and saved:", {
       score: `${correctCount}/${totalQuestions}`,
@@ -169,6 +210,90 @@ export const submitQuiz = async (req, res) => {
 };
 
 /**
+ * Autosave quiz answers (Draft)
+ * POST /api/quiz-submission/autosave
+ */
+export const autosaveQuiz = async (req, res) => {
+  try {
+    const { quizId, studentId: requestedStudentId, answers } = req.body;
+    const studentId = getRequestUserId(req);
+
+    if (!quizId || !answers || !Array.isArray(answers)) {
+      return res.status(400).json({ error: "quizId and answers array are required" });
+    }
+
+    ensureUserMatchesId(requestedStudentId, studentId, "You can only save your own quizzes.");
+
+    const quiz = await getAuthorizedQuizForStudent(req, quizId);
+    const student = req.user;
+
+    const existingSubmission = await QuizSubmission.findOne({ quizId, studentId });
+    if (existingSubmission && !existingSubmission.isDraft) {
+      return res.status(400).json({ error: "Quiz already submitted" });
+    }
+
+    const now = new Date();
+    if (quiz.startTime && now < new Date(quiz.startTime)) {
+      return res.status(403).json({ error: "Quiz has not started yet." });
+    }
+    if (quiz.endTime && now > new Date(quiz.endTime)) {
+      return res.status(403).json({ error: "Quiz time has expired." });
+    }
+
+    let correctCount = 0;
+    const gradedAnswers = answers.map((studentAnswer) => {
+      const question = quiz.questions.find((q) => q._id.toString() === studentAnswer.questionId);
+      if (!question) {
+        return {
+          questionId: studentAnswer.questionId,
+          selectedAnswer: studentAnswer.selectedAnswer || "",
+          correctAnswer: "N/A",
+          isCorrect: false,
+        };
+      }
+      const selectedAnswer = studentAnswer.selectedAnswer || "";
+      const isCorrect = selectedAnswer !== "" && selectedAnswer === question.correctAnswer;
+      if (isCorrect) correctCount++;
+      return {
+        questionId: studentAnswer.questionId,
+        selectedAnswer: selectedAnswer,
+        correctAnswer: question.correctAnswer,
+        isCorrect,
+      };
+    });
+
+    const totalQuestions = quiz.questions.length;
+    const percentage = totalQuestions > 0 ? ((correctCount / totalQuestions) * 100).toFixed(2) : 0;
+
+    if (existingSubmission) {
+      existingSubmission.answers = gradedAnswers;
+      existingSubmission.score = correctCount;
+      existingSubmission.percentage = parseFloat(percentage);
+      existingSubmission.submittedAt = new Date();
+      existingSubmission.isDraft = true;
+      await existingSubmission.save();
+    } else {
+      await QuizSubmission.create({
+        quizId,
+        studentId,
+        studentName: student.name,
+        answers: gradedAnswers,
+        score: correctCount,
+        totalQuestions,
+        percentage: parseFloat(percentage),
+        submittedAt: new Date(),
+        isDraft: true,
+      });
+    }
+
+    res.status(200).json({ success: true, message: "Draft saved successfully" });
+  } catch (error) {
+    console.error("Autosave error:", error);
+    res.status(error.statusCode || 500).json({ error: "Failed to autosave quiz" });
+  }
+};
+
+/**
  * Get student's quiz result
  * GET /api/quiz-submission/result/:quizId/:studentId
  */
@@ -184,10 +309,13 @@ export const getQuizResult = async (req, res) => {
     );
 
     const quiz = await getAuthorizedQuizForStudent(req, quizId);
+    
+    await finalizeExpiredDrafts(quizId);
 
     const submission = await QuizSubmission.findOne({
       quizId,
       studentId,
+      isDraft: false
     }).populate("quizId", "title questions resultsPublished");
 
     if (!submission) {
@@ -230,7 +358,9 @@ export const checkSubmission = async (req, res) => {
 
     const quiz = await getAuthorizedQuizForStudent(req, quizId);
 
-    const submission = await QuizSubmission.findOne({ quizId, studentId });
+    await finalizeExpiredDrafts(quizId);
+
+    const submission = await QuizSubmission.findOne({ quizId, studentId, isDraft: false });
 
     res.status(200).json({
       hasSubmitted: !!submission,
@@ -251,8 +381,10 @@ export const getQuizSubmissions = async (req, res) => {
   try {
     const { quizId } = req.params;
     await getAuthorizedQuizForTeacher(req, quizId);
+    
+    await finalizeExpiredDrafts(quizId);
 
-    const submissions = await QuizSubmission.find({ quizId })
+    const submissions = await QuizSubmission.find({ quizId, isDraft: false })
       .populate("studentId", "name email profilePhoto")
       .populate("quizId", "title questions status classroomId")
       .sort({ submittedAt: -1 });
@@ -272,8 +404,19 @@ export const getSubmissionById = async (req, res) => {
     const { submissionId } = req.params;
 
     const submission = await getAuthorizedQuizSubmissionForTeacher(req, submissionId);
+    
+    await finalizeExpiredDrafts(submission.quizId._id);
+    
+    // Check again in case it was a draft and we finalized it
+    const updatedSubmission = await QuizSubmission.findOne({ _id: submissionId, isDraft: false })
+      .populate("studentId", "name email profilePhoto")
+      .populate("quizId", "title questions classroomId");
+      
+    if (!updatedSubmission) {
+      return res.status(404).json({ error: "Final submission not found" });
+    }
 
-    res.status(200).json({ submission });
+    res.status(200).json({ submission: updatedSubmission });
   } catch (error) {
     console.error("Error fetching submission:", error);
     res.status(error.statusCode || 500).json({ error: error.message || "Server error" });

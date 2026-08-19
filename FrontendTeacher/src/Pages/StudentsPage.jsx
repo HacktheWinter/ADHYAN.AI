@@ -9,7 +9,8 @@ import {
   UserCheck,
   Copy,
   Check,
-  UserMinus
+  UserMinus,
+  Hash
 } from 'lucide-react';
 import API_BASE_URL from '../config';
 
@@ -45,13 +46,14 @@ const StudentsPage = () => {
     }
 
     const csvContent = [
-      ['Name', 'Email', 'Joined Date', activeTab === 'left' ? 'Left Date' : ''],
+      ['Name', 'Email', 'ERP ID', 'Joined Date', activeTab === 'left' ? 'Left Date' : ''],
       ...studentsToExport.map((student, index) => {
         const studentData = activeTab === 'left' ? student : student;
         const leftDate = activeTab === 'left' ? new Date(leftStudents[index].leftAt).toLocaleDateString() : '';
         return [
           studentData.name,
           studentData.email,
+          studentData.erpId || 'N/A',
           new Date(studentData.createdAt).toLocaleDateString(),
           leftDate
         ];
@@ -304,6 +306,11 @@ const StudentsPage = () => {
                       </div>
                       
                       <div className="flex items-center gap-1">
+                        <Hash className="w-3.5 h-3.5 flex-shrink-0 text-violet-dark" />
+                        <span className="truncate font-semibold uppercase">{student.erpId || 'No ERP ID'}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 flex-shrink-0 text-purple-600 dark:text-[#A78BFA]" />
                         <span>
                           Joined {new Date(student.createdAt).toLocaleDateString('en-US', {
@@ -377,6 +384,11 @@ const StudentsPage = () => {
                       <div className="flex items-center gap-1">
                         <Mail className="w-3.5 h-3.5 flex-shrink-0 text-violet-dark" />
                         <span className="truncate">{student.email}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-1">
+                        <Hash className="w-3.5 h-3.5 flex-shrink-0 text-violet-dark" />
+                        <span className="truncate font-semibold uppercase">{student.erpId || 'No ERP ID'}</span>
                       </div>
                       
                       <div className="flex items-center gap-1">
