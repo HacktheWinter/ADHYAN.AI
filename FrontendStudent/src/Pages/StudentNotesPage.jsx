@@ -48,11 +48,11 @@ const StudentNotesPage = () => {
                     note.title?.toLowerCase().match(/\.(xls|xlsx)$/);
 
     if (isWord) {
-      const url = `${API_BASE_URL}/notes/file/${note.fileId}`;
+      const url = note.fileUrl || `${API_BASE_URL}/notes/file/${note.fileId}`;
       const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}`;
       window.open(viewerUrl, "_blank");
     } else if (isExcel) {
-      const url = `${API_BASE_URL}/notes/file/${note.fileId}`;
+      const url = note.fileUrl || `${API_BASE_URL}/notes/file/${note.fileId}`;
       const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
       window.open(viewerUrl, "_blank");
     } else {
@@ -65,7 +65,7 @@ const StudentNotesPage = () => {
   };
 
   const handleDownload = (note) => {
-    const url = `${API_BASE_URL}/notes/file/${note.fileId}`;
+    const url = note.fileUrl || `${API_BASE_URL}/notes/file/${note.fileId}`;
     window.open(url, "_blank");
   };
 
@@ -173,7 +173,7 @@ const StudentNotesPage = () => {
       {previewNote && (
 
         <PdfPreview
-          url={`${API_BASE_URL}/notes/file/${previewNote.fileId}`}
+          url={previewNote.fileUrl || `${API_BASE_URL}/notes/file/${previewNote.fileId}`}
           title={previewNote.title}
           onClose={closePreview}
         />

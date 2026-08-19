@@ -7,6 +7,7 @@ import {
   createHttpError,
   getAuthorizedClassroomForTeacher,
 } from "../utils/accessControl.js";
+import axios from "axios";
 
 const readFileFromGridFS = (bucket, fileId) =>
   new Promise((resolve, reject) => {
@@ -74,14 +75,18 @@ export const generateQuestionBank = async (req, res) => {
         .json({ error: "Database connection not ready. Please try again." });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(note.fileId)) {
-      throw createHttpError(400, "Invalid note file reference");
+    let buffer;
+    if (note.fileUrl) {
+      const response = await axios.get(note.fileUrl, { responseType: 'arraybuffer' });
+      buffer = Buffer.from(response.data);
+    } else if (note.fileId && mongoose.Types.ObjectId.isValid(note.fileId)) {
+      buffer = await readFileFromGridFS(
+        bucket,
+        new mongoose.Types.ObjectId(note.fileId)
+      );
+    } else {
+      throw createHttpError(400, "Invalid note file reference (no url or valid id)");
     }
-
-    const buffer = await readFileFromGridFS(
-      bucket,
-      new mongoose.Types.ObjectId(note.fileId)
-    );
     const extractedText = await extractTextFromPDF(buffer);
     const cleanedText = cleanText(extractedText, 2);
     const segments = buildQuestionSegments(cleanedText);

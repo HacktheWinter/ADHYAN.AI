@@ -12,6 +12,7 @@ import {
   cleanTextFull,
   validateTextContent,
 } from "../utils/fileExtractor.js";
+import axios from "axios";
 
 /**
  * Create assignment manually (teacher enters questions)
@@ -181,17 +182,27 @@ export const generateAssignmentWithAI = async (req, res) => {
         try {
           console.log(`Processing: ${note.title}`);
 
-          const fileId = new mongoose.Types.ObjectId(note.fileId);
-          const chunks = [];
-          const readstream = bucket.openDownloadStream(fileId);
+          let buffer;
+          if (note.fileUrl) {
+            console.log(`Fetching from Cloudinary URL`);
+            const response = await axios.get(note.fileUrl, { responseType: 'arraybuffer' });
+            buffer = Buffer.from(response.data);
+          } else if (note.fileId) {
+            const fileId = new mongoose.Types.ObjectId(note.fileId);
+            const chunks = [];
+            const readstream = bucket.openDownloadStream(fileId);
 
-          await new Promise((resolve, reject) => {
-            readstream.on("data", (chunk) => chunks.push(chunk));
-            readstream.on("error", reject);
-            readstream.on("end", resolve);
-          });
+            await new Promise((resolve, reject) => {
+              readstream.on("data", (chunk) => chunks.push(chunk));
+              readstream.on("error", reject);
+              readstream.on("end", resolve);
+            });
 
-          const buffer = Buffer.concat(chunks);
+            buffer = Buffer.concat(chunks);
+          } else {
+            console.log(`No file source for ${note.title}`);
+            continue;
+          }
           const mimetype = note.mimetype || "application/pdf";
           const text = await extractTextFromFile(buffer, mimetype);
 

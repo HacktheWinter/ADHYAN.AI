@@ -20,7 +20,7 @@ const PhysicalTestUploadPage = () => {
 
   // Step 1: Test Details
   const [testTitle, setTestTitle] = useState("");
-  const [totalMarks, setTotalMarks] = useState("");
+  const [totalMarks, setTotalMarks] = useState(0);
 
   // Step 2: Question Card
   const [questionCard, setQuestionCard] = useState(null);
@@ -38,6 +38,7 @@ const PhysicalTestUploadPage = () => {
   // Step 4: Student Papers
   const [studentFiles, setStudentFiles] = useState([]);
   const papersInputRef = useRef(null);
+  const step4Ref = useRef(null);
 
   // Status
   const [uploading, setUploading] = useState(false);
@@ -59,14 +60,18 @@ const PhysicalTestUploadPage = () => {
   // ── Step 2→3: Generate Answer Key ─────────────────────────────────
   const handleGenerateAnswerKey = async () => {
     setError("");
-    if (!testTitle.trim()) return setError("Please enter a test title first.");
-    if (!totalMarks || isNaN(totalMarks) || Number(totalMarks) <= 0) return setError("Please enter valid total marks.");
+    if (!testTitle.trim()) return setError("Please enter an examination option/title first.");
     if (!questionCard) return setError("Please upload the question card PDF.");
 
     setExtracting(true);
     try {
-      const data = await extractAnswerKeyFromPDF(classId, testTitle.trim(), totalMarks, questionCard);
+      const data = await extractAnswerKeyFromPDF(classId, testTitle.trim(), 100, questionCard);
       setExtractedQuestions(data.questions || []);
+      
+      // Calculate total marks based on extracted questions or use AI's total
+      const calculatedTotalMarks = data.totalMarks || (data.questions || []).reduce((acc, q) => acc + (q.marks || 0), 0);
+      setTotalMarks(calculatedTotalMarks);
+      
       setQuestionCardFileId(data.questionCardFileId || "");
       setQuestionCardFileName(data.questionCardFileName || "");
       setSubject(data.subject || "");
@@ -147,10 +152,14 @@ const PhysicalTestUploadPage = () => {
     }
 
     try {
+      // Recalculate total marks right before confirmation in case teacher edited marks
+      const finalTotalMarks = extractedQuestions.reduce((acc, q) => acc + (q.marks || 0), 0);
+      setTotalMarks(finalTotalMarks);
+
       await confirmAnswerKeyAPI({
         classId,
         testTitle: testTitle.trim(),
-        totalMarks,
+        totalMarks: finalTotalMarks,
         questionCardFileId,
         questionCardFileName,
         questions: extractedQuestions,
@@ -159,6 +168,11 @@ const PhysicalTestUploadPage = () => {
       setCurrentStep(4);
       setSuccessMsg("Answer key confirmed! You can now upload student papers.");
       setTimeout(() => setSuccessMsg(""), 4000);
+      
+      // Auto-scroll to step 4
+      setTimeout(() => {
+        step4Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to confirm answer key.");
     }
@@ -309,7 +323,7 @@ const PhysicalTestUploadPage = () => {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">Test Title <span className="text-rose-500">*</span></label>
+              <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">Examination Option / Title <span className="text-rose-500">*</span></label>
               <input
                 type="text"
                 value={testTitle}
@@ -319,20 +333,8 @@ const PhysicalTestUploadPage = () => {
                 className="w-full border border-line bg-paper text-ink rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-violet-dark outline-none disabled:opacity-60 disabled:bg-line"
               />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">Total Marks <span className="text-rose-500">*</span></label>
-              <input
-                type="number"
-                value={totalMarks}
-                onChange={e => { setTotalMarks(e.target.value); if (currentStep > 1 && !answerKeyConfirmed) setCurrentStep(1); }}
-                placeholder="e.g. 100"
-                min="1"
-                disabled={answerKeyConfirmed}
-                className="w-full border border-line bg-paper text-ink rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-violet-dark outline-none disabled:opacity-60 disabled:bg-line"
-              />
-            </div>
           </div>
-          {currentStep === 1 && testTitle.trim() && totalMarks && (
+          {currentStep === 1 && testTitle.trim() && (
             <button
               onClick={() => setCurrentStep(2)}
               className="mt-4 px-5 py-2.5 btn-settings-blue text-sm rounded-xl font-bold transition cursor-pointer"
@@ -419,6 +421,7 @@ const PhysicalTestUploadPage = () => {
             </h2>
             <p className="text-xs text-ink-soft mb-4 ml-8">
               {subject && <span className="font-bold text-violet-dark">Subject: {subject} · </span>}
+              <span className="font-bold text-ink">Total Marks: {totalMarks} · </span>
               {extractedQuestions.length} question(s) extracted · Click any question to edit its rubric
             </p>
 
@@ -597,14 +600,14 @@ const PhysicalTestUploadPage = () => {
               })}
             </div>
 
-            {/* Confirm Button */}
+            {/* Next Button — confirms answer key and moves to Step 4 */}
             {!answerKeyConfirmed && currentStep === 3 && (
               <button
                 onClick={handleConfirmAnswerKey}
-                className="w-full mt-4 flex items-center justify-center gap-2 py-3 bg-green-650 hover:bg-green-750 text-white font-bold rounded-xl transition cursor-pointer text-sm shadow-md"
+                className="w-full mt-5 flex items-center justify-center gap-2 py-3.5 btn-settings-blue font-bold rounded-xl transition cursor-pointer text-sm shadow-lg"
               >
                 <CheckCircle className="w-5 h-5" />
-                Confirm Answer Key & Proceed
+                Next → Upload Student Copies
               </button>
             )}
 
@@ -620,7 +623,7 @@ const PhysicalTestUploadPage = () => {
         {/* ═══════════════════════════════════════════════════════════════
             STEP 4 — Upload Student Papers (LOCKED until answer key confirmed)
         ═══════════════════════════════════════════════════════════════ */}
-        <div className={`bg-surface rounded-2xl border border-line p-6 shadow-sm mb-5 transition-all ${
+        <div ref={step4Ref} className={`bg-surface rounded-2xl border border-line p-6 shadow-sm mb-5 transition-all ${
           !answerKeyConfirmed ? "opacity-50" : currentStep === 4 ? "ring-2 ring-violet-dark" : ""
         }`}>
           <h2 className="text-base font-semibold font-display text-ink mb-1 flex items-center gap-2">
