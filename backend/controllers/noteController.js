@@ -8,6 +8,7 @@ import { getBucket } from "../config/gridfs.js";
 import { sendNoteUploadedEmails } from "../utils/emailNotifications.js";
 import { logActivity } from "../utils/activityTracker.js";
 import { ALLOWED_MIMETYPES } from "../utils/fileExtractor.js";
+import cloudinary from "../config/cloudinary.js";
 
 // Multer setup for GridFS (memory storage for streaming to bucket)
 const storage = multer.memoryStorage();
@@ -66,138 +67,137 @@ export const uploadNote = [
         return res.status(403).json({ message: "Unauthorized to upload notes for this class" });
       }
 
-      // Upload file to GridFS
-      const uploadStream = bucket.openUploadStream(req.file.originalname, {
-        contentType: req.file.mimetype,
-      });
+      // Upload file to Cloudinary
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { resource_type: "auto", folder: "notes" },
+        async (err, result) => {
+          if (err) {
+            console.error("Cloudinary Upload Error:", err);
+            return res.status(500).json({
+              message: "Error uploading file",
+              error: err.message,
+            });
+          }
 
-      const fileId = uploadStream.id;
+          try {
+            const note = await Note.create({
+              title,
+              uploadedBy,
+              classroomId,
+              fileUrl: result.secure_url,
+              cloudinaryId: result.public_id,
+              mimetype: req.file.mimetype,
+            });
+
+            res.status(201).json({
+              message: "Note uploaded successfully",
+              note,
+            });
+
+            void logActivity({
+              actorId: req.user?._id,
+              actorRole: "teacher",
+              classroomId: classroom._id,
+              action: "note_uploaded",
+              entityType: "note",
+              entityId: note._id,
+              meta: {
+                className: classroom.subject?.trim() || classroom.name,
+                noteTitle: note.title,
+              },
+            });
+
+            // Email notification to students (non-blocking)
+            void (async () => {
+              try {
+                let populatedClassroom = null;
+
+                if (mongoose.Types.ObjectId.isValid(classroomId)) {
+                  populatedClassroom = await Classroom.findById(classroomId)
+                    .populate("students", "name email settings")
+                    .populate("teacherId", "name");
+                }
+
+                if (!populatedClassroom) {
+                  populatedClassroom = await Classroom.findOne({ classCode: classroomId })
+                    .populate("students", "name email settings")
+                    .populate("teacherId", "name");
+                }
+
+                if (!populatedClassroom) {
+                  console.log(
+                    `[Email] Note notification skipped - classroom not found for ${classroomId}`
+                  );
+                  return;
+                }
+
+                let students = (populatedClassroom.students || [])
+                  .filter((student) => student?.email && student?.settings?.emailNotifications === true)
+                  .map((student) => ({ name: student.name, email: student.email }));
+
+                // Fallback: resolve users by raw ObjectIds if populate did not return docs.
+                if (students.length === 0 && Array.isArray(populatedClassroom.students) && populatedClassroom.students.length > 0) {
+                  const studentIds = populatedClassroom.students
+                    .map((student) => student?._id || student)
+                    .filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+                  if (studentIds.length > 0) {
+                    const studentDocs = await User.find({
+                      _id: { $in: studentIds },
+                      role: "student",
+                      "settings.emailNotifications": true,
+                    }).select("name email");
+
+                    students = studentDocs
+                      .filter((student) => student?.email)
+                      .map((student) => ({ name: student.name, email: student.email }));
+                  }
+                }
+
+                if (students.length === 0) {
+                  console.log(
+                    `[Email] Note notification skipped - no student emails in class ${populatedClassroom._id}. studentsCount=${populatedClassroom.students?.length || 0}`
+                  );
+                  return;
+                }
+
+                let teacherName = "Your teacher";
+
+                // Frontend currently sends uploadedBy as teacher name string.
+                if (uploadedBy && mongoose.Types.ObjectId.isValid(uploadedBy)) {
+                  const uploader = await User.findById(uploadedBy).select("name");
+                  teacherName = uploader?.name || teacherName;
+                } else if (uploadedBy && typeof uploadedBy === "string") {
+                  teacherName = uploadedBy.trim() || teacherName;
+                } else if (populatedClassroom.teacherId?.name) {
+                  teacherName = populatedClassroom.teacherId.name;
+                }
+
+                const className =
+                  populatedClassroom.subject?.trim() || populatedClassroom.name;
+                const result = await sendNoteUploadedEmails({
+                  students,
+                  className,
+                  noteTitle: title,
+                  teacherName,
+                });
+
+                console.log(
+                  `[Email] Note notifications sent: ${result.sent}/${result.total} (failed: ${result.failed}, skipped: ${result.skipped || 0})`
+                );
+              } catch (emailError) {
+                console.error("[Email] Note upload notification failed:", emailError.message);
+              }
+            })();
+          } catch (dbError) {
+            console.error("Database Error after Cloudinary upload:", dbError);
+            res.status(500).json({ message: "File uploaded but database record failed" });
+          }
+        }
+      );
 
       uploadStream.end(req.file.buffer);
 
-      uploadStream.on("finish", async () => {
-        try {
-          const note = await Note.create({
-            title,
-            uploadedBy,
-            classroomId,
-            fileId: fileId,
-            mimetype: req.file.mimetype,
-          });
-
-          res.status(201).json({
-            message: "Note uploaded successfully",
-            note,
-          });
-
-          void logActivity({
-            actorId: req.user?._id,
-            actorRole: "teacher",
-            classroomId: classroom._id,
-            action: "note_uploaded",
-            entityType: "note",
-            entityId: note._id,
-            meta: {
-              className: classroom.subject?.trim() || classroom.name,
-              noteTitle: note.title,
-            },
-          });
-
-          // Email notification to students (non-blocking)
-          void (async () => {
-            try {
-              let populatedClassroom = null;
-
-              if (mongoose.Types.ObjectId.isValid(classroomId)) {
-                populatedClassroom = await Classroom.findById(classroomId)
-                  .populate("students", "name email settings")
-                  .populate("teacherId", "name");
-              }
-
-              if (!populatedClassroom) {
-                populatedClassroom = await Classroom.findOne({ classCode: classroomId })
-                  .populate("students", "name email settings")
-                  .populate("teacherId", "name");
-              }
-
-              if (!populatedClassroom) {
-                console.log(
-                  `[Email] Note notification skipped - classroom not found for ${classroomId}`
-                );
-                return;
-              }
-
-              let students = (populatedClassroom.students || [])
-                .filter((student) => student?.email && student?.settings?.emailNotifications === true)
-                .map((student) => ({ name: student.name, email: student.email }));
-
-              // Fallback: resolve users by raw ObjectIds if populate did not return docs.
-              if (students.length === 0 && Array.isArray(populatedClassroom.students) && populatedClassroom.students.length > 0) {
-                const studentIds = populatedClassroom.students
-                  .map((student) => student?._id || student)
-                  .filter((id) => mongoose.Types.ObjectId.isValid(id));
-
-                if (studentIds.length > 0) {
-                  const studentDocs = await User.find({
-                    _id: { $in: studentIds },
-                    role: "student",
-                    "settings.emailNotifications": true,
-                  }).select("name email");
-
-                  students = studentDocs
-                    .filter((student) => student?.email)
-                    .map((student) => ({ name: student.name, email: student.email }));
-                }
-              }
-
-              if (students.length === 0) {
-                console.log(
-                  `[Email] Note notification skipped - no student emails in class ${populatedClassroom._id}. studentsCount=${populatedClassroom.students?.length || 0}`
-                );
-                return;
-              }
-
-              let teacherName = "Your teacher";
-
-              // Frontend currently sends uploadedBy as teacher name string.
-              if (uploadedBy && mongoose.Types.ObjectId.isValid(uploadedBy)) {
-                const uploader = await User.findById(uploadedBy).select("name");
-                teacherName = uploader?.name || teacherName;
-              } else if (uploadedBy && typeof uploadedBy === "string") {
-                teacherName = uploadedBy.trim() || teacherName;
-              } else if (populatedClassroom.teacherId?.name) {
-                teacherName = populatedClassroom.teacherId.name;
-              }
-
-              const className =
-                populatedClassroom.subject?.trim() || populatedClassroom.name;
-              const result = await sendNoteUploadedEmails({
-                students,
-                className,
-                noteTitle: title,
-                teacherName,
-              });
-
-              console.log(
-                `[Email] Note notifications sent: ${result.sent}/${result.total} (failed: ${result.failed}, skipped: ${result.skipped || 0})`
-              );
-            } catch (emailError) {
-              console.error("[Email] Note upload notification failed:", emailError.message);
-            }
-          })();
-        } catch (dbError) {
-          console.error("Database Error after GridFS upload:", dbError);
-          res.status(500).json({ message: "File uploaded but database record failed" });
-        }
-      });
-
-      uploadStream.on("error", (err) => {
-        console.error("GridFS Upload Error:", err);
-        res.status(500).json({
-          message: "Error uploading file",
-          error: err.message,
-        });
-      });
     } catch (error) {
       console.error("Upload Note Error:", error);
       res.status(500).json({
@@ -302,12 +302,21 @@ export const deleteNote = async (req, res) => {
       });
     }
 
-    // Delete file from GridFS
+    // Delete file from Cloudinary or GridFS
     try {
-      await bucket.delete(new mongoose.Types.ObjectId(note.fileId));
-    } catch (gridFsError) {
-      console.error("GridFS delete error:", gridFsError);
-      // Continue even if GridFS delete fails (maybe file already gone)
+      if (note.cloudinaryId) {
+        // Need to pass resource_type: "raw" for non-images sometimes, but "auto" doesn't exist for destroy.
+        // Usually 'image', 'video', 'raw' are the options. By default, raw files uploaded with resource_type: auto 
+        // will be stored as raw if they aren't images/videos. Let's try to delete as raw if it's pdf/word/excel.
+        const isRaw = !note.mimetype.startsWith('image/') && !note.mimetype.startsWith('video/');
+        await cloudinary.uploader.destroy(note.cloudinaryId, { resource_type: isRaw ? "raw" : "image" });
+      } else if (note.fileId && bucket) {
+        // Fallback for older GridFS notes
+        await bucket.delete(new mongoose.Types.ObjectId(note.fileId));
+      }
+    } catch (fileError) {
+      console.error("File deletion error:", fileError);
+      // Continue even if file deletion fails
     }
 
     // Delete note from database

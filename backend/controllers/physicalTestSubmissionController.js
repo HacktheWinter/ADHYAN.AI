@@ -171,6 +171,8 @@ Generate marking schemes appropriate to the mark allocation:
 - 5 mark questions: typically 1-2 marks definition + 2-3 marks explanation + 1 mark example
 - 10 mark questions: 2 marks definition + 5 marks detailed explanation + 2 marks diagram/equation + 1 mark conclusion
 
+IMPORTANT FOR TOTAL MARKS: Calculate the "totalMarks" by summing up the marks of the REQUIRED questions only. Do NOT include marks for optional redundant questions (e.g., if a section says "Answer any 2 out of 3", only count the marks for 2 of them towards the total).
+
 Return ONLY this JSON structure, no markdown, no extra text:
 {
   "questions": [
@@ -316,7 +318,6 @@ export const extractAnswerKey = [
 
       if (!classId) return res.status(400).json({ error: "classId is required" });
       if (!testTitle) return res.status(400).json({ error: "testTitle is required" });
-      if (!totalMarks) return res.status(400).json({ error: "totalMarks is required" });
 
       const questionCardFile = req.file;
       if (!questionCardFile) return res.status(400).json({ error: "Question card PDF is required" });
@@ -333,7 +334,7 @@ export const extractAnswerKey = [
       const qcBase64 = questionCardFile.buffer.toString("base64");
 
       const extractPrompt = RUBRIC_EXTRACTION_PROMPT +
-        `\n\nUse the marks printed next to each question. If no marks are shown, distribute evenly to total ${totalMarks}. Generate comprehensive rubrics with mandatory keywords, marking schemes, depth requirements, and zero-mark conditions.`;
+        `\n\nUse the marks printed next to each question. Generate comprehensive rubrics with mandatory keywords, marking schemes, depth requirements, and zero-mark conditions. Calculate the exact total marks of the paper based on required questions only.`;
 
       let attempts = 0;
       let extractedData = null;
@@ -681,102 +682,118 @@ export const checkBulkByClass = async (req, res) => {
             throw new Error(`Rubric build failed: ${rubricErr.message}`);
           }
 
-          // ── Call Gemini with master prompt ────────────────────────
-          const userPrompt = `STUDENT: ${sub.studentName}
+          // ── Chunk the rubric to avoid truncation ──────────────────
+          const CHUNK_SIZE = 4;
+          let aiResult = {
+            processingStatus: "completed",
+            checkedAnswers: []
+          };
+          let lastError = null;
+          let rawResponseText = null;
+          let chunkFailed = false;
+
+          for (let i = 0; i < rubricForAI.length; i += CHUNK_SIZE) {
+            if (activeCheckingSessions.get(sessionId) === "stop") break;
+
+            const rubricChunk = rubricForAI.slice(i, i + CHUNK_SIZE);
+            emitLog(io, sessionId, `[AI CHECK] Processing chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(rubricForAI.length / CHUNK_SIZE)} (${rubricChunk.length} questions) for ${sub.studentName}`);
+
+            const userPrompt = `STUDENT: ${sub.studentName}
 submissionId: ${sub._id.toString()}
 
-RUBRIC (evaluate against this):
-${JSON.stringify(rubricForAI, null, 2)}
+RUBRIC (evaluate against this chunk of questions only):
+${JSON.stringify(rubricChunk, null, 2)}
 
 The student's handwritten answer sheet PDF is attached. Read it carefully, match answers to questions using the rubric, and evaluate each answer step-by-step.`;
 
-          let aiResult = null;
-          let lastError = null;
-          let rawResponseText = null;
-          const MAX_ATTEMPTS = Math.min(3, API_KEYS.length);
+            let chunkResult = null;
+            const MAX_ATTEMPTS = Math.min(3, API_KEYS.length);
 
-          for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-            try {
-              emitLog(io, sessionId, `[AI CHECK] Attempt ${attempt + 1}/${MAX_ATTEMPTS} for ${sub.studentName} (API key index: ${currentKeyIndex})`);
-
-              const geminiCall = getModel(true, MASTER_EVALUATION_PROMPT).generateContent({
-                contents: [{
-                  role: "user",
-                  parts: [
-                    { text: userPrompt },
-                    { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
-                  ],
-                }],
-                generationConfig: {
-                  temperature: 0.2,
-                  maxOutputTokens: 65536,
-                  responseMimeType: "application/json",
-                },
-              });
-
-              // No timeout — let AI take as long as it needs
-              const result = await geminiCall;
-              rawResponseText = result.response.text();
-              emitLog(io, sessionId, `[AI CHECK] ✅ Gemini response received — length: ${rawResponseText.length} chars`);
-
+            for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
               try {
-                aiResult = parseGeminiJSON(rawResponseText);
-                emitLog(io, sessionId, `[AI CHECK] ✅ JSON parsed OK — status: ${aiResult.processingStatus || 'unknown'}, answers: ${aiResult.checkedAnswers?.length || 0}`);
-              } catch (parseErr) {
-                console.error(`[AI CHECK] ❌ JSON PARSE FAILED for ${sub.studentName}`);
-                console.error(`[AI CHECK] Parse error:`, parseErr.message);
-                console.error(`[AI CHECK] Raw response (first 2000 chars):`, rawResponseText.substring(0, 2000));
-                throw new Error(`JSON parse failed: ${parseErr.message}`);
-              }
-              break;
-            } catch (err) {
-              lastError = err;
-              console.error(`[AI CHECK] ❌ Attempt ${attempt + 1} FAILED for ${sub.studentName}`);
-              console.error(`[AI CHECK] Error type: ${err.constructor.name}`);
-              console.error(`[AI CHECK] Error message: ${err.message}`);
-              if (err.stack) console.error(`[AI CHECK] Stack: ${err.stack.split('\n').slice(0, 3).join('\n')}`);
+                emitLog(io, sessionId, `[AI CHECK] Attempt ${attempt + 1}/${MAX_ATTEMPTS} for chunk ${Math.floor(i / CHUNK_SIZE) + 1} (API key index: ${currentKeyIndex})`);
 
-              if (err.message === "TIMEOUT") {
-                // Shouldn't happen anymore since timeout removed, but keep as safety
-                console.error(`[AI CHECK] ⏱ TIMEOUT for ${sub.studentName}`);
-                break;
-              }
-              if (err.message?.includes("RESOURCE_EXHAUSTED") || err.message?.includes("429") || err.message?.includes("quota") || err.message?.includes("Too Many Requests")) {
-                emitLog(io, sessionId, `[AI CHECK] 🔴 QUOTA EXHAUSTED on key index ${currentKeyIndex}`);
-                rotateApiKey();
-                if (attempt < MAX_ATTEMPTS - 1) {
-                  emitLog(io, sessionId, `[AI CHECK] ⏳ Waiting 3s before retry with key index ${currentKeyIndex}...`);
-                  await new Promise(r => setTimeout(r, 3000));
-                  continue;
-                }
-                emitLog(io, sessionId, `[AI CHECK] 🔴 ALL API KEYS EXHAUSTED — stopping session`);
-                sub.status = "failed";
-                sub.errorType = "quota_exceeded";
-                sub.errorMessage = "AI service quota exhausted — all API keys used";
-                await sub.save();
-                failedCount++;
-
-                io.to(`physical_check_${sessionId}`).emit("physical_check_error", {
-                  sessionId, studentName: sub.studentName,
-                  errorType: "quota_exceeded",
-                  errorMessage: "AI service limit reached — remaining students not checked",
+                const geminiCall = getModel(true, MASTER_EVALUATION_PROMPT).generateContent({
+                  contents: [{
+                    role: "user",
+                    parts: [
+                      { text: userPrompt },
+                      { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
+                    ],
+                  }],
+                  generationConfig: {
+                    temperature: 0.2,
+                    maxOutputTokens: 65536,
+                    responseMimeType: "application/json",
+                  },
                 });
 
-                activeCheckingSessions.set(sessionId, "stop");
-                continue;
+                const result = await geminiCall;
+                rawResponseText = result.response.text();
+                emitLog(io, sessionId, `[AI CHECK] ✅ Gemini chunk response received — length: ${rawResponseText.length} chars`);
+
+                try {
+                  chunkResult = parseGeminiJSON(rawResponseText);
+                  if (chunkResult.processingStatus === "error") {
+                     throw new Error(chunkResult.errorMessage || "AI returned an error status");
+                  }
+                  if (chunkResult.checkedAnswers) {
+                    aiResult.checkedAnswers.push(...chunkResult.checkedAnswers);
+                  }
+                  emitLog(io, sessionId, `[AI CHECK] ✅ JSON parsed OK for chunk`);
+                } catch (parseErr) {
+                  console.error(`[AI CHECK] ❌ JSON PARSE FAILED for chunk for ${sub.studentName}`);
+                  throw new Error(`JSON parse failed: ${parseErr.message}`);
+                }
+                break;
+              } catch (err) {
+                lastError = err;
+                console.error(`[AI CHECK] ❌ Attempt ${attempt + 1} FAILED for chunk for ${sub.studentName}`);
+                if (err.message?.includes("RESOURCE_EXHAUSTED") || err.message?.includes("429") || err.message?.includes("quota") || err.message?.includes("Too Many Requests")) {
+                  emitLog(io, sessionId, `[AI CHECK] 🔴 QUOTA EXHAUSTED on key index ${currentKeyIndex}`);
+                  rotateApiKey();
+                  if (attempt < MAX_ATTEMPTS - 1) {
+                    await new Promise(r => setTimeout(r, 3000));
+                    continue;
+                  }
+                  
+                  sub.status = "failed";
+                  sub.errorType = "quota_exceeded";
+                  sub.errorMessage = "AI service quota exhausted — all API keys used";
+                  await sub.save();
+                  failedCount++;
+
+                  io.to(`physical_check_${sessionId}`).emit("physical_check_error", {
+                    sessionId, studentName: sub.studentName,
+                    errorType: "quota_exceeded",
+                    errorMessage: "AI service limit reached — remaining students not checked",
+                  });
+
+                  activeCheckingSessions.set(sessionId, "stop");
+                  chunkFailed = true;
+                  break;
+                }
+                if (attempt < MAX_ATTEMPTS - 1) {
+                  rotateApiKey();
+                  await new Promise(r => setTimeout(r, 5000));
+                } else {
+                  chunkFailed = true;
+                }
               }
-              // Generic error — try next key
-              if (attempt < MAX_ATTEMPTS - 1) {
-                emitLog(io, sessionId, `[AI CHECK] 🔄 Rotating API key and retrying...`);
-                rotateApiKey();
-                await new Promise(r => setTimeout(r, 5000));
-              } else {
-                console.error(`[AI CHECK] ❌ ALL ATTEMPTS EXHAUSTED for ${sub.studentName}`);
-                console.error(`[AI CHECK] Last error: ${err.message}`);
-              }
+            }
+
+            if (chunkFailed) break;
+            
+            // Add a small delay between chunks
+            if (i + CHUNK_SIZE < rubricForAI.length) {
+              await new Promise(r => setTimeout(r, 2000));
             }
           }
 
+          if (chunkFailed && aiResult.checkedAnswers.length === 0) {
+             aiResult = null; // trigger the "no result" handler below
+          }
+          
           // Check if we should stop after quota exhaustion
           if (activeCheckingSessions.get(sessionId) === "stop") continue;
 
