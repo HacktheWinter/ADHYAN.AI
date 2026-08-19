@@ -11,6 +11,7 @@ import {
   validateTextContent,
 } from "../utils/fileExtractor.js";
 import { logActivity } from "../utils/activityTracker.js";
+import axios from "axios";
 
 /**
  * Create quiz manually (teacher enters questions)
@@ -296,38 +297,49 @@ export const generateQuizWithAI = async (req, res) => {
     let combinedText = "";
     let successfulExtractions = 0;
 
-    for (const note of notes) {
-      try {
-        console.log(`\n Processing: ${note.title}`);
+      for (const note of notes) {
+        try {
+          console.log(`\n Processing: ${note.title}`);
 
-        const fileId = new mongoose.Types.ObjectId(note.fileId);
-        const chunks = [];
-        const readstream = bucket.openDownloadStream(fileId);
+          let buffer;
+          if (note.fileUrl) {
+            console.log(`Fetching from Cloudinary URL`);
+            const response = await axios.get(note.fileUrl, { responseType: 'arraybuffer' });
+            buffer = Buffer.from(response.data);
+          } else if (note.fileId) {
+            const fileId = new mongoose.Types.ObjectId(note.fileId);
+            const chunks = [];
+            const readstream = bucket.openDownloadStream(fileId);
 
-        // Read PDF chunks
-        await new Promise((resolve, reject) => {
-          readstream.on("data", (chunk) => {
-            chunks.push(chunk);
-          });
+            // Read PDF chunks
+            await new Promise((resolve, reject) => {
+              readstream.on("data", (chunk) => {
+                chunks.push(chunk);
+              });
 
-          readstream.on("error", (error) => {
-            console.error(`Stream error for ${note.title}:`, error.message);
-            reject(error);
-          });
+              readstream.on("error", (error) => {
+                console.error(`Stream error for ${note.title}:`, error.message);
+                reject(error);
+              });
 
-          readstream.on("end", () => {
-            console.log(` Stream ended for ${note.title}`);
-            resolve();
-          });
-        });
+              readstream.on("end", () => {
+                console.log(` Stream ended for ${note.title}`);
+                resolve();
+              });
+            });
 
-        if (chunks.length === 0) {
-          console.log(` No chunks received for ${note.title}`);
-          continue;
-        }
+            if (chunks.length === 0) {
+              console.log(` No chunks received for ${note.title}`);
+              continue;
+            }
 
-        const buffer = Buffer.concat(chunks);
-        console.log(`Buffer size: ${buffer.length} bytes`);
+            buffer = Buffer.concat(chunks);
+          } else {
+            console.log(` No file source for ${note.title}`);
+            continue;
+          }
+
+          console.log(`Buffer size: ${buffer.length} bytes`);
 
         const mimetype = note.mimetype || "application/pdf";
         const text = await extractTextFromFile(buffer, mimetype);
