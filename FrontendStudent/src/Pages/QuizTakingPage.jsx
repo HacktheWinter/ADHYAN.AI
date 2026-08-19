@@ -52,7 +52,16 @@ export default function QuizTakingPage() {
     try {
       setLoading(true);
       const res = await getQuizById(quizId);
-      setQuiz(res.quiz);
+      
+      // Shuffle questions so sequence is different for each student
+      const shuffledQuestions = [...res.quiz.questions];
+      for (let i = shuffledQuestions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]];
+      }
+      
+      const shuffledQuiz = { ...res.quiz, questions: shuffledQuestions };
+      setQuiz(shuffledQuiz);
     } catch (error) {
       console.error('Failed to fetch quiz', error);
       alert('Failed to load quiz data');

@@ -138,6 +138,37 @@ const ClassDashboard = () => {
     student.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const getStudentScore = (studentId) => {
+    if (!items || items.length === 0) return { avg: 0, attempts: 0 };
+    
+    let totalPct = 0;
+    let attempts = 0;
+    
+    items.forEach(item => {
+      const sub = submissions[studentId]?.[item._id];
+      if (sub && typeof sub.percentage === 'number') {
+        totalPct += sub.percentage;
+        attempts += 1;
+      }
+    });
+    
+    // If no attempts (absent for all), return -1 to push to very bottom
+    if (attempts === 0) return { avg: -1, attempts: 0 };
+    
+    // Average across ALL items (absences count as 0%)
+    return { avg: totalPct / items.length, attempts };
+  };
+
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
+    const scoreA = getStudentScore(a._id);
+    const scoreB = getStudentScore(b._id);
+    
+    if (scoreB.avg !== scoreA.avg) {
+      return scoreB.avg - scoreA.avg; // Descending
+    }
+    return a.name.localeCompare(b.name);
+  });
+
   const getExportFileName = () => {
       const modeName = viewMode.charAt(0).toUpperCase() + viewMode.slice(1);
       return `${classroom?.name || 'Class'}_${modeName}_Dashboard.csv`;
@@ -148,11 +179,11 @@ const ClassDashboard = () => {
     
     // Header
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += `Serial No,Student Name,Email,` + items.map((_, i) => `${itemLabel} ${i + 1}`).join(",") + "\n";
+    csvContent += `Serial No,Student Name,Email,ERP ID,` + items.map((_, i) => `${itemLabel} ${i + 1}`).join(",") + "\n";
 
     // Rows
-    filteredStudents.forEach((student, index) => {
-        let row = `${index + 1},"${student.name}","${student.email}"`;
+    sortedStudents.forEach((student, index) => {
+        let row = `${index + 1},"${student.name}","${student.email}","${student.erpId || 'N/A'}"`;
         
         items.forEach(item => {
             const sub = submissions[student._id]?.[item._id];
@@ -297,8 +328,8 @@ const ClassDashboard = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-line">
-                        {filteredStudents.length > 0 ? (
-                            filteredStudents.map((student, index) => (
+                        {sortedStudents.length > 0 ? (
+                            sortedStudents.map((student, index) => (
                                 <tr key={student._id} className="hover:bg-line/40 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-soft">
                                         {index + 1}
@@ -323,6 +354,7 @@ const ClassDashboard = () => {
                                             <div>
                                                 <div className="font-semibold text-ink text-sm">{student.name}</div>
                                                 <div className="text-xs text-ink-soft">{student.email}</div>
+                                                <div className="text-[10px] text-ink-soft/70 uppercase tracking-wide mt-0.5">ID: {student.erpId || 'No ERP ID'}</div>
                                             </div>
                                         </div>
                                     </td>

@@ -509,7 +509,17 @@ export const getQuiz = async (req, res) => {
       return res.status(404).json({ error: "Quiz not found" });
     }
 
-    res.status(200).json(quiz);
+    let quizObj = quiz.toObject();
+    
+    if (req.user?.role === "student") {
+      const now = new Date();
+      if ((quiz.endTime && now > new Date(quiz.endTime)) || 
+          (quiz.startTime && now < new Date(quiz.startTime))) {
+        delete quizObj.questions;
+      }
+    }
+
+    res.status(200).json(quizObj);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });
@@ -720,19 +730,21 @@ export const getActiveQuizzesForStudent = async (req, res) => {
 
     // Filter active quizzes based on time
     const activeQuizzes = quizzes.map((quiz) => {
-      let isActive = true;
+      let quizStatus = "active";
+      const quizObj = quiz.toObject();
 
       if (quiz.endTime && now > new Date(quiz.endTime)) {
-        isActive = false;
-      }
-
-      if (quiz.startTime && now < new Date(quiz.startTime)) {
-        isActive = false;
+        quizStatus = "expired";
+        delete quizObj.questions; // Security
+      } else if (quiz.startTime && now < new Date(quiz.startTime)) {
+        quizStatus = "upcoming";
+        delete quizObj.questions; // Security
       }
 
       return {
-        ...quiz.toObject(),
-        isActive,
+        ...quizObj,
+        quizStatus,
+        isActive: quizStatus === "active",
       };
     });
 

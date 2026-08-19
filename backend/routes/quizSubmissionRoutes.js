@@ -6,10 +6,14 @@ import {
   getQuizResult,
   checkSubmission,
   getQuizSubmissions,
-  getSubmissionById
+  getSubmissionById,
+  autosaveQuiz
 } from '../controllers/quizSubmissionController.js';
 
 const router = express.Router();
+
+// Autosave quiz
+router.post('/autosave', authMiddleware, authorizeRoles("student"), autosaveQuiz);
 
 // Submit quiz
 router.post('/submit', authMiddleware, authorizeRoles("student"), submitQuiz);

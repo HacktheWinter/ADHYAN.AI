@@ -1,18 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, X } from 'lucide-react';
-import { submitQuiz } from '../api/quizApi';
+import { submitQuiz, autosaveQuiz } from '../api/quizApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
 import ViolationAlertModal from './ViolationAlertModal';
+import { getStoredToken } from '../utils/authStorage';
+import API_BASE_URL from '../config';
 
 export default function QuizTakingModal({ quiz, studentId, studentName, onClose, onSubmit }) {
+  const [shuffledQuiz, setShuffledQuiz] = useState(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState(() => {
+    const saved = localStorage.getItem(`quiz_draft_${quiz._id}`);
+    return saved ? JSON.parse(saved) : {};
+  });
   const [timeLeft, setTimeLeft] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const timerRef = useRef(null);
   const answersRef = useRef({});
+
+  useEffect(() => {
+    if (quiz && !shuffledQuiz) {
+      const savedLayout = localStorage.getItem(`quiz_layout_${quiz._id}`);
+      if (savedLayout) {
+        setShuffledQuiz(JSON.parse(savedLayout));
+      } else {
+        const questions = [...quiz.questions];
+        for (let i = questions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [questions[i], questions[j]] = [questions[j], questions[i]];
+        }
+        const newQuiz = { ...quiz, questions };
+        setShuffledQuiz(newQuiz);
+        localStorage.setItem(`quiz_layout_${quiz._id}`, JSON.stringify(newQuiz));
+      }
+    }
+  }, [quiz, shuffledQuiz]);
 
   const {
     isFullScreen,
@@ -69,7 +93,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     };
 
     setupTimer();
-  }, [hasStarted, quiz]);
+  }, [hasStarted, shuffledQuiz]);
 
   useEffect(() => {
     if (timeLeft !== null && timeLeft > 0) {
@@ -90,6 +114,18 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   }, [timeLeft]);
 
   const handleStartExam = async () => {
+    if (quiz.endTime && new Date() > new Date(quiz.endTime)) {
+      alert("Your quiz time has expired. Your previously saved answers have been safely submitted to the server.");
+      localStorage.removeItem(`quiz_start_time_${quiz._id}`);
+      if (shuffledQuiz) {
+        localStorage.removeItem(`quiz_layout_${shuffledQuiz._id}`);
+        localStorage.removeItem(`quiz_draft_${shuffledQuiz._id}`);
+      }
+      localStorage.removeItem('activeQuiz');
+      onSubmit();
+      return;
+    }
+
     try {
       setHasStarted(true);
       setTimeout(async () => {
@@ -122,7 +158,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
       const currentAnswers = answersRef.current;
       
-      const answersArray = quiz.questions.map(q => ({
+      const answersArray = shuffledQuiz.questions.map(q => ({
         questionId: q._id,
         selectedAnswer: currentAnswers[q._id] || ''
       }));
@@ -130,13 +166,15 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       const answeredCount = Object.keys(currentAnswers).length;
       const violationsCount = violations.length;
 
-      await submitQuiz(quiz._id, studentId, answersArray);
+      await submitQuiz(shuffledQuiz._id, studentId, answersArray);
 
-      localStorage.removeItem(`quiz_start_time_${quiz._id}`);
+      localStorage.removeItem(`quiz_start_time_${shuffledQuiz._id}`);
+      localStorage.removeItem(`quiz_layout_${shuffledQuiz._id}`);
+      localStorage.removeItem(`quiz_draft_${shuffledQuiz._id}`);
       exitFullScreen();
 
       const scoreMessage = autoSubmit 
-        ? ` AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${quiz.questions.length}\n\n`
+        ? ` AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${shuffledQuiz.questions.length}\n\n`
         : ` Quiz Submitted!\n\n`;
 
       alert(`${scoreMessage}Your results will be visible when the teacher publishes them.`);
@@ -147,10 +185,19 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       exitFullScreen();
       
       const errorMsg = error.response?.data?.error || error.message || 'Failed to submit quiz';
-      alert(` Error: ${errorMsg}`);
       
-      setIsSubmitting(false);
-      setProctorSubmitting(false);
+      if (error.response?.status === 403 && errorMsg.toLowerCase().includes("expired")) {
+        alert("Your quiz time has expired. Your previously saved answers have been safely submitted to the server.");
+        localStorage.removeItem(`quiz_start_time_${shuffledQuiz._id}`);
+        localStorage.removeItem(`quiz_layout_${shuffledQuiz._id}`);
+        localStorage.removeItem(`quiz_draft_${shuffledQuiz._id}`);
+        localStorage.removeItem('activeQuiz');
+        onSubmit();
+      } else {
+        alert(` Error: ${errorMsg}`);
+        setIsSubmitting(false);
+        setProctorSubmitting(false);
+      }
     }
   };
 
@@ -161,12 +208,21 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
         [questionId]: answer
       };
       answersRef.current = updated;
+      localStorage.setItem(`quiz_draft_${shuffledQuiz._id}`, JSON.stringify(updated));
+      
+      // Fire autosave to server in background
+      const answersArray = shuffledQuiz.questions.map(q => ({
+        questionId: q._id,
+        selectedAnswer: updated[q._id] || ''
+      }));
+      autosaveQuiz(shuffledQuiz._id, studentId, answersArray).catch(err => console.error("Autosave failed:", err));
+      
       return updated;
     });
   };
 
   const handleNext = () => {
-    if (currentQuestion < quiz.questions.length - 1) {
+    if (currentQuestion < shuffledQuiz.questions.length - 1) {
       setCurrentQuestion(prev => prev + 1);
     }
   };
@@ -191,6 +247,8 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
+  if (!shuffledQuiz) return null;
+
   if (!hasStarted) {
     return (
       <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -203,9 +261,11 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                 {isResuming ? 'Resume Your Exam' : 'Exam Instructions'}
               </p>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors">
-              <X className="w-6 h-6" />
-            </button>
+            {!isResuming && (
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            )}
           </div>
           
           <div className="p-8 overflow-y-auto">
@@ -271,22 +331,41 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
           
           {/* Footer */}
           <div className="p-6 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-4 mt-auto">
-            <button onClick={onClose} className="px-6 py-2.5 font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors">
-              Cancel
-            </button>
-            <button 
-              onClick={handleStartExam} 
-              className="px-8 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20"
-            >
-              {isResuming ? 'Resume Exam' : 'I Understand, Start Exam'}
-            </button>
+            {isResuming ? (
+              <>
+                <button 
+                  onClick={() => handleSubmitQuiz(false, 'Exited on Resume')} 
+                  className="px-6 py-2.5 font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors shadow-md shadow-red-600/20"
+                >
+                  Submit & Exit Exam
+                </button>
+                <button 
+                  onClick={handleStartExam} 
+                  className="px-8 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20"
+                >
+                  Resume Exam
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={onClose} className="px-6 py-2.5 font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors">
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleStartExam} 
+                  className="px-8 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20"
+                >
+                  I Understand, Start Exam
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
     );
   }
 
-  const question = quiz.questions[currentQuestion];
+  const question = shuffledQuiz.questions[currentQuestion];
 
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center z-50 font-body">
@@ -310,7 +389,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
           </div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">
-              Question {currentQuestion + 1} of {quiz.questions.length}
+              Question {currentQuestion + 1} of {shuffledQuiz.questions.length}
             </span>
             {timeLeft !== null && (
               <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
@@ -326,7 +405,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestion + 1) / quiz.questions.length) * 100}%` }}
+              style={{ width: `${((currentQuestion + 1) / shuffledQuiz.questions.length) * 100}%` }}
             />
           </div>
         </div>
@@ -374,12 +453,12 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
             <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-600">
-                  Answered: <strong className="text-gray-900">{getAnsweredCount()}</strong> / {quiz.questions.length}
+                  Answered: <strong className="text-gray-900">{getAnsweredCount()}</strong> / {shuffledQuiz.questions.length}
                 </span>
-                {getAnsweredCount() < quiz.questions.length && (
+                {getAnsweredCount() < shuffledQuiz.questions.length && (
                   <span className="text-sm text-yellow-600 font-medium flex items-center gap-1.5">
                     <AlertTriangle className="w-4 h-4" />
-                    {quiz.questions.length - getAnsweredCount()} left
+                    {shuffledQuiz.questions.length - getAnsweredCount()} left
                   </span>
                 )}
               </div>
@@ -396,7 +475,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
             >
               Previous
             </button>
-            {currentQuestion < quiz.questions.length - 1 ? (
+            {currentQuestion < shuffledQuiz.questions.length - 1 ? (
               <button
                 onClick={handleNext}
                 disabled={isSubmitting || showViolationAlert}
