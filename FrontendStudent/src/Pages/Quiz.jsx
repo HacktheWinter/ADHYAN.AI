@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
 import { Clock, CheckCircle, Play, Eye, Loader, AlertCircle } from 'lucide-react';
-import { getActiveQuizzes, checkSubmission } from '../api/quizApi';
+import { getActiveQuizzes, checkSubmission, submitQuiz } from '../api/quizApi';
 import QuizTakingModal from '../components/QuizTakingModal';
 import QuizResultModal from '../components/QuizResultModal';
 
@@ -15,12 +15,33 @@ export default function Quiz() {
   const [submissions, setSubmissions] = useState({});
   const [selectedQuiz, setSelectedQuiz] = useState(() => {
     const saved = localStorage.getItem('activeQuiz');
-    return saved ? JSON.parse(saved) : null;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.endTime && new Date() > new Date(parsed.endTime)) {
+        return null;
+      }
+      return parsed;
+    }
+    return null;
   });
   const [showTakingModal, setShowTakingModal] = useState(() => {
-    return !!localStorage.getItem('activeQuiz');
+    const saved = localStorage.getItem('activeQuiz');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.endTime && new Date() > new Date(parsed.endTime)) {
+        return false;
+      }
+      return true;
+    }
+    return false;
   });
   const [showResultModal, setShowResultModal] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Helper function to truncate title
   const truncateTitle = (title, maxLength = 40) => {
@@ -50,6 +71,51 @@ export default function Quiz() {
         submissionMap[quiz._id] = submissionChecks[index].hasSubmitted;
       });
       
+      let needsRefresh = false;
+      for (const quiz of quizzesData) {
+        if (!submissionMap[quiz._id]) {
+          const isExpired = quiz.quizStatus === 'expired' || (quiz.endTime && new Date() > new Date(quiz.endTime));
+          if (isExpired) {
+            const draft = localStorage.getItem(`quiz_draft_${quiz._id}`);
+            const layout = localStorage.getItem(`quiz_layout_${quiz._id}`);
+            if (draft && layout) {
+              try {
+                const parsedDraft = JSON.parse(draft);
+                const parsedLayout = JSON.parse(layout);
+                const answersArray = parsedLayout.questions.map(q => ({
+                  questionId: q._id,
+                  selectedAnswer: parsedDraft[q._id] || ''
+                }));
+                
+                await submitQuiz(quiz._id, classInfo.studentId, answersArray);
+                
+                localStorage.removeItem(`quiz_draft_${quiz._id}`);
+                localStorage.removeItem(`quiz_layout_${quiz._id}`);
+                localStorage.removeItem(`quiz_start_time_${quiz._id}`);
+                
+                const active = localStorage.getItem('activeQuiz');
+                if (active) {
+                  const parsedActive = JSON.parse(active);
+                  if (parsedActive._id === quiz._id) {
+                    localStorage.removeItem('activeQuiz');
+                    setShowTakingModal(false);
+                    setSelectedQuiz(null);
+                  }
+                }
+                
+                needsRefresh = true;
+              } catch (error) {
+                console.error("Failed to auto-submit expired draft:", error);
+              }
+            }
+          }
+        }
+      }
+      
+      if (needsRefresh) {
+        return fetchQuizzes(); // Refetch to get updated status
+      }
+
       setQuizzes(quizzesData);
       setSubmissions(submissionMap);
     } catch (error) {
@@ -78,17 +144,15 @@ export default function Quiz() {
   };
 
   const getQuizStatus = (quiz) => {
-    const now = new Date();
-    
     if (submissions[quiz._id]) {
       return { text: 'Completed', color: 'bg-green-100 text-green-800', icon: CheckCircle };
     }
     
-    if (!quiz.isActive) {
+    if (quiz.quizStatus === 'expired' || (quiz.endTime && currentTime > new Date(quiz.endTime))) {
       return { text: 'Expired', color: 'bg-red-100 text-red-800', icon: AlertCircle };
     }
     
-    if (quiz.startTime && now < new Date(quiz.startTime)) {
+    if (quiz.quizStatus === 'upcoming' || (quiz.startTime && currentTime < new Date(quiz.startTime))) {
       return { text: 'Upcoming', color: 'bg-blue-100 text-blue-800', icon: Clock };
     }
     
@@ -96,11 +160,20 @@ export default function Quiz() {
   };
 
   const getRemainingTime = (quiz) => {
+    if (quiz.startTime && currentTime < new Date(quiz.startTime)) {
+      const diff = new Date(quiz.startTime) - currentTime;
+      const minutes = Math.ceil(diff / (1000 * 60));
+      if (minutes > 60) {
+         const hours = Math.floor(minutes / 60);
+         return `Starts in ${hours}h ${minutes % 60}m`;
+      }
+      return `Starts in ${minutes} min`;
+    }
+
     if (!quiz.endTime) return 'No time limit';
     
-    const now = new Date();
     const end = new Date(quiz.endTime);
-    const diff = end - now;
+    const diff = end - currentTime;
     
     if (diff <= 0) return 'Expired';
     
@@ -149,8 +222,9 @@ export default function Quiz() {
           const status = getQuizStatus(quiz);
           const StatusIcon = status.icon;
           const hasSubmitted = submissions[quiz._id];
-          const isExpired = !quiz.isActive || (quiz.endTime && new Date() > new Date(quiz.endTime));
-          const canTake = !hasSubmitted && !isExpired;
+          const isExpired = status.text === 'Expired';
+          const isUpcoming = status.text === 'Upcoming';
+          const canTake = !hasSubmitted && !isExpired && !isUpcoming;
 
           return (
             <div 
@@ -202,11 +276,37 @@ export default function Quiz() {
                 </button>
               ) : canTake ? (
                 <button
-                  onClick={() => handleTakeQuiz(quiz)}
+                  onClick={async () => {
+                    if (!quiz.questions) {
+                      setLoading(true);
+                      try {
+                        const response = await getActiveQuizzes(classId);
+                        const updatedQuiz = response.quizzes.find(q => q._id === quiz._id);
+                        if (updatedQuiz && updatedQuiz.questions) {
+                          handleTakeQuiz(updatedQuiz);
+                        } else {
+                          alert("Quiz is not active yet or failed to fetch questions.");
+                        }
+                      } catch (err) {
+                        console.error(err);
+                      } finally {
+                        setLoading(false);
+                      }
+                    } else {
+                      handleTakeQuiz(quiz);
+                    }
+                  }}
                   className="w-full py-2 rounded-lg font-medium transition-colors bg-purple-700 text-white hover:bg-purple-800 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Play className="w-4 h-4" />
                   Take Quiz
+                </button>
+              ) : isUpcoming ? (
+                <button
+                  disabled
+                  className="w-full py-2 rounded-lg font-medium bg-blue-100 text-blue-400 cursor-not-allowed"
+                >
+                  Starts Soon
                 </button>
               ) : (
                 <button

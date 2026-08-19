@@ -57,11 +57,15 @@ const quizSubmissionSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    isDraft: {
+      type: Boolean,
+      default: false,
+    }
   },
   { timestamps: true }
 );
 
-// Index for faster queries
-quizSubmissionSchema.index({ quizId: 1, studentId: 1 });
+// Index for faster queries and to prevent duplicates
+quizSubmissionSchema.index({ quizId: 1, studentId: 1 }, { unique: true });
 
 export default mongoose.model("QuizSubmission", quizSubmissionSchema);

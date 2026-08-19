@@ -28,6 +28,16 @@ export const submitQuiz = async (quizId, studentId, answers) => {
   return res.data;
 };
 
+// Autosave quiz draft
+export const autosaveQuiz = async (quizId, studentId, answers) => {
+  const res = await axios.post(`${BASE_URL}/quiz-submission/autosave`, {
+    quizId,
+    studentId,
+    answers,
+  });
+  return res.data;
+};
+
 // Check if student submitted
 export const checkSubmission = async (quizId, studentId) => {
   const res = await axios.get(
