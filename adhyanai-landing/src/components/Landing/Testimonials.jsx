@@ -75,11 +75,25 @@ const TestimonialCard = ({ member, index }) => {
 const Testimonials = () => {
   const teamMembers = [
     {
+      name: "Harikesh Kumar",
+      role: "Full Stack & AI Integration",
+      content: "Worked on both frontend and backend development, integrated AI features into the application, and ensured seamless communication between system components.",
+      image: "/harikesh.jpg",
+      color: "from-emerald-500 to-green-500"
+    },
+    {
       name: "Lucky Singh Panwar",
       role: "Concept Designer & Rnd Lead",
       content: "Worked on concept design and research & development of the project, focusing on idea validation and strategic execution.",
       image: "/lucky.jpeg",
       color: "from-purple-500 to-indigo-500"
+    },
+    {
+      name: "Lalit Nandan",
+      role: "Simulation & Testing Analyst",
+      content: "Conducted thorough testing and analysis of the application to ensure its functionality and reliability, covering user interaction flows.",
+      image: "/lalit.jpeg",
+      color: "from-orange-500 to-amber-500"
     },
     {
       name: "Deepak Singh Rawat",
@@ -88,20 +102,6 @@ const Testimonials = () => {
       image: "/deepak.jpeg",
       color: "from-blue-500 to-cyan-500"
     },
-    {
-      name: "Harikesh Kumar",
-      role: "Full Stack & AI Integration",
-      content: "Worked on both frontend and backend development, integrated AI features into the application, and ensured seamless communication between system components.",
-      image: "/harikesh.jpg",
-      color: "from-emerald-500 to-green-500"
-    },
-    {
-      name: "Lalit Nandan",
-      role: "Simulation & Testing Analyst",
-      content: "Conducted thorough testing and analysis of the application to ensure its functionality and reliability, covering user interaction flows.",
-      image: "/lalit.jpeg",
-      color: "from-orange-500 to-amber-500"
-    }
   ];
 
   const [activeIndex, setActiveIndex] = useState(0);

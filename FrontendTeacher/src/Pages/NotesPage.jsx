@@ -176,12 +176,12 @@ const NotesPage = () => {
                     note.title?.toLowerCase().match(/\.(xls|xlsx)$/);
 
     if (isWord) {
-      const url = getNoteFileUrl(note.fileId);
+      const url = note.fileUrl || getNoteFileUrl(note.fileId);
       const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}`;
       window.open(viewerUrl, "_blank");
       setOpenMenuId(null);
     } else if (isExcel) {
-      const url = getNoteFileUrl(note.fileId);
+      const url = note.fileUrl || getNoteFileUrl(note.fileId);
       const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
       window.open(viewerUrl, "_blank");
       setOpenMenuId(null);
@@ -196,7 +196,7 @@ const NotesPage = () => {
   };
 
   const handleDownload = (note) => {
-    const url = getNoteFileUrl(note.fileId);
+    const url = note.fileUrl || getNoteFileUrl(note.fileId);
     window.open(url, "_blank");
     setOpenMenuId(null);
   };
@@ -431,7 +431,7 @@ const NotesPage = () => {
       {/* Preview Modal */}
       {previewNote && (
         <PdfPreview
-          url={getNoteFileUrl(previewNote.fileId)}
+          url={previewNote.fileUrl || getNoteFileUrl(previewNote.fileId)}
           title={previewNote.title}
           onClose={closePreview}
         />
