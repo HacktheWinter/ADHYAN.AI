@@ -74,7 +74,18 @@ export default function Quiz() {
       let needsRefresh = false;
       for (const quiz of quizzesData) {
         if (!submissionMap[quiz._id]) {
-          const isExpired = quiz.quizStatus === 'expired' || (quiz.endTime && new Date() > new Date(quiz.endTime));
+          let isExpired = quiz.quizStatus === 'expired' || (quiz.endTime && new Date() > new Date(quiz.endTime));
+          
+          if (!isExpired && quiz.duration) {
+            const startTimeStr = localStorage.getItem(`quiz_start_time_${quiz._id}`);
+            if (startTimeStr) {
+              const elapsedMs = Date.now() - parseInt(startTimeStr);
+              if (elapsedMs > quiz.duration * 60000) {
+                isExpired = true;
+              }
+            }
+          }
+
           if (isExpired) {
             const draft = localStorage.getItem(`quiz_draft_${quiz._id}`);
             const layout = localStorage.getItem(`quiz_layout_${quiz._id}`);
@@ -88,10 +99,14 @@ export default function Quiz() {
                 }));
                 
                 await submitQuiz(quiz._id, classInfo.studentId, answersArray);
-                
+              } catch (error) {
+                console.error("Failed to auto-submit expired draft:", error);
+              } finally {
+                // Always clear local storage for an expired draft, regardless of API success
                 localStorage.removeItem(`quiz_draft_${quiz._id}`);
                 localStorage.removeItem(`quiz_layout_${quiz._id}`);
                 localStorage.removeItem(`quiz_start_time_${quiz._id}`);
+                localStorage.removeItem(`quiz_refresh_count_${quiz._id}`);
                 
                 const active = localStorage.getItem('activeQuiz');
                 if (active) {
@@ -104,8 +119,6 @@ export default function Quiz() {
                 }
                 
                 needsRefresh = true;
-              } catch (error) {
-                console.error("Failed to auto-submit expired draft:", error);
               }
             }
           }
@@ -148,11 +161,19 @@ export default function Quiz() {
       return { text: 'Completed', color: 'bg-green-100 text-green-800', icon: CheckCircle };
     }
     
-    if (quiz.quizStatus === 'expired' || (quiz.endTime && currentTime > new Date(quiz.endTime))) {
+    if (quiz.endTime && currentTime > new Date(quiz.endTime)) {
       return { text: 'Expired', color: 'bg-red-100 text-red-800', icon: AlertCircle };
     }
     
-    if (quiz.quizStatus === 'upcoming' || (quiz.startTime && currentTime < new Date(quiz.startTime))) {
+    if (quiz.startTime && currentTime < new Date(quiz.startTime)) {
+      return { text: 'Upcoming', color: 'bg-blue-100 text-blue-800', icon: Clock };
+    }
+
+    if (quiz.quizStatus === 'expired' && !quiz.endTime) {
+      return { text: 'Expired', color: 'bg-red-100 text-red-800', icon: AlertCircle };
+    }
+    
+    if (quiz.quizStatus === 'upcoming' && !quiz.startTime) {
       return { text: 'Upcoming', color: 'bg-blue-100 text-blue-800', icon: Clock };
     }
     
