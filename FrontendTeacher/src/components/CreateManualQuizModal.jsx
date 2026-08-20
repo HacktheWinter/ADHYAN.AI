@@ -9,14 +9,14 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
   const [marksPerQuestion, setMarksPerQuestion] = useState(1);
   const [difficulty, setDifficulty] = useState("mixed");
   const [questions, setQuestions] = useState([
-    { question: "", options: ["", "", "", ""], correctAnswer: "" }
+    { question: "", options: ["", "", "", ""], correctOptionIndex: null }
   ]);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleAddQuestion = () => {
     setQuestions([
       ...questions,
-      { question: "", options: ["", "", "", ""], correctAnswer: "" }
+      { question: "", options: ["", "", "", ""], correctOptionIndex: null }
     ]);
   };
 
@@ -35,15 +35,12 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
   const handleOptionChange = (qIndex, optIndex, value) => {
     const updated = [...questions];
     updated[qIndex].options[optIndex] = value;
-    // If the option was the correct answer, update the correct answer text if it matches exactly?
-    // Actually, usually it's best to have correct answer be a select dropdown of Option A, B, C, D, but our API expects the exact string.
-    // For simplicity, let's keep it as is, or we can update correctAnswer if it was previously matching.
     setQuestions(updated);
   };
 
   const handleSetCorrectAnswer = (qIndex, optIndex) => {
     const updated = [...questions];
-    updated[qIndex].correctAnswer = updated[qIndex].options[optIndex];
+    updated[qIndex].correctOptionIndex = optIndex;
     setQuestions(updated);
   };
 
@@ -63,11 +60,18 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
         alert(`Question ${i + 1} has empty options`);
         return;
       }
-      if (!q.correctAnswer) {
+      if (q.correctOptionIndex === null) {
         alert(`Please select a correct answer for Question ${i + 1}`);
         return;
       }
     }
+
+    // Map correctOptionIndex back to correctAnswer string for the backend
+    const mappedQuestions = questions.map(q => ({
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.options[q.correctOptionIndex]
+    }));
 
     try {
       setIsSaving(true);
@@ -76,7 +80,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
         {
           classroomId: classId,
           title,
-          questions,
+          questions: mappedQuestions,
           marksPerQuestion,
           difficulty
         },
@@ -166,23 +170,25 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                 />
 
                 <div className="space-y-3">
+                  <p className="text-xs font-bold text-violet-dark uppercase tracking-wider mb-2">
+                    Options (Select the correct one via radio button)
+                  </p>
                   {q.options.map((opt, optIndex) => (
-                    <div key={optIndex} className="flex items-center gap-3">
+                    <div key={optIndex} className={`flex items-center gap-3 p-2 rounded-xl transition-colors ${q.correctOptionIndex === optIndex ? 'bg-violet-50 border border-violet-200' : 'border border-transparent'}`}>
                       <input
                         type="radio"
                         name={`correct-${qIndex}`}
-                        checked={q.correctAnswer !== "" && q.correctAnswer === opt && opt !== ""}
+                        checked={q.correctOptionIndex === optIndex}
                         onChange={() => handleSetCorrectAnswer(qIndex, optIndex)}
-                        className="w-4 h-4 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        className="w-4 h-4 text-violet-600 focus:ring-violet-500 cursor-pointer"
                         title="Mark as correct answer"
-                        disabled={opt.trim() === ""}
                       />
                       <input
                         type="text"
                         value={opt}
                         onChange={(e) => handleOptionChange(qIndex, optIndex, e.target.value)}
                         placeholder={`Option ${String.fromCharCode(65 + optIndex)}`}
-                        className="flex-1 px-4 py-2 border border-line rounded-xl bg-surface focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className={`flex-1 px-4 py-2 border rounded-xl bg-surface focus:ring-2 outline-none transition-colors ${q.correctOptionIndex === optIndex ? 'border-violet-300 focus:ring-violet-500 bg-white' : 'border-line focus:ring-indigo-500'}`}
                       />
                     </div>
                   ))}

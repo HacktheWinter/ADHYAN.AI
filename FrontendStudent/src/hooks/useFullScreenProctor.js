@@ -7,14 +7,14 @@ import { useState, useEffect, useRef } from 'react';
  * @param {boolean} options.enabled - Enable/disable proctoring
  * @param {Function} options.onViolation - Callback when violation occurs
  * @param {Function} options.onAutoSubmit - Callback for auto-submit
- * @param {number} options.maxViolations - Maximum violations before auto-submit (default: 2)
+ * @param {number} options.maxViolations - Maximum violations before auto-submit (default: 4)
  * @returns {Object} - Proctoring state and handlers
  */
 export const useFullScreenProctor = ({
   enabled = true,
   onViolation,
   onAutoSubmit,
-  maxViolations = 2
+  maxViolations = 4
 }) => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showViolationAlert, setShowViolationAlert] = useState(false);
@@ -131,7 +131,8 @@ export const useFullScreenProctor = ({
     }
 
     if (currentCount >= maxViolations) {
-      setViolationMessage(` FINAL WARNING!\n\n${currentCount}${currentCount === 2 ? 'nd' : 'th'} Violation: ${reason}\n\nYour assessment will be auto-submitted now.`);
+      const suffix = currentCount === 1 ? 'st' : currentCount === 2 ? 'nd' : currentCount === 3 ? 'rd' : 'th';
+      setViolationMessage(` FINAL WARNING!\n\n${currentCount}${suffix} Violation: ${reason}\n\nYour assessment will be auto-submitted now.`);
       setShowViolationAlert(true);
       
       setTimeout(() => {

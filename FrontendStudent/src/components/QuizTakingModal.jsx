@@ -20,6 +20,9 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   const [visitedQuestions, setVisitedQuestions] = useState(new Set([0]));
   const [markedForReview, setMarkedForReview] = useState({});
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
+  const [resumeCount, setResumeCount] = useState(() => {
+    return parseInt(localStorage.getItem(`quiz_refresh_count_${quiz._id}`) || '0');
+  });
 
   useEffect(() => {
     setVisitedQuestions(prev => new Set(prev).add(currentQuestion));
@@ -64,11 +67,20 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     enterFullScreen
   } = useFullScreenProctor({
     enabled: hasStarted,
-    maxViolations: 2,
+    maxViolations: 4,
     onAutoSubmit: (reason) => handleAutoSubmit(reason)
   });
 
-  const isResuming = !!localStorage.getItem(`quiz_start_time_${quiz._id}`);
+  const isResuming = !!localStorage.getItem(`quiz_start_time_${quiz._id}`) || !!localStorage.getItem(`quiz_draft_${quiz._id}`);
+
+  useEffect(() => {
+    if (isResuming && !hasStarted) {
+      const currentCount = parseInt(localStorage.getItem(`quiz_refresh_count_${quiz._id}`) || '0');
+      const newCount = currentCount + 1;
+      localStorage.setItem(`quiz_refresh_count_${quiz._id}`, newCount.toString());
+      setResumeCount(newCount);
+    }
+  }, []);
 
   useEffect(() => {
     answersRef.current = answers;
@@ -128,6 +140,18 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     };
   }, [timeLeft]);
 
+  const autoSubmitAttempted = useRef(false);
+
+  useEffect(() => {
+    if (shuffledQuiz && resumeCount > 4 && !isSubmitting && !autoSubmitAttempted.current) {
+      autoSubmitAttempted.current = true;
+      const timer = setTimeout(() => {
+        handleAutoSubmit('Exceeded maximum allowed refreshes/tab closes (4)');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [shuffledQuiz, resumeCount, isSubmitting]);
+
   const handleStartExam = async () => {
     if (quiz.endTime && new Date() > new Date(quiz.endTime)) {
       alert("Your quiz time has expired. Your previously saved answers have been safely submitted to the server.");
@@ -135,10 +159,16 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       if (shuffledQuiz) {
         localStorage.removeItem(`quiz_layout_${shuffledQuiz._id}`);
         localStorage.removeItem(`quiz_draft_${shuffledQuiz._id}`);
+        localStorage.removeItem(`quiz_refresh_count_${shuffledQuiz._id}`);
       }
       localStorage.removeItem('activeQuiz');
       onSubmit();
       return;
+    }
+
+    const storageKey = `quiz_start_time_${quiz._id}`;
+    if (!localStorage.getItem(storageKey)) {
+      localStorage.setItem(storageKey, Date.now().toString());
     }
 
     try {
@@ -186,6 +216,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       localStorage.removeItem(`quiz_start_time_${shuffledQuiz._id}`);
       localStorage.removeItem(`quiz_layout_${shuffledQuiz._id}`);
       localStorage.removeItem(`quiz_draft_${shuffledQuiz._id}`);
+      localStorage.removeItem(`quiz_refresh_count_${shuffledQuiz._id}`);
       exitFullScreen();
 
       const scoreMessage = autoSubmit 
@@ -206,6 +237,15 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
         localStorage.removeItem(`quiz_start_time_${shuffledQuiz._id}`);
         localStorage.removeItem(`quiz_layout_${shuffledQuiz._id}`);
         localStorage.removeItem(`quiz_draft_${shuffledQuiz._id}`);
+        localStorage.removeItem(`quiz_refresh_count_${shuffledQuiz._id}`);
+        localStorage.removeItem('activeQuiz');
+        onSubmit();
+      } else if (error.response?.status === 404 || errorMsg.toLowerCase().includes("not found")) {
+        alert("This quiz is no longer available or was deleted.");
+        localStorage.removeItem(`quiz_start_time_${shuffledQuiz._id}`);
+        localStorage.removeItem(`quiz_layout_${shuffledQuiz._id}`);
+        localStorage.removeItem(`quiz_draft_${shuffledQuiz._id}`);
+        localStorage.removeItem(`quiz_refresh_count_${shuffledQuiz._id}`);
         localStorage.removeItem('activeQuiz');
         onSubmit();
       } else {
@@ -297,7 +337,15 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
               </div>
             )}
 
-            {isResuming ? (
+            {resumeCount > 4 ? (
+              <div className="bg-red-50/80 p-8 rounded-xl border border-red-100 text-center space-y-4 my-8">
+                <div className="w-20 h-20 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-10 h-10" />
+                </div>
+                <h3 className="text-2xl font-bold text-red-900">Maximum Refreshes Exceeded</h3>
+                <p className="text-base text-red-800">You have refreshed or closed the tab too many times. Your exam is being automatically submitted.</p>
+              </div>
+            ) : isResuming ? (
               <div className="bg-blue-50/80 p-8 rounded-xl border border-blue-100 text-center space-y-4 my-8">
                 <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Clock className="w-10 h-10 animate-pulse" />
@@ -313,7 +361,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                   <Shield className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-bold text-gray-900 mb-1">Full Screen Proctored</h4>
-                    <p className="text-sm text-gray-600 leading-relaxed">This exam is strictly proctored. You must remain in full-screen mode at all times. <strong>Exiting full-screen twice will automatically submit your exam.</strong></p>
+                    <p className="text-sm text-gray-600 leading-relaxed">This exam is strictly proctored. You must remain in full-screen mode at all times. <strong>Exiting full-screen four times will automatically submit your exam.</strong></p>
                   </div>
                 </div>
 
@@ -345,30 +393,37 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
           </div>
           
           {/* Footer */}
-          <div className="p-6 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-4 mt-auto">
-            {isResuming ? (
+          <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 flex flex-col-reverse sm:flex-row items-center justify-end gap-3 sm:gap-4 mt-auto">
+            {resumeCount > 4 ? (
+              <button 
+                disabled
+                className="w-full sm:w-auto px-8 py-2.5 bg-gray-400 text-white font-bold rounded-xl cursor-not-allowed shadow-md"
+              >
+                Auto-Submitting...
+              </button>
+            ) : isResuming ? (
               <>
                 <button 
                   onClick={() => handleSubmitQuiz(false, 'Exited on Resume')} 
-                  className="px-6 py-2.5 font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors shadow-md shadow-red-600/20"
+                  className="w-full sm:w-auto px-6 py-3 sm:py-2.5 font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors shadow-md shadow-red-600/20"
                 >
                   Submit & Exit Exam
                 </button>
                 <button 
                   onClick={handleStartExam} 
-                  className="px-8 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20"
+                  className="w-full sm:w-auto px-8 py-3 sm:py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20"
                 >
                   Resume Exam
                 </button>
               </>
             ) : (
               <>
-                <button onClick={onClose} className="px-6 py-2.5 font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors">
+                <button onClick={onClose} className="w-full sm:w-auto px-6 py-3 sm:py-2.5 font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-xl transition-colors">
                   Cancel
                 </button>
                 <button 
                   onClick={handleStartExam} 
-                  className="px-8 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20"
+                  className="w-full sm:w-auto px-8 py-3 sm:py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20"
                 >
                   I Understand, Start Exam
                 </button>
@@ -410,7 +465,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
               {violations.length > 0 && (
                 <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold">
-                 {violations.length}/2 Violation{violations.length > 1 ? 's' : ''}
+                 {violations.length}/4 Violation{violations.length !== 1 ? 's' : ''}
                 </div>
               )}
             </div>
@@ -600,7 +655,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
         show={showViolationAlert}
         message={violationMessage}
         violationCount={violations.length}
-        maxViolations={2}
+        maxViolations={4}
         onOk={handleViolationAlertOk}
       />
     </div>
