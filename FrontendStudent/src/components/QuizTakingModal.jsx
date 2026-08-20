@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, X } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, X, Bookmark, LayoutGrid } from 'lucide-react';
 import { submitQuiz, autosaveQuiz } from '../api/quizApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
 import ViolationAlertModal from './ViolationAlertModal';
+import QuestionPalette from './QuestionPalette';
 import { getStoredToken } from '../utils/authStorage';
 import API_BASE_URL from '../config';
 
@@ -16,6 +17,20 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   });
   const [timeLeft, setTimeLeft] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [visitedQuestions, setVisitedQuestions] = useState(new Set([0]));
+  const [markedForReview, setMarkedForReview] = useState({});
+  const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
+
+  useEffect(() => {
+    setVisitedQuestions(prev => new Set(prev).add(currentQuestion));
+  }, [currentQuestion]);
+
+  const handleToggleMarkForReview = (questionId) => {
+    setMarkedForReview(prev => ({
+      ...prev,
+      [questionId]: !prev[questionId]
+    }));
+  };
 
   const timerRef = useRef(null);
   const answersRef = useRef({});
@@ -370,23 +385,37 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center z-50 font-body">
       <div className="bg-white w-screen h-screen flex flex-col">
+        {/* HEADER */}
         <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <Shield className={`w-6 h-6 ${isFullScreen ? 'text-green-600' : 'text-red-600'}`} />
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate max-w-[200px] sm:max-w-md">{quiz.title}</h2>
-                <p className="text-xs text-gray-600 mt-1">
+                <p className="text-xs text-gray-600 mt-0.5">
                   Protected Mode {!isFullScreen && '(Full-screen exited)'}
                 </p>
               </div>
             </div>
-            {violations.length > 0 && (
-              <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold">
-               {violations.length}/2 Violation{violations.length > 1 ? 's' : ''}
-              </div>
-            )}
+
+            <div className="flex items-center gap-2">
+              {/* Mobile Palette Toggle Button */}
+              <button
+                onClick={() => setIsMobilePaletteOpen(!isMobilePaletteOpen)}
+                className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-xs font-bold transition-colors"
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span>Questions</span>
+              </button>
+
+              {violations.length > 0 && (
+                <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold">
+                 {violations.length}/2 Violation{violations.length > 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
           </div>
+
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">
               Question {currentQuestion + 1} of {shuffledQuiz.questions.length}
@@ -410,98 +439,159 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-100 mb-6">
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-6 leading-relaxed">
-                {currentQuestion + 1}. {question.question}
-              </h3>
-              <div className="space-y-3">
-                {question.options.map((option, index) => {
-                  const isSelected = answers[question._id] === option;
-                  
-                  return (
+        {/* MAIN BODY (Side Palette + Question Area) */}
+        <div className="flex-1 overflow-hidden flex bg-gray-50">
+          {/* Question Palette Sidebar */}
+          <QuestionPalette
+            questions={shuffledQuiz.questions}
+            currentQuestion={currentQuestion}
+            answers={answers}
+            visitedQuestions={visitedQuestions}
+            markedForReview={markedForReview}
+            onSelectQuestion={(idx) => setCurrentQuestion(idx)}
+            isMobileOpen={isMobilePaletteOpen}
+            setIsMobileOpen={setIsMobilePaletteOpen}
+          />
+
+          {/* Question Content */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    Question {currentQuestion + 1} of {shuffledQuiz.questions.length}
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    {answers[question._id] && (
+                      <button
+                        onClick={() => handleAnswerSelect(question._id, '')}
+                        className="text-xs font-semibold text-gray-500 hover:text-rose-600 transition-colors px-2 py-1"
+                      >
+                        Clear Response
+                      </button>
+                    )}
                     <button
-                      key={index}
-                      onClick={() => handleAnswerSelect(question._id, option)}
-                      disabled={showViolationAlert}
-                      className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
-                        showViolationAlert ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:shadow-md hover:border-purple-300'
-                      } ${
-                        isSelected
-                          ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-600/20'
-                          : 'border-gray-200 bg-white'
+                      onClick={() => handleToggleMarkForReview(question._id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        markedForReview[question._id]
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                          isSelected ? 'border-purple-600 bg-purple-600' : 'border-gray-300'
-                        }`}>
-                          {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
-                        </div>
-                        <span className="font-semibold text-gray-700 flex-shrink-0">
-                          {String.fromCharCode(65 + index)}.
-                        </span>
-                        <span className="flex-1 text-gray-900 text-sm sm:text-base">{option}</span>
-                      </div>
+                      <Bookmark className={`w-3.5 h-3.5 ${markedForReview[question._id] ? 'fill-yellow-300 text-purple-900' : ''}`} />
+                      {markedForReview[question._id] ? 'Marked for Review' : 'Mark for Review'}
                     </button>
-                  );
-                })}
-              </div>
-            </div>
+                  </div>
+                </div>
 
-            <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-600">
-                  Answered: <strong className="text-gray-900">{getAnsweredCount()}</strong> / {shuffledQuiz.questions.length}
-                </span>
-                {getAnsweredCount() < shuffledQuiz.questions.length && (
-                  <span className="text-sm text-yellow-600 font-medium flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4" />
-                    {shuffledQuiz.questions.length - getAnsweredCount()} left
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-6 leading-relaxed">
+                  {currentQuestion + 1}. {question.question}
+                </h3>
+                <div className="space-y-3">
+                  {question.options.map((option, index) => {
+                    const isSelected = answers[question._id] === option;
+                    
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleAnswerSelect(question._id, option)}
+                        disabled={showViolationAlert}
+                        className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                          showViolationAlert ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:shadow-md hover:border-purple-300'
+                        } ${
+                          isSelected
+                            ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-600/20'
+                            : 'border-gray-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                            isSelected ? 'border-purple-600 bg-purple-600' : 'border-gray-300'
+                          }`}>
+                            {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
+                          </div>
+                          <span className="font-semibold text-gray-700 flex-shrink-0">
+                            {String.fromCharCode(65 + index)}.
+                          </span>
+                          <span className="flex-1 text-gray-900 text-sm sm:text-base">{option}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-600">
+                    Answered: <strong className="text-gray-900">{getAnsweredCount()}</strong> / {shuffledQuiz.questions.length}
                   </span>
-                )}
+                  {getAnsweredCount() < shuffledQuiz.questions.length && (
+                    <span className="text-sm text-yellow-600 font-medium flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4" />
+                      {shuffledQuiz.questions.length - getAnsweredCount()} left
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
+        {/* FOOTER */}
         <div className="p-4 sm:p-6 border-t border-gray-200 bg-white">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
             <button
               onClick={handlePrevious}
               disabled={currentQuestion === 0 || isSubmitting || showViolationAlert}
-              className="px-4 sm:px-6 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              style={{ color: '#000000' }}
+              className="px-4 sm:px-6 py-2.5 bg-gray-200 text-black font-bold rounded-xl hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer border border-gray-300 shadow-2xs"
             >
               Previous
             </button>
-            {currentQuestion < shuffledQuiz.questions.length - 1 ? (
+
+            <div className="flex items-center gap-3">
               <button
-                onClick={handleNext}
-                disabled={isSubmitting || showViolationAlert}
-                className="px-6 sm:px-8 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 disabled:opacity-50 transition-colors cursor-pointer shadow-md shadow-purple-600/20"
+                onClick={() => handleToggleMarkForReview(question._id)}
+                className={`hidden sm:flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                  markedForReview[question._id]
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100'
+                }`}
               >
-                Next Question
+                <Bookmark className={`w-4 h-4 ${markedForReview[question._id] ? 'fill-yellow-300 text-purple-900' : ''}`} />
+                {markedForReview[question._id] ? 'Marked' : 'Mark for Review'}
               </button>
-            ) : (
-              <button
-                onClick={handleSubmitClick}
-                disabled={isSubmitting || showViolationAlert}
-                className="px-6 sm:px-8 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-2 cursor-pointer shadow-md shadow-green-600/20"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader className="w-5 h-5 animate-spin" />
-                    <span className="hidden sm:inline">Submitting...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-5 h-5" />
-                    Submit Exam
-                  </>
-                )}
-              </button>
-            )}
+
+              {currentQuestion < shuffledQuiz.questions.length - 1 ? (
+                <button
+                  onClick={handleNext}
+                  disabled={isSubmitting || showViolationAlert}
+                  className="px-6 sm:px-8 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 disabled:opacity-50 transition-colors cursor-pointer shadow-md shadow-purple-600/20"
+                >
+                  Next Question
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmitClick}
+                  disabled={isSubmitting || showViolationAlert}
+                  className="px-6 sm:px-8 py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-2 cursor-pointer shadow-md shadow-green-600/20"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      <span className="hidden sm:inline">Submitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Submit Exam
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
