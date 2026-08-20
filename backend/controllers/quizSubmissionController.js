@@ -54,6 +54,19 @@ const finalizeExpiredDrafts = async (quizId) => {
         { quizId, isDraft: true },
         { $set: { isDraft: false, submittedAt: new Date() } }
       );
+    } else if (quiz.duration) {
+      const durationMs = quiz.duration * 60 * 1000;
+      const gracePeriodMs = 2 * 60 * 1000;
+      const now = new Date();
+      
+      const drafts = await QuizSubmission.find({ quizId, isDraft: true });
+      for (const draft of drafts) {
+        if (draft.createdAt && (now.getTime() - draft.createdAt.getTime() > durationMs + gracePeriodMs)) {
+          draft.isDraft = false;
+          draft.submittedAt = new Date();
+          await draft.save();
+        }
+      }
     }
   } catch (error) {
     console.error("Error finalizing expired drafts:", error);

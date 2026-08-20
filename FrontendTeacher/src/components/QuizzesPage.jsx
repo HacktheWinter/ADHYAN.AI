@@ -673,7 +673,7 @@ const QuizzesPage = () => {
                          className="w-full p-2 bg-surface border border-line text-ink rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500"
                          disabled={isGenerating}
                       >
-                        {[5, 10, 15, 20].map(count => (
+                        {[5, 10, 15, 20, 25, 30, 40, 50].map(count => (
                           <option key={count} value={count}>{count} Questions</option>
                         ))}
                       </select>

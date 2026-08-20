@@ -84,6 +84,56 @@ const PhysicalTestUploadPage = () => {
     }
   };
 
+  const handleCreateAnswerKeyManually = () => {
+    setError("");
+    if (!testTitle.trim()) return setError("Please enter an examination option/title first.");
+    
+    setExtractedQuestions([{
+      questionId: "q1",
+      questionNumber: "1",
+      question: "",
+      marks: 1,
+      topic: "",
+      isMCQ: false,
+      mcqCorrectOption: "A",
+      rubric: {
+        mandatoryKeywords: [],
+        markingScheme: {},
+        depthRequired: "",
+        zeroMarkCondition: ""
+      }
+    }]);
+    setTotalMarks(1);
+    setQuestionCardFileId("");
+    setQuestionCardFileName("Manual Creation");
+    setSubject("");
+    setCurrentStep(3);
+  };
+
+  const addQuestionManually = () => {
+    const newIdx = extractedQuestions.length + 1;
+    setExtractedQuestions(prev => [
+      ...prev,
+      {
+        questionId: `q${newIdx}`,
+        questionNumber: `${newIdx}`,
+        question: "",
+        marks: 1,
+        topic: "",
+        isMCQ: false,
+        mcqCorrectOption: "A",
+        rubric: {
+          mandatoryKeywords: [],
+          markingScheme: {},
+          depthRequired: "",
+          zeroMarkCondition: ""
+        }
+      }
+    ]);
+    setTotalMarks(prev => prev + 1);
+    setAnswerKeyConfirmed(false);
+  };
+
   // ── Step 3: Answer key editing helpers ─────────────────────────────
   const updateQuestion = (idx, field, value) => {
     setExtractedQuestions(prev => prev.map((q, i) => i === idx ? { ...q, [field]: value } : q));
@@ -141,10 +191,26 @@ const PhysicalTestUploadPage = () => {
   // ── Step 3→4: Confirm answer key ──────────────────────────────────
   const handleConfirmAnswerKey = async () => {
     setError("");
+    
+    // Auto-fill MCQs with proper format for AI check
+    const processedQuestions = extractedQuestions.map(q => {
+      if (q.isMCQ && q.mcqCorrectOption) {
+        return {
+          ...q,
+          rubric: {
+            ...q.rubric,
+            mandatoryKeywords: [q.mcqCorrectOption],
+            markingScheme: { "correct_option": q.marks }
+          }
+        };
+      }
+      return q;
+    });
+
     // Validate
-    for (const q of extractedQuestions) {
+    for (const q of processedQuestions) {
       if (!q.rubric?.mandatoryKeywords?.length) {
-        return setError(`Question "${q.questionId}" needs at least one mandatory keyword.`);
+        return setError(`Question "${q.questionId}" needs at least one mandatory keyword (or correct option for MCQ).`);
       }
       if (!q.rubric?.markingScheme || Object.keys(q.rubric.markingScheme).length === 0) {
         return setError(`Question "${q.questionId}" needs a marking scheme.`);
@@ -153,7 +219,7 @@ const PhysicalTestUploadPage = () => {
 
     try {
       // Recalculate total marks right before confirmation in case teacher edited marks
-      const finalTotalMarks = extractedQuestions.reduce((acc, q) => acc + (q.marks || 0), 0);
+      const finalTotalMarks = processedQuestions.reduce((acc, q) => acc + (q.marks || 0), 0);
       setTotalMarks(finalTotalMarks);
 
       await confirmAnswerKeyAPI({
@@ -162,7 +228,7 @@ const PhysicalTestUploadPage = () => {
         totalMarks: finalTotalMarks,
         questionCardFileId,
         questionCardFileName,
-        questions: extractedQuestions,
+        questions: processedQuestions,
       });
       setAnswerKeyConfirmed(true);
       setCurrentStep(4);
@@ -386,24 +452,42 @@ const PhysicalTestUploadPage = () => {
             </div>
           )}
 
-          {currentStep === 2 && questionCard && !answerKeyConfirmed && (
-            <button
-              onClick={handleGenerateAnswerKey}
-              disabled={extracting}
-              className="w-full flex items-center justify-center gap-3 py-3 btn-settings-blue font-bold rounded-xl disabled:opacity-60 transition-all shadow-lg cursor-pointer text-sm"
-            >
-              {extracting ? (
-                <>
-                  <Loader className="w-5 h-5 animate-spin" />
-                  AI is analyzing the question paper… This may take a minute
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5" />
-                  Generate Answer Key with AI
-                </>
+          {currentStep === 2 && !answerKeyConfirmed && (
+            <div className="flex flex-col gap-3 mt-4">
+              {questionCard && (
+                <button
+                  onClick={handleGenerateAnswerKey}
+                  disabled={extracting}
+                  className="w-full flex items-center justify-center gap-3 py-3 btn-settings-blue font-bold rounded-xl disabled:opacity-60 transition-all shadow-lg cursor-pointer text-sm"
+                >
+                  {extracting ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      AI is analyzing the question paper… This may take a minute
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      Generate Answer Key with AI
+                    </>
+                  )}
+                </button>
               )}
-            </button>
+              
+              <div className="flex items-center gap-4 py-2">
+                <div className="h-px bg-line flex-1"></div>
+                <span className="text-xs font-bold text-ink-soft uppercase">OR</span>
+                <div className="h-px bg-line flex-1"></div>
+              </div>
+
+              <button
+                onClick={handleCreateAnswerKeyManually}
+                className="w-full flex items-center justify-center gap-3 py-3 bg-surface border-2 border-dashed border-violet-300 text-violet-dark font-bold rounded-xl hover:bg-violet-50 transition-all cursor-pointer text-sm"
+              >
+                <Plus className="w-5 h-5" />
+                Create Answer Key Manually
+              </button>
+            </div>
           )}
         </div>
 
@@ -457,6 +541,27 @@ const PhysicalTestUploadPage = () => {
                     {/* Expanded editor */}
                     {isExpanded && (
                       <div className="px-4 py-4 space-y-4 bg-surface border-t border-line">
+                        {/* MCQ Toggle */}
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs font-bold text-ink-soft uppercase tracking-wider">Question Type:</label>
+                          <div className="flex bg-line/20 p-1 rounded-xl">
+                            <button
+                              onClick={() => updateQuestion(idx, "isMCQ", false)}
+                              disabled={answerKeyConfirmed}
+                              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${!q.isMCQ ? "bg-white dark:bg-surface shadow-sm text-ink" : "text-ink-soft hover:text-ink"}`}
+                            >
+                              Subjective
+                            </button>
+                            <button
+                              onClick={() => updateQuestion(idx, "isMCQ", true)}
+                              disabled={answerKeyConfirmed}
+                              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${q.isMCQ ? "bg-white dark:bg-surface shadow-sm text-ink" : "text-ink-soft hover:text-ink"}`}
+                            >
+                              MCQ
+                            </button>
+                          </div>
+                        </div>
+
                         {/* Question text */}
                         <div>
                           <label className="text-xs font-bold text-ink-soft uppercase tracking-wider">Question Text</label>
@@ -492,113 +597,153 @@ const PhysicalTestUploadPage = () => {
                           </div>
                         </div>
 
-                        {/* Model Answer */}
-                        <div>
-                          <label className="text-xs font-bold text-ink-soft uppercase tracking-wider">Model Answer (for teacher reference)</label>
-                          <textarea
-                            value={q.answerKey || ""}
-                            onChange={e => updateQuestion(idx, "answerKey", e.target.value)}
-                            disabled={answerKeyConfirmed}
-                            rows={3}
-                            className="w-full mt-1 border border-line bg-paper text-ink rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-violet-dark outline-none disabled:opacity-60"
-                          />
-                        </div>
-
-                        {/* Mandatory Keywords */}
-                        <div>
-                          <label className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-2 block">
-                            Mandatory Keywords <span className="text-rose-500">*</span>
-                          </label>
-                          <div className="flex flex-wrap gap-2">
-                            {(q.rubric?.mandatoryKeywords || []).map((kw, kwIdx) => (
-                              <span key={kwIdx} className="inline-flex items-center gap-1 px-3 py-1 bg-violet-50 text-violet-dark border border-line rounded-xl text-xs font-bold">
-                                {kw}
-                                {!answerKeyConfirmed && (
-                                  <button onClick={() => removeKeyword(idx, kwIdx)} className="hover:text-rose-500 cursor-pointer">
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                )}
-                              </span>
-                            ))}
-                            {!answerKeyConfirmed && (
-                              <button
-                                onClick={() => addKeyword(idx)}
-                                className="inline-flex items-center gap-1 px-3 py-1 border border-dashed border-line text-violet-dark rounded-xl text-xs font-bold hover:bg-violet-50 cursor-pointer"
-                              >
-                                <Plus className="w-3 h-3" /> Add
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Marking Scheme */}
-                        <div>
-                          <label className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-2 flex items-center justify-between">
-                            <span>Marking Scheme <span className="text-rose-500">*</span></span>
-                            <span className={`text-xs font-bold ${schemeTotal === q.marks ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-455"}`}>
-                              Total: {schemeTotal}/{q.marks} marks
-                            </span>
-                          </label>
-                          <div className="space-y-2">
-                            {schemeEntries.map(([key, val]) => (
-                              <div key={key} className="flex items-center gap-2">
-                                <span className="text-sm text-ink font-semibold min-w-[140px] capitalize">{key.replace(/_/g, " ")}</span>
-                                <input
-                                  type="number"
-                                  value={val}
-                                  onChange={e => updateMarkingScheme(idx, key, e.target.value)}
+                        {q.isMCQ ? (
+                          <div className="bg-violet-50 dark:bg-violet-900/10 p-4 rounded-xl border border-violet-100 dark:border-violet-800/30">
+                            <label className="text-xs font-bold text-violet-dark uppercase tracking-wider block mb-2">Correct Option</label>
+                            <div className="flex gap-3">
+                              {["A", "B", "C", "D"].map(opt => (
+                                <button
+                                  key={opt}
+                                  onClick={() => updateQuestion(idx, "mcqCorrectOption", opt)}
                                   disabled={answerKeyConfirmed}
-                                  min="0"
-                                  className="w-20 border border-line bg-paper text-ink rounded-xl px-2 py-1 text-sm text-center focus:ring-2 focus:ring-violet-dark outline-none disabled:opacity-60"
-                                />
-                                <span className="text-xs text-ink-soft font-semibold">marks</span>
+                                  className={`w-10 h-10 rounded-xl font-bold flex items-center justify-center transition-all ${
+                                    q.mcqCorrectOption === opt
+                                      ? "bg-violet-600 text-white shadow-md ring-2 ring-violet-300 ring-offset-1"
+                                      : "bg-surface border border-line text-ink hover:bg-violet-100"
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                            <p className="text-xs text-ink-soft mt-3">
+                              AI will automatically mark this question based on the selected option. No detailed rubric is needed.
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Model Answer */}
+                            <div>
+                              <label className="text-xs font-bold text-ink-soft uppercase tracking-wider">Model Answer (for teacher reference)</label>
+                              <textarea
+                                value={q.answerKey || ""}
+                                onChange={e => updateQuestion(idx, "answerKey", e.target.value)}
+                                disabled={answerKeyConfirmed}
+                                rows={3}
+                                className="w-full mt-1 border border-line bg-paper text-ink rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-violet-dark outline-none disabled:opacity-60"
+                              />
+                            </div>
+
+                            {/* Mandatory Keywords */}
+                            <div>
+                              <label className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-2 block">
+                                Mandatory Keywords <span className="text-rose-500">*</span>
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {(q.rubric?.mandatoryKeywords || []).map((kw, kwIdx) => (
+                                  <span key={kwIdx} className="inline-flex items-center gap-1 px-3 py-1 bg-violet-50 text-violet-dark border border-line rounded-xl text-xs font-bold">
+                                    {kw}
+                                    {!answerKeyConfirmed && (
+                                      <button onClick={() => removeKeyword(idx, kwIdx)} className="hover:text-rose-500 cursor-pointer">
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </span>
+                                ))}
                                 {!answerKeyConfirmed && (
-                                  <button onClick={() => removeMarkingSchemeKey(idx, key)} className="p-1.5 text-ink-soft hover:text-rose-500 hover:bg-line/20 rounded-xl cursor-pointer">
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                  <button
+                                    onClick={() => addKeyword(idx)}
+                                    className="inline-flex items-center gap-1 px-3 py-1 border border-dashed border-line text-violet-dark rounded-xl text-xs font-bold hover:bg-violet-50 cursor-pointer"
+                                  >
+                                    <Plus className="w-3 h-3" /> Add
                                   </button>
                                 )}
                               </div>
-                            ))}
-                            {!answerKeyConfirmed && (
-                              <button
-                                onClick={() => addMarkingSchemeKey(idx)}
-                                className="flex items-center gap-1 text-xs text-violet-dark hover:opacity-80 font-bold transition-all cursor-pointer mt-1"
-                              >
-                                <Plus className="w-3 h-3" /> Add component
-                              </button>
-                            )}
-                          </div>
-                        </div>
+                            </div>
 
-                        {/* Depth Requirement */}
-                        <div>
-                          <label className="text-xs font-bold text-ink-soft uppercase tracking-wider">Depth Requirement</label>
-                          <input
-                            value={q.rubric?.depthRequired || ""}
-                            onChange={e => updateRubric(idx, "depthRequired", e.target.value)}
-                            disabled={answerKeyConfirmed}
-                            placeholder="e.g. Minimum 3 sentences. Must include real-world example."
-                            className="w-full mt-1 border border-line bg-paper text-ink rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-violet-dark outline-none disabled:opacity-60"
-                          />
-                        </div>
+                            {/* Marking Scheme */}
+                            <div>
+                              <label className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-2 flex items-center justify-between">
+                                <span>Marking Scheme <span className="text-rose-500">*</span></span>
+                                <span className={`text-xs font-bold ${schemeTotal === q.marks ? "text-green-600 dark:text-green-400" : "text-rose-600 dark:text-rose-455"}`}>
+                                  Total: {schemeTotal}/{q.marks} marks
+                                </span>
+                              </label>
+                              <div className="space-y-2">
+                                {schemeEntries.map(([key, val]) => (
+                                  <div key={key} className="flex items-center gap-2">
+                                    <span className="text-sm text-ink font-semibold min-w-[140px] capitalize">{key.replace(/_/g, " ")}</span>
+                                    <input
+                                      type="number"
+                                      value={val}
+                                      onChange={e => updateMarkingScheme(idx, key, e.target.value)}
+                                      disabled={answerKeyConfirmed}
+                                      min="0"
+                                      className="w-20 border border-line bg-paper text-ink rounded-xl px-2 py-1 text-sm text-center focus:ring-2 focus:ring-violet-dark outline-none disabled:opacity-60"
+                                    />
+                                    <span className="text-xs text-ink-soft font-semibold">marks</span>
+                                    {!answerKeyConfirmed && (
+                                      <button onClick={() => removeMarkingSchemeKey(idx, key)} className="p-1.5 text-ink-soft hover:text-rose-500 hover:bg-line/20 rounded-xl cursor-pointer">
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                                {!answerKeyConfirmed && (
+                                  <button
+                                    onClick={() => addMarkingSchemeKey(idx)}
+                                    className="flex items-center gap-1 text-xs text-violet-dark hover:opacity-80 font-bold transition-all cursor-pointer mt-1"
+                                  >
+                                    <Plus className="w-3 h-3" /> Add component
+                                  </button>
+                                )}
+                              </div>
+                            </div>
 
-                        {/* Zero Mark Condition */}
-                        <div>
-                          <label className="text-xs font-bold text-ink-soft uppercase tracking-wider">Zero Mark Condition</label>
-                          <input
-                            value={q.rubric?.zeroMarkCondition || ""}
-                            onChange={e => updateRubric(idx, "zeroMarkCondition", e.target.value)}
-                            disabled={answerKeyConfirmed}
-                            placeholder="e.g. 0 marks if student defines a completely different concept"
-                            className="w-full mt-1 border border-line bg-paper text-ink rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-violet-dark outline-none disabled:opacity-60"
-                          />
-                        </div>
+                            {/* Depth Requirement */}
+                            <div>
+                              <label className="text-xs font-bold text-ink-soft uppercase tracking-wider">Depth Requirement</label>
+                              <input
+                                value={q.rubric?.depthRequired || ""}
+                                onChange={e => updateRubric(idx, "depthRequired", e.target.value)}
+                                disabled={answerKeyConfirmed}
+                                placeholder="e.g. Minimum 3 sentences. Must include real-world example."
+                                className="w-full mt-1 border border-line bg-paper text-ink rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-violet-dark outline-none disabled:opacity-60"
+                              />
+                            </div>
+
+                            {/* Zero Mark Condition */}
+                            <div>
+                              <label className="text-xs font-bold text-ink-soft uppercase tracking-wider">Zero Mark Condition</label>
+                              <input
+                                value={q.rubric?.zeroMarkCondition || ""}
+                                onChange={e => updateRubric(idx, "zeroMarkCondition", e.target.value)}
+                                disabled={answerKeyConfirmed}
+                                placeholder="e.g. 0 marks if student defines a completely different concept"
+                                className="w-full mt-1 border border-line bg-paper text-ink rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-violet-dark outline-none disabled:opacity-60"
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
+
+            {/* Add Question Button */}
+            {!answerKeyConfirmed && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={addQuestionManually}
+                  className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-violet-300 text-violet-dark font-bold rounded-xl hover:bg-violet-50 transition-all cursor-pointer text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Question
+                </button>
+              </div>
+            )}
 
             {/* Next Button — confirms answer key and moves to Step 4 */}
             {!answerKeyConfirmed && currentStep === 3 && (
