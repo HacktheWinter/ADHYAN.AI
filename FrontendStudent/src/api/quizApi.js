@@ -1,4 +1,3 @@
-// FrontendStudent/src/api/quizApi.js
 import axios from "axios";
 import API_BASE_URL from "../config";
 
@@ -51,5 +50,16 @@ export const getQuizResult = async (quizId, studentId) => {
   const res = await axios.get(
     `${BASE_URL}/quiz-submission/result/${quizId}/${studentId}`
   );
+  return res.data;
+};
+
+export const runCode = async (quizId, questionId, code, language, customInput) => {
+  const res = await axios.post(`${BASE_URL}/quiz-submission/run-code`, {
+    quizId,
+    questionId,
+    code,
+    language,
+    customInput,
+  });
   return res.data;
 };

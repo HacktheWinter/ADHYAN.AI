@@ -35,7 +35,7 @@ const getAuthorizedTestPaperForTeacher = async (req, testPaperId) => {
 const getAuthorizedTestSubmissionForTeacher = async (req, submissionId) => {
   const submission = await TestSubmission.findById(submissionId)
     .populate("testPaperId", "title totalMarks questions classroomId")
-    .populate("studentId", "name email profilePhoto");
+    .populate("studentId", "name email profilePhoto erpId");
 
   if (!submission) {
     throw createHttpError(404, "Submission not found");
@@ -456,7 +456,7 @@ export const getTestSubmissions = async (req, res) => {
     await getAuthorizedTestPaperForTeacher(req, testPaperId);
 
     const submissions = await TestSubmission.find({ testPaperId })
-      .populate("studentId", "name email profilePhoto")
+      .populate("studentId", "name email profilePhoto erpId")
       .sort({ submittedAt: -1 });
 
     res.status(200).json({

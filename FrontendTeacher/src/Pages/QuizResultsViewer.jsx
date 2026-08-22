@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, User, CheckCircle, AlertTriangle, 
   FileText, Loader, Trophy, RefreshCw, MoreVertical,
-  BarChart2, Users
+  BarChart2, Users, Search
 } from 'lucide-react';
 import axios from 'axios';
 import API_BASE_URL from '../config';
@@ -17,6 +17,8 @@ const QuizResultsViewer = () => {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSection, setSelectedSection] = useState('all');
 
   const [isPublishing, setIsPublishing] = useState(false);
 
@@ -135,15 +137,51 @@ const QuizResultsViewer = () => {
     );
   }
 
-  const averageScore = submissions.length > 0
-    ? (submissions.reduce((sum, sub) => sum + parseFloat(sub.percentage), 0) / submissions.length).toFixed(2)
+  // Calculate section-specific stats if a section is selected
+  const activeSection = selectedSection !== 'all' && quiz?.sections ? quiz.sections.find(s => s._id === selectedSection) : null;
+  const sectionQuestionIds = activeSection ? activeSection.questions.map(q => q._id) : [];
+
+  const processedSubmissions = submissions.map(sub => {
+    if (selectedSection === 'all' || !activeSection) {
+      return {
+        ...sub,
+        displayScore: sub.score,
+        displayTotal: sub.totalQuestions,
+        displayPercentage: parseFloat(sub.percentage)
+      };
+    } else {
+      const sectionAnswers = sub.answers.filter(a => sectionQuestionIds.includes(a.questionId));
+      let secScore = 0;
+      sectionAnswers.forEach(a => {
+        if (a.type === 'coding') {
+           // For coding, we check if testResults exist and calculate percentage of tests passed, but for simplicity let's say 1 mark if fully passed, or check marksAwarded.
+           // Since we don't have full grading logic here, we'll assume isCorrect means fully passed.
+           if (a.isCorrect) secScore += 1;
+        } else {
+           if (a.isCorrect) secScore += 1;
+        }
+      });
+      const secTotal = activeSection.questions.length;
+      const secPercentage = secTotal > 0 ? (secScore / secTotal) * 100 : 0;
+      
+      return {
+        ...sub,
+        displayScore: secScore,
+        displayTotal: secTotal,
+        displayPercentage: secPercentage
+      };
+    }
+  });
+
+  const averageScore = processedSubmissions.length > 0
+    ? (processedSubmissions.reduce((sum, sub) => sum + sub.displayPercentage, 0) / processedSubmissions.length).toFixed(2)
     : 0;
 
-  const passCount = submissions.filter(sub => parseFloat(sub.percentage) >= 40).length;
-  const failCount = submissions.filter(sub => parseFloat(sub.percentage) < 40).length;
+  const passCount = processedSubmissions.filter(sub => sub.displayPercentage >= 40).length;
+  const failCount = processedSubmissions.filter(sub => sub.displayPercentage < 40).length;
 
   const totalStudents = classroom?.students?.length || 0;
-  const submittedCount = submissions.length;
+  const submittedCount = processedSubmissions.length;
   const pendingCount = Math.max(0, totalStudents - submittedCount);
 
   return (
@@ -270,6 +308,34 @@ const QuizResultsViewer = () => {
               Results Published
             </div>
           )}
+          
+          {quiz?.sections && quiz.sections.length > 0 && (
+            <div className="relative w-full sm:w-auto mb-2 sm:mb-0">
+              <select
+                value={selectedSection}
+                onChange={(e) => setSelectedSection(e.target.value)}
+                className="w-full sm:w-48 px-4 py-3 bg-surface border border-line rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-ink text-sm sm:text-base appearance-none cursor-pointer"
+              >
+                <option value="all">All Sections</option>
+                {quiz.sections.map((sec, idx) => (
+                  <option key={sec._id} value={sec._id}>
+                    {sec.title || `Section ${idx + 1}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="relative flex-1 sm:max-w-xs ml-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-soft" />
+            <input 
+              type="text" 
+              placeholder="Search by name, email or ERP ID..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-3 bg-surface border border-line rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-ink text-sm sm:text-base"
+            />
+          </div>
         </div>
 
         {/* Submissions Table */}
@@ -294,7 +360,15 @@ const QuizResultsViewer = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {submissions.map((submission) => (
+                  {processedSubmissions
+                    .filter(sub => {
+                      const searchStr = searchQuery.toLowerCase();
+                      const name = (sub.studentId?.name || '').toLowerCase();
+                      const email = (sub.studentId?.email || '').toLowerCase();
+                      const erpId = (sub.studentId?.erpId || '').toLowerCase();
+                      return name.includes(searchStr) || email.includes(searchStr) || erpId.includes(searchStr);
+                    })
+                    .map((submission) => (
                     <tr key={submission._id} className="hover:bg-line/20 bg-surface transition-colors">
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
                         <div className="flex items-center gap-2 sm:gap-3">
@@ -316,16 +390,17 @@ const QuizResultsViewer = () => {
                           <div className="min-w-0">
                             <p className="font-bold text-ink font-display text-xs sm:text-base truncate">{submission.studentId?.name || 'Unknown'}</p>
                             <p className="text-xs text-ink-soft truncate hidden sm:block">{submission.studentId?.email}</p>
+                            <p className="text-[10px] text-ink-soft/70 uppercase tracking-wide mt-0.5">ID: {submission.studentId?.erpId || 'No ERP ID'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
                         <span className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-xs font-bold border border-line ${
-                          parseFloat(submission.percentage) >= 40
+                          submission.displayPercentage >= 40
                             ? 'bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300'
                             : 'bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350'
                         }`}>
-                          {parseFloat(submission.percentage) >= 40 ? (
+                          {submission.displayPercentage >= 40 ? (
                             <><CheckCircle className="w-3 h-3" /> <span className="hidden sm:inline">Pass</span></>
                           ) : (
                             <><AlertTriangle className="w-3 h-3" /> <span className="hidden sm:inline">Fail</span></>
@@ -334,14 +409,14 @@ const QuizResultsViewer = () => {
                       </td>
                       <td className="hidden sm:table-cell px-6 py-4">
                         <span className="font-semibold text-ink text-sm">
-                          {submission.score}/{submission.totalQuestions}
+                          {submission.displayScore}/{submission.displayTotal}
                         </span>
                       </td>
                       <td className="hidden lg:table-cell px-6 py-4">
                         <span className={`font-bold ${
-                          parseFloat(submission.percentage) >= 40 ? 'text-green-600 dark:text-green-400' : 'text-rose-600 dark:text-rose-450'
+                          submission.displayPercentage >= 40 ? 'text-green-600 dark:text-green-400' : 'text-rose-600 dark:text-rose-450'
                         }`}>
-                          {submission.percentage?.toFixed(2)}%
+                          {submission.displayPercentage.toFixed(2)}%
                         </span>
                       </td>
                       <td className="hidden lg:table-cell px-6 py-4">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Download, Search, FileText, User } from 'lucide-react';
+import { ChevronLeft, Download, Search, FileText, User, Filter } from 'lucide-react';
 import axios from 'axios';
 import API_BASE_URL from '../config';
 
@@ -21,6 +21,10 @@ const ClassDashboard = () => {
   const [items, setItems] = useState([]); // Stores quizzes, assignments, or test papers
   const [submissions, setSubmissions] = useState({});
   const [showMenu, setShowMenu] = useState(false);
+  const [filterType, setFilterType] = useState('none');
+  const [filterOperator, setFilterOperator] = useState('>=');
+  const [filterValue, setFilterValue] = useState('');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
 
     const fetchDashboardData = useCallback(async () => {
     try {
@@ -133,9 +137,11 @@ const ClassDashboard = () => {
         fetchDashboardData();
     }, [fetchDashboardData]);
 
-  const filteredStudents = students.filter(student => 
+  const baseFilteredStudents = students.filter(student => 
     student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchQuery.toLowerCase())
+    student.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (student.erpId && student.erpId.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (student.section && student.section.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const getStudentScore = (studentId) => {
@@ -159,7 +165,37 @@ const ClassDashboard = () => {
     return { avg: totalPct / items.length, attempts };
   };
 
-  const sortedStudents = [...filteredStudents].sort((a, b) => {
+  const finalFilteredStudents = baseFilteredStudents.filter(student => {
+    if (filterType === 'none' || filterValue === '') return true;
+    const val = parseFloat(filterValue);
+    if (isNaN(val)) return true;
+
+    const score = getStudentScore(student._id);
+    if (score.attempts === 0) return false;
+
+    let compareVal = 0;
+    if (filterType === 'percentage') {
+      compareVal = score.avg;
+    } else if (filterType === 'marks') {
+      let totalMarks = 0;
+      let attempts = 0;
+      items.forEach(item => {
+        const sub = submissions[student._id]?.[item._id];
+        if (sub && typeof sub.score === 'number') {
+          totalMarks += sub.score;
+          attempts += 1;
+        }
+      });
+      compareVal = attempts > 0 ? totalMarks / attempts : 0;
+    }
+
+    if (filterOperator === '>=') return compareVal >= val;
+    if (filterOperator === '<=') return compareVal <= val;
+    if (filterOperator === '==') return compareVal === val;
+    return true;
+  });
+
+  const sortedStudents = [...finalFilteredStudents].sort((a, b) => {
     const scoreA = getStudentScore(a._id);
     const scoreB = getStudentScore(b._id);
     
@@ -179,11 +215,11 @@ const ClassDashboard = () => {
     
     // Header
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += `Serial No,Student Name,Email,ERP ID,` + items.map((_, i) => `${itemLabel} ${i + 1}`).join(",") + "\n";
+    csvContent += `Serial No,Student Name,Email,ERP ID,Section,` + items.map((_, i) => `${itemLabel} ${i + 1}`).join(",") + "\n";
 
     // Rows
     sortedStudents.forEach((student, index) => {
-        let row = `${index + 1},"${student.name}","${student.email}","${student.erpId || 'N/A'}"`;
+        let row = `${index + 1},"${student.name}","${student.email}","${student.erpId || 'N/A'}","${student.section || 'N/A'}"`;
         
         items.forEach(item => {
             const sub = submissions[student._id]?.[item._id];
@@ -220,7 +256,7 @@ const ClassDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-paper p-4 sm:p-8 font-body text-ink" onClick={() => setShowMenu(false)}>
+    <div className="min-h-screen bg-paper p-4 sm:p-8 font-body text-ink" onClick={() => { setShowMenu(false); setShowFilterMenu(false); }}>
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header */}
@@ -251,6 +287,55 @@ const ClassDashboard = () => {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pl-9 pr-4 py-2 bg-surface border border-line rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-ink text-sm"
                     />
+                </div>
+
+                {/* Filter Menu */}
+                <div className="relative" onClick={e => e.stopPropagation()}>
+                    <button 
+                        onClick={() => { setShowFilterMenu(!showFilterMenu); setShowMenu(false); }}
+                        className={`p-2 border border-line rounded-lg transition-colors cursor-pointer flex items-center gap-2 ${filterType !== 'none' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-surface hover:bg-line text-ink'}`}
+                        title="Filter Students"
+                    >
+                        <Filter className="w-5 h-5" />
+                    </button>
+                    
+                    {showFilterMenu && (
+                        <div className="absolute right-0 sm:right-auto sm:left-0 top-full mt-2 w-64 bg-surface rounded-xl shadow-lg border border-line p-4 z-20">
+                            <div className="space-y-3">
+                                <p className="font-semibold text-sm text-ink">Filter Students</p>
+                                <select 
+                                    value={filterType} 
+                                    onChange={e => setFilterType(e.target.value)}
+                                    className="w-full p-2 text-sm bg-paper border border-line rounded-lg focus:outline-none focus:border-purple-500 text-ink"
+                                >
+                                    <option value="none">No Filter</option>
+                                    <option value="percentage">Average Percentage</option>
+                                    <option value="marks">Average Marks</option>
+                                </select>
+                                
+                                {filterType !== 'none' && (
+                                    <div className="flex gap-2">
+                                        <select
+                                            value={filterOperator}
+                                            onChange={e => setFilterOperator(e.target.value)}
+                                            className="w-1/3 p-2 text-sm bg-paper border border-line rounded-lg focus:outline-none focus:border-purple-500 text-ink"
+                                        >
+                                            <option value=">=">&gt;=</option>
+                                            <option value="<=">&lt;=</option>
+                                            <option value="==">==</option>
+                                        </select>
+                                        <input
+                                            type="number"
+                                            value={filterValue}
+                                            onChange={e => setFilterValue(e.target.value)}
+                                            placeholder="Value"
+                                            className="w-2/3 p-2 text-sm bg-paper border border-line rounded-lg focus:outline-none focus:border-purple-500 text-ink"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* View Mode Switcher */}
@@ -317,6 +402,9 @@ const ClassDashboard = () => {
                             <th className="px-6 py-4 text-left text-xs font-semibold text-ink-soft uppercase tracking-wider w-64">
                                 Student Details
                             </th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-ink-soft uppercase tracking-wider w-24">
+                                Section
+                            </th>
                             {items.map((item, index) => (
                                 <th key={item._id} className="px-6 py-4 text-left text-xs font-semibold text-ink-soft uppercase tracking-wider min-w-[140px]">
                                     <div className="flex items-center gap-2" title={item.title}>
@@ -357,6 +445,9 @@ const ClassDashboard = () => {
                                                 <div className="text-[10px] text-ink-soft/70 uppercase tracking-wide mt-0.5">ID: {student.erpId || 'No ERP ID'}</div>
                                             </div>
                                         </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-soft font-semibold">
+                                        {student.section || 'N/A'}
                                     </td>
                                     {items.map(item => {
                                         const sub = submissions[student._id]?.[item._id];

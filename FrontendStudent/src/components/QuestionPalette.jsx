@@ -22,7 +22,12 @@ export default function QuestionPalette({
 
   questions.forEach((q, idx) => {
     const qId = q._id || idx;
-    const hasAns = !!answers[qId] && String(answers[qId]).trim() !== '';
+    let hasAns = false;
+    if (answers[qId]) {
+      if (answers[qId].type === 'mcq') hasAns = !!answers[qId].selectedAnswer && String(answers[qId].selectedAnswer).trim() !== '';
+      else if (answers[qId].type === 'coding') hasAns = !!answers[qId].code && String(answers[qId].code).trim() !== '';
+      else hasAns = String(answers[qId]).trim() !== '';
+    }
     const isMarked = !!markedForReview[qId];
     const isVisited = visitedQuestions.has(idx) || idx === currentQuestion;
 
@@ -41,7 +46,12 @@ export default function QuestionPalette({
 
   const getQuestionStatus = (q, idx) => {
     const qId = q._id || idx;
-    const hasAns = !!answers[qId] && String(answers[qId]).trim() !== '';
+    let hasAns = false;
+    if (answers[qId]) {
+      if (answers[qId].type === 'mcq') hasAns = !!answers[qId].selectedAnswer && String(answers[qId].selectedAnswer).trim() !== '';
+      else if (answers[qId].type === 'coding') hasAns = !!answers[qId].code && String(answers[qId].code).trim() !== '';
+      else hasAns = String(answers[qId]).trim() !== '';
+    }
     const isMarked = !!markedForReview[qId];
     const isVisited = visitedQuestions.has(idx) || idx === currentQuestion;
 
@@ -72,21 +82,23 @@ export default function QuestionPalette({
   };
 
   const content = (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200 w-full md:w-72 flex-shrink-0 font-sans">
+    <div className={`flex flex-col h-full bg-white border-r border-gray-200 w-full ${collapsed ? 'md:w-14' : 'md:w-72'} flex-shrink-0 font-sans transition-all duration-300 overflow-hidden`}>
       {/* Header & Toggle */}
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
-        <div>
-          <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-            <span>Question Palette</span>
-            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
-              {questions.length} Qs
-            </span>
-          </h3>
-          <p className="text-xs text-gray-500 mt-0.5">Click number to jump to question</p>
-        </div>
+      <div className={`p-4 border-b border-gray-100 flex items-center bg-gradient-to-r from-gray-50 to-white ${collapsed ? 'justify-center' : 'justify-between'}`}>
+        {!collapsed && (
+          <div>
+            <h3 className="font-bold text-gray-900 text-base flex items-center gap-2 whitespace-nowrap">
+              <span>Question Palette</span>
+              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
+                {questions.length} Qs
+              </span>
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5 whitespace-nowrap">Click number to jump to question</p>
+          </div>
+        )}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="hidden md:flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          className="hidden md:flex p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
           title={collapsed ? "Expand Palette" : "Collapse Palette"}
         >
           {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}

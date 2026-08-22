@@ -584,4 +584,145 @@ Generate ONLY the title text, nothing else:`;
   return `Quiz: ${firstTopic.substring(0, 40)}`;
 };
 
-export default { generateQuizFromText, generateQuizFromTopics, generateQuizTitle };
+/**
+ * Extracts exact questions from a provided text document.
+ * Handles both Multiple Choice Questions (MCQs) and Coding Challenges.
+ * @param {string} extractedText - Text extracted from the uploaded file
+ */
+export const extractExactQuestions = async (extractedText) => {
+  let attempts = 0;
+
+  while (attempts < MAX_TRANSIENT_RETRIES) {
+    try {
+      console.log("Preparing Gemini prompt for Exact Question Extraction...");
+      console.log(`Full text length: ${extractedText.length} chars`);
+
+      const textChunks = chunkText(extractedText);
+      console.log(`Split into ${textChunks.length} chunk(s)`);
+
+      const model = getModel();
+      const chatSession = model.startChat({
+        generationConfig,
+        history: [],
+      });
+
+      if (textChunks.length > 1) {
+        for (let i = 0; i < textChunks.length - 1; i++) {
+          const chunkMsg = `I am providing a document in multiple parts. This is Part ${i + 1} of ${textChunks.length}. Read and memorize this content. Do NOT generate anything yet — just reply with the single word "Understood".\n\nCONTENT PART ${i + 1}:\n${textChunks[i]}`;
+          await chatSession.sendMessage(chunkMsg);
+        }
+      }
+
+      const lastChunk = textChunks[textChunks.length - 1];
+      const contentHeader = textChunks.length > 1
+        ? `This is the FINAL Part ${textChunks.length} of ${textChunks.length}. Now you have the complete document. Extract the exact questions from ALL parts combined.\n\nFINAL CONTENT PART:\n${lastChunk}`
+        : `DOCUMENT CONTENT:\n${lastChunk}`;
+
+      const prompt = `
+You are an expert educational content parser.
+I am providing you with a document that contains questions (either Multiple Choice Questions, Coding Challenges, or a mix of both).
+Your task is to extract EVERY question exactly as it appears and convert it into a strictly formatted JSON array.
+
+CRITICAL JSON RULES:
+1. Return ONLY valid JSON - No markdown snippets (e.g., no \`\`\`json), no extra text.
+2. The output MUST be a JSON array of objects.
+
+Identify the type of each question and format it accordingly:
+
+For Multiple Choice Questions (MCQ):
+{
+  "type": "mcq",
+  "marks": 1,
+  "question": "The exact question text",
+  "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
+  "correctOptionIndex": 0 // Integer 0-3 indicating which option is correct. If you cannot determine the answer, default to 0.
+}
+
+For Coding Challenges:
+{
+  "type": "coding",
+  "marks": 5, // Default to 5 if not specified
+  "coding": {
+    "title": "Short descriptive title extracted or inferred",
+    "description": "Full problem description",
+    "examples": [
+      {
+        "input": "Example input",
+        "output": "Example output",
+        "explanation": "Explanation if any"
+      }
+    ],
+    "constraints": ["Constraint 1", "Constraint 2"], // If none found, provide ["N/A"]
+    "allowedLanguages": ["javascript", "python", "java", "cpp"],
+    "publicTestCases": [
+      { "input": "test input", "expectedOutput": "expected output" }
+    ],
+    "hiddenTestCases": [
+      { "input": "hidden input", "expectedOutput": "hidden output" }
+    ],
+    "comparisonMode": "trimmed"
+  }
+}
+*Note for coding*: If explicit test cases aren't in the document, use the examples as publicTestCases and generate at least one plausible hiddenTestCase based on the problem description.
+
+${contentHeader}
+
+Extract all questions and return the JSON array:`;
+
+      console.log("Sending final extraction prompt to Gemini...");
+
+      const result = await chatSession.sendMessage(prompt);
+      const response = result.response.text();
+
+      console.log("Received response from Gemini");
+
+      let cleanedResponse = response.trim();
+      if (cleanedResponse.startsWith("\`\`\`json")) {
+        cleanedResponse = cleanedResponse.replace(/\`\`\`json\n?/g, "").replace(/\`\`\`\n?/g, "");
+      }
+      if (cleanedResponse.startsWith("\`\`\`")) {
+        cleanedResponse = cleanedResponse.replace(/\`\`\`\n?/g, "");
+      }
+
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(cleanedResponse);
+      } catch (err) {
+        console.error("JSON Parse Error:", err.message);
+        throw new Error("Invalid JSON response from AI");
+      }
+
+      if (!Array.isArray(parsedResponse)) {
+        if (parsedResponse.questions && Array.isArray(parsedResponse.questions)) {
+          parsedResponse = parsedResponse.questions;
+        } else {
+          throw new Error("Invalid response format (expected an array)");
+        }
+      }
+
+      if (parsedResponse.length === 0) {
+        throw new Error("No questions extracted");
+      }
+
+      console.log(`Extracted ${parsedResponse.length} questions`);
+      return parsedResponse;
+    } catch (error) {
+      console.error(`Gemini API Error (Key #${currentKeyIndex + 1}):`, error.message);
+      attempts++;
+
+      if (isQuotaOrRateLimitError(error) || isTransientServiceError(error)) {
+        rotateApiKey();
+        if (attempts < MAX_TRANSIENT_RETRIES) {
+          const backoffMs = getBackoffMs(attempts);
+          await wait(backoffMs);
+          continue;
+        }
+      }
+      throw error;
+    }
+  }
+
+  throw new Error("Gemini service is busy right now after multiple retries. Please try again in a minute.");
+};
+
+export default { generateQuizFromText, generateQuizFromTopics, generateQuizTitle, extractExactQuestions };
