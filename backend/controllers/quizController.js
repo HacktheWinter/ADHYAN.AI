@@ -4,7 +4,7 @@ import Quiz from "../models/Quiz.js";
 import Note from "../models/Note.js";
 import Classroom from "../models/Classroom.js";
 import { getBucket } from "../config/gridfs.js";
-import { generateQuizFromText, generateQuizFromTopics } from "../config/gemini.js";
+import { generateQuizFromText, generateQuizFromTopics, extractExactQuestions } from "../config/gemini.js";
 import {
   extractTextFromFile,
   cleanTextFull,
@@ -14,18 +14,67 @@ import { logActivity } from "../utils/activityTracker.js";
 import axios from "axios";
 
 /**
+ * Extract exact questions from an uploaded file (PDF/Word/Excel)
+ * POST /api/quiz/extract-exact
+ */
+export const extractExactQuestionsFromFile = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    const { buffer, mimetype, originalname } = req.file;
+
+    console.log(`=== EXACT QUESTION EXTRACTION STARTED for ${originalname} ===`);
+
+    // 1. Extract text
+    const text = await extractTextFromFile(buffer, mimetype);
+    
+    // 2. Clean text
+    let cleanedText;
+    try {
+      cleanedText = cleanTextFull(text);
+    } catch (e) {
+      return res.status(400).json({ error: e.message || "File text too short or invalid" });
+    }
+
+    // 3. Extract exact questions via Gemini
+    console.log("Calling Gemini to extract exact questions...");
+    const parsedQuestions = await extractExactQuestions(cleanedText);
+
+    console.log(`Successfully extracted ${parsedQuestions.length} questions`);
+    console.log("=== EXACT QUESTION EXTRACTION COMPLETED ===");
+
+    return res.status(200).json({
+      success: true,
+      questions: parsedQuestions
+    });
+  } catch (error) {
+    console.error("EXACT QUESTION EXTRACTION FAILED:", error);
+    res.status(500).json({
+      error: "Failed to extract questions from file",
+      details: error.message
+    });
+  }
+};
+
+/**
  * Create quiz manually (teacher enters questions)
  * POST /api/quiz/create-manual
  */
 export const createQuizManually = async (req, res) => {
   try {
-    const { classroomId, title, questions, marksPerQuestion, difficulty } = req.body;
+    const { classroomId, title, questions, sections, marksPerQuestion, difficulty } = req.body;
     const teacherId = req.user?._id?.toString();
 
     if (!classroomId) return res.status(400).json({ error: "classroomId is required" });
     if (!title?.trim()) return res.status(400).json({ error: "Title is required" });
-    if (!questions || !Array.isArray(questions) || questions.length === 0) {
-      return res.status(400).json({ error: "At least one question is required" });
+    
+    const hasQuestions = questions && Array.isArray(questions) && questions.length > 0;
+    const hasSections = sections && Array.isArray(sections) && sections.length > 0;
+    
+    if (!hasQuestions && !hasSections) {
+      return res.status(400).json({ error: "At least one question or section is required" });
     }
 
     if (teacherId) {
@@ -36,28 +85,67 @@ export const createQuizManually = async (req, res) => {
       }
     }
 
-    // Validate each question
-    for (const q of questions) {
-      if (!q.question?.trim()) return res.status(400).json({ error: "Each question must have text" });
-      if (!Array.isArray(q.options) || q.options.length !== 4) {
-        return res.status(400).json({ error: "Each question must have exactly 4 options" });
+    // Helper to validate a question
+    const validateQuestion = (q, index) => {
+      if (!q.question?.trim()) throw new Error(`Question ${index} must have text`);
+      if (q.type === "coding") {
+        if (!q.coding || !q.coding.title) throw new Error(`Coding question ${index} must have a title`);
+        if (!q.coding.hiddenTestCases || q.coding.hiddenTestCases.length === 0) {
+          throw new Error(`Coding question ${index} must have at least one hidden test case`);
+        }
+      } else {
+        if (!Array.isArray(q.options) || q.options.length !== 4) {
+          throw new Error(`MCQ ${index} must have exactly 4 options`);
+        }
+        if (!q.correctAnswer || !q.options.includes(q.correctAnswer)) {
+          throw new Error(`MCQ ${index} correctAnswer must match one of the options`);
+        }
       }
-      if (!q.correctAnswer || !q.options.includes(q.correctAnswer)) {
-        return res.status(400).json({ error: "correctAnswer must match one of the options" });
-      }
-    }
+    };
 
+    let totalMarks = 0;
+    let finalQuestions = undefined;
+    let finalSections = undefined;
     const mPerQ = marksPerQuestion || 1;
-    const totalMarks = questions.length * mPerQ;
+
+    if (hasSections) {
+      finalSections = sections.map((sec, sIdx) => {
+        let sectionMarks = 0;
+        const mappedQuestions = sec.questions.map((q, qIdx) => {
+          validateQuestion(q, `${sIdx + 1}.${qIdx + 1}`);
+          const qMarks = q.marks || mPerQ;
+          sectionMarks += qMarks;
+          return {
+            ...q,
+            marks: qMarks
+          };
+        });
+        totalMarks += sectionMarks;
+        return {
+          title: sec.title || `Section ${sIdx + 1}`,
+          instructions: sec.instructions || "",
+          durationMinutes: sec.durationMinutes || null,
+          order: sec.order || sIdx,
+          questions: mappedQuestions
+        };
+      });
+    } else {
+      finalQuestions = questions.map((q, qIdx) => {
+        validateQuestion(q, qIdx + 1);
+        const qMarks = q.marks || mPerQ;
+        totalMarks += qMarks;
+        return {
+          ...q,
+          marks: qMarks
+        };
+      });
+    }
 
     const quiz = await Quiz.create({
       classroomId,
       title: title.trim(),
-      questions: questions.map((q) => ({
-        question: q.question.trim(),
-        options: q.options,
-        correctAnswer: q.correctAnswer,
-      })),
+      questions: finalQuestions,
+      sections: finalSections,
       marksPerQuestion: mPerQ,
       totalMarks,
       difficulty: difficulty || "mixed",
@@ -68,12 +156,12 @@ export const createQuizManually = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Created quiz with ${questions.length} questions`,
+      message: `Created quiz successfully`,
       quiz,
     });
   } catch (error) {
     console.error("Manual quiz creation failed:", error);
-    res.status(500).json({ error: "Failed to create quiz", details: error.message });
+    res.status(400).json({ error: error.message || "Failed to create quiz" });
   }
 };
 
@@ -511,11 +599,43 @@ export const getQuiz = async (req, res) => {
 
     let quizObj = quiz.toObject();
     
+    // Normalize to sections for consistent frontend handling
+    if (!quizObj.sections || quizObj.sections.length === 0) {
+      if (quizObj.questions && quizObj.questions.length > 0) {
+        quizObj.sections = [
+          {
+            _id: "default_section",
+            title: "Default Section",
+            order: 0,
+            questions: quizObj.questions,
+            durationMinutes: quizObj.duration || null
+          }
+        ];
+      } else {
+        quizObj.sections = [];
+      }
+    }
+    
+    // Remove root questions from response to enforce new standard in frontend
+    delete quizObj.questions;
+    
     if (req.user?.role === "student") {
       const now = new Date();
       if ((quiz.endTime && now > new Date(quiz.endTime)) || 
           (quiz.startTime && now < new Date(quiz.startTime))) {
-        delete quizObj.questions;
+        delete quizObj.sections;
+      } else if (quizObj.sections) {
+        // Strip sensitive info
+        quizObj.sections.forEach(sec => {
+          if (sec.questions) {
+            sec.questions.forEach(q => {
+              delete q.correctAnswer;
+              if (q.coding) {
+                delete q.coding.hiddenTestCases;
+              }
+            });
+          }
+        });
       }
     }
 

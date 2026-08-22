@@ -158,7 +158,19 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
 
             <div className="space-y-6">
               {result.answers.map((answer, index) => {
-                const question = quiz.questions.find(q => q._id === answer.questionId);
+                let question = null;
+                if (quiz.sections) {
+                  for (const sec of quiz.sections) {
+                    const found = sec.questions.find(q => q._id === answer.questionId);
+                    if (found) { question = found; break; }
+                  }
+                } else if (quiz.questions) {
+                  question = quiz.questions.find(q => q._id === answer.questionId);
+                }
+                
+                if (!question) return null;
+
+                const isCoding = answer.type === 'coding' || question.type === 'coding';
                 
                 return (
                   <div
@@ -194,53 +206,74 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
                     </div>
 
                     {/* Student Answer */}
-                    <div className="mb-4">
-                      <h5 className="text-sm font-semibold text-gray-700 mb-2">Your Answer</h5>
-                      <div className="bg-white rounded-lg p-4 border border-gray-200">
-                        <p className="text-gray-900 whitespace-pre-wrap text-sm">
-                          {answer.selectedAnswer || 'Not answered'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Options */}
-                    <div className="space-y-2">
-                      {question.options.map((option, optIndex) => {
-                        const isCorrectAnswer = option === answer.correctAnswer;
-                        const isSelectedAnswer = option === answer.selectedAnswer;
-                        
-                        let optionClass = 'bg-white border-gray-200';
-                        if (isCorrectAnswer) {
-                          optionClass = 'bg-green-100 border-green-500';
-                        } else if (isSelectedAnswer && !answer.isCorrect) {
-                          optionClass = 'bg-red-100 border-red-500';
-                        }
-
-                        return (
-                          <div
-                            key={optIndex}
-                            className={`p-3 rounded-lg border-2 ${optionClass}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className="font-semibold text-gray-700">
-                                {String.fromCharCode(65 + optIndex)}.
-                              </span>
-                              <span className="flex-1 text-gray-900">{option}</span>
-                              {isCorrectAnswer && (
-                                <span className="px-2 py-1 bg-green-600 text-white text-xs font-semibold rounded">
-                                  Correct Answer
-                                </span>
-                              )}
-                              {isSelectedAnswer && !answer.isCorrect && (
-                                <span className="px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded">
-                                  Your Answer
-                                </span>
-                              )}
+                    {isCoding ? (
+                      <div className="mb-4">
+                        <h5 className="text-sm font-semibold text-gray-700 mb-2">Your Code</h5>
+                        <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                          <pre className="text-gray-100 text-sm font-mono">
+                            <code>{answer.code || 'No code submitted'}</code>
+                          </pre>
+                        </div>
+                        {answer.testResults && (
+                          <div className="mt-4 bg-white p-4 rounded-lg border border-gray-200">
+                            <h6 className="font-bold text-gray-900 mb-2">Test Results</h6>
+                            <div className="text-sm">
+                              Passed {answer.testResults.passed} out of {answer.testResults.total} test cases.
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mb-4">
+                          <h5 className="text-sm font-semibold text-gray-700 mb-2">Your Answer</h5>
+                          <div className="bg-white rounded-lg p-4 border border-gray-200">
+                            <p className="text-gray-900 whitespace-pre-wrap text-sm">
+                              {answer.selectedAnswer || 'Not answered'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Options */}
+                        <div className="space-y-2">
+                          {question.options && question.options.map((option, optIndex) => {
+                            const isCorrectAnswer = option === answer.correctAnswer;
+                            const isSelectedAnswer = option === answer.selectedAnswer;
+                            
+                            let optionClass = 'bg-white border-gray-200';
+                            if (isCorrectAnswer) {
+                              optionClass = 'bg-green-100 border-green-500';
+                            } else if (isSelectedAnswer && !answer.isCorrect) {
+                              optionClass = 'bg-red-100 border-red-500';
+                            }
+
+                            return (
+                              <div
+                                key={optIndex}
+                                className={`p-3 rounded-lg border-2 ${optionClass}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="font-semibold text-gray-700">
+                                    {String.fromCharCode(65 + optIndex)}.
+                                  </span>
+                                  <span className="flex-1 text-gray-900">{option}</span>
+                                  {isCorrectAnswer && (
+                                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-semibold rounded">
+                                      Correct Answer
+                                    </span>
+                                  )}
+                                  {isSelectedAnswer && !answer.isCorrect && (
+                                    <span className="px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded">
+                                      Your Answer
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })}

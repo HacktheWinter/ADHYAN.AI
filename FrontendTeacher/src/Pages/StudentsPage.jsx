@@ -46,7 +46,7 @@ const StudentsPage = () => {
     }
 
     const csvContent = [
-      ['Name', 'Email', 'ERP ID', 'Joined Date', activeTab === 'left' ? 'Left Date' : ''],
+      ['Name', 'Email', 'ERP ID', 'Section', 'Joined Date', activeTab === 'left' ? 'Left Date' : ''],
       ...studentsToExport.map((student, index) => {
         const studentData = activeTab === 'left' ? student : student;
         const leftDate = activeTab === 'left' ? new Date(leftStudents[index].leftAt).toLocaleDateString() : '';
@@ -54,6 +54,7 @@ const StudentsPage = () => {
           studentData.name,
           studentData.email,
           studentData.erpId || 'N/A',
+          studentData.section || 'N/A',
           new Date(studentData.createdAt).toLocaleDateString(),
           leftDate
         ];
@@ -71,7 +72,9 @@ const StudentsPage = () => {
 
   const filteredStudents = students.filter(student =>
     student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchTerm.toLowerCase())
+    student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (student.erpId && student.erpId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (student.section && student.section.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const filteredLeftStudents = leftStudents
@@ -79,7 +82,9 @@ const StudentsPage = () => {
     .map(ls => ({ ...ls.studentId, leftAt: ls.leftAt }))
     .filter(student =>
       student?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      student?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (student?.erpId && student.erpId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (student?.section && student.section.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
   const getInitials = (name) => {
@@ -310,6 +315,12 @@ const StudentsPage = () => {
                         <span className="truncate font-semibold uppercase">{student.erpId || 'No ERP ID'}</span>
                       </div>
                       
+                      {student.section && (
+                        <div className="flex items-center gap-1">
+                          <span className="truncate font-semibold uppercase text-violet-600 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 rounded-full text-[10px]">Sec: {student.section}</span>
+                        </div>
+                      )}
+                      
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 flex-shrink-0 text-purple-600 dark:text-[#A78BFA]" />
                         <span>
@@ -390,6 +401,12 @@ const StudentsPage = () => {
                         <Hash className="w-3.5 h-3.5 flex-shrink-0 text-violet-dark" />
                         <span className="truncate font-semibold uppercase">{student.erpId || 'No ERP ID'}</span>
                       </div>
+                      
+                      {student.section && (
+                        <div className="flex items-center gap-1">
+                          <span className="truncate font-semibold uppercase text-violet-600 dark:text-violet-300 bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 rounded-full text-[10px]">Sec: {student.section}</span>
+                        </div>
+                      )}
                       
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 flex-shrink-0 text-purple-600 dark:text-[#A78BFA]" />

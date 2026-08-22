@@ -12,7 +12,11 @@ import {
   publishQuizWithTiming,
   getActiveQuizzesForStudent,
   publishQuizResults,
+  extractExactQuestionsFromFile,
 } from "../controllers/quizController.js";
+import multer from "multer";
+
+const uploadMemory = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
@@ -21,6 +25,15 @@ router.post("/create-manual", authMiddleware, authorizeRoles("teacher"), createQ
 
 // AI Generation route from notes
 router.post("/generate-ai", authMiddleware, authorizeRoles("teacher"), generateQuizWithAI);
+
+// AI Exact Question Extraction from uploaded file (PDF/Word/Excel)
+router.post(
+  "/extract-exact",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  uploadMemory.single("file"),
+  extractExactQuestionsFromFile
+);
 
 // NEW - AI Generation route from topics (no notes required)
 router.post(

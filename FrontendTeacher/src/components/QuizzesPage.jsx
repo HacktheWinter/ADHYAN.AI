@@ -56,10 +56,16 @@ const QuizzesPage = () => {
   const [difficulty, setDifficulty] = useState("mixed");
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
-  // Helper function to truncate title
   const truncateTitle = (title, maxLength = 50) => {
     if (title.length <= maxLength) return title;
     return title.substring(0, maxLength) + "...";
+  };
+
+  const getTotalQuestions = (quiz) => {
+    if (quiz.sections && quiz.sections.length > 0) {
+      return quiz.sections.reduce((acc, sec) => acc + (sec.questions?.length || 0), 0);
+    }
+    return quiz.questions?.length || 0;
   };
 
   const fetchQuizzes = useCallback(async () => {
@@ -232,27 +238,16 @@ const QuizzesPage = () => {
     navigate(`/class/${classId}/quizzes/results/${quizId}`);
   };
 
-  const handleSaveQuiz = async (updatedQuiz) => {
-    try {
-      await axios.put(`${API_BASE_URL}/quiz/${updatedQuiz._id}`, {
-        title: updatedQuiz.title,
-        questions: updatedQuiz.questions,
-        status: updatedQuiz.status,
-      });
-
-      if (updatedQuiz.status === "draft") {
-        setDrafts(drafts.map((q) => (q._id === updatedQuiz._id ? updatedQuiz : q)));
-      } else {
-        setPublished(published.map((q) => (q._id === updatedQuiz._id ? updatedQuiz : q)));
-      }
-
-      setEditingQuiz(null);
-      setShowEditModal(false);
-      alert("Quiz updated successfully!");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update quiz");
+  const handleSaveQuiz = (updatedQuiz) => {
+    if (updatedQuiz.status === "draft") {
+      setDrafts(drafts.map((q) => (q._id === updatedQuiz._id ? updatedQuiz : q)));
+    } else {
+      setPublished(published.map((q) => (q._id === updatedQuiz._id ? updatedQuiz : q)));
     }
+
+    setEditingQuiz(null);
+    setShowEditModal(false);
+    alert("Quiz updated successfully!");
   };
 
   const handleDelete = async (id, status) => {
@@ -386,7 +381,7 @@ const QuizzesPage = () => {
                       <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-ink-soft">
                         <span className="flex items-center gap-1">
                           <span className="font-bold text-violet-dark">
-                            {quiz.questions?.length || 0}
+                            {getTotalQuestions(quiz)}
                           </span>{" "}
                           questions
                         </span>
@@ -486,7 +481,7 @@ const QuizzesPage = () => {
                       <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-ink-soft">
                         <span className="flex items-center gap-1">
                           <span className="font-bold text-violet-dark">
-                            {quiz.questions?.length || 0}
+                            {getTotalQuestions(quiz)}
                           </span>{" "}
                           questions
                         </span>

@@ -1,6 +1,45 @@
 // Backend/models/Quiz.js
 import mongoose from "mongoose";
 
+const questionSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ["mcq", "coding"],
+    default: "mcq",
+  },
+  question: String,
+  marks: { type: Number, default: 1 }, // Used for individual question marking
+
+  // MCQ fields
+  options: [String],
+  correctAnswer: String,
+
+  // Coding fields
+  coding: {
+    title: String,
+    description: String,
+    examples: [
+      { input: String, output: String, explanation: String }
+    ],
+    constraints: [String],
+    allowedLanguages: [String],
+    starterCode: [
+      { language: String, code: String }
+    ],
+    publicTestCases: [
+      { input: String, expectedOutput: String }
+    ],
+    hiddenTestCases: [
+      { input: String, expectedOutput: String }
+    ],
+    comparisonMode: {
+      type: String,
+      enum: ["exact", "trimmed"],
+      default: "trimmed"
+    }
+  }
+});
+
 const quizSchema = new mongoose.Schema({
   noteId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -28,12 +67,24 @@ const quizSchema = new mongoose.Schema({
       type: String,
     },
   ],
-  questions: [
+  
+  // Legacy root questions array (default section)
+  questions: [questionSchema],
+
+  // New multi-section structure
+  sections: [
     {
-      question: String,
-      options: [String],
-      correctAnswer: String,
-    },
+      type: {
+        type: String,
+        enum: ["mcq", "coding"],
+        default: "mcq",
+      },
+      title: String,
+      instructions: String,
+      durationMinutes: Number,
+      order: Number,
+      questions: [questionSchema]
+    }
   ],
   marksPerQuestion: {
     type: Number,

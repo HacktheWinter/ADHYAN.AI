@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, FileText, Loader, Trash2, CheckCircle, Clock, User,
   Sparkles, StopCircle, AlertTriangle, XCircle, Wifi, WifiOff,
-  Eye, RefreshCw, Timer, Filter, ChevronDown
+  Eye, RefreshCw, Timer, Filter, ChevronDown, Search
 } from "lucide-react";
 import { io as socketIO } from "socket.io-client";
 import { SOCKET_URL } from "../config";
@@ -26,6 +26,7 @@ const PhysicalTestResultsPage = () => {
   const [selectedTitle, setSelectedTitle] = useState(() => {
     return sessionStorage.getItem(`pt-filter-${classId}`) || "all";
   });
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -236,6 +237,14 @@ const PhysicalTestResultsPage = () => {
     ? submissions
     : submissions.filter(s => (s.testTitle || "Untitled") === selectedTitle);
 
+  const filteredBySearch = filtered.filter(sub => {
+    const searchStr = searchQuery.toLowerCase();
+    const name = (sub.studentName || sub.studentId?.name || '').toLowerCase();
+    const email = (sub.studentId?.email || '').toLowerCase();
+    const erpId = (sub.studentId?.erpId || '').toLowerCase();
+    return name.includes(searchStr) || email.includes(searchStr) || erpId.includes(searchStr);
+  });
+
   const pendingCount = filtered.filter(s => s.status === "pending").length;
   const checkedSubs = filtered.filter(s => s.status === "checked" || s.status === "needs_review");
   const failedSubs = filtered.filter(s => s.status === "failed");
@@ -358,6 +367,17 @@ const PhysicalTestResultsPage = () => {
                 </button>
               )}
             </div>
+          </div>
+
+          <div className="mt-4 relative max-w-md ml-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-soft" />
+            <input 
+              type="text" 
+              placeholder="Search by name, email or ERP ID..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-3 bg-surface border border-line rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-ink text-sm"
+            />
           </div>
         </div>
 
@@ -520,16 +540,18 @@ const PhysicalTestResultsPage = () => {
         )}
 
         {/* Table or Empty */}
-        {filtered.length === 0 ? (
+        {filteredBySearch.length === 0 ? (
           <div className="bg-surface rounded-2xl border border-line p-12 text-center shadow-sm animate-fade-in">
             <FileText className="w-16 h-16 text-ink-soft opacity-30 mx-auto mb-4" />
-            <p className="text-ink-soft font-semibold font-display text-lg">No submissions yet</p>
-            <button
-              onClick={() => navigate(`/class/${classId}/test-papers/upload-physical`)}
-              className="mt-4 px-6 py-3 btn-settings-blue text-sm rounded-xl font-bold transition cursor-pointer"
-            >
-              Upload Papers
-            </button>
+            <p className="text-ink-soft font-semibold font-display text-lg">No submissions found</p>
+            {filtered.length === 0 && (
+              <button
+                onClick={() => navigate(`/class/${classId}/test-papers/upload-physical`)}
+                className="mt-4 px-6 py-3 btn-settings-blue text-sm rounded-xl font-bold transition cursor-pointer"
+              >
+                Upload Papers
+              </button>
+            )}
           </div>
         ) : (
           <div className="bg-surface rounded-2xl border border-line shadow-sm overflow-hidden animate-fade-in">
@@ -546,7 +568,7 @@ const PhysicalTestResultsPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {filtered.map(sub => (
+                  {filteredBySearch.map(sub => (
                     <tr key={sub._id} className={`hover:bg-line/20 transition-colors ${sub.status === "failed" ? "bg-rose-500/5" : ""}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -558,6 +580,7 @@ const PhysicalTestResultsPage = () => {
                             <div className="text-xs text-ink-soft">
                               {new Date(sub.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                             </div>
+                            <div className="text-[10px] text-ink-soft/70 uppercase tracking-wide mt-0.5">ID: {sub.studentId?.erpId || 'No ERP ID'}</div>
                           </div>
                         </div>
                       </td>

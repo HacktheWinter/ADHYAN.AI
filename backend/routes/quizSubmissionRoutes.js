@@ -7,10 +7,14 @@ import {
   checkSubmission,
   getQuizSubmissions,
   getSubmissionById,
-  autosaveQuiz
+  autosaveQuiz,
+  runCode
 } from '../controllers/quizSubmissionController.js';
 
 const router = express.Router();
+
+// Run code against public test cases or custom input
+router.post('/run-code', authMiddleware, authorizeRoles("student"), runCode);
 
 // Autosave quiz
 router.post('/autosave', authMiddleware, authorizeRoles("student"), autosaveQuiz);

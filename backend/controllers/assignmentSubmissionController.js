@@ -49,7 +49,7 @@ const getAuthorizedAssignmentForTeacher = async (req, assignmentId) => {
 const getAuthorizedAssignmentSubmissionForTeacher = async (req, submissionId) => {
   const submission = await AssignmentSubmission.findById(submissionId)
     .populate("assignmentId", "title totalMarks questions classroomId")
-    .populate("studentId", "name email profilePhoto");
+    .populate("studentId", "name email profilePhoto erpId");
 
   if (!submission) {
     throw createHttpError(404, "Submission not found");
@@ -619,7 +619,7 @@ export const getAssignmentSubmissions = async (req, res) => {
     await getAuthorizedAssignmentForTeacher(req, assignmentId);
 
     const submissions = await AssignmentSubmission.find({ assignmentId })
-      .populate("studentId", "name email profilePhoto")
+      .populate("studentId", "name email profilePhoto erpId")
       .sort({ submittedAt: -1 });
 
     res.status(200).json({

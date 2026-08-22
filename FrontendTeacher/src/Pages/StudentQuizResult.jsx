@@ -185,11 +185,19 @@ const StudentQuizResult = () => {
         {/* Questions */}
         <div className="space-y-4 sm:space-y-6">
           {submission.answers.map((answer, index) => {
-            const question = quiz.questions.find(
-              (q) => q._id === answer.questionId
-            );
+            let question = null;
+            if (quiz.sections) {
+              for (const sec of quiz.sections) {
+                const found = sec.questions.find(q => q._id === answer.questionId);
+                if (found) { question = found; break; }
+              }
+            } else if (quiz.questions) {
+              question = quiz.questions.find(q => q._id === answer.questionId);
+            }
 
             if (!question) return null;
+
+            const isCoding = answer.type === 'coding' || question.type === 'coding';
 
             return (
               <div
@@ -208,65 +216,84 @@ const StudentQuizResult = () => {
                   </p>
 
                   {/* Options for MCQ */}
-                  {question.options && question.options.length > 0 && (
-                    <div className="space-y-2">
-                      {question.options.map((option, idx) => {
-                        const isSelected = option === answer.selectedAnswer;
-                        const isCorrect = option === answer.correctAnswer;
-                        const isWrongSelection = isSelected && !answer.isCorrect;
-                        
-                        return (
-                          <div
-                            key={idx}
-                            className={`p-3 rounded-xl border-2 text-sm transition-all ${
-                              isCorrect
-                                ? "border-green-500 bg-green-500/10 font-medium"
-                                : isWrongSelection
-                                ? "border-rose-500 dark:border-rose-400 bg-rose-500/10 font-medium"
-                                : "border-line bg-surface"
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <span
-                                className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
-                                  isCorrect
-                                    ? "border-green-500 bg-green-500 text-white"
-                                    : isWrongSelection
-                                    ? "border-rose-500 bg-rose-500 text-white"
-                                    : isSelected
-                                    ? "border-purple-500 bg-purple-500 text-white"
-                                    : "border-line bg-paper"
-                                }`}
-                              >
-                                {isCorrect && "✓"}
-                                {isWrongSelection && "✗"}
-                                {isSelected && answer.isCorrect && "✓"}
-                              </span>
-                              <span className={isCorrect ? "text-green-800 dark:text-green-300" : isWrongSelection ? "text-rose-800 dark:text-rose-350" : "text-ink"}>
-                                {option}
-                              </span>
-                              {isCorrect && (
-                                <span className="ml-auto text-xs font-bold text-green-700 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 border border-line px-2 py-1 rounded-full">
-                                  Correct Answer
-                                </span>
-                              )}
-                              {isWrongSelection && (
-                                <span className="ml-auto text-xs font-bold text-rose-700 bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350 border border-line px-2 py-1 rounded-full">
-                                  Wrong Choice
-                                </span>
-                              )}
-                            </div>
+                  {isCoding ? (
+                    <div className="mb-4">
+                      <h5 className="text-sm font-semibold text-gray-700 mb-2">Student Code</h5>
+                      <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                        <pre className="text-gray-100 text-sm font-mono">
+                          <code>{answer.code || 'No code submitted'}</code>
+                        </pre>
+                      </div>
+                      {answer.testResults && (
+                        <div className="mt-4 bg-white p-4 rounded-lg border border-gray-200">
+                          <h6 className="font-bold text-gray-900 mb-2">Test Results</h6>
+                          <div className="text-sm">
+                            Passed {answer.testResults.passed} out of {answer.testResults.total} test cases.
                           </div>
-                        );
-                      })}
+                        </div>
+                      )}
                     </div>
+                  ) : (
+                    question.options && question.options.length > 0 && (
+                      <div className="space-y-2">
+                        {question.options.map((option, idx) => {
+                          const isSelected = option === answer.selectedAnswer;
+                          const isCorrect = option === answer.correctAnswer;
+                          const isWrongSelection = isSelected && !answer.isCorrect;
+                          
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-3 rounded-xl border-2 text-sm transition-all ${
+                                isCorrect
+                                  ? "border-green-500 bg-green-500/10 font-medium"
+                                  : isWrongSelection
+                                  ? "border-rose-500 dark:border-rose-400 bg-rose-500/10 font-medium"
+                                  : "border-line bg-surface"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span
+                                  className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
+                                    isCorrect
+                                      ? "border-green-500 bg-green-500 text-white"
+                                      : isWrongSelection
+                                      ? "border-rose-500 bg-rose-500 text-white"
+                                      : isSelected
+                                      ? "border-purple-500 bg-purple-500 text-white"
+                                      : "border-line bg-paper"
+                                  }`}
+                                >
+                                  {isCorrect && "✓"}
+                                  {isWrongSelection && "✗"}
+                                  {isSelected && answer.isCorrect && "✓"}
+                                </span>
+                                <span className={isCorrect ? "text-green-800 dark:text-green-300" : isWrongSelection ? "text-rose-800 dark:text-rose-350" : "text-ink"}>
+                                  {option}
+                                </span>
+                                {isCorrect && (
+                                  <span className="ml-auto text-xs font-bold text-green-700 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 border border-line px-2 py-1 rounded-full">
+                                    Correct Answer
+                                  </span>
+                                )}
+                                {isWrongSelection && (
+                                  <span className="ml-auto text-xs font-bold text-rose-700 bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350 border border-line px-2 py-1 rounded-full">
+                                    Wrong Choice
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )
                   )}
                 </div>
 
                 {/* Result Badge */}
                 <div className="flex items-center justify-between pt-4 border-t border-line">
                   <span className="text-sm text-ink-soft">
-                    Multiple Choice Question
+                    {isCoding ? "Coding Challenge" : "Multiple Choice Question"}
                   </span>
                   <span
                     className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border border-line ${

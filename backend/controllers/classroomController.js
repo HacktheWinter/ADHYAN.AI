@@ -191,8 +191,8 @@ export const getClassrooms = async (req, res) => {
         filter.isArchived = { $ne: true };
       }
       const rawClassrooms = await Classroom.find(filter)
-        .populate("students", "name email erpId")
-        .populate("leftStudents.studentId", "name email erpId");
+        .populate("students", "name email erpId section")
+        .populate("leftStudents.studentId", "name email erpId section");
 
       // Compute average attendance dynamically for each classroom
       classrooms = await Promise.all(rawClassrooms.map(async (cls) => {
@@ -258,8 +258,8 @@ export const getClassroomById = async (req, res) => {
       }
 
       responseClassroom = await Classroom.findById(classId)
-        .populate("students", "name email erpId profilePhoto createdAt")
-        .populate("leftStudents.studentId", "name email erpId profilePhoto createdAt")
+        .populate("students", "name email erpId section profilePhoto createdAt")
+        .populate("leftStudents.studentId", "name email erpId section profilePhoto createdAt")
         .populate("teacherId", "name email");
     } else if (req.user.role === "student") {
       const isEnrolled = classroom.students.some(

@@ -6,6 +6,12 @@ const answerSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  type: {
+    type: String,
+    enum: ["mcq", "coding"],
+    default: "mcq",
+  },
+  // MCQ Fields
   selectedAnswer: {
     type: String,
     required: false,
@@ -13,13 +19,31 @@ const answerSchema = new mongoose.Schema({
   },
   correctAnswer: {
     type: String,
-    required: true,
+    required: false,
   },
   isCorrect: {
     type: Boolean,
-    required: true,
+    required: false,
     default: false,
   },
+  // Coding Fields
+  code: {
+    type: String,
+    required: false,
+  },
+  language: {
+    type: String,
+    required: false,
+  },
+  testResults: {
+    passed: Number,
+    total: Number,
+    details: Array,
+  },
+  marksAwarded: {
+    type: Number,
+    default: 0,
+  }
 });
 
 const quizSubmissionSchema = new mongoose.Schema(
@@ -29,6 +53,19 @@ const quizSubmissionSchema = new mongoose.Schema(
       ref: "Quiz",
       required: true,
     },
+    sectionTimers: [
+      {
+        sectionId: String,
+        startTime: Date,
+        endTime: Date,
+        status: {
+          type: String,
+          enum: ["active", "locked"],
+          default: "active",
+        },
+        autoSubmitted: Boolean,
+      }
+    ],
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

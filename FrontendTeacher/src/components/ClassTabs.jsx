@@ -11,7 +11,7 @@ const ClassTabs = ({ activeTab, classId }) => {
 
   const tabs = [
     { id: 'notes', label: 'Notes' },
-    { id: 'quizzes', label: 'Quizzes' },
+    { id: 'quizzes', label: 'Assessments' },
     { id: 'test-papers', label: 'Test Papers' },
     { id: 'assignments', label: 'Assignments' },
     { id: 'students', label: 'Students' },

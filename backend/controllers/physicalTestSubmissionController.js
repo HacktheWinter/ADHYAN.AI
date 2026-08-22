@@ -1293,7 +1293,7 @@ export const getPhysicalSubmissions = async (req, res) => {
   try {
     const { testPaperId } = req.params;
     const submissions = await PhysicalTestSubmission.find({ testPaperId })
-      .populate("studentId", "name email profilePhoto")
+      .populate("studentId", "name email profilePhoto erpId")
       .sort({ uploadedAt: -1 });
     res.status(200).json({ success: true, submissions, count: submissions.length });
   } catch (error) { res.status(500).json({ error: "Server error" }); }
@@ -1305,7 +1305,7 @@ export const getPhysicalSubmissionById = async (req, res) => {
     const { submissionId } = req.params;
     const submission = await PhysicalTestSubmission.findById(submissionId)
       .populate("testPaperId", "title totalMarks questions")
-      .populate("studentId", "name email profilePhoto");
+      .populate("studentId", "name email profilePhoto erpId");
     if (!submission) return res.status(404).json({ error: "Submission not found" });
     res.status(200).json({ success: true, submission });
   } catch (error) { res.status(500).json({ error: "Server error" }); }
@@ -1469,7 +1469,7 @@ export const getPhysicalSubmissionsByClass = async (req, res) => {
   try {
     const { classId } = req.params;
     const submissions = await PhysicalTestSubmission.find({ classId })
-      .populate("studentId", "name email profilePhoto")
+      .populate("studentId", "name email profilePhoto erpId")
       .sort({ uploadedAt: -1 });
     res.status(200).json({ success: true, submissions, count: submissions.length });
   } catch (error) { res.status(500).json({ error: "Server error" }); }
