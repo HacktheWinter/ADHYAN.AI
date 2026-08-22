@@ -1,6 +1,7 @@
 // Backend/controllers/quizSubmissionController.js
 import QuizSubmission from "../models/QuizSubmission.js";
 import Quiz from "../models/Quiz.js";
+import { executeCode } from "../services/geminiCodeExecutionService.js";
 import {
   createHttpError,
   ensureUserMatchesId,
@@ -33,7 +34,7 @@ const getAuthorizedQuizForTeacher = async (req, quizId) => {
 
 const getAuthorizedQuizSubmissionForTeacher = async (req, submissionId) => {
   const submission = await QuizSubmission.findById(submissionId)
-    .populate("studentId", "name email profilePhoto")
+    .populate("studentId", "name email profilePhoto erpId")
     .populate("quizId", "title questions classroomId");
 
   if (!submission) {
@@ -79,7 +80,7 @@ const finalizeExpiredDrafts = async (quizId) => {
  */
 export const submitQuiz = async (req, res) => {
   try {
-    const { quizId, studentId: requestedStudentId, answers } = req.body;
+    const { quizId, studentId: requestedStudentId, answers, sectionTimers } = req.body;
     const studentId = getRequestUserId(req);
 
     console.log(" Quiz submission received:", {
@@ -88,97 +89,132 @@ export const submitQuiz = async (req, res) => {
       answersCount: answers?.length,
     });
 
-    // Validation
     if (!quizId || !answers || !Array.isArray(answers)) {
       return res.status(400).json({
         error: "quizId and answers array are required",
       });
     }
 
-    ensureUserMatchesId(
-      requestedStudentId,
-      studentId,
-      "You can only submit quizzes for your own account."
-    );
+    ensureUserMatchesId(requestedStudentId, studentId, "You can only submit quizzes for your own account.");
 
     const quiz = await getAuthorizedQuizForStudent(req, quizId);
     const student = req.user;
 
-    // Check if already submitted (and not a draft)
-    let existingSubmission = await QuizSubmission.findOne({
-      quizId,
-      studentId,
-    });
+    let existingSubmission = await QuizSubmission.findOne({ quizId, studentId });
     
     if (existingSubmission && !existingSubmission.isDraft) {
-      return res.status(400).json({
-        error: "Quiz already submitted",
-        submission: existingSubmission,
-      });
+      return res.status(400).json({ error: "Quiz already submitted", submission: existingSubmission });
     }
 
     const now = new Date();
-    
     if (quiz.startTime && now < new Date(quiz.startTime)) {
       return res.status(403).json({ error: "Quiz has not started yet." });
     }
 
     if (quiz.endTime) {
       const endTime = new Date(quiz.endTime);
-      // Give a 2-minute grace period for network latency on auto-submit
       endTime.setMinutes(endTime.getMinutes() + 2);
-      
       if (now > endTime) {
-        return res.status(403).json({ error: "Quiz time has expired. Submissions are no longer accepted." });
+        return res.status(403).json({ error: "Quiz time has expired." });
       }
     }
 
-    // Auto-grade answers (handle unanswered questions)
-    let correctCount = 0;
-    const gradedAnswers = answers.map((studentAnswer) => {
-      const question = quiz.questions.find(
-        (q) => q._id.toString() === studentAnswer.questionId
-      );
+    // Build flat list of questions across all sections (or default questions)
+    const allQuestions = quiz.sections?.length > 0 
+      ? quiz.sections.flatMap(s => s.questions) 
+      : quiz.questions;
+
+    let totalScore = 0;
+    let totalMaxMarks = 0;
+
+    // Grade answers
+    const gradedAnswers = await Promise.all(answers.map(async (studentAnswer) => {
+      const question = allQuestions.find(q => q._id.toString() === studentAnswer.questionId);
 
       if (!question) {
-        console.warn(` Question not found: ${studentAnswer.questionId}`);
         return {
           questionId: studentAnswer.questionId,
+          type: studentAnswer.type || "mcq",
           selectedAnswer: studentAnswer.selectedAnswer || "",
           correctAnswer: "N/A",
           isCorrect: false,
+          marksAwarded: 0
         };
       }
 
-      // Handle empty/unanswered questions (selectedAnswer can be empty string)
-      const selectedAnswer = studentAnswer.selectedAnswer || "";
-      const isCorrect =
-        selectedAnswer !== "" && selectedAnswer === question.correctAnswer;
+      totalMaxMarks += question.marks || quiz.marksPerQuestion || 1;
 
-      if (isCorrect) correctCount++;
+      if (question.type === "coding") {
+        // Evaluate coding question
+        const code = studentAnswer.code || "";
+        const language = studentAnswer.language || "";
+        let marksAwarded = 0;
+        let testResults = { passed: 0, total: 0, details: [] };
 
-      return {
-        questionId: studentAnswer.questionId,
-        selectedAnswer: selectedAnswer,
-        correctAnswer: question.correctAnswer,
-        isCorrect,
-      };
-    });
+        if (code && language && question.coding?.hiddenTestCases?.length > 0) {
+          try {
+            const results = await executeCode(
+              language, 
+              code, 
+              question.coding.hiddenTestCases, 
+              {
+                title: question.coding?.title,
+                description: question.coding?.description,
+                constraints: question.coding?.constraints
+              }
+            );
+            
+            const passedCount = results.filter(r => r.passed).length;
+            const totalCount = results.length;
+            
+            testResults = { passed: passedCount, total: totalCount, details: results };
+            
+            // Calculate proportional marks
+            marksAwarded = (passedCount / totalCount) * (question.marks || quiz.marksPerQuestion || 1);
+            totalScore += marksAwarded;
+          } catch (err) {
+            console.error("Failed to grade coding question:", err);
+          }
+        }
 
-    const totalQuestions = quiz.questions.length;
-    const percentage =
-      totalQuestions > 0
-        ? ((correctCount / totalQuestions) * 100).toFixed(2)
-        : 0;
+        return {
+          questionId: studentAnswer.questionId,
+          type: "coding",
+          code,
+          language,
+          testResults,
+          marksAwarded
+        };
+      } else {
+        // MCQ grading
+        const selectedAnswer = studentAnswer.selectedAnswer || "";
+        const isCorrect = selectedAnswer !== "" && selectedAnswer === question.correctAnswer;
+        const marksAwarded = isCorrect ? (question.marks || quiz.marksPerQuestion || 1) : 0;
+        
+        if (isCorrect) totalScore += marksAwarded;
 
-    // Save or update submission
+        return {
+          questionId: studentAnswer.questionId,
+          type: "mcq",
+          selectedAnswer: selectedAnswer,
+          correctAnswer: question.correctAnswer,
+          isCorrect,
+          marksAwarded
+        };
+      }
+    }));
+
+    const totalQuestions = allQuestions.length;
+    const percentage = totalMaxMarks > 0 ? ((totalScore / totalMaxMarks) * 100).toFixed(2) : 0;
+
     let submission;
     if (existingSubmission) {
       existingSubmission.answers = gradedAnswers;
-      existingSubmission.score = correctCount;
+      existingSubmission.score = totalScore;
       existingSubmission.percentage = parseFloat(percentage);
       existingSubmission.submittedAt = new Date();
       existingSubmission.isDraft = false;
+      if (sectionTimers) existingSubmission.sectionTimers = sectionTimers;
       submission = await existingSubmission.save();
     } else {
       submission = await QuizSubmission.create({
@@ -186,7 +222,8 @@ export const submitQuiz = async (req, res) => {
         studentId,
         studentName: student.name,
         answers: gradedAnswers,
-        score: correctCount,
+        sectionTimers: sectionTimers || [],
+        score: totalScore,
         totalQuestions,
         percentage: parseFloat(percentage),
         submittedAt: new Date(),
@@ -194,20 +231,12 @@ export const submitQuiz = async (req, res) => {
       });
     }
 
-    console.log("Quiz graded and saved:", {
-      score: `${correctCount}/${totalQuestions}`,
-      percentage: `${percentage}%`,
-      answeredCount: answers.filter(
-        (a) => a.selectedAnswer && a.selectedAnswer !== ""
-      ).length,
-    });
-
     res.status(201).json({
       success: true,
       message: "Quiz submitted and graded successfully",
       submission: {
         _id: submission._id,
-        score: correctCount,
+        score: totalScore,
         totalQuestions,
         percentage: parseFloat(percentage),
         submittedAt: submission.submittedAt,
@@ -228,7 +257,7 @@ export const submitQuiz = async (req, res) => {
  */
 export const autosaveQuiz = async (req, res) => {
   try {
-    const { quizId, studentId: requestedStudentId, answers } = req.body;
+    const { quizId, studentId: requestedStudentId, answers, sectionTimers } = req.body;
     const studentId = getRequestUserId(req);
 
     if (!quizId || !answers || !Array.isArray(answers)) {
@@ -253,37 +282,64 @@ export const autosaveQuiz = async (req, res) => {
       return res.status(403).json({ error: "Quiz time has expired." });
     }
 
-    let correctCount = 0;
+    const allQuestions = quiz.sections?.length > 0 
+      ? quiz.sections.flatMap(s => s.questions) 
+      : quiz.questions;
+
+    let totalScore = 0;
+    let totalMaxMarks = 0;
+
     const gradedAnswers = answers.map((studentAnswer) => {
-      const question = quiz.questions.find((q) => q._id.toString() === studentAnswer.questionId);
+      const question = allQuestions.find(q => q._id.toString() === studentAnswer.questionId);
       if (!question) {
         return {
           questionId: studentAnswer.questionId,
+          type: studentAnswer.type || "mcq",
           selectedAnswer: studentAnswer.selectedAnswer || "",
           correctAnswer: "N/A",
           isCorrect: false,
+          marksAwarded: 0
         };
       }
-      const selectedAnswer = studentAnswer.selectedAnswer || "";
-      const isCorrect = selectedAnswer !== "" && selectedAnswer === question.correctAnswer;
-      if (isCorrect) correctCount++;
-      return {
-        questionId: studentAnswer.questionId,
-        selectedAnswer: selectedAnswer,
-        correctAnswer: question.correctAnswer,
-        isCorrect,
-      };
+
+      totalMaxMarks += question.marks || quiz.marksPerQuestion || 1;
+
+      if (question.type === "coding") {
+        return {
+          questionId: studentAnswer.questionId,
+          type: "coding",
+          code: studentAnswer.code || "",
+          language: studentAnswer.language || "",
+          marksAwarded: 0 // Do not execute piston on autosave
+        };
+      } else {
+        const selectedAnswer = studentAnswer.selectedAnswer || "";
+        const isCorrect = selectedAnswer !== "" && selectedAnswer === question.correctAnswer;
+        const marksAwarded = isCorrect ? (question.marks || quiz.marksPerQuestion || 1) : 0;
+        
+        if (isCorrect) totalScore += marksAwarded;
+
+        return {
+          questionId: studentAnswer.questionId,
+          type: "mcq",
+          selectedAnswer,
+          correctAnswer: question.correctAnswer,
+          isCorrect,
+          marksAwarded
+        };
+      }
     });
 
-    const totalQuestions = quiz.questions.length;
-    const percentage = totalQuestions > 0 ? ((correctCount / totalQuestions) * 100).toFixed(2) : 0;
+    const totalQuestions = allQuestions.length;
+    const percentage = totalMaxMarks > 0 ? ((totalScore / totalMaxMarks) * 100).toFixed(2) : 0;
 
     if (existingSubmission) {
       existingSubmission.answers = gradedAnswers;
-      existingSubmission.score = correctCount;
+      existingSubmission.score = totalScore;
       existingSubmission.percentage = parseFloat(percentage);
       existingSubmission.submittedAt = new Date();
       existingSubmission.isDraft = true;
+      if (sectionTimers) existingSubmission.sectionTimers = sectionTimers;
       await existingSubmission.save();
     } else {
       await QuizSubmission.create({
@@ -291,7 +347,8 @@ export const autosaveQuiz = async (req, res) => {
         studentId,
         studentName: student.name,
         answers: gradedAnswers,
-        score: correctCount,
+        sectionTimers: sectionTimers || [],
+        score: totalScore,
         totalQuestions,
         percentage: parseFloat(percentage),
         submittedAt: new Date(),
@@ -398,7 +455,7 @@ export const getQuizSubmissions = async (req, res) => {
     await finalizeExpiredDrafts(quizId);
 
     const submissions = await QuizSubmission.find({ quizId, isDraft: false })
-      .populate("studentId", "name email profilePhoto")
+      .populate("studentId", "name email profilePhoto erpId")
       .populate("quizId", "title questions status classroomId")
       .sort({ submittedAt: -1 });
 
@@ -422,8 +479,8 @@ export const getSubmissionById = async (req, res) => {
     
     // Check again in case it was a draft and we finalized it
     const updatedSubmission = await QuizSubmission.findOne({ _id: submissionId, isDraft: false })
-      .populate("studentId", "name email profilePhoto")
-      .populate("quizId", "title questions classroomId");
+      .populate("studentId", "name email profilePhoto erpId")
+      .populate("quizId", "title questions sections classroomId");
       
     if (!updatedSubmission) {
       return res.status(404).json({ error: "Final submission not found" });
@@ -433,5 +490,58 @@ export const getSubmissionById = async (req, res) => {
   } catch (error) {
     console.error("Error fetching submission:", error);
     res.status(error.statusCode || 500).json({ error: error.message || "Server error" });
+  }
+};
+
+/**
+ * Run code against public test cases or custom input
+ * POST /api/quiz-submission/run-code
+ */
+export const runCode = async (req, res) => {
+  try {
+    const { quizId, questionId, code, language, customInput } = req.body;
+    
+    if (!code || !language) {
+      return res.status(400).json({ error: "Code and language are required" });
+    }
+
+    const quiz = await getAuthorizedQuizForStudent(req, quizId);
+    
+    const allQuestions = quiz.sections?.length > 0 
+      ? quiz.sections.flatMap(s => s.questions) 
+      : quiz.questions;
+      
+    const question = allQuestions.find(q => q._id.toString() === questionId);
+    
+    if (!question || question.type !== "coding") {
+      return res.status(404).json({ error: "Coding question not found" });
+    }
+
+    // Run against custom input OR public test cases
+    let testCases = [];
+    if (customInput !== undefined && customInput !== null) {
+      testCases = [{ input: customInput, expectedOutput: "" }];
+    } else {
+      testCases = question.coding.publicTestCases || [];
+      if (testCases.length === 0) {
+        return res.status(400).json({ error: "No public test cases available to run." });
+      }
+    }
+
+    const results = await executeCode(
+      language,
+      code,
+      testCases,
+      {
+        title: question.coding?.title,
+        description: question.coding?.description,
+        constraints: question.coding?.constraints
+      }
+    );
+
+    res.status(200).json({ success: true, results });
+  } catch (error) {
+    console.error("Run code error:", error);
+    res.status(error.statusCode || 500).json({ error: error.message || "Failed to execute code" });
   }
 };

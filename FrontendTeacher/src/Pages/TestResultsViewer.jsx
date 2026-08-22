@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, User, Clock, CheckCircle, AlertTriangle, 
-  Sparkles, FileText, Loader, RefreshCw, Trophy
+  Sparkles, FileText, Loader, RefreshCw, Trophy, Search
 } from 'lucide-react';
 import { 
   getTestSubmissions, 
@@ -21,6 +21,7 @@ const TestResultsViewer = () => {
   const [isAIChecking, setIsAIChecking] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -133,6 +134,14 @@ const TestResultsViewer = () => {
   const pendingCount = submissions.filter(s => s.status === 'pending').length;
   const checkedCount = submissions.filter(s => s.status === 'checked').length;
   const publishedCount = submissions.filter(s => s.isResultPublished).length;
+
+  const filteredSubmissions = submissions.filter(sub => {
+    const searchStr = searchQuery.toLowerCase();
+    const name = (sub.studentName || sub.studentId?.name || '').toLowerCase();
+    const email = (sub.studentId?.email || '').toLowerCase();
+    const erpId = (sub.studentId?.erpId || '').toLowerCase();
+    return name.includes(searchStr) || email.includes(searchStr) || erpId.includes(searchStr);
+  });
 
   // New metrics for quiz-style display
   const averageScore = submissions.length > 0
@@ -259,6 +268,17 @@ const TestResultsViewer = () => {
             <RefreshCw className="w-5 h-5" />
             Refresh
           </button>
+          
+          <div className="relative flex-1 sm:max-w-xs ml-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-soft" />
+            <input 
+              type="text" 
+              placeholder="Search by name, email or ERP ID..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-3 bg-surface border border-line rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all text-ink text-sm sm:text-base"
+            />
+          </div>
         </div>
 
         {/* Info Message */}
@@ -295,15 +315,15 @@ const TestResultsViewer = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {submissions.length === 0 ? (
+                {filteredSubmissions.length === 0 ? (
                   <tr>
                     <td colSpan="7" className="px-6 py-12 text-center bg-surface">
                       <FileText className="w-12 h-12 text-ink-soft opacity-20 mx-auto mb-3" />
-                      <p className="text-ink-soft font-semibold text-sm">No submissions yet</p>
+                      <p className="text-ink-soft font-semibold text-sm">No submissions found</p>
                     </td>
                   </tr>
                 ) : (
-                  submissions.map((submission) => (
+                  filteredSubmissions.map((submission) => (
                     <tr key={submission._id} className="hover:bg-line/20 bg-surface transition-colors">
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
                         <div className="flex items-center gap-2 sm:gap-3">
@@ -325,6 +345,7 @@ const TestResultsViewer = () => {
                           <div className="min-w-0">
                             <p className="font-bold text-ink font-display text-xs sm:text-base truncate">{submission.studentName}</p>
                             <p className="text-xs text-ink-soft truncate hidden sm:block">{submission.studentId?.email}</p>
+                            <p className="text-[10px] text-ink-soft/70 uppercase tracking-wide mt-0.5">ID: {submission.studentId?.erpId || 'No ERP ID'}</p>
                           </div>
                         </div>
                       </td>

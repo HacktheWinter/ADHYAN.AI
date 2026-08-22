@@ -49,6 +49,13 @@ export default function Quiz() {
     return title.substring(0, maxLength) + "...";
   };
 
+  const getTotalQuestions = (quiz) => {
+    if (quiz.sections && quiz.sections.length > 0) {
+      return quiz.sections.reduce((acc, sec) => acc + (sec.questions?.length || 0), 0);
+    }
+    return quiz.questions?.length || 0;
+  };
+
   useEffect(() => {
     fetchQuizzes();
   }, [classId]);
@@ -268,7 +275,8 @@ export default function Quiz() {
               <div className="space-y-2 text-sm text-gray-600 mb-4">
                 <p className="flex items-center gap-2">
                   <span className="font-medium">❓</span> 
-                  {quiz.questions?.length || 0} questions
+                  {getTotalQuestions(quiz)} questions
+                  {quiz.sections?.length > 1 && ` in ${quiz.sections.length} sections`}
                 </p>
                 
                 {quiz.duration && (
