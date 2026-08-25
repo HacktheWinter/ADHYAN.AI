@@ -50,7 +50,7 @@ export default function CourseDetailPage() {
 
 
     { id: "notes", label: "Notes", path: "notes" },
-    { id: "quiz", label: "Quiz", path: "quiz" },
+    { id: "quiz", label: "Assessment", path: "quiz" },
     { id: "assignment", label: "Assignment", path: "assignment" },
     { id: "test", label: "Test Paper", path: "test" },
     { id: "doubt", label: "Doubts", path: "doubt" },
@@ -201,7 +201,7 @@ export default function CourseDetailPage() {
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
                   {className}
                 </h1>
-                <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, quizzes, assignments, tests and doubts</p>
+                <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, assessments, assignments, tests and doubts</p>
               </div>
 
               {/* Floating Action Button / Quick Tools */}

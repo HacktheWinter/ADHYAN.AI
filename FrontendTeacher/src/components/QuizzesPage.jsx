@@ -162,7 +162,7 @@ const QuizzesPage = () => {
 
       const stats = response.data.stats;
       alert(
-        `Quiz Generated Successfully!\n\n` +
+        `Assessment Generated Successfully!\n\n` +
           `Details:\n` +
           `• Questions: ${stats.questionsGenerated}\n` +
           `• Marks per Q: ${stats.marksPerQuestion}\n` +
@@ -177,7 +177,7 @@ const QuizzesPage = () => {
       setShowAIModal(false);
     } catch (err) {
       console.error("Generation error:", err);
-      alert(err.response?.data?.error || "Failed to generate quiz");
+      alert(err.response?.data?.error || "Failed to generate assessment");
     } finally {
       setIsGenerating(false);
     }
@@ -209,7 +209,7 @@ const QuizzesPage = () => {
 
       const stats = response.data.stats;
       alert(
-        `Quiz Generated Successfully!\n\n` +
+        `Assessment Generated Successfully!\n\n` +
           `Details:\n` +
           `• Questions: ${stats.questionsGenerated}\n` +
           `• Marks per Q: ${stats.marksPerQuestion}\n` +
@@ -223,7 +223,7 @@ const QuizzesPage = () => {
       setShowAIModal(false);
     } catch (err) {
       console.error("Generation error:", err);
-      alert(err.response?.data?.error || "Failed to generate quiz");
+      alert(err.response?.data?.error || "Failed to generate assessment");
     } finally {
       setIsGenerating(false);
     }
@@ -247,11 +247,11 @@ const QuizzesPage = () => {
 
     setEditingQuiz(null);
     setShowEditModal(false);
-    alert("Quiz updated successfully!");
+    alert("Assessment updated successfully!");
   };
 
   const handleDelete = async (id, status) => {
-    if (!confirm("Are you sure you want to delete this quiz?")) return;
+    if (!confirm("Are you sure you want to delete this assessment?")) return;
 
     try {
       await axios.delete(`${API_BASE_URL}/quiz/${id}`);
@@ -262,10 +262,10 @@ const QuizzesPage = () => {
         setPublished(published.filter((q) => q._id !== id));
       }
 
-      alert("Quiz deleted successfully!");
+      alert("Assessment deleted successfully!");
     } catch (err) {
       console.error(err);
-      alert("Failed to delete quiz");
+      alert("Failed to delete assessment");
     }
   };
 
@@ -293,10 +293,10 @@ const QuizzesPage = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-semibold font-display text-ink mb-1">
-              🎯 Quizzes
+              🎯 Assessments
             </h2>
             <p className="text-ink-soft text-sm">
-              Create and manage quizzes with AI-powered question generation
+              Create and manage assessments with AI-powered question generation
             </p>
           </div>
 
@@ -322,7 +322,7 @@ const QuizzesPage = () => {
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
-                  <span>Generate with AI</span>
+                  <span>AI Quick Generate</span>
                 </button>
                 <button
                   onClick={() => {
@@ -332,7 +332,7 @@ const QuizzesPage = () => {
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
                 >
                   <Pencil className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
-                  <span>Create Manually</span>
+                  <span>AI Custom Create</span>
                 </button>
               </div>
             )}
@@ -349,7 +349,7 @@ const QuizzesPage = () => {
         >
           <div className="flex items-center gap-3 mb-4 font-body">
             <div className="w-2 h-8 bg-yellow-500 rounded-full"></div>
-            <h3 className="text-lg sm:text-xl font-semibold font-display text-ink">Draft Quizzes</h3>
+            <h3 className="text-lg sm:text-xl font-semibold font-display text-ink">Draft Assessments</h3>
             <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-350 text-xs sm:text-sm rounded-full font-semibold">
               {drafts.length}
             </span>
@@ -449,7 +449,7 @@ const QuizzesPage = () => {
         >
           <div className="flex items-center gap-3 mb-4 font-body">
             <div className="w-2 h-8 bg-green-500 rounded-full"></div>
-            <h3 className="text-lg sm:text-xl font-semibold font-display text-ink">Published Quizzes</h3>
+            <h3 className="text-lg sm:text-xl font-semibold font-display text-ink">Published Assessments</h3>
             <span className="px-3 py-1 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-xs sm:text-sm rounded-full font-semibold">
               {published.length}
             </span>
@@ -540,10 +540,10 @@ const QuizzesPage = () => {
             <div className="p-6 border-b border-line flex items-center justify-between">
               <div>
                 <h3 className="text-2xl font-semibold font-display text-ink">
-                  Generate Quiz with AI
+                  Generate Assessment with AI
                 </h3>
                 <p className="text-sm text-ink-soft mt-1">
-                  Select notes or add topics to generate quiz questions
+                  Select notes or add topics to generate assessment questions
                 </p>
               </div>
 
@@ -567,11 +567,11 @@ const QuizzesPage = () => {
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider flex items-center gap-2">
                   <FileText className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
-                  Quiz Title (Optional)
+                  Assessment Title (Optional)
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Midterm Physics Quiz, Weekly Math Test..."
+                  placeholder="e.g. Midterm Physics Assessment, Weekly Math Test..."
                   value={customTitle}
                   onChange={(e) => setCustomTitle(e.target.value)}
                   className="w-full px-4 py-2 border border-line bg-paper text-ink rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-surface outline-none transition-all text-sm"

@@ -60,7 +60,12 @@ SUPPORTED LANGUAGES
 - Python
 - JavaScript
 
-The AI must automatically detect the programming language from the submitted code.
+------------------------------------
+SELECTED LANGUAGE
+------------------------------------
+The student has selected: ${language}
+
+The AI MUST enforce this selection. The submitted code MUST be written in the selected language (${language}).
 
 ------------------------------------
 INPUT
@@ -69,11 +74,12 @@ INPUT
 1. Programming Question: ${questionDetails.title || "Coding Challenge"}
 2. Problem Statement: ${questionDetails.description || "N/A"}
 3. Constraints: ${questionDetails.constraints ? questionDetails.constraints.join(", ") : "N/A"}
-4. Student Source Code:
+4. Selected Language: ${language}
+5. Student Source Code:
 \`\`\`
 ${code}
 \`\`\`
-5. Multiple Test Cases:
+6. Multiple Test Cases:
 ${JSON.stringify(testCases, null, 2)}
 
 ------------------------------------
@@ -86,17 +92,38 @@ Step 1
 Read the entire source code carefully before making any judgement.
 
 Step 2
-Identify the programming language.
+Identify the actual programming language of the submitted code.
 
-Step 3
-Mentally simulate the compilation process according to the detected language.
+Step 3 — MANDATORY LANGUAGE VALIDATION
+Compare the detected language with the selected language (${language}).
+
+If the code is NOT written in the selected language (${language}):
+- Set compileSuccess to false
+- Set compileError to "Language Mismatch: You selected ${language} but your code appears to be written in [detected language]. Please write your code in ${language} or change the language selection."
+- Set languageMismatch to true
+- DO NOT execute any test cases
+- Mark ALL test cases as FAIL
+- Set finalVerdict to "Language Mismatch"
+- STOP HERE — do not proceed to Step 4 or beyond
+
+Language detection rules:
+- Java code uses "public class", "System.out.println", "import java."
+- C++ code uses "#include", "cout", "using namespace std"
+- C code uses "#include <stdio.h>", "printf", does NOT use cout or class
+- Python code uses "def ", "print(", indentation-based blocks, no semicolons or braces
+- JavaScript code uses "console.log", "function ", "const ", "let ", "var ", "=>"
+
+Be strict: if the student selected JavaScript but wrote Java code (or vice versa), this MUST be caught and rejected even if the code would produce correct output.
+
+Step 4
+If the language matches, mentally simulate the compilation process according to the selected language.
 
 If there are syntax or compilation errors:
 - stop execution
 - report compile error
 - no test cases should execute
 
-Step 4
+Step 5
 If compilation succeeds, simulate execution exactly according to the language specification.
 
 While simulating execution detect:
@@ -109,7 +136,7 @@ While simulating execution detect:
 - recursion issues
 - logical mistakes
 
-Step 5
+Step 6
 Execute every test case independently.
 
 For every test case:
@@ -133,6 +160,7 @@ DO NOT behave like a tutor.
 Behave like an automated online judge.
 Never make assumptions.
 Never guess outputs.
+NEVER evaluate code that does not match the selected language.
 If the result cannot be determined confidently, explicitly state that instead of inventing an answer.
 
 ------------------------------------
@@ -147,6 +175,7 @@ Return
 - final verdict
 
 Verdicts:
+Language Mismatch (when code language does not match selected language — this takes HIGHEST PRIORITY)
 Accepted
 Wrong Answer
 Compilation Error
@@ -167,6 +196,8 @@ No additional text.
 JSON Schema:
 {
   "language": "C++",
+  "selectedLanguage": "${language}",
+  "languageMismatch": false,
   "compileSuccess": true,
   "compileError": null,
   "runtimeError": null,
@@ -193,7 +224,8 @@ IMPORTANT
 
 Accuracy is more important than speed.
 Read the entire code before evaluating.
-Follow the exact behavior of the detected programming language as closely as possible.
+ALWAYS check language match FIRST before any other evaluation.
+Follow the exact behavior of the selected programming language as closely as possible.
 Never fabricate execution results.
 If a result cannot be confidently inferred through reasoning alone, return "Unknown" instead of claiming that the program passes.
 The response must always be valid JSON that can be parsed directly by the backend.
@@ -215,6 +247,21 @@ The response must always be valid JSON that can be parsed directly by the backen
     } catch (e) {
       console.error("Failed to parse Gemini response as JSON:", responseText);
       throw new Error("Invalid response format from AI evaluator.");
+    }
+
+    // Handle language mismatch detected by AI
+    if (aiResponse.languageMismatch) {
+      const mismatchError = aiResponse.compileError || 
+        `Language Mismatch: You selected ${language} but your code appears to be written in ${aiResponse.language || "a different language"}. Please write your code in ${language} or change the language selection.`;
+      return testCases.map(tc => ({
+        input: tc.input || "",
+        expectedOutput: tc.expectedOutput || "",
+        actualOutput: "",
+        compileOutput: mismatchError,
+        runError: "",
+        exitCode: 1,
+        passed: false
+      }));
     }
 
     if (!aiResponse.compileSuccess || !aiResponse.results || aiResponse.results.length === 0) {

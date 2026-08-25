@@ -35,10 +35,12 @@ export default function TakeAssignmentModal({ assignment, studentId, studentName
     violations,
     exitFullScreen,
     handleViolationAlertOk,
-    setIsSubmitting: setProctorSubmitting
+    setIsSubmitting: setProctorSubmitting,
+    clearViolations
   } = useFullScreenProctor({
     enabled: true,
     maxViolations: 2,
+    examId: assignment._id,
     onAutoSubmit: (reason) => handleAutoSubmit(reason)
   });
 
@@ -106,7 +108,8 @@ export default function TakeAssignmentModal({ assignment, studentId, studentName
       console.log(' Submitting assignment:', { assignmentId: assignment._id, studentId });
 
       await submitAssignment(assignment._id, studentId, answersArray);
-
+      
+      clearViolations();
       exitFullScreen();
 
       if (autoSubmit) {

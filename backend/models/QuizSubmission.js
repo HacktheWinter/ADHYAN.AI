@@ -85,6 +85,10 @@ const quizSubmissionSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    totalMarks: {
+      type: Number,
+      default: 0,
+    },
     percentage: {
       type: Number,
       required: true,
