@@ -5,23 +5,13 @@ import axios from "axios";
 import API_BASE_URL from "../config";
 
 export default function PublishQuizModal({ quiz, onClose, onPublished }) {
-  const [timingOption, setTimingOption] = useState("no-limit"); // 'no-limit', 'schedule'
+  const [timingOption, setTimingOption] = useState("no-limit"); // 'no-limit', 'duration', 'schedule'
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [manualDuration, setManualDuration] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
 
-  const totalDurationMinutes = quiz.sections?.reduce((sum, sec) => sum + (sec.durationMinutes || 0), 0) || 0;
-  const hasSectionTimings = totalDurationMinutes > 0;
-
-  // Initialize correct default option
-  React.useEffect(() => {
-    if (hasSectionTimings) {
-      setTimingOption("section-duration");
-    } else {
-      setTimingOption("no-limit");
-    }
-  }, [hasSectionTimings]);
+  const totalQuestions = quiz.sections?.reduce((sum, sec) => sum + (sec.questions?.length || 0), 0) || quiz.questions?.length || 0;
 
   const handlePublish = async () => {
     try {
@@ -33,7 +23,20 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
         endTime: null,
       };
 
-      if (timingOption === "schedule") {
+      if (timingOption === "duration") {
+        if (!manualDuration || manualDuration <= 0) {
+          alert("Please enter a valid duration");
+          setIsPublishing(false);
+          return;
+        }
+        payload.duration = parseInt(manualDuration);
+        
+        // Start time is now, and end time is now + duration minutes
+        const start = new Date();
+        const end = new Date(start.getTime() + payload.duration * 60000);
+        payload.startTime = start.toISOString();
+        payload.endTime = end.toISOString();
+      } else if (timingOption === "schedule") {
         if (!startTime) {
           alert("Please select a start time");
           setIsPublishing(false);
@@ -51,50 +54,35 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
 
         payload.startTime = start.toISOString();
 
-        if (hasSectionTimings) {
-          payload.duration = totalDurationMinutes;
-          const end = new Date(start.getTime() + totalDurationMinutes * 60000);
-          payload.endTime = end.toISOString();
-        } else {
-          if (!endTime) {
-            alert("Please select an end time");
-            setIsPublishing(false);
-            return;
-          }
-          const end = new Date(endTime);
-          if (end <= start) {
-            alert("End time must be after start time");
-            setIsPublishing(false);
-            return;
-          }
-          payload.endTime = end.toISOString();
-          payload.duration = Math.floor((end - start) / 60000);
-        }
-      } else if (timingOption === "duration") {
-        if (!manualDuration || manualDuration <= 0) {
-          alert("Please enter a valid duration");
+        if (!endTime) {
+          alert("Please select an end time");
           setIsPublishing(false);
           return;
         }
-        payload.duration = parseInt(manualDuration);
-      } else if (timingOption === "section-duration") {
-        payload.duration = totalDurationMinutes;
+        const end = new Date(endTime);
+        if (end <= start) {
+          alert("End time must be after start time");
+          setIsPublishing(false);
+          return;
+        }
+        payload.endTime = end.toISOString();
+        payload.duration = Math.floor((end - start) / 60000);
       }
 
-      console.log("Publishing quiz with timing:", payload);
+      console.log("Publishing assessment with timing:", payload);
 
       const response = await axios.put(
         `${API_BASE_URL}/quiz/${quiz._id}/publish`,
         payload
       );
 
-      console.log("Quiz published:", response.data);
+      console.log("Assessment published:", response.data);
 
-      alert("Quiz published successfully!");
+      alert("Assessment published successfully!");
       onPublished();
     } catch (error) {
       console.error("Publish error:", error);
-      alert(error.response?.data?.error || "Failed to publish quiz");
+      alert(error.response?.data?.error || "Failed to publish assessment");
     } finally {
       setIsPublishing(false);
     }
@@ -114,7 +102,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
         <div className="p-6 border-b border-line sticky top-0 bg-surface z-10">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl sm:text-2xl font-semibold font-display text-ink">Publish Quiz</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold font-display text-ink">Publish Assessment</h2>
               <p className="text-ink-soft text-sm mt-1">{quiz.title}</p>
             </div>
             <button
@@ -134,128 +122,93 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
             <div className="flex items-center gap-2 mb-2">
               <AlertCircle className="w-5 h-5 text-violet-dark" />
               <span className="font-bold text-violet-dark">
-                Quiz Information
+                Assessment Information
               </span>
             </div>
             <p className="text-sm text-violet-dark font-medium">
-              {quiz.questions?.length || 0} questions • Once published, students
-              can take this quiz
+              {totalQuestions} questions • Once published, students
+              can take this assessment
             </p>
           </div>
 
           {/* Timing Options */}
           <div>
             <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-3">
-              Set Quiz Timing
+              Set Assessment Timing
             </label>
 
             <div className="space-y-3">
-              {!hasSectionTimings && (
-                <>
-                  {/* No Time Limit */}
-                  <label
-                    className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
-                      timingOption === "no-limit"
-                        ? "border-violet-600 bg-violet-50 text-violet-dark shadow-sm"
-                        : "border-line bg-surface text-ink hover:border-purple-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="timing"
-                      value="no-limit"
-                      checked={timingOption === "no-limit"}
-                      onChange={(e) => setTimingOption(e.target.value)}
-                      className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
-                    />
-                    <div className="flex-1">
-                      <div className="font-bold text-ink mb-1">
-                        No Time Limit
-                      </div>
-                      <p className="text-sm text-ink-soft">
-                        Students can take this quiz anytime without time
-                        restrictions
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Total Duration (Manual) */}
-                  <label
-                    className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
-                      timingOption === "duration"
-                        ? "border-violet-600 bg-violet-50 text-violet-dark shadow-sm"
-                        : "border-line bg-surface text-ink hover:border-purple-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="timing"
-                      value="duration"
-                      checked={timingOption === "duration"}
-                      onChange={(e) => setTimingOption(e.target.value)}
-                      className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Clock className="w-5 h-5 text-purple-600 dark:text-[#A78BFA]" />
-                        <span className="font-bold text-ink">
-                          Total Duration
-                        </span>
-                      </div>
-                      <p className="text-sm text-ink-soft mb-3">
-                        Set a specific time limit for the entire quiz
-                      </p>
-                      
-                      {timingOption === "duration" && (
-                        <div>
-                          <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">
-                            Duration (Minutes)
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={manualDuration}
-                            onChange={(e) => setManualDuration(e.target.value)}
-                            placeholder="e.g. 60"
-                            className="w-full sm:w-1/2 px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </label>
-                </>
-              )}
-
-              {/* Total Section Duration */}
-              {hasSectionTimings && (
-                <label
-                  className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
-                    timingOption === "section-duration"
-                      ? "border-violet-600 bg-violet-50 text-violet-dark shadow-sm"
-                      : "border-line bg-surface text-ink hover:border-purple-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="timing"
-                    value="section-duration"
-                    checked={timingOption === "section-duration"}
-                    onChange={(e) => setTimingOption(e.target.value)}
-                    className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Clock className="w-5 h-5 text-purple-600 dark:text-[#A78BFA]" />
-                      <span className="font-bold text-ink">
-                        Total Section Duration
-                      </span>
-                    </div>
-                    <p className="text-sm text-ink-soft">
-                      Based on individual section limits, the total duration is {totalDurationMinutes} minutes.
-                    </p>
+              {/* No Time Limit */}
+              <label
+                className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
+                  timingOption === "no-limit"
+                    ? "border-violet-600 bg-violet-50 text-violet-dark shadow-sm"
+                    : "border-line bg-surface text-ink hover:border-purple-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="timing"
+                  value="no-limit"
+                  checked={timingOption === "no-limit"}
+                  onChange={(e) => setTimingOption(e.target.value)}
+                  className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
+                />
+                <div className="flex-1">
+                  <div className="font-bold text-ink mb-1">
+                    No Time Limit
                   </div>
-                </label>
-              )}
+                  <p className="text-sm text-ink-soft">
+                    Students can take this assessment anytime without time
+                    restrictions
+                  </p>
+                </div>
+              </label>
+
+              {/* Total Duration */}
+              <label
+                className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
+                  timingOption === "duration"
+                    ? "border-violet-600 bg-violet-50 text-violet-dark shadow-sm"
+                    : "border-line bg-surface text-ink hover:border-purple-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="timing"
+                  value="duration"
+                  checked={timingOption === "duration"}
+                  onChange={(e) => setTimingOption(e.target.value)}
+                  className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="w-5 h-5 text-purple-600 dark:text-[#A78BFA]" />
+                    <span className="font-bold text-ink">
+                      Set Duration
+                    </span>
+                  </div>
+                  <p className="text-sm text-ink-soft mb-3">
+                    Set a specific time limit for the entire assessment. The quiz will auto-submit when time runs out.
+                  </p>
+                  
+                  {timingOption === "duration" && (
+                    <div>
+                      <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">
+                        Duration (Minutes)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={manualDuration}
+                        onChange={(e) => setManualDuration(e.target.value)}
+                        placeholder="e.g. 60"
+                        className="w-full sm:w-1/2 px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              </label>
 
               {/* Schedule */}
               <label
@@ -277,11 +230,11 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
                   <div className="flex items-center gap-2 mb-1">
                     <Calendar className="w-5 h-5 text-purple-600 dark:text-[#A78BFA]" />
                     <span className="font-bold text-ink">
-                      Schedule Questions
+                      Schedule Assessment
                     </span>
                   </div>
                   <p className="text-sm text-ink-soft mb-3">
-                    Set specific start time {hasSectionTimings ? "for the questions" : "and end time for the questions"}
+                    Set a start and end time window. The quiz duration is automatically calculated from the window and auto-submits when time expires.
                   </p>
 
                   {timingOption === "schedule" && (
@@ -298,20 +251,18 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
                           className="w-full px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
                         />
                       </div>
-                      {!hasSectionTimings && (
-                        <div>
-                          <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">
-                            End Time
-                          </label>
-                          <input
-                            type="datetime-local"
-                            min={startTime || getMinDateTime()}
-                            value={endTime}
-                            onChange={(e) => setEndTime(e.target.value)}
-                            className="w-full px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
-                          />
-                        </div>
-                      )}
+                      <div>
+                        <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">
+                          End Time
+                        </label>
+                        <input
+                          type="datetime-local"
+                          min={startTime || getMinDateTime()}
+                          value={endTime}
+                          onChange={(e) => setEndTime(e.target.value)}
+                          className="w-full px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -329,7 +280,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
                 </p>
                 <p className="text-sm text-amber-800">
                   Once published, students will be able to see and take this
-                  quiz. You can still edit questions after publishing, but
+                  assessment. You can still edit questions after publishing, but
                   timing cannot be changed.
                 </p>
               </div>
@@ -359,7 +310,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
             ) : (
               <>
                 <CheckCircle className="w-5 h-5" />
-                Publish Quiz
+                Publish Assessment
               </>
             )}
           </button>

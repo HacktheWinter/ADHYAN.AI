@@ -66,7 +66,7 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
           </div>
           <h2 className="text-2xl font-bold text-gray-900">Results Pending</h2>
           <p className="text-gray-600">
-            Your quiz has been submitted successfully. The results will be available here once your teacher publishes them.
+            Your assessment has been submitted successfully. The results will be available here once your teacher publishes them.
           </p>
           <button
             onClick={onClose}
@@ -98,7 +98,7 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
         {/* Header (sticky) */}
         <div className="p-4 md:p-6 border-b border-gray-200 sticky top-0 z-30 bg-white flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Quiz Result</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Assessment Result</h2>
             <p className="text-gray-600 mt-1 text-sm">{quiz.title}</p>
           </div>
           <button 
@@ -132,13 +132,15 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-medium text-gray-800">Q{idx + 1}</div>
                       <div className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        isCorrect ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                        ans.isCorrect || (ans.type === 'coding' && ans.marksAwarded > 0) ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
                       }`}>
-                        {isCorrect ? 'Correct' : 'Incorrect'}
+                        {typeof ans.marksAwarded === 'number' ? ans.marksAwarded.toFixed(1) : (ans.marksAwarded || 0)} marks
                       </div>
                     </div>
                     <div className="text-xs text-gray-500 line-clamp-2 whitespace-pre-wrap">
-                      {ans.selectedAnswer ? ans.selectedAnswer : 'Not answered'}
+                      {ans.type === 'coding' 
+                        ? (ans.code ? `Code: ${ans.code.substring(0, 60)}...` : 'No code submitted')
+                        : (ans.selectedAnswer ? ans.selectedAnswer : 'Not answered')}
                     </div>
                   </button>
                 );
@@ -196,11 +198,12 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
 
                       <div className="flex-shrink-0 text-right">
                         <div className={`text-sm font-semibold px-3 py-1 rounded-full ${
-                          answer.isCorrect
+                          answer.isCorrect || (isCoding && answer.marksAwarded > 0)
                             ? 'bg-green-600 text-white'
                             : 'bg-red-600 text-white'
                         }`}>
-                          {answer.isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                          {answer.isCorrect || (isCoding && answer.marksAwarded > 0) ? '✓ ' : '✗ '}
+                          {typeof answer.marksAwarded === 'number' ? answer.marksAwarded.toFixed(1) : (answer.marksAwarded || 0)}/{question.marks || 1} marks
                         </div>
                       </div>
                     </div>
@@ -287,9 +290,9 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
             <div className="flex items-center gap-8">
               <div className="text-right">
                 <div className="text-2xl font-bold text-gray-900">
-                  {result.score}<span className="text-gray-400">/{result.totalQuestions}</span>
+                  {typeof result.score === 'number' ? result.score.toFixed(1) : result.score}<span className="text-gray-400">/{result.totalMarks || result.totalQuestions}</span>
                 </div>
-                <div className="text-sm text-gray-500 mt-1">Correct Answers</div>
+                <div className="text-sm text-gray-500 mt-1">Marks Obtained</div>
               </div>
               <div className="h-12 w-px bg-gray-300"></div>
               <div className="text-right">

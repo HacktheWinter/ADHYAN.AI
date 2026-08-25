@@ -47,10 +47,12 @@ export default function TestPaperTakingPage() {
     exitFullScreen,
     handleViolationAlertOk,
     setIsSubmitting: setProctorSubmitting,
-    requestFullScreen
+    requestFullScreen,
+    clearViolations
   } = useFullScreenProctor({
     enabled: hasStarted,
     maxViolations: 2,
+    examId: testId,
     onAutoSubmit: (reason) => handleAutoSubmit(reason)
   });
 
@@ -234,6 +236,7 @@ export default function TestPaperTakingPage() {
 
       // Clean up local storage
       localStorage.removeItem(`test_start_time_${testId}`);
+      clearViolations();
 
       exitFullScreen();
 

@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Github, Twitter, Linkedin, Instagram, Mail } from "lucide-react";
 
 const Footer = () => {
@@ -113,14 +114,14 @@ const Footer = () => {
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-purple-400 transition-colors">
+                <Link to="/privacy" className="hover:text-purple-400 transition-colors">
                   Privacy Policy
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-purple-400 transition-colors">
+                <Link to="/terms" className="hover:text-purple-400 transition-colors">
                   Terms of Service
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -131,12 +132,12 @@ const Footer = () => {
             &copy; {new Date().getFullYear()} ADHYAN.AI. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
-            <a href="#" className="hover:text-gray-300 transition-colors">
+            <Link to="/privacy" className="hover:text-gray-300 transition-colors">
               Privacy
-            </a>
-            <a href="#" className="hover:text-gray-300 transition-colors">
+            </Link>
+            <Link to="/terms" className="hover:text-gray-300 transition-colors">
               Terms
-            </a>
+            </Link>
             <a href="#" className="hover:text-gray-300 transition-colors">
               Cookies
             </a>

@@ -4,7 +4,7 @@ import Quiz from "../models/Quiz.js";
 import Note from "../models/Note.js";
 import Classroom from "../models/Classroom.js";
 import { getBucket } from "../config/gridfs.js";
-import { generateQuizFromText, generateQuizFromTopics, extractExactQuestions } from "../config/gemini.js";
+import { generateQuizFromText, generateQuizFromTopics, generateCodingFromTopics, extractExactQuestions } from "../config/gemini.js";
 import {
   extractTextFromFile,
   cleanTextFull,
@@ -90,8 +90,11 @@ export const createQuizManually = async (req, res) => {
       if (!q.question?.trim()) throw new Error(`Question ${index} must have text`);
       if (q.type === "coding") {
         if (!q.coding || !q.coding.title) throw new Error(`Coding question ${index} must have a title`);
-        if (!q.coding.hiddenTestCases || q.coding.hiddenTestCases.length === 0) {
-          throw new Error(`Coding question ${index} must have at least one hidden test case`);
+        // Accept either unified testCases or legacy hiddenTestCases
+        const hasTestCases = (q.coding.testCases && q.coding.testCases.length > 0) || 
+                             (q.coding.hiddenTestCases && q.coding.hiddenTestCases.length > 0);
+        if (!hasTestCases) {
+          throw new Error(`Coding question ${index} must have at least one test case`);
         }
       } else {
         if (!Array.isArray(q.options) || q.options.length !== 4) {
@@ -303,6 +306,92 @@ export const generateQuizFromTopicsAPI = async (req, res) => {
 
     res.status(500).json({
       error: "Failed to generate quiz from topics",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Generate questions from a prompt/topics without saving to DB.
+ * Used by the inline AI generator in CreateManualQuizModal.
+ * POST /api/quiz/generate-questions-from-prompt
+ * Body: { topics: string, questionType: "mcq"|"coding", questionCount?: number, difficulty?: string }
+ */
+export const generateQuestionsFromPrompt = async (req, res) => {
+  try {
+    const { topics, questionType, questionCount, difficulty, marksPerQuestion } = req.body;
+
+    if (!topics || !topics.trim()) {
+      return res.status(400).json({ error: "Please provide topics or a prompt" });
+    }
+
+    const topicsArray = topics.split(",").map(t => t.trim()).filter(Boolean);
+    if (topicsArray.length === 0) {
+      return res.status(400).json({ error: "Please provide at least one valid topic" });
+    }
+
+    const config = {
+      questionCount: questionCount || 5,
+      difficulty: difficulty || "mixed",
+    };
+
+    let questions;
+
+    if (questionType === "coding") {
+      // Generate coding questions
+      const codingResults = await generateCodingFromTopics(topicsArray, config);
+      // Map to frontend-compatible format
+      questions = codingResults.map(q => ({
+        type: "coding",
+        marks: marksPerQuestion || q.marks || 5,
+        coding: {
+          title: q.coding?.title || "",
+          description: q.coding?.description || "",
+          examples: q.coding?.examples || [{ input: "", output: "", explanation: "" }],
+          constraints: q.coding?.constraints || [""],
+          allowedLanguages: q.coding?.allowedLanguages || ["javascript", "python", "java", "cpp"],
+          starterCode: q.coding?.starterCode || [{ language: "javascript", code: "// Write your code here\n" }],
+          testCases: q.coding?.testCases || q.coding?.hiddenTestCases || q.coding?.publicTestCases || [{ input: "", expectedOutput: "" }],
+          comparisonMode: q.coding?.comparisonMode || "trimmed"
+        }
+      }));
+    } else {
+      // Generate MCQ questions
+      const mcqResults = await generateQuizFromTopics(topicsArray, {
+        ...config,
+        marksPerQuestion: marksPerQuestion || 1,
+      });
+      // Map to frontend-compatible format (with correctOptionIndex)
+      questions = mcqResults.map(q => {
+        const correctIdx = q.options.indexOf(q.correctAnswer);
+        return {
+          type: "mcq",
+          marks: marksPerQuestion || 1,
+          question: q.question,
+          options: q.options,
+          correctOptionIndex: correctIdx >= 0 ? correctIdx : 0,
+        };
+      });
+    }
+
+    if (!questions || questions.length === 0) {
+      return res.status(500).json({
+        error: "AI could not generate questions. Please try with different topics.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      questions,
+      stats: {
+        generated: questions.length,
+        type: questionType || "mcq",
+      },
+    });
+  } catch (error) {
+    console.error("INLINE QUESTION GENERATION FAILED:", error.message);
+    res.status(500).json({
+      error: "Failed to generate questions from AI. Please try again.",
       details: error.message,
     });
   }
@@ -607,8 +696,7 @@ export const getQuiz = async (req, res) => {
             _id: "default_section",
             title: "Default Section",
             order: 0,
-            questions: quizObj.questions,
-            durationMinutes: quizObj.duration || null
+            questions: quizObj.questions
           }
         ];
       } else {
@@ -631,6 +719,7 @@ export const getQuiz = async (req, res) => {
             sec.questions.forEach(q => {
               delete q.correctAnswer;
               if (q.coding) {
+                delete q.coding.testCases;
                 delete q.coding.hiddenTestCases;
               }
             });

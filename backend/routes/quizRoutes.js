@@ -5,6 +5,7 @@ import {
   createQuizManually,
   generateQuizWithAI,
   generateQuizFromTopicsAPI,
+  generateQuestionsFromPrompt,
   getQuiz,
   getQuizzesByClassroom,
   updateQuiz,
@@ -41,6 +42,14 @@ router.post(
   authMiddleware,
   authorizeRoles("teacher"),
   generateQuizFromTopicsAPI
+);
+
+// Inline AI question generation (returns raw questions, no DB save)
+router.post(
+  "/generate-questions-from-prompt",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  generateQuestionsFromPrompt
 );
 
 // Get quiz by ID

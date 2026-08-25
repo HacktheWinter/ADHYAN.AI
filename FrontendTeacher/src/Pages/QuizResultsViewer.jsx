@@ -18,7 +18,6 @@ const QuizResultsViewer = () => {
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSection, setSelectedSection] = useState('all');
 
   const [isPublishing, setIsPublishing] = useState(false);
 
@@ -113,7 +112,7 @@ const QuizResultsViewer = () => {
       <div className="min-h-screen bg-paper flex items-center justify-center font-body text-ink">
         <div className="text-center">
           <Loader className="w-12 h-12 text-violet-dark animate-spin mx-auto mb-4" />
-          <p className="text-ink-soft font-semibold">Loading quiz results...</p>
+          <p className="text-ink-soft font-semibold">Loading assessment results...</p>
         </div>
       </div>
     );
@@ -124,64 +123,29 @@ const QuizResultsViewer = () => {
       <div className="min-h-screen bg-paper flex items-center justify-center font-body text-ink">
         <div className="text-center">
           <AlertTriangle className="w-16 h-16 text-rose-500 mx-auto mb-4" />
-          <p className="text-ink font-semibold font-display">Quiz not found</p>
-          <p className="text-ink-soft text-sm mt-2">No quiz or submissions available</p>
+          <p className="text-ink font-semibold font-display">Assessment not found</p>
+          <p className="text-ink-soft text-sm mt-2">No assessment or submissions available</p>
           <button
             onClick={() => navigate(`/class/${classId}/quizzes`)}
             className="mt-4 px-6 py-3 btn-settings-blue text-sm rounded-xl font-bold transition cursor-pointer"
           >
-            Back to Quizzes
+            Back to Assessments
           </button>
         </div>
       </div>
     );
   }
 
-  // Calculate section-specific stats if a section is selected
-  const activeSection = selectedSection !== 'all' && quiz?.sections ? quiz.sections.find(s => s._id === selectedSection) : null;
-  const sectionQuestionIds = activeSection ? activeSection.questions.map(q => q._id) : [];
-
-  const processedSubmissions = submissions.map(sub => {
-    if (selectedSection === 'all' || !activeSection) {
-      return {
-        ...sub,
-        displayScore: sub.score,
-        displayTotal: sub.totalQuestions,
-        displayPercentage: parseFloat(sub.percentage)
-      };
-    } else {
-      const sectionAnswers = sub.answers.filter(a => sectionQuestionIds.includes(a.questionId));
-      let secScore = 0;
-      sectionAnswers.forEach(a => {
-        if (a.type === 'coding') {
-           // For coding, we check if testResults exist and calculate percentage of tests passed, but for simplicity let's say 1 mark if fully passed, or check marksAwarded.
-           // Since we don't have full grading logic here, we'll assume isCorrect means fully passed.
-           if (a.isCorrect) secScore += 1;
-        } else {
-           if (a.isCorrect) secScore += 1;
-        }
-      });
-      const secTotal = activeSection.questions.length;
-      const secPercentage = secTotal > 0 ? (secScore / secTotal) * 100 : 0;
-      
-      return {
-        ...sub,
-        displayScore: secScore,
-        displayTotal: secTotal,
-        displayPercentage: secPercentage
-      };
-    }
-  });
-
-  const averageScore = processedSubmissions.length > 0
-    ? (processedSubmissions.reduce((sum, sub) => sum + sub.displayPercentage, 0) / processedSubmissions.length).toFixed(2)
+  // Calculate stats from submissions directly (no section filtering)
+  const averageScore = submissions.length > 0
+    ? (submissions.reduce((sum, sub) => sum + parseFloat(sub.percentage || 0), 0) / submissions.length).toFixed(2)
     : 0;
 
-  const passCount = processedSubmissions.filter(sub => sub.displayPercentage >= 40).length;
-  const failCount = processedSubmissions.filter(sub => sub.displayPercentage < 40).length;
+  const passCount = submissions.filter(sub => parseFloat(sub.percentage || 0) >= 40).length;
+  const failCount = submissions.filter(sub => parseFloat(sub.percentage || 0) < 40).length;
 
   const totalStudents = classroom?.students?.length || 0;
-  const submittedCount = processedSubmissions.length;
+  const submittedCount = submissions.length;
   const pendingCount = Math.max(0, totalStudents - submittedCount);
 
   return (
@@ -195,7 +159,7 @@ const QuizResultsViewer = () => {
             className="flex items-center gap-2 text-violet-dark hover:opacity-80 font-bold transition-all mb-4 cursor-pointer text-sm"
           >
             <ChevronLeft className="w-5 h-5" />
-            Back to Quizzes
+            Back to Assessments
           </button>
           
           <div className="flex items-start justify-between">
@@ -203,7 +167,7 @@ const QuizResultsViewer = () => {
               <h1 className="text-2xl sm:text-3xl font-semibold font-display text-ink mb-2" title={quiz.title}>
                 {quiz.title.length > 50 ? quiz.title.substring(0, 50) + '...' : quiz.title}
               </h1>
-              <p className="text-sm sm:text-base text-ink-soft">{quiz.questions?.length || 0} questions • {submissions.length} submissions</p>
+              <p className="text-sm sm:text-base text-ink-soft">{(quiz.sections?.length > 0 ? quiz.sections.reduce((acc, sec) => acc + (sec.questions?.length || 0), 0) : (quiz.questions?.length || 0))} questions • {submissions.length} submissions</p>
             </div>
 
             <div className="relative">
@@ -309,23 +273,6 @@ const QuizResultsViewer = () => {
             </div>
           )}
           
-          {quiz?.sections && quiz.sections.length > 0 && (
-            <div className="relative w-full sm:w-auto mb-2 sm:mb-0">
-              <select
-                value={selectedSection}
-                onChange={(e) => setSelectedSection(e.target.value)}
-                className="w-full sm:w-48 px-4 py-3 bg-surface border border-line rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-ink text-sm sm:text-base appearance-none cursor-pointer"
-              >
-                <option value="all">All Sections</option>
-                {quiz.sections.map((sec, idx) => (
-                  <option key={sec._id} value={sec._id}>
-                    {sec.title || `Section ${idx + 1}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           <div className="relative flex-1 sm:max-w-xs ml-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-soft" />
             <input 
@@ -344,7 +291,7 @@ const QuizResultsViewer = () => {
             <div className="p-8 sm:p-12 text-center bg-surface">
               <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-ink-soft opacity-20 mx-auto mb-4" />
               <p className="text-ink-soft font-semibold">No submissions yet</p>
-              <p className="text-ink-soft text-sm mt-1">Students haven't submitted this quiz yet</p>
+              <p className="text-ink-soft text-sm mt-1">Students haven't submitted this assessment yet</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -353,14 +300,14 @@ const QuizResultsViewer = () => {
                   <tr>
                     <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-ink">Student</th>
                     <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-ink">Status</th>
-                    <th className="hidden sm:table-cell px-6 py-4 text-left text-sm font-bold text-ink">Score</th>
+                    <th className="hidden sm:table-cell px-6 py-4 text-left text-sm font-bold text-ink">Marks</th>
                     <th className="hidden lg:table-cell px-6 py-4 text-left text-sm font-bold text-ink">Percentage</th>
                     <th className="hidden lg:table-cell px-6 py-4 text-left text-sm font-bold text-ink">Submitted</th>
                     <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-ink">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {processedSubmissions
+                  {submissions
                     .filter(sub => {
                       const searchStr = searchQuery.toLowerCase();
                       const name = (sub.studentId?.name || '').toLowerCase();
@@ -368,7 +315,10 @@ const QuizResultsViewer = () => {
                       const erpId = (sub.studentId?.erpId || '').toLowerCase();
                       return name.includes(searchStr) || email.includes(searchStr) || erpId.includes(searchStr);
                     })
-                    .map((submission) => (
+                    .map((submission) => {
+                    const displayTotal = submission.totalMarks || submission.totalQuestions;
+                    const displayPercentage = parseFloat(submission.percentage || 0);
+                    return (
                     <tr key={submission._id} className="hover:bg-line/20 bg-surface transition-colors">
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
                         <div className="flex items-center gap-2 sm:gap-3">
@@ -396,11 +346,11 @@ const QuizResultsViewer = () => {
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
                         <span className={`inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-xs font-bold border border-line ${
-                          submission.displayPercentage >= 40
+                          displayPercentage >= 40
                             ? 'bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300'
                             : 'bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350'
                         }`}>
-                          {submission.displayPercentage >= 40 ? (
+                          {displayPercentage >= 40 ? (
                             <><CheckCircle className="w-3 h-3" /> <span className="hidden sm:inline">Pass</span></>
                           ) : (
                             <><AlertTriangle className="w-3 h-3" /> <span className="hidden sm:inline">Fail</span></>
@@ -409,14 +359,14 @@ const QuizResultsViewer = () => {
                       </td>
                       <td className="hidden sm:table-cell px-6 py-4">
                         <span className="font-semibold text-ink text-sm">
-                          {submission.displayScore}/{submission.displayTotal}
+                          {typeof submission.score === 'number' ? submission.score.toFixed(1) : submission.score}/{typeof displayTotal === 'number' ? displayTotal : displayTotal}
                         </span>
                       </td>
                       <td className="hidden lg:table-cell px-6 py-4">
                         <span className={`font-bold ${
-                          submission.displayPercentage >= 40 ? 'text-green-600 dark:text-green-400' : 'text-rose-600 dark:text-rose-450'
+                          displayPercentage >= 40 ? 'text-green-600 dark:text-green-400' : 'text-rose-600 dark:text-rose-450'
                         }`}>
-                          {submission.displayPercentage.toFixed(2)}%
+                          {displayPercentage.toFixed(2)}%
                         </span>
                       </td>
                       <td className="hidden lg:table-cell px-6 py-4">
@@ -438,7 +388,8 @@ const QuizResultsViewer = () => {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -26,6 +26,11 @@ const ClassDashboard = () => {
   const [filterValue, setFilterValue] = useState('');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
+  // Export Modal states
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedExportItems, setSelectedExportItems] = useState([]);
+  const [exportParticipationFilter, setExportParticipationFilter] = useState('all');
+
     const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
@@ -210,20 +215,49 @@ const ClassDashboard = () => {
       return `${classroom?.name || 'Class'}_${modeName}_Dashboard.csv`;
   };
 
-  const exportToCSV = () => {
+  const handleOpenExportModal = () => {
+    setSelectedExportItems(items.map(item => item._id));
+    setExportParticipationFilter('all');
+    setShowExportModal(true);
+  };
+
+  const handleExportSubmit = () => {
     const itemLabel = viewMode === 'quiz' ? 'Quiz' : viewMode === 'assignment' ? 'Assignment' : 'Test Paper';
     
+    // Filter items based on selection
+    const exportItems = items.filter(item => selectedExportItems.includes(item._id));
+    
+    if (exportItems.length === 0) {
+      alert("Please select at least one item to export.");
+      return;
+    }
+
+    // Filter students based on participation
+    const exportStudents = sortedStudents.filter(student => {
+      if (exportParticipationFilter === 'all') return true;
+      // 'participating' - student must have attempted at least one of the selected items
+      return exportItems.some(item => submissions[student._id]?.[item._id]);
+    });
+
+    if (exportStudents.length === 0) {
+      alert("No students found matching the export criteria.");
+      return;
+    }
+
     // Header
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += `Serial No,Student Name,Email,ERP ID,Section,` + items.map((_, i) => `${itemLabel} ${i + 1}`).join(",") + "\n";
+    csvContent += `Serial No,Student Name,Email,ERP ID,Section,` + exportItems.map(item => {
+      return `"${item.title || getItemLabel(item, items.findIndex(i => i._id === item._id))}"`;
+    }).join(",") + "\n";
 
     // Rows
-    sortedStudents.forEach((student, index) => {
+    exportStudents.forEach((student, index) => {
         let row = `${index + 1},"${student.name}","${student.email}","${student.erpId || 'N/A'}","${student.section || 'N/A'}"`;
         
-        items.forEach(item => {
+        exportItems.forEach(item => {
             const sub = submissions[student._id]?.[item._id];
-            const scoreStr = sub ? `${sub.score}/${sub.total} (${sub.percentage}%)` : "Not Attempted";
+            const displayScore = sub ? (typeof sub.score === 'number' ? (Number.isInteger(sub.score) ? sub.score : Number(sub.score).toFixed(1)) : sub.score) : 0;
+            const scoreStr = sub ? `${displayScore}/${sub.total} (${sub.percentage}%)` : "Not Attempted";
             row += `,${scoreStr}`;
         });
         
@@ -237,9 +271,11 @@ const ClassDashboard = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setShowExportModal(false);
   };
 
-  const getItemLabel = (index) => {
+  const getItemLabel = (item, index) => {
+      if (item && item.title) return item.title;
       const base = viewMode === 'quiz' ? 'Quiz' : viewMode === 'assignment' ? 'Assignment' : 'Test Paper';
       return `${base} ${index + 1}`;
   };
@@ -381,7 +417,7 @@ const ClassDashboard = () => {
                 </div>
 
                 <button 
-                    onClick={exportToCSV}
+                    onClick={handleOpenExportModal}
                     className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors shadow-sm cursor-pointer text-sm font-semibold"
                 >
                     <Download className="w-4 h-4" />
@@ -405,14 +441,14 @@ const ClassDashboard = () => {
                             <th className="px-6 py-4 text-left text-xs font-semibold text-ink-soft uppercase tracking-wider w-24">
                                 Section
                             </th>
-                            {items.map((item, index) => (
-                                <th key={item._id} className="px-6 py-4 text-left text-xs font-semibold text-ink-soft uppercase tracking-wider min-w-[140px]">
-                                    <div className="flex items-center gap-2" title={item.title}>
-                                        <FileText className="w-3 h-3 text-purple-500" />
-                                        <span className="truncate max-w-[120px] block">{getItemLabel(index)}</span>
-                                    </div>
-                                </th>
-                            ))}
+                                {items.map((item, index) => (
+                                    <th key={item._id} className="px-6 py-4 text-left text-xs font-semibold text-ink-soft uppercase tracking-wider min-w-[140px]">
+                                        <div className="flex items-center gap-2" title={item.title}>
+                                            <FileText className="w-3 h-3 text-purple-500" />
+                                            <span className="truncate max-w-[150px] block">{getItemLabel(item, index)}</span>
+                                        </div>
+                                    </th>
+                                ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-line">
@@ -461,7 +497,7 @@ const ClassDashboard = () => {
                                                             {sub.percentage}%
                                                         </span>
                                                         <span className="text-xs text-ink-soft">
-                                                            {sub.score}/{sub.total}
+                                                            {typeof sub.score === 'number' ? (Number.isInteger(sub.score) ? sub.score : Number(sub.score).toFixed(1)) : sub.score}/{sub.total}
                                                             {sub.status && sub.status !== 'checked' && (
                                                                 <span className="text-amber-500 dark:text-amber-400 ml-1">({sub.status})</span>
                                                             )}
@@ -497,6 +533,204 @@ const ClassDashboard = () => {
                 </div>
             </div>
         </div>
+
+        {/* Export Modal */}
+        {showExportModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowExportModal(false)}>
+                <div className="absolute inset-0 bg-black/60" style={{backdropFilter: 'blur(4px)'}}></div>
+                <div className="bg-surface rounded-2xl w-full max-w-lg shadow-2xl border border-line overflow-hidden relative z-10" onClick={e => e.stopPropagation()}>
+                    
+                    {/* Modal Header */}
+                    <div className="px-6 py-5 border-b border-line" style={{background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(16,185,129,0.08))'}}>
+                        <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                                    <Download className="w-5 h-5 text-emerald-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-ink font-display">
+                                        Export {viewMode.charAt(0).toUpperCase() + viewMode.slice(1)} Data
+                                    </h3>
+                                    <p className="text-xs text-ink-soft mt-0.5">Choose items and student criteria for your CSV export</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setShowExportModal(false)}
+                                className="p-1.5 text-ink-soft hover:text-ink hover:bg-line/60 rounded-lg transition-colors cursor-pointer"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {/* Modal Body */}
+                    <div className="p-6 space-y-6">
+                        
+                        {/* Items Selection */}
+                        <div>
+                            <div className="flex items-center justify-between mb-3">
+                                <label className="text-sm font-bold text-ink flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-purple-500" />
+                                    Select Items to Export
+                                </label>
+                                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full" style={{
+                                    background: selectedExportItems.length > 0 ? 'rgba(139,92,246,0.12)' : 'rgba(100,100,100,0.1)',
+                                    color: selectedExportItems.length > 0 ? '#7c3aed' : 'inherit'
+                                }}>
+                                    {selectedExportItems.length} of {items.length} selected
+                                </span>
+                            </div>
+                            
+                            <div className="border border-line rounded-xl overflow-hidden">
+                                {/* Select All Header */}
+                                <div 
+                                    className="flex items-center gap-3 px-4 py-3 bg-paper border-b border-line cursor-pointer hover:bg-line/30 transition-colors"
+                                    onClick={() => {
+                                        if (selectedExportItems.length === items.length) setSelectedExportItems([]);
+                                        else setSelectedExportItems(items.map(i => i._id));
+                                    }}
+                                >
+                                    <div className="w-[18px] h-[18px] rounded flex-shrink-0 flex items-center justify-center transition-all" style={{
+                                        background: (selectedExportItems.length === items.length && items.length > 0) ? '#7c3aed' : 'transparent',
+                                        border: (selectedExportItems.length === items.length && items.length > 0) ? '2px solid #7c3aed' : '2px solid #d1d5db'
+                                    }}>
+                                        {(selectedExportItems.length === items.length && items.length > 0) && (
+                                            <Check className="w-3 h-3 text-white" />
+                                        )}
+                                    </div>
+                                    <span className="text-sm font-bold text-ink">Select All</span>
+                                </div>
+                                
+                                {/* Item List */}
+                                <div className="max-h-44 overflow-y-auto bg-surface">
+                                    {items.map((item, index) => {
+                                        const isChecked = selectedExportItems.includes(item._id);
+                                        return (
+                                            <div 
+                                                key={item._id} 
+                                                className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-line/30 transition-colors border-b border-line/50 last:border-b-0"
+                                                onClick={() => {
+                                                    if (isChecked) setSelectedExportItems(selectedExportItems.filter(id => id !== item._id));
+                                                    else setSelectedExportItems([...selectedExportItems, item._id]);
+                                                }}
+                                            >
+                                                <div className="w-[18px] h-[18px] rounded flex-shrink-0 flex items-center justify-center transition-all" style={{
+                                                    background: isChecked ? '#7c3aed' : 'transparent',
+                                                    border: isChecked ? '2px solid #7c3aed' : '2px solid #d1d5db'
+                                                }}>
+                                                    {isChecked && (
+                                                        <Check className="w-3 h-3 text-white" />
+                                                    )}
+                                                </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <span className="text-sm font-semibold text-ink block truncate" title={item.title || 'Untitled'}>{getItemLabel(item, index)}</span>
+                                                    </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {items.length === 0 && (
+                                        <div className="p-6 text-center text-sm text-ink-soft">
+                                            <FileText className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                            <p>No items available to export.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Participation Filter */}
+                        <div>
+                            <label className="text-sm font-bold text-ink flex items-center gap-2 mb-3">
+                                <User className="w-4 h-4 text-purple-500" />
+                                Student Inclusion
+                            </label>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {/* All Students Card */}
+                                <div 
+                                    className="p-4 rounded-xl cursor-pointer transition-all"
+                                    onClick={() => setExportParticipationFilter('all')}
+                                    style={{
+                                        border: exportParticipationFilter === 'all' ? '2px solid #7c3aed' : '2px solid var(--color-line, #e5e7eb)',
+                                        background: exportParticipationFilter === 'all' ? 'rgba(139,92,246,0.06)' : 'transparent'
+                                    }}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-[18px] h-[18px] rounded-full flex-shrink-0 flex items-center justify-center mt-0.5 transition-all" style={{
+                                            border: exportParticipationFilter === 'all' ? '2px solid #7c3aed' : '2px solid #d1d5db'
+                                        }}>
+                                            {exportParticipationFilter === 'all' && (
+                                                <div className="w-2 h-2 rounded-full" style={{background: '#7c3aed'}}></div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <span className="block text-sm font-bold text-ink">All Students</span>
+                                            <span className="block text-[11px] text-ink-soft mt-1 leading-tight">Includes absent students marked as "Not Attempted"</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* Participating Only Card */}
+                                <div 
+                                    className="p-4 rounded-xl cursor-pointer transition-all"
+                                    onClick={() => setExportParticipationFilter('participating')}
+                                    style={{
+                                        border: exportParticipationFilter === 'participating' ? '2px solid #7c3aed' : '2px solid var(--color-line, #e5e7eb)',
+                                        background: exportParticipationFilter === 'participating' ? 'rgba(139,92,246,0.06)' : 'transparent'
+                                    }}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-[18px] h-[18px] rounded-full flex-shrink-0 flex items-center justify-center mt-0.5 transition-all" style={{
+                                            border: exportParticipationFilter === 'participating' ? '2px solid #7c3aed' : '2px solid #d1d5db'
+                                        }}>
+                                            {exportParticipationFilter === 'participating' && (
+                                                <div className="w-2 h-2 rounded-full" style={{background: '#7c3aed'}}></div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <span className="block text-sm font-bold text-ink">Participating Only</span>
+                                            <span className="block text-[11px] text-ink-soft mt-1 leading-tight">Only students who attempted at least one selected item</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Modal Footer */}
+                    <div className="px-6 py-4 border-t border-line bg-paper/60 flex items-center justify-between">
+                        <span className="text-xs text-ink-soft font-semibold">
+                            {selectedExportItems.length > 0 
+                                ? `${selectedExportItems.length} item${selectedExportItems.length > 1 ? 's' : ''} will be exported` 
+                                : 'No items selected'}
+                        </span>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setShowExportModal(false)}
+                                className="px-5 py-2.5 text-sm font-bold text-ink-soft hover:text-ink hover:bg-line/50 rounded-xl transition-colors cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleExportSubmit}
+                                disabled={selectedExportItems.length === 0}
+                                className="px-5 py-2.5 text-sm font-bold text-white rounded-xl transition-all cursor-pointer flex items-center gap-2"
+                                style={{
+                                    background: selectedExportItems.length > 0 ? '#059669' : '#9ca3af',
+                                    opacity: selectedExportItems.length === 0 ? 0.6 : 1,
+                                    boxShadow: selectedExportItems.length > 0 ? '0 2px 8px rgba(5,150,105,0.3)' : 'none'
+                                }}
+                            >
+                                <Download className="w-4 h-4" />
+                                Download CSV
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
 
       </div>
     </div>

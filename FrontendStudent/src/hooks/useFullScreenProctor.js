@@ -1,5 +1,5 @@
 // FrontendStudent/src/hooks/useFullScreenProctor.js
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * Custom hook for full-screen proctoring with anti-cheat features
@@ -14,19 +14,34 @@ export const useFullScreenProctor = ({
   enabled = true,
   onViolation,
   onAutoSubmit,
-  maxViolations = 4
+  maxViolations = 4,
+  examId = 'default'
 }) => {
+  const storageKey = `proctor_violations_${examId}`;
+  
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showViolationAlert, setShowViolationAlert] = useState(false);
   const [violationMessage, setViolationMessage] = useState('');
   
   const violationInProgressRef = useRef(false);
   const lastViolationTimeRef = useRef(0);
-  const violationsRef = useRef([]);
+  const violationsRef = useRef(JSON.parse(localStorage.getItem(storageKey) || '[]'));
   const isSubmittingRef = useRef(false);
+  const showViolationAlertRef = useRef(false);
+
+  // Keep the ref in sync with state so event handlers always see latest value
+  useEffect(() => {
+    showViolationAlertRef.current = showViolationAlert;
+  }, [showViolationAlert]);
+
+  // Store callbacks in refs to avoid stale closures
+  const onViolationRef = useRef(onViolation);
+  const onAutoSubmitRef = useRef(onAutoSubmit);
+  useEffect(() => { onViolationRef.current = onViolation; }, [onViolation]);
+  useEffect(() => { onAutoSubmitRef.current = onAutoSubmit; }, [onAutoSubmit]);
 
   // ==================== FULL-SCREEN FUNCTIONS ====================
-  const enterFullScreen = async () => {
+  const enterFullScreen = useCallback(async () => {
     if (!enabled) return;
     
     try {
@@ -46,9 +61,9 @@ export const useFullScreenProctor = ({
     } catch (error) {
       console.error('Failed to enter full-screen:', error);
     }
-  };
+  }, [enabled]);
 
-  const exitFullScreen = () => {
+  const exitFullScreen = useCallback(() => {
     if (!enabled) return;
     
     try {
@@ -64,47 +79,10 @@ export const useFullScreenProctor = ({
     } catch (error) {
       console.error('Failed to exit full-screen:', error);
     }
-  };
-
-  // ==================== VIOLATION HANDLERS ====================
-  const handleFullScreenChange = () => {
-    const isCurrentlyFullScreen = !!(
-      document.fullscreenElement ||
-      document.webkitFullscreenElement ||
-      document.mozFullScreenElement ||
-      document.msFullscreenElement
-    );
-
-    setIsFullScreen(isCurrentlyFullScreen);
-
-    if (!isCurrentlyFullScreen && !isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlert) {
-      recordViolation('Exited full-screen mode');
-    }
-  };
-
-  const handleVisibilityChange = () => {
-    if (document.hidden && !isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlert) {
-      recordViolation('Switched tab/window');
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Escape' && !isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlert) {
-      e.preventDefault();
-      recordViolation('Pressed ESC key');
-    }
-    
-    if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'x', 'a', 'p'].includes(e.key.toLowerCase())) {
-      e.preventDefault();
-    }
-  };
-
-  const handleContextMenu = (e) => {
-    e.preventDefault();
-  };
+  }, [enabled]);
 
   // ==================== VIOLATION RECORDING ====================
-  const recordViolation = (reason) => {
+  const recordViolation = useCallback((reason) => {
     const now = Date.now();
     if (now - lastViolationTimeRef.current < 2000) {
       return;
@@ -123,11 +101,13 @@ export const useFullScreenProctor = ({
     };
 
     violationsRef.current.push(newViolation);
+    localStorage.setItem(storageKey, JSON.stringify(violationsRef.current));
+    
     const currentCount = violationsRef.current.length;
     
     // Call onViolation callback
-    if (onViolation) {
-      onViolation(newViolation, currentCount);
+    if (onViolationRef.current) {
+      onViolationRef.current(newViolation, currentCount);
     }
 
     if (currentCount >= maxViolations) {
@@ -137,64 +117,111 @@ export const useFullScreenProctor = ({
       
       setTimeout(() => {
         setShowViolationAlert(false);
-        if (onAutoSubmit) {
-          onAutoSubmit(`Multiple Violations (${currentCount} total)`);
+        if (onAutoSubmitRef.current) {
+          onAutoSubmitRef.current(`Multiple Violations (${currentCount} total)`);
         }
       }, 2000);
     } else {
       setViolationMessage(` WARNING ${currentCount}/${maxViolations}\n\nViolation: ${reason}\n\nPlease stay in full-screen mode!\n\nOne more violation = auto-submit.`);
       setShowViolationAlert(true);
     }
-  };
+  }, [maxViolations]);
 
-  const handleViolationAlertOk = () => {
+  const handleViolationAlertOk = useCallback(() => {
     setShowViolationAlert(false);
     violationInProgressRef.current = false;
     
     setTimeout(() => {
       enterFullScreen();
     }, 100);
-  };
+  }, [enterFullScreen]);
 
   // ==================== SETUP/CLEANUP ====================
-  const setupListeners = () => {
+  useEffect(() => {
     if (!enabled) return;
 
-    document.addEventListener('fullscreenchange', handleFullScreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullScreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullScreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullScreenChange);
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('contextmenu', handleContextMenu);
-  };
+    // -- Fullscreen change handler --
+    const onFullScreenChange = () => {
+      const isCurrentlyFullScreen = !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
 
-  const cleanupListeners = () => {
-    document.removeEventListener('fullscreenchange', handleFullScreenChange);
-    document.removeEventListener('webkitfullscreenchange', handleFullScreenChange);
-    document.removeEventListener('mozfullscreenchange', handleFullScreenChange);
-    document.removeEventListener('MSFullscreenChange', handleFullScreenChange);
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-    document.removeEventListener('keydown', handleKeyDown);
-    document.removeEventListener('contextmenu', handleContextMenu);
-  };
+      setIsFullScreen(isCurrentlyFullScreen);
 
-  useEffect(() => {
-    if (enabled) {
-      enterFullScreen();
-      setupListeners();
-    }
-    
+      if (!isCurrentlyFullScreen && !isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlertRef.current) {
+        recordViolation('Exited full-screen mode');
+      }
+    };
+
+    // -- Visibility change handler (catches browser tab switches) --
+    const onVisibilityChange = () => {
+      if (document.hidden && !isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlertRef.current) {
+        recordViolation('Switched tab/window');
+      }
+    };
+
+    // -- Window blur handler (catches Alt+Tab, clicking other apps, taskbar, etc.) --
+    const onWindowBlur = () => {
+      // document.hidden may not be true yet when Alt+Tabbing, so use blur as a catch-all
+      if (!isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlertRef.current) {
+        recordViolation('Switched tab/window');
+      }
+    };
+
+    // -- Keyboard handler --
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && !isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlertRef.current) {
+        e.preventDefault();
+        recordViolation('Pressed ESC key');
+      }
+      
+      if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'x', 'a', 'p'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+      }
+    };
+
+    // -- Context menu handler --
+    const onContextMenu = (e) => {
+      e.preventDefault();
+    };
+
+    // Register all listeners
+    document.addEventListener('fullscreenchange', onFullScreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullScreenChange);
+    document.addEventListener('mozfullscreenchange', onFullScreenChange);
+    document.addEventListener('MSFullscreenChange', onFullScreenChange);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('contextmenu', onContextMenu);
+    window.addEventListener('blur', onWindowBlur);
+
+    // Enter fullscreen on mount
+    enterFullScreen();
+
     return () => {
-      cleanupListeners();
+      document.removeEventListener('fullscreenchange', onFullScreenChange);
+      document.removeEventListener('webkitfullscreenchange', onFullScreenChange);
+      document.removeEventListener('mozfullscreenchange', onFullScreenChange);
+      document.removeEventListener('MSFullscreenChange', onFullScreenChange);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('contextmenu', onContextMenu);
+      window.removeEventListener('blur', onWindowBlur);
       exitFullScreen();
     };
-  }, [enabled]);
+  }, [enabled, recordViolation, enterFullScreen, exitFullScreen]);
 
   // ==================== UPDATE SUBMITTING STATE ====================
   const setIsSubmitting = (value) => {
     isSubmittingRef.current = value;
+  };
+
+  const clearViolations = () => {
+    violationsRef.current = [];
+    localStorage.removeItem(storageKey);
   };
 
   return {
@@ -205,6 +232,7 @@ export const useFullScreenProctor = ({
     enterFullScreen,
     exitFullScreen,
     handleViolationAlertOk,
-    setIsSubmitting
+    setIsSubmitting,
+    clearViolations
   };
 };
