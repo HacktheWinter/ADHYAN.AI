@@ -30,6 +30,7 @@ import profileRoutes from "./routes/profileRoutes.js";
 import videoRoutes from "./routes/video.routes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import seminarRoutes from "./routes/seminarRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 import socketHandler from "./socket/socketHandler.js";
 
 const app = express();
@@ -119,6 +120,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/api", videoRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/seminar", seminarRoutes);
+app.use("/api/admin", adminRoutes);
 
 
 // Serve uploaded files
