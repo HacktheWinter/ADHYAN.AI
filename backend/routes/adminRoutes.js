@@ -8,6 +8,7 @@ import QuizSubmission from "../models/QuizSubmission.js";
 import ActivityLog from "../models/ActivityLog.js";
 import Announcement from "../models/Announcement.js";
 import Feedback from "../models/Feedback.js";
+import SeminarSession from "../models/SeminarSession.js";
 const router = express.Router();
 
 router.get("/stats", async (req, res) => {
@@ -239,6 +240,19 @@ router.get("/reports", async (req, res) => {
   } catch (error) {
     console.error("Error fetching reports data:", error);
     res.status(500).json({ message: "Error fetching reports data" });
+  }
+});
+
+router.get("/seminars", async (req, res) => {
+  try {
+    const seminars = await SeminarSession.find()
+      .populate("teacherId", "name email")
+      .populate("attendees.studentId", "name email")
+      .sort({ createdAt: -1 });
+    res.json(seminars);
+  } catch (error) {
+    console.error("Error fetching seminars:", error);
+    res.status(500).json({ message: "Error fetching seminars" });
   }
 });
 
