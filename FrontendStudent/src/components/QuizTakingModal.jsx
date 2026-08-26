@@ -291,6 +291,39 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     return () => clearInterval(intervalId);
   }, [hasStarted, shuffledQuiz, isSubmitting, answers]);
 
+  // Last-ditch autosave when user closes tab / navigates away
+  useEffect(() => {
+    if (!hasStarted || !shuffledQuiz) return;
+
+    const handleBeforeUnload = (e) => {
+      if (isSubmitting) return;
+      // Use sendBeacon for reliable delivery during tab close
+      try {
+        const answersArray = buildAnswersArray();
+        const token = getStoredToken();
+        const payload = JSON.stringify({
+          quizId: shuffledQuiz._id,
+          studentId,
+          answers: answersArray
+        });
+        const headers = { type: 'application/json' };
+        const blob = new Blob([payload], headers);
+        // sendBeacon doesn't support custom headers, so fall back to fetch with keepalive
+        fetch(`${API_BASE_URL}/quiz-submission/autosave`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: payload,
+          keepalive: true
+        }).catch(() => {}); // fire-and-forget
+      } catch (err) {
+        // Silently fail — best-effort save
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasStarted, shuffledQuiz, isSubmitting, answers]);
+
   const handleSubmitQuiz = async (autoSubmit = false, reason = '') => {
     try {
       if (isSubmitting) return;
@@ -324,7 +357,15 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       const errorMsg = error.response?.data?.error || error.message || 'Failed to submit assessment';
       
       if (error.response?.status === 403 && errorMsg.toLowerCase().includes("expired")) {
-        alert("Your assessment time has expired. Your previously saved answers have been safely submitted to the server.");
+        // Submit was rejected because time expired — try one final autosave so the
+        // server-side cron can finalize this draft into a proper submission.
+        try {
+          const answersArray = buildAnswersArray();
+          await autosaveQuiz(shuffledQuiz._id, studentId, answersArray);
+        } catch (saveErr) {
+          console.error('Fallback autosave also failed:', saveErr);
+        }
+        alert("Your assessment time has expired. Your answers have been saved and will be automatically graded by the server.");
         cleanupStorage();
         onSubmit();
       } else if (error.response?.status === 404 || errorMsg.toLowerCase().includes("not found")) {

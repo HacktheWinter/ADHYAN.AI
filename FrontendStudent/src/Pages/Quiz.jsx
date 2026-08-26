@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
 import { Clock, CheckCircle, Play, Eye, Loader, AlertCircle } from 'lucide-react';
-import { getActiveQuizzes, checkSubmission, submitQuiz } from '../api/quizApi';
+import { getActiveQuizzes, checkSubmission, submitQuiz, autosaveQuiz } from '../api/quizApi';
 import QuizTakingModal from '../components/QuizTakingModal';
 import QuizResultModal from '../components/QuizResultModal';
 
@@ -97,6 +97,7 @@ export default function Quiz() {
             const draft = localStorage.getItem(`quiz_draft_${quiz._id}`);
             const layout = localStorage.getItem(`quiz_layout_${quiz._id}`);
             if (draft && layout) {
+              let answersArray = [];
               try {
                 const parsedDraft = JSON.parse(draft);
                 const parsedLayout = JSON.parse(layout);
@@ -104,7 +105,7 @@ export default function Quiz() {
                 const allQuestions = parsedLayout.sections?.length > 0
                   ? parsedLayout.sections.flatMap(s => s.questions || [])
                   : (parsedLayout.questions || []);
-                const answersArray = allQuestions.map(q => {
+                answersArray = allQuestions.map(q => {
                   const a = parsedDraft[q._id];
                   if (q.type === 'coding' || a?.type === 'coding') {
                     return {
@@ -124,6 +125,16 @@ export default function Quiz() {
                 await submitQuiz(quiz._id, classInfo.studentId, answersArray);
               } catch (error) {
                 console.error("Failed to auto-submit expired draft:", error);
+                // If submit was rejected (expired/forbidden), try autosave as fallback.
+                // The server-side cron will finalize this draft into a graded submission.
+                if (error.response?.status === 403 || error.response?.status === 400) {
+                  try {
+                    await autosaveQuiz(quiz._id, classInfo.studentId, answersArray);
+                    console.log("Fallback autosave succeeded — server cron will finalize");
+                  } catch (saveErr) {
+                    console.error("Fallback autosave also failed:", saveErr);
+                  }
+                }
               } finally {
                 // Always clear local storage for an expired draft, regardless of API success
                 localStorage.removeItem(`quiz_draft_${quiz._id}`);
