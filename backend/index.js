@@ -32,6 +32,7 @@ import attendanceRoutes from "./routes/attendanceRoutes.js";
 import seminarRoutes from "./routes/seminarRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import socketHandler from "./socket/socketHandler.js";
+import { startDraftFinalizerCron } from "./services/draftFinalizerCron.js";
 
 const app = express();
 
@@ -135,6 +136,7 @@ app.get("/", (req, res) => {
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
+  startDraftFinalizerCron();
 });
 
 export { io };

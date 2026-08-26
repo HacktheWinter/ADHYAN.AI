@@ -139,7 +139,7 @@ const getAuthorizedQuizSubmissionForTeacher = async (req, submissionId) => {
   return submission;
 };
 
-const gradeAndSubmitDraft = async (draft, quiz) => {
+export const gradeAndSubmitDraft = async (draft, quiz) => {
   const allQuestions = quiz.sections?.length > 0 
     ? quiz.sections.flatMap(s => s.questions) 
     : quiz.questions;
@@ -230,11 +230,12 @@ const gradeAndSubmitDraft = async (draft, quiz) => {
   draft.totalMarks = totalMaxMarks;
   draft.percentage = parseFloat(percentage);
   draft.isDraft = false;
+  draft.autoSubmitted = true;
   draft.submittedAt = new Date();
   await draft.save();
 };
 
-const finalizeExpiredDrafts = async (quizId) => {
+export const finalizeExpiredDrafts = async (quizId) => {
   try {
     const quiz = await Quiz.findById(quizId);
     if (!quiz) return;
@@ -306,7 +307,7 @@ export const submitQuiz = async (req, res) => {
 
     if (quiz.endTime) {
       const endTime = new Date(quiz.endTime);
-      endTime.setMinutes(endTime.getMinutes() + 2);
+      endTime.setMinutes(endTime.getMinutes() + 5); // 5-min grace for auto-submit edge cases
       if (now > endTime) {
         return res.status(403).json({ error: "Quiz time has expired." });
       }
@@ -496,8 +497,14 @@ export const autosaveQuiz = async (req, res) => {
     if (quiz.startTime && now < new Date(quiz.startTime)) {
       return res.status(403).json({ error: "Quiz has not started yet." });
     }
-    if (quiz.endTime && now > new Date(quiz.endTime)) {
-      return res.status(403).json({ error: "Quiz time has expired." });
+    // Allow autosave within 5-min grace period after deadline so tab-close saves get through.
+    // The server-side cron will finalize these drafts into proper submissions.
+    if (quiz.endTime) {
+      const graceEnd = new Date(quiz.endTime);
+      graceEnd.setMinutes(graceEnd.getMinutes() + 5);
+      if (now > graceEnd) {
+        return res.status(403).json({ error: "Quiz time has expired." });
+      }
     }
 
     const allQuestions = quiz.sections?.length > 0 

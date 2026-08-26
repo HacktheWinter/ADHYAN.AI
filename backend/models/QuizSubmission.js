@@ -101,6 +101,10 @@ const quizSubmissionSchema = new mongoose.Schema(
     isDraft: {
       type: Boolean,
       default: false,
+    },
+    autoSubmitted: {
+      type: Boolean,
+      default: false,
     }
   },
   { timestamps: true }
