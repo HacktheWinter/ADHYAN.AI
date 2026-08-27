@@ -10,11 +10,12 @@ import {
   autosaveQuiz,
   runCode
 } from '../controllers/quizSubmissionController.js';
+import { codeExecutionRateLimiter } from '../middleware/codeExecutionRateLimiter.js';
 
 const router = express.Router();
 
 // Run code against public test cases or custom input
-router.post('/run-code', authMiddleware, authorizeRoles("student"), runCode);
+router.post('/run-code', authMiddleware, authorizeRoles("student"), codeExecutionRateLimiter, runCode);
 
 // Autosave quiz
 router.post('/autosave', authMiddleware, authorizeRoles("student"), autosaveQuiz);

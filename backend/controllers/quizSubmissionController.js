@@ -1,7 +1,7 @@
 // Backend/controllers/quizSubmissionController.js
 import QuizSubmission from "../models/QuizSubmission.js";
 import Quiz from "../models/Quiz.js";
-import { executeCode } from "../services/geminiCodeExecutionService.js";
+import { executeCode } from "../services/codeExecution.service.js";
 import {
   createHttpError,
   ensureUserMatchesId,
