@@ -102,17 +102,38 @@ const pollSubmission = async (token) => {
     }
 
     try {
+      // Base64 false without fields to ensure all required data is returned
       const response = await axios.get(
-        `${baseUrl}/submissions/${token}?base64_encoded=false&fields=stdout,stderr,compile_output,message,status,time,memory`,
+        `${baseUrl}/submissions/${token}?base64_encoded=false`,
         {
           headers: getHeaders(),
           timeout: 5000,
-          validateStatus: (status) => true, // Do not throw on non-200 statuses so we can inspect the payload
+          validateStatus: () => true, // Do not throw on non-200 statuses so we can inspect the payload
         }
       );
 
+      // Handle HTTP errors returned by Judge0 API
+      if (response.status >= 300) {
+        // Terminal infrastructure/API problems (e.g. 401 Unauthorized, 403 Forbidden, 404 Not Found)
+        if (response.status === 401 || response.status === 403 || response.status === 404 || response.status === 422) {
+          const err = new Error(`Judge0 API error: HTTP ${response.status}`);
+          err.response = response;
+          throw err;
+        }
+
+        // Transient server errors (5xx) or rate limits (429), retry
+        if (attempt < MAX_POLL_ATTEMPTS - 1) {
+          await sleep(POLL_INTERVAL_MS);
+          continue;
+        }
+
+        const err = new Error(`Judge0 API error: HTTP ${response.status}`);
+        err.response = response;
+        throw err;
+      }
+
       const data = response.data;
-      const statusId = data?.status?.id;
+      const statusId = data?.status?.id ?? data?.status_id;
 
       // Status 1 = In Queue, Status 2 = Processing — keep polling
       if (statusId === 1 || statusId === 2) {
@@ -120,20 +141,28 @@ const pollSubmission = async (token) => {
         continue;
       }
 
-      // If we have a valid Judge0 terminal status, return it immediately, regardless of HTTP status code.
-      if (statusId !== undefined) {
+      // Any other status is TERMINAL (>= 3). Return immediately.
+      if (statusId !== undefined && statusId >= 3) {
         return normalizeResult(data);
       }
       
-      // If no valid statusId and HTTP status is an error, throw to trigger retry
-      if (response.status >= 300) {
-        throw new Error(`Judge0 returned HTTP ${response.status} without a valid status payload`);
+      // If we reach here, it's HTTP 200 but statusId is missing or invalid.
+      // Maybe the response was malformed. Retry if possible.
+      if (attempt < MAX_POLL_ATTEMPTS - 1) {
+        await sleep(POLL_INTERVAL_MS);
+        continue;
       }
 
-      // Fallback if statusId is missing but it was a 200 OK
+      // Fallback if statusId is completely missing after all attempts
       return normalizeResult(data);
+
     } catch (error) {
-      // If it's a network error during polling, retry a few times
+      // If it's a known infrastructure error (401, 403, 404, 422) that we threw above, throw immediately without retrying
+      if (error.response && (error.response.status === 401 || error.response.status === 403 || error.response.status === 404 || error.response.status === 422)) {
+         throw normalizeJudge0Error(error, "Failed to retrieve execution result");
+      }
+
+      // For network errors (Axios timeout, connection refused) or other unexpected errors, retry
       if (attempt < MAX_POLL_ATTEMPTS - 1) {
         await sleep(POLL_INTERVAL_MS);
         continue;
@@ -168,18 +197,18 @@ const pollSubmission = async (token) => {
  * @returns {Object} Normalized result.
  */
 const normalizeResult = (data) => {
-  const statusId = data.status?.id || 0;
-  const statusDescription = data.status?.description || "Unknown";
+  const statusId = data?.status?.id ?? data?.status_id ?? 0;
+  const statusDescription = data?.status?.description ?? "Unknown";
 
   return {
-    stdout: data.stdout || null,
-    stderr: data.stderr || null,
-    compileOutput: data.compile_output || null,
-    message: data.message || null,
+    stdout: data?.stdout ?? null,
+    stderr: data?.stderr ?? null,
+    compileOutput: data?.compile_output ?? null,
+    message: data?.message ?? null,
     statusId,
     statusDescription,
-    time: data.time || null,
-    memory: data.memory || null,
+    time: data?.time ?? null,
+    memory: data?.memory ?? null,
     isCompilationError: statusId === 6,
     isRuntimeError: statusId >= 7 && statusId <= 12,
     isTimeLimitExceeded: statusId === 5,
