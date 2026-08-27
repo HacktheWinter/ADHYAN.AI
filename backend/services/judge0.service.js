@@ -102,9 +102,9 @@ const pollSubmission = async (token) => {
     }
 
     try {
-      // Base64 false without fields to ensure all required data is returned
+      // Base64 true to avoid Judge0 UTF-8 conversion errors on raw compiler output
       const response = await axios.get(
-        `${baseUrl}/submissions/${token}?base64_encoded=false`,
+        `${baseUrl}/submissions/${token}?base64_encoded=true`,
         {
           headers: getHeaders(),
           timeout: 5000,
@@ -114,8 +114,8 @@ const pollSubmission = async (token) => {
 
       // Handle HTTP errors returned by Judge0 API
       if (response.status >= 300) {
-        // Terminal infrastructure/API problems (e.g. 401 Unauthorized, 403 Forbidden, 404 Not Found)
-        if (response.status === 401 || response.status === 403 || response.status === 404 || response.status === 422) {
+        // Terminal infrastructure/API problems (e.g. 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found)
+        if (response.status === 400 || response.status === 401 || response.status === 403 || response.status === 404 || response.status === 422) {
           const err = new Error(`Judge0 API error: HTTP ${response.status}`);
           err.response = response;
           throw err;
@@ -143,7 +143,7 @@ const pollSubmission = async (token) => {
 
       // Any other status is TERMINAL (>= 3). Return immediately.
       if (statusId !== undefined && statusId >= 3) {
-        return normalizeResult(data);
+        return normalizeResult(decodeJudge0Data(data));
       }
       
       // If we reach here, it's HTTP 200 but statusId is missing or invalid.
@@ -154,11 +154,11 @@ const pollSubmission = async (token) => {
       }
 
       // Fallback if statusId is completely missing after all attempts
-      return normalizeResult(data);
+      return normalizeResult(decodeJudge0Data(data));
 
     } catch (error) {
-      // If it's a known infrastructure error (401, 403, 404, 422) that we threw above, throw immediately without retrying
-      if (error.response && (error.response.status === 401 || error.response.status === 403 || error.response.status === 404 || error.response.status === 422)) {
+      // If it's a known infrastructure error (400, 401, 403, 404, 422) that we threw above, throw immediately without retrying
+      if (error.response && (error.response.status === 400 || error.response.status === 401 || error.response.status === 403 || error.response.status === 404 || error.response.status === 422)) {
          throw normalizeJudge0Error(error, "Failed to retrieve execution result");
       }
 
@@ -237,6 +237,9 @@ const normalizeJudge0Error = (error, fallbackMessage) => {
   // HTTP errors from Judge0
   if (error.response) {
     const status = error.response.status;
+    if (status === 400) {
+      return new Error("Invalid request to code execution service.");
+    }
     if (status === 401 || status === 403) {
       console.error("[Judge0] Authentication error — check JUDGE0_AUTH_TOKEN configuration.");
       return new Error("Code execution service configuration error. Please contact your administrator.");
@@ -272,3 +275,33 @@ export const isJudge0Available = async () => {
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Safely decode a Base64 string to UTF-8.
+ */
+const decodeBase64 = (value) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return value;
+  if (value.trim() === "") return "";
+
+  try {
+    return Buffer.from(value, "base64").toString("utf-8");
+  } catch (error) {
+    // If decoding completely fails, return a safe fallback or original value
+    return value;
+  }
+};
+
+/**
+ * Decode Base64 fields in Judge0 response payload.
+ */
+const decodeJudge0Data = (data) => {
+  if (!data) return data;
+  return {
+    ...data,
+    stdout: decodeBase64(data.stdout),
+    stderr: decodeBase64(data.stderr),
+    compile_output: decodeBase64(data.compile_output),
+    message: decodeBase64(data.message),
+  };
+};
