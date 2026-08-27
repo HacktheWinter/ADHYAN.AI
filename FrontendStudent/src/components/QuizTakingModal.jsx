@@ -259,11 +259,20 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       sec.questions.forEach(q => {
         const a = currentAnswers[q._id];
         if (q.type === 'coding') {
+          const lang = a?.language || lastSelectedLanguage || q.coding?.allowedLanguages?.[0] || 'java';
+          const codes = a?.codes || {};
+          let finalCode = codes[lang];
+          
+          if (finalCode === undefined) {
+             if (a?.code && (a?.language || lastSelectedLanguage) === lang) finalCode = a.code; // fallback legacy
+             else finalCode = q.coding?.starterCode?.find(s => s.language === lang)?.code || '';
+          }
+
           arr.push({ 
             questionId: q._id, 
             type: 'coding', 
-            code: a?.code || q.coding?.starterCode?.[0]?.code || '', 
-            language: a?.language || lastSelectedLanguage || q.coding?.starterCode?.[0]?.language || 'javascript' 
+            code: finalCode, 
+            language: lang 
           });
         } else {
           // Always include MCQ questions, even if unanswered
@@ -334,7 +343,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       if (globalTimerRef.current) clearInterval(globalTimerRef.current);
 
       const answersArray = buildAnswersArray();
-      const answeredCount = answersArray.length;
+      const answeredCount = getAnsweredCount();
       const totalQuestions = shuffledQuiz.sections.reduce((acc, s) => acc + s.questions.length, 0);
       const violationsCount = violations.length;
 
@@ -394,10 +403,17 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
   const handleCodeChange = (questionId, code, language) => {
     setAnswers(prev => {
-      const current = prev[questionId] || { language: language || 'javascript' };
+      const current = prev[questionId] || { type: 'coding', language: language || 'javascript', codes: {} };
+      const codes = current.codes || {};
+      if (current.code && Object.keys(codes).length === 0) {
+        // migration from old structure
+        codes[current.language || 'javascript'] = current.code;
+      }
+      codes[language || 'javascript'] = code;
+
       const updated = {
         ...prev,
-        [questionId]: { type: 'coding', code, language: language || current.language }
+        [questionId]: { ...current, type: 'coding', language: language || 'javascript', codes, code }
       };
       answersRef.current = updated;
       localStorage.setItem(`quiz_draft_${shuffledQuiz._id}`, JSON.stringify(updated));
@@ -411,10 +427,16 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     localStorage.setItem(`quiz_selected_language_${quiz._id}`, language);
     
     setAnswers(prev => {
-      const current = prev[questionId] || { code: '' };
+      const current = prev[questionId] || { type: 'coding', language, codes: {} };
+      const codes = current.codes || {};
+      if (current.code && Object.keys(codes).length === 0) {
+        // migration from old structure
+        codes[current.language || 'javascript'] = current.code;
+      }
+
       const updated = {
         ...prev,
-        [questionId]: { type: 'coding', code: current.code, language }
+        [questionId]: { ...current, type: 'coding', language, codes, code: codes[language] }
       };
       answersRef.current = updated;
       localStorage.setItem(`quiz_draft_${shuffledQuiz._id}`, JSON.stringify(updated));
@@ -460,7 +482,23 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     }
   };
 
-  const getAnsweredCount = () => Object.keys(answers).length;
+  const getAnsweredCount = () => {
+    let count = 0;
+    if (!shuffledQuiz?.sections) return 0;
+    shuffledQuiz.sections.forEach(sec => {
+      sec.questions.forEach(q => {
+        const a = answers[q._id];
+        if (a) {
+          if (q.type === 'mcq') {
+            if (a.selectedAnswer && String(a.selectedAnswer).trim() !== '') count++;
+          } else if (q.type === 'coding') {
+            if (a.code && String(a.code).trim() !== '') count++;
+          }
+        }
+      });
+    });
+    return count;
+  };
 
   const formatTime = (seconds) => {
     if (seconds === null) return 'No time limit';
@@ -768,14 +806,22 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
               <div className="h-full w-full p-4">
                 <CodeEditorWorkspace 
                   question={question}
-                  code={answers[question._id]?.code !== undefined ? answers[question._id].code : undefined}
+                  code={
+                    answers[question._id]?.codes?.[answers[question._id]?.language || lastSelectedLanguage || 'javascript'] !== undefined 
+                      ? answers[question._id].codes[answers[question._id]?.language || lastSelectedLanguage || 'javascript'] 
+                      : answers[question._id]?.code !== undefined 
+                        ? answers[question._id].code 
+                        : undefined
+                  }
                   language={answers[question._id]?.language || lastSelectedLanguage || question.coding?.starterCode?.[0]?.language || "javascript"}
                   onCodeChange={(code) => handleCodeChange(question._id, code, answers[question._id]?.language || lastSelectedLanguage || question.coding?.starterCode?.[0]?.language || "javascript")}
                   onLanguageChange={(lang) => handleLanguageChange(question._id, lang)}
                   onRunCode={() => {
                     const currentLang = answers[question._id]?.language || lastSelectedLanguage || question.coding?.starterCode?.[0]?.language || "javascript";
                     const fallbackCode = question.coding?.starterCode?.find(s => s.language === currentLang)?.code;
-                    const currentCode = answers[question._id]?.code !== undefined ? answers[question._id].code : (fallbackCode || "");
+                    const currentCode = answers[question._id]?.codes?.[currentLang] !== undefined 
+                      ? answers[question._id].codes[currentLang] 
+                      : (answers[question._id]?.code !== undefined ? answers[question._id].code : (fallbackCode || ""));
                     handleRunCode(question._id, currentCode, currentLang);
                   }}
                   isExecuting={isExecuting}

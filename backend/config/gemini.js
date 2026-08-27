@@ -520,7 +520,7 @@ REQUIREMENTS:
 2. ${difficultyInstruction}
 3. Each challenge must have a clear problem statement, examples, constraints, and test cases
 4. Include both public and hidden test cases
-5. Provide starter code for javascript and python
+5. Provide BOTH starterCode (boilerplate for student) AND driverCode (hidden main function that calls the student's code) for EXACTLY 5 languages: java, cpp, javascript, python, c. The driverCode must contain the placeholder "{{USER_CODE}}" where the student's function will be injected.
 6. Problems should be well-defined, solvable, and educational
 7. Ensure hidden test cases cover edge cases
 
@@ -541,10 +541,20 @@ RESPONSE FORMAT (Valid JSON only):
           }
         ],
         "constraints": ["2 <= nums.length <= 10^4", "-10^9 <= nums[i] <= 10^9"],
-        "allowedLanguages": ["javascript", "python", "java", "cpp"],
+        "allowedLanguages": ["java", "cpp", "javascript", "python", "c"],
         "starterCode": [
-          { "language": "javascript", "code": "// Write your solution here\\n" },
-          { "language": "python", "code": "# Write your solution here\\n" }
+          { "language": "java", "code": "class Solution {\\n    public int[] twoSum(int[] nums, int target) {\\n        // Write your solution here\\n    }\\n}" },
+          { "language": "cpp", "code": "class Solution {\\npublic:\\n    vector<int> twoSum(vector<int>& nums, int target) {\\n        // Write your solution here\\n    }\\n};" },
+          { "language": "javascript", "code": "function twoSum(nums, target) {\\n    // Write your solution here\\n}" },
+          { "language": "python", "code": "def twoSum(nums, target):\\n    # Write your solution here" },
+          { "language": "c", "code": "int* twoSum(int* nums, int numsSize, int target, int* returnSize) {\\n    // Write your solution here\\n}" }
+        ],
+        "driverCode": [
+          { "language": "java", "code": "import java.util.*;\\n\\n{{USER_CODE}}\\n\\npublic class Main {\\n    public static void main(String[] args) {\\n        // Parse input, call Solution.twoSum, print output\\n    }\\n}" },
+          { "language": "cpp", "code": "#include <iostream>\\n#include <vector>\\nusing namespace std;\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call Solution::twoSum, print output\\n    return 0;\\n}" },
+          { "language": "javascript", "code": "{{USER_CODE}}\\n\\n// Parse input, call twoSum, print output" },
+          { "language": "python", "code": "import sys\\n\\n{{USER_CODE}}\\n\\nif __name__ == '__main__':\\n    # Parse input, call twoSum, print output" },
+          { "language": "c", "code": "#include <stdio.h>\\n#include <stdlib.h>\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call twoSum, print output\\n    return 0;\\n}" }
         ],
         "testCases": [
           { "input": "2 7 11 15\\n9", "expectedOutput": "0 1" },
@@ -562,7 +572,7 @@ IMPORTANT:
 - No markdown, no code blocks, no extra text
 - Exactly ${questionCount} coding challenge(s)
 - Each challenge must have at least 3 test cases
-- starterCode must include at least javascript and python
+- starterCode and driverCode MUST contain EXACTLY these 5 languages: "java", "cpp", "javascript", "python", "c".
 `;
 
       console.log(" Sending request to Gemini for coding questions...");
@@ -817,7 +827,21 @@ For Coding Challenges:
       }
     ],
     "constraints": ["Constraint 1", "Constraint 2"], // If none found, provide ["N/A"]
-    "allowedLanguages": ["javascript", "python", "java", "cpp"],
+    "allowedLanguages": ["java", "cpp", "javascript", "python", "c"],
+    "starterCode": [
+      { "language": "java", "code": "class Solution {\\n    public int[] twoSum(int[] nums, int target) {\\n        // Write your solution here\\n    }\\n}" },
+      { "language": "cpp", "code": "class Solution {\\npublic:\\n    vector<int> twoSum(vector<int>& nums, int target) {\\n        // Write your solution here\\n    }\\n};" },
+      { "language": "javascript", "code": "function twoSum(nums, target) {\\n    // Write your solution here\\n}" },
+      { "language": "python", "code": "def twoSum(nums, target):\\n    # Write your solution here" },
+      { "language": "c", "code": "int* twoSum(int* nums, int numsSize, int target, int* returnSize) {\\n    // Write your solution here\\n}" }
+    ],
+    "driverCode": [
+      { "language": "java", "code": "import java.util.*;\\n\\n{{USER_CODE}}\\n\\npublic class Main {\\n    public static void main(String[] args) {\\n        // Parse input, call Solution.twoSum, print output\\n    }\\n}" },
+      { "language": "cpp", "code": "#include <iostream>\\n#include <vector>\\nusing namespace std;\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call Solution::twoSum, print output\\n    return 0;\\n}" },
+      { "language": "javascript", "code": "{{USER_CODE}}\\n\\n// Parse input, call twoSum, print output" },
+      { "language": "python", "code": "import sys\\n\\n{{USER_CODE}}\\n\\nif __name__ == '__main__':\\n    # Parse input, call twoSum, print output" },
+      { "language": "c", "code": "#include <stdio.h>\\n#include <stdlib.h>\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call twoSum, print output\\n    return 0;\\n}" }
+    ],
     "testCases": [
       { "input": "test input", "expectedOutput": "expected output" },
       { "input": "hidden input", "expectedOutput": "hidden output" }
@@ -825,7 +849,7 @@ For Coding Challenges:
     "comparisonMode": "trimmed"
   }
 }
-*Note for coding*: If explicit test cases aren't in the document, use the examples as testCases and generate at least one plausible additional testCase based on the problem description.
+*Note for coding*: If explicit test cases aren't in the document, use the examples as testCases and generate at least one plausible additional testCase based on the problem description. You MUST also generate starterCode and driverCode for exactly 5 languages: java, cpp, javascript, python, c. driverCode should have {{USER_CODE}} as placeholder.
 
 ${contentHeader}
 

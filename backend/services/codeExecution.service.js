@@ -51,13 +51,23 @@ export const executeCode = async (language, code, testCases = [], questionDetail
       }));
     }
 
+    let finalCode = code;
+    if (questionDetails?.coding?.driverCode && Array.isArray(questionDetails.coding.driverCode)) {
+      const driverObj = questionDetails.coding.driverCode.find(d => d.language === language);
+      if (driverObj && driverObj.code && driverObj.code.includes("{{USER_CODE}}")) {
+        // Ensure student code doesn't break the template structure
+        // We do a direct string replace for exactly the placeholder.
+        finalCode = driverObj.code.replace("{{USER_CODE}}", code);
+      }
+    }
+
     const languageId = getJudge0LanguageId(language);
     const results = [];
 
     // Execute test cases sequentially to avoid flooding Judge0
     for (let i = 0; i < testCases.length; i++) {
       const tc = testCases[i];
-      const result = await executeSingleTestCase(code, languageId, tc);
+      const result = await executeSingleTestCase(finalCode, languageId, tc);
 
       results.push(result);
 

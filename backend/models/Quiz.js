@@ -26,6 +26,9 @@ const questionSchema = new mongoose.Schema({
     starterCode: [
       { language: String, code: String }
     ],
+    driverCode: [
+      { language: String, code: String }
+    ],
     // Unified test cases array (replaces old publicTestCases/hiddenTestCases split)
     testCases: [
       { input: String, expectedOutput: String }

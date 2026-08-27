@@ -96,6 +96,13 @@ export const createQuizManually = async (req, res) => {
         if (!hasTestCases) {
           throw new Error(`Coding question ${index} must have at least one test case`);
         }
+        
+        const requiredLangs = ["java", "cpp", "javascript", "python", "c"];
+        const hasAllStarter = requiredLangs.every(lang => q.coding.starterCode?.some(s => s.language === lang && s.code?.trim()));
+        const hasAllDriver = requiredLangs.every(lang => q.coding.driverCode?.some(d => d.language === lang && d.code?.trim()));
+        if (!hasAllStarter || !hasAllDriver) {
+            throw new Error(`Coding question ${index} must have starter code and driver code for all 5 languages (java, cpp, javascript, python, c)`);
+        }
       } else {
         if (!Array.isArray(q.options) || q.options.length !== 4) {
           throw new Error(`MCQ ${index} must have exactly 4 options`);
@@ -349,8 +356,9 @@ export const generateQuestionsFromPrompt = async (req, res) => {
           description: q.coding?.description || "",
           examples: q.coding?.examples || [{ input: "", output: "", explanation: "" }],
           constraints: q.coding?.constraints || [""],
-          allowedLanguages: q.coding?.allowedLanguages || ["javascript", "python", "java", "cpp"],
-          starterCode: q.coding?.starterCode || [{ language: "javascript", code: "// Write your code here\n" }],
+          allowedLanguages: ["java", "cpp", "javascript", "python", "c"],
+          starterCode: q.coding?.starterCode || [],
+          driverCode: q.coding?.driverCode || [],
           testCases: q.coding?.testCases || q.coding?.hiddenTestCases || q.coding?.publicTestCases || [{ input: "", expectedOutput: "" }],
           comparisonMode: q.coding?.comparisonMode || "trimmed"
         }
@@ -721,6 +729,7 @@ export const getQuiz = async (req, res) => {
               if (q.coding) {
                 delete q.coding.testCases;
                 delete q.coding.hiddenTestCases;
+                delete q.coding.driverCode;
               }
             });
           }

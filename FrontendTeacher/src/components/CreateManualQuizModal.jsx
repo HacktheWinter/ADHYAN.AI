@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X, Plus, Trash2, Save, ChevronDown, ChevronUp, Code, Code2, Settings, Maximize2, Minimize2, Upload, Loader2, FileUp, Clock, FileText, Sparkles } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
+import Editor from "@monaco-editor/react";
 
 const emptyCoding = {
   title: "",
@@ -9,8 +10,20 @@ const emptyCoding = {
   examples: [{ input: "", output: "", explanation: "" }],
   constraints: [""],
   functionParams: [],
-  allowedLanguages: ["javascript", "python", "java", "c++"],
-  starterCode: [{ language: "javascript", code: "// Write your code here\n" }],
+  starterCode: [
+    { language: "java", code: "" },
+    { language: "cpp", code: "" },
+    { language: "javascript", code: "" },
+    { language: "python", code: "" },
+    { language: "c", code: "" }
+  ],
+  driverCode: [
+    { language: "java", code: "" },
+    { language: "cpp", code: "" },
+    { language: "javascript", code: "" },
+    { language: "python", code: "" },
+    { language: "c", code: "" }
+  ],
   testCases: [{ input: "", expectedOutput: "" }],
   comparisonMode: "trimmed"
 };
@@ -39,6 +52,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
   const [difficulty, setDifficulty] = useState("mixed");
   const [sections, setSections] = useState([emptySection(0)]);
   const [isSaving, setIsSaving] = useState(false);
+  const [expandedEditor, setExpandedEditor] = useState(null);
   const [expandedSection, setExpandedSection] = useState(0);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [extractingSectionIdx, setExtractingSectionIdx] = useState(-1);
@@ -281,6 +295,16 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
         } else {
           if (!q.coding.title?.trim()) return alert(`Section ${sIdx + 1}, Q${qIdx + 1} missing title`);
           if (!q.coding.description?.trim()) return alert(`Section ${sIdx + 1}, Q${qIdx + 1} missing description`);
+          
+          const reqLangs = ["java", "cpp", "javascript", "python", "c"];
+          for (const lang of reqLangs) {
+            const hasStarter = q.coding.starterCode?.some(s => s.language === lang && s.code?.trim());
+            const hasDriver = q.coding.driverCode?.some(d => d.language === lang && d.code?.trim());
+            if (!hasStarter || !hasDriver) {
+              return alert(`Section ${sIdx + 1}, Q${qIdx + 1} is missing starter code or driver code for ${lang}. Both are required for all 5 languages.`);
+            }
+          }
+
           if (q.coding.testCases.length === 0 || !q.coding.testCases[0].input.trim()) return alert(`Section ${sIdx + 1}, Q${qIdx + 1} must have a valid test case`);
 
           mappedQuestions.push({
@@ -924,14 +948,77 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                                     <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                                   </div>
                                 </div>
-                                <div>
-                                  <label className="block text-sm font-bold mb-1">Allowed Languages</label>
-                                  <input 
-                                    value={q.coding.allowedLanguages.join(", ")}
-                                    onChange={e => updateCodingField(sIdx, qIdx, "allowedLanguages", e.target.value.split(",").map(s => s.trim()))}
-                                    className="w-full px-4 py-2 border rounded-xl outline-none bg-white text-sm"
-                                    placeholder="javascript, python"
-                                  />
+                                <div className="col-span-1 md:col-span-2 space-y-4">
+                                  <label className="block text-sm font-bold mb-1">Boilerplate & Driver Code (Required for all 5 languages)</label>
+                                  {["java", "cpp", "javascript", "python", "c"].map(lang => {
+                                    const starter = q.coding.starterCode?.find(s => s.language === lang)?.code || "";
+                                    const driver = q.coding.driverCode?.find(d => d.language === lang)?.code || "";
+                                    return (
+                                      <div key={lang} className="border border-gray-200 p-4 rounded-xl bg-white shadow-sm">
+                                        <h6 className="font-bold uppercase text-xs mb-2 text-indigo-600">{lang}</h6>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                              <label className="text-xs font-semibold text-gray-600 block">Starter Code (Student sees this)</label>
+                                              <button
+                                                type="button"
+                                                onClick={() => setExpandedEditor({ sIdx, qIdx, lang, field: 'starterCode', value: starter })}
+                                                className="text-gray-400 hover:text-indigo-600 transition-colors p-1"
+                                                title="Expand Editor"
+                                              >
+                                                <Maximize2 className="w-4 h-4" />
+                                              </button>
+                                            </div>
+                                            <div className="h-32 rounded overflow-hidden border border-gray-200">
+                                              <Editor
+                                                height="100%"
+                                                language={lang === 'c' || lang === 'cpp' ? 'cpp' : lang}
+                                                theme="light"
+                                                value={starter}
+                                                onChange={(val) => {
+                                                  const newStarter = [...(q.coding.starterCode || [])];
+                                                  const idx = newStarter.findIndex(s => s.language === lang);
+                                                  if (idx >= 0) newStarter[idx].code = val || "";
+                                                  else newStarter.push({ language: lang, code: val || "" });
+                                                  updateCodingField(sIdx, qIdx, "starterCode", newStarter);
+                                                }}
+                                                options={{ minimap: { enabled: false }, lineNumbers: 'off', scrollBeyondLastLine: false, tabSize: 2 }}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                              <label className="text-xs font-semibold text-gray-600 block">Driver Code (Use {"{"}{"{"}USER_CODE{"}"}{"}"})</label>
+                                              <button
+                                                type="button"
+                                                onClick={() => setExpandedEditor({ sIdx, qIdx, lang, field: 'driverCode', value: driver })}
+                                                className="text-gray-400 hover:text-indigo-600 transition-colors p-1"
+                                                title="Expand Editor"
+                                              >
+                                                <Maximize2 className="w-4 h-4" />
+                                              </button>
+                                            </div>
+                                            <div className="h-32 rounded overflow-hidden border border-gray-200 bg-gray-50">
+                                              <Editor
+                                                height="100%"
+                                                language={lang === 'c' || lang === 'cpp' ? 'cpp' : lang}
+                                                theme="vs-dark"
+                                                value={driver}
+                                                onChange={(val) => {
+                                                  const newDriver = [...(q.coding.driverCode || [])];
+                                                  const idx = newDriver.findIndex(d => d.language === lang);
+                                                  if (idx >= 0) newDriver[idx].code = val || "";
+                                                  else newDriver.push({ language: lang, code: val || "" });
+                                                  updateCodingField(sIdx, qIdx, "driverCode", newDriver);
+                                                }}
+                                                options={{ minimap: { enabled: false }, lineNumbers: 'off', scrollBeyondLastLine: false, tabSize: 2 }}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
 
@@ -1020,6 +1107,58 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
           </button>
         </div>
       </div>
+      
+      {/* Expanded Editor Modal */}
+      {expandedEditor && (
+        <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center backdrop-blur-sm p-4 sm:p-8">
+          <div className="bg-[#1e1e1e] w-full max-w-6xl h-full max-h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden border border-gray-700">
+            <div className="flex items-center justify-between px-6 py-4 bg-[#252526] border-b border-[#3c3c3c]">
+              <div>
+                <h3 className="text-lg font-bold text-gray-100">
+                  {expandedEditor.field === 'starterCode' ? 'Starter Code' : 'Driver Code'} 
+                  <span className="ml-2 text-indigo-400 uppercase text-xs tracking-wider">{expandedEditor.lang}</span>
+                </h3>
+                <p className="text-xs text-gray-400 mt-1">
+                  {expandedEditor.field === 'starterCode' ? 'This is the boilerplate code the student will see.' : 'This is the hidden runner code. Use {{USER_CODE}} to inject student code.'}
+                </p>
+              </div>
+              <button 
+                onClick={() => setExpandedEditor(null)}
+                className="text-gray-400 hover:text-white bg-[#3c3c3c] hover:bg-rose-500/20 hover:text-rose-400 p-2 rounded-lg transition-colors"
+                title="Minimize Editor"
+              >
+                <Minimize2 className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1">
+              <Editor
+                height="100%"
+                language={expandedEditor.lang === 'c' || expandedEditor.lang === 'cpp' ? 'cpp' : expandedEditor.lang}
+                theme="vs-dark"
+                value={expandedEditor.value}
+                onChange={(val) => {
+                  const updatedVal = val || "";
+                  setExpandedEditor(prev => ({ ...prev, value: updatedVal }));
+                  const newArray = [...(sections[expandedEditor.sIdx].questions[expandedEditor.qIdx].coding[expandedEditor.field] || [])];
+                  const idx = newArray.findIndex(item => item.language === expandedEditor.lang);
+                  if (idx >= 0) newArray[idx].code = updatedVal;
+                  else newArray.push({ language: expandedEditor.lang, code: updatedVal });
+                  updateCodingField(expandedEditor.sIdx, expandedEditor.qIdx, expandedEditor.field, newArray);
+                }}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 15,
+                  wordWrap: "on",
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  padding: { top: 16 },
+                  tabSize: 2
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
