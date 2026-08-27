@@ -182,11 +182,7 @@ export const gradeAndSubmitDraft = async (draft, quiz) => {
           };
         } else {
           try {
-            const results = await executeCode(language, code, codingTestCases, {
-              title: question.coding?.title,
-              description: question.coding?.description,
-              constraints: question.coding?.constraints
-            });
+            const results = await executeCode(language, code, codingTestCases, question);
             const passedCount = results.filter(r => r.passed).length;
             const totalCount = results.length;
             testResults = { passed: passedCount, total: totalCount, details: results };
@@ -365,11 +361,7 @@ export const submitQuiz = async (req, res) => {
               language, 
               code, 
               codingTestCases, 
-              {
-                title: question.coding?.title,
-                description: question.coding?.description,
-                constraints: question.coding?.constraints
-              }
+              question
             );
             
             const passedCount = results.filter(r => r.passed).length;
@@ -764,11 +756,7 @@ export const runCode = async (req, res) => {
       language,
       code,
       testCases,
-      {
-        title: question.coding?.title,
-        description: question.coding?.description,
-        constraints: question.coding?.constraints
-      }
+      question
     );
 
     res.status(200).json({ success: true, results });
