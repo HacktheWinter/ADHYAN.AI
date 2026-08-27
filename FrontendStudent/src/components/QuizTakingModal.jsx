@@ -22,9 +22,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   });
   
   // Time tracking
-  const [sectionTimeLeft, setSectionTimeLeft] = useState(null);
   const [globalTimeLeft, setGlobalTimeLeft] = useState(null);
-  const [showGlobalTime, setShowGlobalTime] = useState(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [visitedQuestions, setVisitedQuestions] = useState(new Set([0])); // Needs update based on section
@@ -38,10 +36,18 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   // Code execution state
   const [isExecuting, setIsExecuting] = useState(false);
   const [runResults, setRunResults] = useState({});
+  
+  // Language persistence: remember last selected language across questions
+  const [lastSelectedLanguage, setLastSelectedLanguage] = useState(() => {
+    const saved = localStorage.getItem(`quiz_selected_language_${quiz._id}`);
+    return saved || null; // null means use question default
+  });
 
-  const timerRef = useRef(null);
   const globalTimerRef = useRef(null);
-  const answersRef = useRef({});
+  const answersRef = useRef((() => {
+    const saved = localStorage.getItem(`quiz_draft_${quiz._id}`);
+    return saved ? JSON.parse(saved) : {};
+  })());
 
   // Setup Quiz Layout
   useEffect(() => {
@@ -51,7 +57,16 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
         setShuffledQuiz(JSON.parse(savedLayout));
       } else {
         // Deep copy sections to avoid mutating original
-        const sections = JSON.parse(JSON.stringify(quiz.sections || []));
+        let sections = JSON.parse(JSON.stringify(quiz.sections || []));
+        
+        // Handle legacy quizzes that have questions but no sections
+        if (sections.length === 0 && quiz.questions && quiz.questions.length > 0) {
+          sections = [{
+            _id: "default-section",
+            title: "Quiz Questions",
+            questions: JSON.parse(JSON.stringify(quiz.questions))
+          }];
+        }
         
         // Shuffle questions within each section
         sections.forEach(sec => {
@@ -77,10 +92,12 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     exitFullScreen,
     handleViolationAlertOk,
     setIsSubmitting: setProctorSubmitting,
-    enterFullScreen
+    enterFullScreen,
+    clearViolations
   } = useFullScreenProctor({
     enabled: hasStarted,
     maxViolations: 4,
+    examId: quiz._id,
     onAutoSubmit: (reason) => handleAutoSubmit(reason)
   });
 
@@ -127,37 +144,15 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       setGlobalTimeLeft(calcGlobalTimeLeft);
     }
 
-    // Initialize section timer based on current section
-    setupSectionTimer(currentSectionIdx);
-
   }, [hasStarted, shuffledQuiz]);
 
-  const setupSectionTimer = (secIdx) => {
-    if (!shuffledQuiz || !shuffledQuiz.sections[secIdx]) return;
-    const sec = shuffledQuiz.sections[secIdx];
-    
-    if (sec.durationMinutes) {
-      const storageKey = `quiz_sec_start_${shuffledQuiz._id}_${sec._id}`;
-      let startTime = localStorage.getItem(storageKey);
-      if (!startTime) {
-        startTime = Date.now().toString();
-        localStorage.setItem(storageKey, startTime);
-      }
-      const elapsedSeconds = Math.floor((Date.now() - parseInt(startTime)) / 1000);
-      const remaining = (sec.durationMinutes * 60) - elapsedSeconds;
-      setSectionTimeLeft(remaining > 0 ? remaining : 0);
-    } else {
-      setSectionTimeLeft(null);
-    }
-  };
-
-  // Timer intervals
+  // Timer interval
   useEffect(() => {
     if (globalTimeLeft !== null && globalTimeLeft > 0) {
       globalTimerRef.current = setInterval(() => {
         setGlobalTimeLeft(prev => {
           if (prev <= 1) {
-            handleAutoSubmit('Global Time Expired');
+            handleAutoSubmit('Time Expired');
             return 0;
           }
           return prev - 1;
@@ -167,37 +162,12 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     return () => clearInterval(globalTimerRef.current);
   }, [globalTimeLeft]);
 
-  useEffect(() => {
-    if (sectionTimeLeft !== null && sectionTimeLeft > 0) {
-      timerRef.current = setInterval(() => {
-        setSectionTimeLeft(prev => {
-          if (prev <= 1) {
-            handleSectionTimeExpired();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(timerRef.current);
-  }, [sectionTimeLeft, currentSectionIdx]);
-
-  const handleSectionTimeExpired = () => {
-    clearInterval(timerRef.current);
-    if (currentSectionIdx < shuffledQuiz.sections.length - 1) {
-      setSectionModal({ show: true, type: 'timeout', title: shuffledQuiz.sections[currentSectionIdx].title });
-    } else {
-      handleAutoSubmit('All sections completed / Time expired');
-    }
-  };
-
   const moveToNextSection = () => {
     if (currentSectionIdx < shuffledQuiz.sections.length - 1) {
       setCurrentSectionIdx(prev => prev + 1);
       setCurrentQuestionIdx(0);
-      setupSectionTimer(currentSectionIdx + 1);
     } else {
-      handleAutoSubmit('All sections completed / Time expired');
+      handleAutoSubmit('All sections completed');
     }
   };
 
@@ -205,7 +175,6 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     if (currentSectionIdx > 0) {
       setCurrentSectionIdx(prev => prev - 1);
       setCurrentQuestionIdx(shuffledQuiz.sections[currentSectionIdx - 1].questions.length - 1);
-      setupSectionTimer(currentSectionIdx - 1);
     }
   };
 
@@ -223,7 +192,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
   const handleStartExam = async () => {
     if (quiz.endTime && new Date() > new Date(quiz.endTime)) {
-      alert("Your quiz time has expired. Your previously saved answers have been safely submitted to the server.");
+      alert("Your assessment time has expired. Your previously saved answers have been safely submitted to the server.");
       cleanupStorage();
       onSubmit();
       return;
@@ -274,29 +243,34 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       localStorage.removeItem(`quiz_layout_${shuffledQuiz._id}`);
       localStorage.removeItem(`quiz_draft_${shuffledQuiz._id}`);
       localStorage.removeItem(`quiz_refresh_count_${shuffledQuiz._id}`);
-      shuffledQuiz.sections.forEach(s => localStorage.removeItem(`quiz_sec_start_${shuffledQuiz._id}_${s._id}`));
+      localStorage.removeItem(`quiz_selected_language_${shuffledQuiz._id}`);
+      clearViolations();
     }
     localStorage.removeItem('activeQuiz');
   };
 
   const buildAnswersArray = () => {
     const arr = [];
-    const currentAnswers = answersRef.current;
+    // Use answersRef as primary source, fall back to answers state for safety
+    const currentAnswers = Object.keys(answersRef.current).length > 0 
+      ? answersRef.current 
+      : answers;
     shuffledQuiz.sections.forEach(sec => {
       sec.questions.forEach(q => {
         const a = currentAnswers[q._id];
-        if (a) {
-          if (q.type === 'coding' || q.coding) {
-            arr.push({ questionId: q._id, type: 'coding', code: a.code || '', language: a.language || '' });
-          } else {
-            arr.push({ questionId: q._id, type: 'mcq', selectedAnswer: a.selectedAnswer || '' });
-          }
-        } else if (q.type === 'coding' || q.coding) {
+        if (q.type === 'coding') {
           arr.push({ 
             questionId: q._id, 
             type: 'coding', 
-            code: q.coding?.starterCode?.[0]?.code || '', 
-            language: q.coding?.starterCode?.[0]?.language || 'javascript' 
+            code: a?.code || q.coding?.starterCode?.[0]?.code || '', 
+            language: a?.language || lastSelectedLanguage || q.coding?.starterCode?.[0]?.language || 'javascript' 
+          });
+        } else {
+          // Always include MCQ questions, even if unanswered
+          arr.push({ 
+            questionId: q._id, 
+            type: 'mcq', 
+            selectedAnswer: a?.selectedAnswer || '' 
           });
         }
       });
@@ -309,6 +283,47 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     autosaveQuiz(shuffledQuiz._id, studentId, answersArray).catch(err => console.error("Autosave failed:", err));
   };
 
+  useEffect(() => {
+    if (!hasStarted || !shuffledQuiz || isSubmitting) return;
+    const intervalId = setInterval(() => {
+      triggerAutosave();
+    }, 30000); // Autosave every 30 seconds
+    return () => clearInterval(intervalId);
+  }, [hasStarted, shuffledQuiz, isSubmitting, answers]);
+
+  // Last-ditch autosave when user closes tab / navigates away
+  useEffect(() => {
+    if (!hasStarted || !shuffledQuiz) return;
+
+    const handleBeforeUnload = (e) => {
+      if (isSubmitting) return;
+      // Use sendBeacon for reliable delivery during tab close
+      try {
+        const answersArray = buildAnswersArray();
+        const token = getStoredToken();
+        const payload = JSON.stringify({
+          quizId: shuffledQuiz._id,
+          studentId,
+          answers: answersArray
+        });
+        const headers = { type: 'application/json' };
+        const blob = new Blob([payload], headers);
+        // sendBeacon doesn't support custom headers, so fall back to fetch with keepalive
+        fetch(`${API_BASE_URL}/quiz-submission/autosave`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: payload,
+          keepalive: true
+        }).catch(() => {}); // fire-and-forget
+      } catch (err) {
+        // Silently fail — best-effort save
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasStarted, shuffledQuiz, isSubmitting, answers]);
+
   const handleSubmitQuiz = async (autoSubmit = false, reason = '') => {
     try {
       if (isSubmitting) return;
@@ -316,7 +331,6 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       setIsSubmitting(true);
       setProctorSubmitting(true);
       
-      if (timerRef.current) clearInterval(timerRef.current);
       if (globalTimerRef.current) clearInterval(globalTimerRef.current);
 
       const answersArray = buildAnswersArray();
@@ -331,7 +345,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
       const scoreMessage = autoSubmit 
         ? ` AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${totalQuestions}\n\n`
-        : ` Quiz Submitted!\n\n`;
+        : ` Assessment Submitted!\n\n`;
 
       alert(`${scoreMessage}Your results will be visible when the teacher publishes them.`);
 
@@ -340,14 +354,22 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       console.error('Submit error:', error);
       exitFullScreen();
       
-      const errorMsg = error.response?.data?.error || error.message || 'Failed to submit quiz';
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to submit assessment';
       
       if (error.response?.status === 403 && errorMsg.toLowerCase().includes("expired")) {
-        alert("Your quiz time has expired. Your previously saved answers have been safely submitted to the server.");
+        // Submit was rejected because time expired — try one final autosave so the
+        // server-side cron can finalize this draft into a proper submission.
+        try {
+          const answersArray = buildAnswersArray();
+          await autosaveQuiz(shuffledQuiz._id, studentId, answersArray);
+        } catch (saveErr) {
+          console.error('Fallback autosave also failed:', saveErr);
+        }
+        alert("Your assessment time has expired. Your answers have been saved and will be automatically graded by the server.");
         cleanupStorage();
         onSubmit();
       } else if (error.response?.status === 404 || errorMsg.toLowerCase().includes("not found")) {
-        alert("This quiz is no longer available or was deleted.");
+        alert("This assessment is no longer available or was deleted.");
         cleanupStorage();
         onSubmit();
       } else {
@@ -366,7 +388,6 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       };
       answersRef.current = updated;
       localStorage.setItem(`quiz_draft_${shuffledQuiz._id}`, JSON.stringify(updated));
-      triggerAutosave();
       return updated;
     });
   };
@@ -385,6 +406,10 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   };
 
   const handleLanguageChange = (questionId, language) => {
+    // Update the last selected language for persistence across questions
+    setLastSelectedLanguage(language);
+    localStorage.setItem(`quiz_selected_language_${quiz._id}`, language);
+    
     setAnswers(prev => {
       const current = prev[questionId] || { code: '' };
       const updated = {
@@ -397,16 +422,26 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     });
   };
 
-  const handleRunCode = async (questionId, code, language, customInput) => {
+  const handleRunCode = async (questionId, code, language) => {
     setIsExecuting(true);
     try {
-      const res = await runCode(shuffledQuiz._id, questionId, code, language, customInput);
+      const res = await runCode(shuffledQuiz._id, questionId, code, language);
       setRunResults(prev => ({ ...prev, [questionId]: res.results }));
       
-      // Auto-save the code so it's not lost
-      triggerAutosave();
     } catch (error) {
-      alert(error.message || "Failed to execute code");
+      // Set error as a result so it shows in the error panel
+      setRunResults(prev => ({ 
+        ...prev, 
+        [questionId]: [{
+          input: "",
+          expectedOutput: "",
+          actualOutput: "",
+          compileOutput: "",
+          runError: error.response?.data?.error || error.message || "Failed to execute code",
+          exitCode: 1,
+          passed: false
+        }]
+      }));
     } finally {
       setIsExecuting(false);
     }
@@ -480,8 +515,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                 <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 flex flex-col items-center justify-center">
                   <p className="text-sm font-semibold text-gray-500 mb-1">Total Time Limit</p>
                   <p className="text-3xl font-bold text-gray-900">
-                    {shuffledQuiz.sections.reduce((a, s) => a + (s.durationMinutes || 0), 0) || 'No Limit'}
-                    {shuffledQuiz.sections.some(s => s.durationMinutes) && ' Min'}
+                    {shuffledQuiz.duration ? `${shuffledQuiz.duration} Min` : 'No Limit'}
                   </p>
                 </div>
               </div>
@@ -528,7 +562,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                     <LayoutGrid className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-0.5" />
                     <div>
                       <h4 className="font-bold text-gray-900 mb-1">Sections</h4>
-                      <p className="text-sm text-gray-600 leading-relaxed">This quiz has multiple sections. You must complete them in order. Once you finish a section, you cannot return to it.</p>
+                      <p className="text-sm text-gray-600 leading-relaxed">This assessment may include one or more sections. You can navigate between sections during the exam.</p>
                     </div>
                   </div>
                 )}
@@ -615,23 +649,19 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
             </span>
             
             <div className="flex items-center gap-3">
-              {(sectionTimeLeft !== null || globalTimeLeft !== null) && (
-                <button
-                  onClick={() => setShowGlobalTime(!showGlobalTime)}
-                  title="Click to toggle Section / Overall time"
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors shadow-sm cursor-pointer ${
-                    (!showGlobalTime && sectionTimeLeft !== null && sectionTimeLeft < 60) 
+              {globalTimeLeft !== null && (
+                <div
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm shadow-sm ${
+                    globalTimeLeft < 60 
                       ? 'bg-red-100 text-red-700 font-bold animate-pulse' 
-                      : 'bg-blue-100 text-blue-700 font-bold hover:bg-blue-200'
+                      : globalTimeLeft < 300
+                        ? 'bg-yellow-100 text-yellow-700 font-bold'
+                        : 'bg-blue-100 text-blue-700 font-bold'
                   }`}
                 >
                   <Clock className="w-4 h-4" />
-                  <span>
-                    {(showGlobalTime && globalTimeLeft !== null) || sectionTimeLeft === null 
-                      ? `Overall: ${formatTime(globalTimeLeft)}` 
-                      : `Section: ${formatTime(sectionTimeLeft)}`}
-                  </span>
-                </button>
+                  <span>{formatTime(globalTimeLeft)}</span>
+                </div>
               )}
 
               {/* Top button for next section */}
@@ -739,14 +769,14 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                 <CodeEditorWorkspace 
                   question={question}
                   code={answers[question._id]?.code !== undefined ? answers[question._id].code : undefined}
-                  language={answers[question._id]?.language || question.coding?.starterCode?.[0]?.language || "javascript"}
-                  onCodeChange={(code) => handleCodeChange(question._id, code, answers[question._id]?.language || question.coding?.starterCode?.[0]?.language || "javascript")}
+                  language={answers[question._id]?.language || lastSelectedLanguage || question.coding?.starterCode?.[0]?.language || "javascript"}
+                  onCodeChange={(code) => handleCodeChange(question._id, code, answers[question._id]?.language || lastSelectedLanguage || question.coding?.starterCode?.[0]?.language || "javascript")}
                   onLanguageChange={(lang) => handleLanguageChange(question._id, lang)}
-                  onRunCode={(customInput) => {
-                    const currentLang = answers[question._id]?.language || question.coding?.starterCode?.[0]?.language || "javascript";
+                  onRunCode={() => {
+                    const currentLang = answers[question._id]?.language || lastSelectedLanguage || question.coding?.starterCode?.[0]?.language || "javascript";
                     const fallbackCode = question.coding?.starterCode?.find(s => s.language === currentLang)?.code;
                     const currentCode = answers[question._id]?.code !== undefined ? answers[question._id].code : (fallbackCode || "");
-                    handleRunCode(question._id, currentCode, currentLang, customInput);
+                    handleRunCode(question._id, currentCode, currentLang);
                   }}
                   isExecuting={isExecuting}
                   runResult={runResults[question._id]}

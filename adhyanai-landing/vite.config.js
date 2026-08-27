@@ -1,7 +1,25 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-// https://vite.dev/config/
+import Sitemap from 'vite-plugin-sitemap'
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    Sitemap({
+      hostname: 'https://adhyanai.tech',
+      dynamicRoutes: [
+        '/',
+        '/terms',
+        '/privacy'
+      ],
+      robots: [
+        {
+          userAgent: '*',
+          allow: '/'
+        }
+      ]
+    })
+  ]
 })

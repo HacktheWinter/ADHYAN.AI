@@ -1,9 +1,24 @@
 // Backend/utils/fileExtractor.js
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+
+// IMPORTANT: Import from pdf-parse/lib/pdf-parse.js directly to bypass the
+// buggy index.js which tries to require('./test/data/05-versions-space.pdf')
+// that doesn't exist in production deployments. This is a well-known pdf-parse bug.
+let pdfParse;
+try {
+  pdfParse = require("pdf-parse/lib/pdf-parse.js");
+} catch (_) {
+  // Fallback to default import if the direct path doesn't resolve
+  pdfParse = require("pdf-parse");
+}
+
 import mammoth from "mammoth";
 import XLSX from "xlsx";
+
+// ─── Config ─────────────────────────────────────────────────────────
+const PDF_MAX_RETRIES = 3;
+const PDF_RETRY_DELAY_MS = 1000; // 1 second base delay
 
 // ─── Supported MIME types ───────────────────────────────────────────
 export const ALLOWED_MIMETYPES = [
@@ -42,15 +57,55 @@ export const extractTextFromFile = async (buffer, mimetype) => {
   throw new Error(`Unsupported file type: ${mimetype}`);
 };
 
-// ─── PDF ────────────────────────────────────────────────────────────
+// ─── PDF (with retry logic for VPS reliability) ─────────────────────
 async function extractPDF(buffer) {
-  try {
-    const data = await pdfParse(buffer, { max: 0 });
-    console.log(`[FileExtractor] PDF: ${data.numpages} pages, ${data.text.length} chars`);
-    return data.text;
-  } catch (error) {
-    throw new Error("Failed to extract text from PDF: " + error.message);
+  let lastError;
+
+  for (let attempt = 1; attempt <= PDF_MAX_RETRIES; attempt++) {
+    try {
+      // Disable the pdf.js worker to prevent silent worker crashes on
+      // low-resource VPS environments. The "pagerender" option set to a
+      // custom function avoids worker-related failures.
+      const options = {
+        max: 0,  // Parse all pages
+        // Disable workers — on VPS with limited resources, the worker
+        // process can fail silently causing intermittent 500 errors.
+        pagerender: function (pageData) {
+          return pageData.getTextContent().then(function (textContent) {
+            let lastY, text = '';
+            for (const item of textContent.items) {
+              if (lastY !== item.transform[5] && lastY !== undefined) {
+                text += '\n';
+              }
+              text += item.str;
+              lastY = item.transform[5];
+            }
+            return text;
+          });
+        }
+      };
+
+      const data = await pdfParse(buffer, options);
+      console.log(`[FileExtractor] PDF: ${data.numpages} pages, ${data.text.length} chars`);
+
+      if (!data.text || data.text.trim().length === 0) {
+        throw new Error("PDF parsing returned empty text (possibly a scanned/image PDF)");
+      }
+
+      return data.text;
+    } catch (error) {
+      lastError = error;
+      console.error(`[FileExtractor] PDF extraction attempt ${attempt}/${PDF_MAX_RETRIES} failed: ${error.message}`);
+
+      if (attempt < PDF_MAX_RETRIES) {
+        const delay = PDF_RETRY_DELAY_MS * attempt; // linear backoff
+        console.log(`[FileExtractor] Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
+
+  throw new Error("Failed to extract text from PDF after " + PDF_MAX_RETRIES + " attempts: " + lastError.message);
 }
 
 // ─── Word (DOC / DOCX) ─────────────────────────────────────────────

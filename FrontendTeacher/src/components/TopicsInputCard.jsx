@@ -41,7 +41,7 @@ const TopicsInputCard = ({ topics, onAddTopic, onRemoveTopic, onBack, isGenerati
         </button>
         <div className="flex items-center gap-2 flex-1">
           <Edit3 className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-          <h3 className="text-base font-bold text-ink font-display">Add Topics to Generate Quiz</h3>
+          <h3 className="text-base font-bold text-ink font-display">Add Topics to Generate Assessment</h3>
         </div>
       </div>
 

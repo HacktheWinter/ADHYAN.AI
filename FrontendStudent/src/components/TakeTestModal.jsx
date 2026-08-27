@@ -38,10 +38,12 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
     exitFullScreen,
     handleViolationAlertOk,
     setIsSubmitting: setProctorSubmitting,
-    enterFullScreen
+    enterFullScreen,
+    clearViolations
   } = useFullScreenProctor({
     enabled: hasStarted,
     maxViolations: 2,
+    examId: testPaper._id,
     onAutoSubmit: (reason) => handleAutoSubmit(reason)
   });
 
@@ -201,6 +203,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
 
       await submitTest(testPaper._id, studentId, answersArray);
       localStorage.removeItem(`test_start_time_${testPaper._id}`);
+      clearViolations();
       exitFullScreen();
 
       if (autoSubmit) {

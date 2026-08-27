@@ -26,11 +26,12 @@ const questionSchema = new mongoose.Schema({
     starterCode: [
       { language: String, code: String }
     ],
-    publicTestCases: [
+    // Unified test cases array (replaces old publicTestCases/hiddenTestCases split)
+    testCases: [
       { input: String, expectedOutput: String }
     ],
-    hiddenTestCases: [
-      { input: String, expectedOutput: String }
+    functionParams: [
+      { name: String, description: String }
     ],
     comparisonMode: {
       type: String,

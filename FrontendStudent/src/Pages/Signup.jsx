@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, User, BookOpen, GraduationCap, Hash, Layers, Users, ChevronDown, Sparkles, BarChart3, Target, ArrowRight } from "lucide-react";
 import axios from "axios";
 import { persistAuth } from "../utils/authStorage";
-import API_BASE_URL, { STUDENT_FRONTEND_URL, TEACHER_FRONTEND_URL } from "../config";
+import API_BASE_URL, { STUDENT_FRONTEND_URL, TEACHER_FRONTEND_URL, LANDING_PAGE_URL } from "../config";
 
 // ── Course → Specialization mapping ──────────────────────────────
 const COURSE_SPECIALIZATIONS = {
@@ -324,8 +324,9 @@ export default function Signup() {
                 <div className="flex items-start gap-2.5">
                   <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 mt-0.5 cursor-pointer" />
                   <label className="text-sm text-gray-500">
-                    I agree to the{" "}<Link to="/terms" className="text-purple-600 hover:text-purple-700 font-semibold">Terms of Service</Link>{" "}and{" "}
-                    <Link to="/privacy" className="text-purple-600 hover:text-purple-700 font-semibold">Privacy Policy</Link>
+                    I agree to the{" "}
+                    <a href={`${LANDING_PAGE_URL}terms`} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-700 font-semibold">Terms of Service</a>{" "}and{" "}
+                    <a href={`${LANDING_PAGE_URL}privacy`} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:text-purple-700 font-semibold">Privacy Policy</a>
                   </label>
                 </div>
 

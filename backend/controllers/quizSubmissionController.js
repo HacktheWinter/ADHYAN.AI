@@ -1,7 +1,7 @@
 // Backend/controllers/quizSubmissionController.js
 import QuizSubmission from "../models/QuizSubmission.js";
 import Quiz from "../models/Quiz.js";
-import { executeCode } from "../services/geminiCodeExecutionService.js";
+import { executeCode } from "../services/codeExecution.service.js";
 import {
   createHttpError,
   ensureUserMatchesId,
@@ -9,6 +9,100 @@ import {
   getAuthorizedClassroomForTeacher,
   getRequestUserId,
 } from "../utils/accessControl.js";
+
+/**
+ * Server-side heuristic to detect obvious language mismatches.
+ * Returns { mismatch: true, detectedLanguage: '...' } if mismatch found, else { mismatch: false }.
+ */
+const detectLanguageMismatch = (selectedLanguage, code) => {
+  if (!code || !selectedLanguage) return { mismatch: false };
+  
+  const trimmedCode = code.trim();
+  const lang = selectedLanguage.toLowerCase();
+
+  // Java indicators
+  const javaIndicators = [
+    /public\s+class\s+/,
+    /System\.out\.print/,
+    /import\s+java\./,
+    /public\s+static\s+void\s+main/,
+    /Scanner\s+\w+\s*=\s*new\s+Scanner/
+  ];
+  
+  // C++ indicators  
+  const cppIndicators = [
+    /cout\s*<</,
+    /cin\s*>>/,
+    /using\s+namespace\s+std/,
+    /#include\s*<\s*(iostream|vector|string|algorithm|map|set)/
+  ];
+  
+  // C indicators
+  const cIndicators = [
+    /#include\s*<\s*stdio\.h\s*>/,
+    /printf\s*\(/,
+    /scanf\s*\(/
+  ];
+  
+  // Python indicators
+  const pythonIndicators = [
+    /^def\s+\w+\s*\(/m,
+    /^import\s+\w+/m,
+    /^from\s+\w+\s+import/m,
+    /print\s*\(/,
+    /^class\s+\w+.*:/m
+  ];
+  
+  // JavaScript indicators
+  const jsIndicators = [
+    /console\.log\s*\(/,
+    /\bconst\s+\w+\s*=/,
+    /\blet\s+\w+\s*=/,
+    /\bvar\s+\w+\s*=/,
+    /=>\s*[{(]/,
+    /function\s+\w+\s*\(/,
+    /require\s*\(/,
+    /module\.exports/
+  ];
+
+  const matchCount = (indicators) => indicators.filter(re => re.test(trimmedCode)).length;
+
+  const javaScore = matchCount(javaIndicators);
+  const cppScore = matchCount(cppIndicators);
+  const cScore = matchCount(cIndicators);
+  const pythonScore = matchCount(pythonIndicators);
+  const jsScore = matchCount(jsIndicators);
+
+  // Determine which language the code most likely is
+  const scores = [
+    { lang: 'java', score: javaScore },
+    { lang: 'cpp', score: cppScore },
+    { lang: 'c', score: cScore },
+    { lang: 'python', score: pythonScore },
+    { lang: 'javascript', score: jsScore }
+  ];
+
+  const best = scores.reduce((a, b) => a.score > b.score ? a : b);
+  
+  // Only flag mismatch if we have strong confidence (2+ indicators match)
+  if (best.score < 2) return { mismatch: false };
+  
+  // Normalize language names for comparison
+  const normalizedSelected = lang === 'c++' ? 'cpp' : lang;
+  
+  // C and C++ share #include, so be lenient between them
+  if ((normalizedSelected === 'c' && best.lang === 'cpp') || 
+      (normalizedSelected === 'cpp' && best.lang === 'c')) {
+    return { mismatch: false };
+  }
+  
+  if (best.lang !== normalizedSelected) {
+    const langNames = { java: 'Java', cpp: 'C++', c: 'C', python: 'Python', javascript: 'JavaScript' };
+    return { mismatch: true, detectedLanguage: langNames[best.lang] || best.lang };
+  }
+
+  return { mismatch: false };
+};
 
 const getAuthorizedQuizForStudent = async (req, quizId) => {
   const quiz = await Quiz.findById(quizId);
@@ -45,29 +139,129 @@ const getAuthorizedQuizSubmissionForTeacher = async (req, submissionId) => {
   return submission;
 };
 
-const finalizeExpiredDrafts = async (quizId) => {
+export const gradeAndSubmitDraft = async (draft, quiz) => {
+  const allQuestions = quiz.sections?.length > 0 
+    ? quiz.sections.flatMap(s => s.questions) 
+    : quiz.questions;
+
+  let totalScore = 0;
+  let totalMaxMarks = 0;
+
+  const gradedAnswers = await Promise.all(allQuestions.map(async (question) => {
+    const questionMarks = question.marks || quiz.marksPerQuestion || 1;
+    const studentAnswer = draft.answers.find(a => a.questionId === question._id.toString()) || {};
+
+    totalMaxMarks += questionMarks;
+
+    if (question.type === "coding") {
+      const code = studentAnswer.code || "";
+      const language = studentAnswer.language || "";
+      let marksAwarded = 0;
+      let testResults = { passed: 0, total: 0, details: [] };
+
+      const codingTestCases = question.coding?.testCases?.length > 0 
+        ? question.coding.testCases 
+        : (question.coding?.hiddenTestCases?.length > 0 ? question.coding.hiddenTestCases : []);
+
+      if (code && language && codingTestCases.length > 0) {
+        const mismatchCheck = detectLanguageMismatch(language, code);
+        if (mismatchCheck.mismatch) {
+          const mismatchError = `Language Mismatch: You selected ${language} but your code appears to be written in ${mismatchCheck.detectedLanguage}. Please write your code in the selected language or change your language selection.`;
+          testResults = {
+            passed: 0,
+            total: codingTestCases.length,
+            details: codingTestCases.map(tc => ({
+              input: tc.input || "",
+              expectedOutput: tc.expectedOutput || "",
+              actualOutput: "",
+              compileOutput: mismatchError,
+              runError: "",
+              exitCode: 1,
+              passed: false
+            }))
+          };
+        } else {
+          try {
+            const results = await executeCode(language, code, codingTestCases, {
+              title: question.coding?.title,
+              description: question.coding?.description,
+              constraints: question.coding?.constraints
+            });
+            const passedCount = results.filter(r => r.passed).length;
+            const totalCount = results.length;
+            testResults = { passed: passedCount, total: totalCount, details: results };
+            marksAwarded = (passedCount / totalCount) * questionMarks;
+            totalScore += marksAwarded;
+          } catch (err) {
+            console.error("Failed to grade coding question on auto-submit:", err);
+          }
+        }
+      }
+
+      return {
+        questionId: question._id.toString(),
+        type: "coding",
+        code,
+        language,
+        testResults,
+        marksAwarded
+      };
+    } else {
+      const selectedAnswer = studentAnswer.selectedAnswer || "";
+      const isCorrect = selectedAnswer !== "" && selectedAnswer === question.correctAnswer;
+      const marksAwarded = isCorrect ? questionMarks : 0;
+      if (isCorrect) totalScore += marksAwarded;
+
+      return {
+        questionId: question._id.toString(),
+        type: "mcq",
+        selectedAnswer,
+        correctAnswer: question.correctAnswer,
+        isCorrect,
+        marksAwarded
+      };
+    }
+  }));
+
+  const percentage = totalMaxMarks > 0 ? ((totalScore / totalMaxMarks) * 100).toFixed(2) : 0;
+
+  draft.answers = gradedAnswers;
+  draft.score = totalScore;
+  draft.totalMarks = totalMaxMarks;
+  draft.percentage = parseFloat(percentage);
+  draft.isDraft = false;
+  draft.autoSubmitted = true;
+  draft.submittedAt = new Date();
+  await draft.save();
+};
+
+export const finalizeExpiredDrafts = async (quizId) => {
   try {
     const quiz = await Quiz.findById(quizId);
     if (!quiz) return;
     
-    if (quiz.endTime && new Date() > new Date(quiz.endTime)) {
-      await QuizSubmission.updateMany(
-        { quizId, isDraft: true },
-        { $set: { isDraft: false, submittedAt: new Date() } }
-      );
-    } else if (quiz.duration) {
-      const durationMs = quiz.duration * 60 * 1000;
-      const gracePeriodMs = 2 * 60 * 1000;
-      const now = new Date();
-      
-      const drafts = await QuizSubmission.find({ quizId, isDraft: true });
-      for (const draft of drafts) {
-        if (draft.createdAt && (now.getTime() - draft.createdAt.getTime() > durationMs + gracePeriodMs)) {
-          draft.isDraft = false;
-          draft.submittedAt = new Date();
-          await draft.save();
+    const now = new Date();
+    const isEndTimePassed = quiz.endTime && now > new Date(quiz.endTime);
+    const hasDuration = !!quiz.duration;
+    const durationMs = quiz.duration ? quiz.duration * 60 * 1000 : 0;
+    const gracePeriodMs = 2 * 60 * 1000;
+
+    const drafts = await QuizSubmission.find({ quizId, isDraft: true });
+    
+    const draftsToGrade = drafts.filter(draft => {
+      if (isEndTimePassed) return true;
+      if (hasDuration && draft.createdAt && (now.getTime() - draft.createdAt.getTime() > durationMs + gracePeriodMs)) return true;
+      return false;
+    });
+
+    if (draftsToGrade.length > 0) {
+      await Promise.all(draftsToGrade.map(async (draft) => {
+        try {
+          await gradeAndSubmitDraft(draft, quiz);
+        } catch (e) {
+          console.error("Error auto-submitting draft", e);
         }
-      }
+      }));
     }
   } catch (error) {
     console.error("Error finalizing expired drafts:", error);
@@ -113,7 +307,7 @@ export const submitQuiz = async (req, res) => {
 
     if (quiz.endTime) {
       const endTime = new Date(quiz.endTime);
-      endTime.setMinutes(endTime.getMinutes() + 2);
+      endTime.setMinutes(endTime.getMinutes() + 5); // 5-min grace for auto-submit edge cases
       if (now > endTime) {
         return res.status(403).json({ error: "Quiz time has expired." });
       }
@@ -128,21 +322,11 @@ export const submitQuiz = async (req, res) => {
     let totalMaxMarks = 0;
 
     // Grade answers
-    const gradedAnswers = await Promise.all(answers.map(async (studentAnswer) => {
-      const question = allQuestions.find(q => q._id.toString() === studentAnswer.questionId);
+    const gradedAnswers = await Promise.all(allQuestions.map(async (question) => {
+      const questionMarks = question.marks || quiz.marksPerQuestion || 1;
+      const studentAnswer = answers.find(a => a.questionId === question._id.toString()) || {};
 
-      if (!question) {
-        return {
-          questionId: studentAnswer.questionId,
-          type: studentAnswer.type || "mcq",
-          selectedAnswer: studentAnswer.selectedAnswer || "",
-          correctAnswer: "N/A",
-          isCorrect: false,
-          marksAwarded: 0
-        };
-      }
-
-      totalMaxMarks += question.marks || quiz.marksPerQuestion || 1;
+      totalMaxMarks += questionMarks;
 
       if (question.type === "coding") {
         // Evaluate coding question
@@ -151,12 +335,36 @@ export const submitQuiz = async (req, res) => {
         let marksAwarded = 0;
         let testResults = { passed: 0, total: 0, details: [] };
 
-        if (code && language && question.coding?.hiddenTestCases?.length > 0) {
+        // Use unified testCases, fallback to hiddenTestCases for old quizzes
+        const codingTestCases = question.coding?.testCases?.length > 0 
+          ? question.coding.testCases 
+          : (question.coding?.hiddenTestCases?.length > 0 ? question.coding.hiddenTestCases : []);
+
+        if (code && language && codingTestCases.length > 0) {
+          // Server-side language mismatch check
+          const mismatchCheck = detectLanguageMismatch(language, code);
+          if (mismatchCheck.mismatch) {
+            const mismatchError = `Language Mismatch: You selected ${language} but your code appears to be written in ${mismatchCheck.detectedLanguage}. Please write your code in the selected language or change your language selection.`;
+            testResults = {
+              passed: 0,
+              total: codingTestCases.length,
+              details: codingTestCases.map(tc => ({
+                input: tc.input || "",
+                expectedOutput: tc.expectedOutput || "",
+                actualOutput: "",
+                compileOutput: mismatchError,
+                runError: "",
+                exitCode: 1,
+                passed: false
+              }))
+            };
+            // marksAwarded stays 0
+          } else {
           try {
             const results = await executeCode(
               language, 
               code, 
-              question.coding.hiddenTestCases, 
+              codingTestCases, 
               {
                 title: question.coding?.title,
                 description: question.coding?.description,
@@ -169,16 +377,17 @@ export const submitQuiz = async (req, res) => {
             
             testResults = { passed: passedCount, total: totalCount, details: results };
             
-            // Calculate proportional marks
-            marksAwarded = (passedCount / totalCount) * (question.marks || quiz.marksPerQuestion || 1);
+            // Calculate proportional marks: (passed/total) * questionMarks
+            marksAwarded = (passedCount / totalCount) * questionMarks;
             totalScore += marksAwarded;
           } catch (err) {
             console.error("Failed to grade coding question:", err);
           }
+          } // closes the else block from mismatch check
         }
 
         return {
-          questionId: studentAnswer.questionId,
+          questionId: question._id.toString(),
           type: "coding",
           code,
           language,
@@ -189,12 +398,12 @@ export const submitQuiz = async (req, res) => {
         // MCQ grading
         const selectedAnswer = studentAnswer.selectedAnswer || "";
         const isCorrect = selectedAnswer !== "" && selectedAnswer === question.correctAnswer;
-        const marksAwarded = isCorrect ? (question.marks || quiz.marksPerQuestion || 1) : 0;
+        const marksAwarded = isCorrect ? questionMarks : 0;
         
         if (isCorrect) totalScore += marksAwarded;
 
         return {
-          questionId: studentAnswer.questionId,
+          questionId: question._id.toString(),
           type: "mcq",
           selectedAnswer: selectedAnswer,
           correctAnswer: question.correctAnswer,
@@ -209,13 +418,21 @@ export const submitQuiz = async (req, res) => {
 
     let submission;
     if (existingSubmission) {
-      existingSubmission.answers = gradedAnswers;
-      existingSubmission.score = totalScore;
-      existingSubmission.percentage = parseFloat(percentage);
-      existingSubmission.submittedAt = new Date();
-      existingSubmission.isDraft = false;
-      if (sectionTimers) existingSubmission.sectionTimers = sectionTimers;
-      submission = await existingSubmission.save();
+      submission = await QuizSubmission.findOneAndUpdate(
+        { _id: existingSubmission._id },
+        {
+          $set: {
+            answers: gradedAnswers,
+            score: totalScore,
+            totalMarks: totalMaxMarks,
+            percentage: parseFloat(percentage),
+            submittedAt: new Date(),
+            isDraft: false,
+            ...(sectionTimers && { sectionTimers })
+          }
+        },
+        { new: true }
+      );
     } else {
       submission = await QuizSubmission.create({
         quizId,
@@ -225,6 +442,7 @@ export const submitQuiz = async (req, res) => {
         sectionTimers: sectionTimers || [],
         score: totalScore,
         totalQuestions,
+        totalMarks: totalMaxMarks,
         percentage: parseFloat(percentage),
         submittedAt: new Date(),
         isDraft: false,
@@ -238,6 +456,7 @@ export const submitQuiz = async (req, res) => {
         _id: submission._id,
         score: totalScore,
         totalQuestions,
+        totalMarks: totalMaxMarks,
         percentage: parseFloat(percentage),
         submittedAt: submission.submittedAt,
       },
@@ -278,8 +497,14 @@ export const autosaveQuiz = async (req, res) => {
     if (quiz.startTime && now < new Date(quiz.startTime)) {
       return res.status(403).json({ error: "Quiz has not started yet." });
     }
-    if (quiz.endTime && now > new Date(quiz.endTime)) {
-      return res.status(403).json({ error: "Quiz time has expired." });
+    // Allow autosave within 5-min grace period after deadline so tab-close saves get through.
+    // The server-side cron will finalize these drafts into proper submissions.
+    if (quiz.endTime) {
+      const graceEnd = new Date(quiz.endTime);
+      graceEnd.setMinutes(graceEnd.getMinutes() + 5);
+      if (now > graceEnd) {
+        return res.status(403).json({ error: "Quiz time has expired." });
+      }
     }
 
     const allQuestions = quiz.sections?.length > 0 
@@ -289,24 +514,15 @@ export const autosaveQuiz = async (req, res) => {
     let totalScore = 0;
     let totalMaxMarks = 0;
 
-    const gradedAnswers = answers.map((studentAnswer) => {
-      const question = allQuestions.find(q => q._id.toString() === studentAnswer.questionId);
-      if (!question) {
-        return {
-          questionId: studentAnswer.questionId,
-          type: studentAnswer.type || "mcq",
-          selectedAnswer: studentAnswer.selectedAnswer || "",
-          correctAnswer: "N/A",
-          isCorrect: false,
-          marksAwarded: 0
-        };
-      }
+    const gradedAnswers = allQuestions.map((question) => {
+      const questionMarks = question.marks || quiz.marksPerQuestion || 1;
+      const studentAnswer = answers.find(a => a.questionId === question._id.toString()) || {};
 
-      totalMaxMarks += question.marks || quiz.marksPerQuestion || 1;
+      totalMaxMarks += questionMarks;
 
       if (question.type === "coding") {
         return {
-          questionId: studentAnswer.questionId,
+          questionId: question._id.toString(),
           type: "coding",
           code: studentAnswer.code || "",
           language: studentAnswer.language || "",
@@ -315,12 +531,12 @@ export const autosaveQuiz = async (req, res) => {
       } else {
         const selectedAnswer = studentAnswer.selectedAnswer || "";
         const isCorrect = selectedAnswer !== "" && selectedAnswer === question.correctAnswer;
-        const marksAwarded = isCorrect ? (question.marks || quiz.marksPerQuestion || 1) : 0;
+        const marksAwarded = isCorrect ? questionMarks : 0;
         
         if (isCorrect) totalScore += marksAwarded;
 
         return {
-          questionId: studentAnswer.questionId,
+          questionId: question._id.toString(),
           type: "mcq",
           selectedAnswer,
           correctAnswer: question.correctAnswer,
@@ -334,13 +550,20 @@ export const autosaveQuiz = async (req, res) => {
     const percentage = totalMaxMarks > 0 ? ((totalScore / totalMaxMarks) * 100).toFixed(2) : 0;
 
     if (existingSubmission) {
-      existingSubmission.answers = gradedAnswers;
-      existingSubmission.score = totalScore;
-      existingSubmission.percentage = parseFloat(percentage);
-      existingSubmission.submittedAt = new Date();
-      existingSubmission.isDraft = true;
-      if (sectionTimers) existingSubmission.sectionTimers = sectionTimers;
-      await existingSubmission.save();
+      await QuizSubmission.findOneAndUpdate(
+        { _id: existingSubmission._id },
+        {
+          $set: {
+            answers: gradedAnswers,
+            score: totalScore,
+            totalMarks: totalMaxMarks,
+            percentage: parseFloat(percentage),
+            submittedAt: new Date(),
+            isDraft: true,
+            ...(sectionTimers && { sectionTimers })
+          }
+        }
+      );
     } else {
       await QuizSubmission.create({
         quizId,
@@ -350,6 +573,7 @@ export const autosaveQuiz = async (req, res) => {
         sectionTimers: sectionTimers || [],
         score: totalScore,
         totalQuestions,
+        totalMarks: totalMaxMarks,
         percentage: parseFloat(percentage),
         submittedAt: new Date(),
         isDraft: true,
@@ -456,7 +680,7 @@ export const getQuizSubmissions = async (req, res) => {
 
     const submissions = await QuizSubmission.find({ quizId, isDraft: false })
       .populate("studentId", "name email profilePhoto erpId")
-      .populate("quizId", "title questions status classroomId")
+      .populate("quizId", "title questions sections status classroomId")
       .sort({ submittedAt: -1 });
 
     res.status(200).json({
@@ -517,14 +741,22 @@ export const runCode = async (req, res) => {
       return res.status(404).json({ error: "Coding question not found" });
     }
 
-    // Run against custom input OR public test cases
+    // Server-side language mismatch check for run-code
+    const mismatchCheck = detectLanguageMismatch(language, code);
+    if (mismatchCheck.mismatch) {
+      return res.status(400).json({ 
+        error: `Language Mismatch: You selected ${language} but your code appears to be written in ${mismatchCheck.detectedLanguage}. Please write your code in the selected language or change your language selection.` 
+      });
+    }
+
+    // Run against custom input OR test cases (unified testCases or legacy publicTestCases)
     let testCases = [];
     if (customInput !== undefined && customInput !== null) {
       testCases = [{ input: customInput, expectedOutput: "" }];
     } else {
-      testCases = question.coding.publicTestCases || [];
+      testCases = question.coding.testCases || question.coding.publicTestCases || [];
       if (testCases.length === 0) {
-        return res.status(400).json({ error: "No public test cases available to run." });
+        return res.status(400).json({ error: "No test cases available to run." });
       }
     }
 

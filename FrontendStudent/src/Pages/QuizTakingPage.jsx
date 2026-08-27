@@ -46,10 +46,12 @@ export default function QuizTakingPage() {
     exitFullScreen,
     handleViolationAlertOk,
     setIsSubmitting: setProctorSubmitting,
-    requestFullScreen
+    requestFullScreen,
+    clearViolations
   } = useFullScreenProctor({
     enabled: hasStarted, // Only enable if exam has started
     maxViolations: 2,
+    examId: quizId,
     onAutoSubmit: (reason) => handleAutoSubmit(reason)
   });
 
@@ -66,15 +68,22 @@ export default function QuizTakingPage() {
     try {
       setLoading(true);
       const res = await getQuizById(quizId);
+      const quizData = res.quiz || res;
+      let allQuestions = [];
+      if (quizData.sections && quizData.sections.length > 0) {
+        allQuestions = quizData.sections.flatMap(s => s.questions || []);
+      } else if (quizData.questions && quizData.questions.length > 0) {
+        allQuestions = quizData.questions;
+      }
       
       // Shuffle questions so sequence is different for each student
-      const shuffledQuestions = [...res.quiz.questions];
+      const shuffledQuestions = [...allQuestions];
       for (let i = shuffledQuestions.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]];
       }
       
-      const shuffledQuiz = { ...res.quiz, questions: shuffledQuestions };
+      const shuffledQuiz = { ...quizData, questions: shuffledQuestions };
       setQuiz(shuffledQuiz);
     } catch (error) {
       console.error('Failed to fetch quiz', error);
@@ -191,6 +200,7 @@ export default function QuizTakingPage() {
 
       // Clean up local storage
       localStorage.removeItem(`quiz_start_time_${quizId}`);
+      clearViolations();
 
       exitFullScreen();
 

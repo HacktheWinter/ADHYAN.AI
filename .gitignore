@@ -1,0 +1,9 @@
+.claude/
+node_modules
+/node_modules
+/admin/
+
+# Environment variables
+.env
+.env.*
+!.env.example

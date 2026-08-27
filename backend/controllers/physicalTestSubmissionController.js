@@ -1316,14 +1316,45 @@ export const getPhysicalSubmissionPDF = async (req, res) => {
   try {
     const { submissionId } = req.params;
     const submission = await PhysicalTestSubmission.findById(submissionId);
-    if (!submission) return res.status(404).json({ error: "Not found" });
+    
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found" });
+    }
+    
     const bucket = getBucket();
-    const downloadStream = bucket.openDownloadStream(submission.pdfFileId);
+    if (!bucket) {
+      return res.status(500).json({ error: "Database not ready" });
+    }
+    
+    let fileId = submission.pdfFileId;
+    if (typeof fileId === 'string') {
+      fileId = new mongoose.Types.ObjectId(fileId);
+    }
+    
+    // Verify file exists in GridFS before setting PDF headers
+    const files = await bucket.find({ _id: fileId }).toArray();
+    if (!files || files.length === 0) {
+      return res.status(404).json({ error: "PDF file not found in database" });
+    }
+    
+    const downloadStream = bucket.openDownloadStream(fileId);
     res.set("Content-Type", "application/pdf");
     res.set("Content-Disposition", `inline; filename="${submission.pdfFileName}"`);
+    
+    downloadStream.on("error", (error) => {
+      console.error(`[getPhysicalSubmissionPDF] Stream error for fileId ${fileId}:`, error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "PDF stream error", details: error.message });
+      }
+    });
+    
     downloadStream.pipe(res);
-    downloadStream.on("error", () => res.status(500).json({ error: "PDF stream error" }));
-  } catch (error) { res.status(500).json({ error: "Server error" }); }
+  } catch (error) { 
+    console.error(`[getPhysicalSubmissionPDF] Server error:`, error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Server error", details: error.message });
+    }
+  }
 };
 
 // DELETE /api/physical-test-submission/:submissionId

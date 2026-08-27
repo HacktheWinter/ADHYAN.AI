@@ -13,6 +13,8 @@
   --color-line: #E6E1EF;
   --color-violet-50: #F1ECFB;
   --color-violet-dark: #3B1768;
+  --color-error: #EF4444;
+  --color-error-hover: #DC2626;
 }
 
 @variant dark (&:where(.dark, .dark *));
@@ -25,6 +27,8 @@
   --color-line: #2D253A;
   --color-violet-50: #26163F;
   --color-violet-dark: #A78BFA;
+  --color-error: #F87171;
+  --color-error-hover: #EF4444;
 
   background-color: #0C0816;
   color: #F1ECFB;
@@ -554,3 +558,14 @@
   border-color: #F43F5E !important;
 }
 
+/* Section dropdown slide-in animation */
+@keyframes dropdownSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

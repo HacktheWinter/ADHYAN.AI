@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   ChevronLeft,
@@ -7,6 +7,8 @@ import {
   Award,
   CheckCircle,
   AlertTriangle,
+  Layers,
+  ChevronDown,
 } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
@@ -20,6 +22,20 @@ const StudentQuizResult = () => {
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [selectedSection, setSelectedSection] = useState('all');
+  const [sectionDropdownOpen, setSectionDropdownOpen] = useState(false);
+  const sectionDropdownRef = useRef(null);
+
+  // Close section dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (sectionDropdownRef.current && !sectionDropdownRef.current.contains(e.target)) {
+        setSectionDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetchSubmission();
@@ -60,7 +76,7 @@ const StudentQuizResult = () => {
         const quizResponse = await axios.get(
           `${API_BASE_URL}/quiz/${quizId}`
         );
-        setQuiz(quizResponse.data.quiz);
+        setQuiz(quizResponse.data);
       }
     } catch (error) {
       console.error("Error fetching submission:", error);
@@ -94,6 +110,41 @@ const StudentQuizResult = () => {
       </div>
     );
   }
+
+  // Build section data for filtering
+  const hasSections = quiz.sections && quiz.sections.length > 0;
+  const sections = hasSections ? quiz.sections : [];
+
+  // Calculate per-section stats
+  const getSectionStats = (section) => {
+    const sectionQuestionIds = section.questions.map(q => q._id);
+    const sectionAnswers = submission.answers.filter(a => sectionQuestionIds.includes(a.questionId));
+    let secScore = 0;
+    let secMaxMarks = 0;
+    sectionAnswers.forEach(a => {
+      const q = section.questions.find(q => q._id === a.questionId);
+      const qMarks = q?.marks || 1;
+      secMaxMarks += qMarks;
+      secScore += (a.marksAwarded || 0);
+    });
+    const secPercentage = secMaxMarks > 0 ? (secScore / secMaxMarks) * 100 : 0;
+    return { score: secScore, maxMarks: secMaxMarks, percentage: secPercentage, questionCount: section.questions.length };
+  };
+
+  // Filter answers based on selected section
+  const getFilteredAnswers = () => {
+    if (selectedSection === 'all' || !hasSections) {
+      return submission.answers;
+    }
+    const activeSection = sections.find(s => s._id === selectedSection);
+    if (!activeSection) return submission.answers;
+    const sectionQuestionIds = activeSection.questions.map(q => q._id);
+    return submission.answers.filter(a => sectionQuestionIds.includes(a.questionId));
+  };
+
+  const filteredAnswers = getFilteredAnswers();
+  const activeSection = selectedSection !== 'all' ? sections.find(s => s._id === selectedSection) : null;
+  const activeSectionStats = activeSection ? getSectionStats(activeSection) : null;
 
   return (
     <div className="min-h-screen bg-paper font-body text-ink">
@@ -149,11 +200,11 @@ const StudentQuizResult = () => {
                 <div className="flex items-center gap-2 mb-2">
                   <Award className="w-6 h-6 sm:w-8 sm:h-8 text-violet-dark" />
                   <div className="text-2xl sm:text-3xl font-black font-display text-violet-dark">
-                    {submission.score}/{submission.totalQuestions}
+                    {typeof submission.score === 'number' ? submission.score.toFixed(1) : submission.score}/{submission.totalMarks || submission.totalQuestions}
                   </div>
                 </div>
                 <p className="text-xs sm:text-sm text-ink-soft font-semibold">
-                  {submission.percentage?.toFixed(2)}%
+                  {submission.percentage?.toFixed(2)}% • {submission.totalQuestions} questions
                 </p>
               </div>
               <div className="flex flex-col gap-2">
@@ -182,34 +233,198 @@ const StudentQuizResult = () => {
           </div>
         </div>
 
+        {/* Section Filter */}
+        {hasSections && sections.length > 1 && (
+          <div className="mb-4 sm:mb-6">
+            <div className="bg-surface rounded-2xl border border-line p-3 sm:p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Layers className="w-4 h-4 text-violet-500" />
+                <span className="text-xs font-bold text-ink-soft uppercase tracking-wider">Filter by Section</span>
+              </div>
+              
+              {/* Desktop: Pill tabs */}
+              <div className="hidden sm:flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedSection('all')}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                    selectedSection === 'all'
+                      ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
+                      : 'bg-line/50 text-ink hover:bg-line hover:shadow-sm'
+                  }`}
+                >
+                  All Sections
+                  <span className={`ml-2 text-xs ${selectedSection === 'all' ? 'text-violet-200' : 'text-ink-soft'}`}>
+                    {sections.reduce((acc, sec) => acc + (sec.questions?.length || 0), 0)}q
+                  </span>
+                </button>
+
+                {sections.map((sec, idx) => {
+                  const stats = getSectionStats(sec);
+                  return (
+                    <button
+                      key={sec._id}
+                      onClick={() => setSelectedSection(sec._id)}
+                      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                        selectedSection === sec._id
+                          ? 'bg-violet-600 text-white shadow-md shadow-violet-600/20'
+                          : 'bg-line/50 text-ink hover:bg-line hover:shadow-sm'
+                      }`}
+                    >
+                      {sec.title || `Section ${idx + 1}`}
+                      <span className={`ml-2 text-xs ${selectedSection === sec._id ? 'text-violet-200' : 'text-ink-soft'}`}>
+                        {stats.questionCount}q • {typeof stats.score === 'number' ? stats.score.toFixed(1) : stats.score}/{stats.maxMarks}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Mobile: Dropdown */}
+              <div className="sm:hidden relative" ref={sectionDropdownRef}>
+                <button
+                  onClick={() => setSectionDropdownOpen(!sectionDropdownOpen)}
+                  className="w-full px-4 py-3 bg-paper border border-line rounded-xl text-ink text-sm cursor-pointer flex items-center gap-3 transition-all duration-200 hover:border-violet-400"
+                >
+                  <Layers className="w-4 h-4 text-violet-500 flex-shrink-0" />
+                  <span className="flex-1 text-left font-semibold truncate">
+                    {selectedSection === 'all'
+                      ? 'All Sections'
+                      : (sections.find(s => s._id === selectedSection)?.title || 'Section')}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-ink-soft transition-transform duration-300 flex-shrink-0 ${sectionDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {sectionDropdownOpen && (
+                  <div
+                    className="absolute left-0 top-full mt-2 w-full bg-surface border border-line rounded-xl shadow-2xl z-30 py-1.5 overflow-hidden"
+                    style={{
+                      animation: 'dropdownSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06)'
+                    }}
+                  >
+                    <button
+                      onClick={() => { setSelectedSection('all'); setSectionDropdownOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-all duration-150 cursor-pointer ${
+                        selectedSection === 'all'
+                          ? 'bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300 font-bold'
+                          : 'text-ink hover:bg-line/50 font-medium'
+                      }`}
+                    >
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${selectedSection === 'all' ? 'bg-violet-500' : 'bg-transparent'}`} />
+                      All Sections
+                      <span className="ml-auto text-xs text-ink-soft font-normal">
+                        {sections.reduce((acc, sec) => acc + (sec.questions?.length || 0), 0)}q
+                      </span>
+                    </button>
+
+                    <div className="mx-3 my-1 border-t border-line" />
+
+                    {sections.map((sec, idx) => {
+                      const stats = getSectionStats(sec);
+                      return (
+                        <button
+                          key={sec._id}
+                          onClick={() => { setSelectedSection(sec._id); setSectionDropdownOpen(false); }}
+                          className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-3 transition-all duration-150 cursor-pointer ${
+                            selectedSection === sec._id
+                              ? 'bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300 font-bold'
+                              : 'text-ink hover:bg-line/50 font-medium'
+                          }`}
+                        >
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${selectedSection === sec._id ? 'bg-violet-500' : 'bg-transparent'}`} />
+                          <span className="truncate">{sec.title || `Section ${idx + 1}`}</span>
+                          <span className="ml-auto text-xs text-ink-soft font-normal flex-shrink-0">
+                            {stats.questionCount}q • {typeof stats.score === 'number' ? stats.score.toFixed(1) : stats.score}/{stats.maxMarks}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Section Score Summary (when a specific section is selected) */}
+            {activeSectionStats && (
+              <div className="mt-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl border border-violet-200 dark:border-violet-800/30 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-violet-600" />
+                  <span className="text-sm font-bold text-violet-800 dark:text-violet-300">
+                    {activeSection.title}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-semibold text-violet-700 dark:text-violet-300">
+                    {typeof activeSectionStats.score === 'number' ? activeSectionStats.score.toFixed(1) : activeSectionStats.score}/{activeSectionStats.maxMarks} marks
+                  </span>
+                  <span className={`text-sm font-bold px-2.5 py-0.5 rounded-full ${
+                    activeSectionStats.percentage >= 40
+                      ? 'bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300'
+                      : 'bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350'
+                  }`}>
+                    {activeSectionStats.percentage.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Questions */}
         <div className="space-y-4 sm:space-y-6">
-          {submission.answers.map((answer, index) => {
+          {filteredAnswers.map((answer, index) => {
             let question = null;
-            if (quiz.sections) {
+            let questionSection = null;
+            if (quiz.sections && quiz.sections.length > 0) {
               for (const sec of quiz.sections) {
                 const found = sec.questions.find(q => q._id === answer.questionId);
-                if (found) { question = found; break; }
+                if (found) { question = found; questionSection = sec; break; }
               }
-            } else if (quiz.questions) {
+            } else if (quiz.questions && quiz.questions.length > 0) {
               question = quiz.questions.find(q => q._id === answer.questionId);
             }
 
             if (!question) return null;
 
             const isCoding = answer.type === 'coding' || question.type === 'coding';
+            
+            // Determine if student attempted this question
+            const isAttempted = isCoding 
+              ? (answer.code && answer.code.trim() !== '') 
+              : (answer.selectedAnswer && answer.selectedAnswer.trim() !== '');
+
+            // Calculate global question number
+            let globalIndex = index;
+            if (selectedSection !== 'all' && hasSections) {
+              // Find the original index across all answers
+              globalIndex = submission.answers.findIndex(a => a.questionId === answer.questionId);
+            }
 
             return (
               <div
                 key={answer.questionId}
-                className="bg-surface rounded-2xl border border-line p-4 sm:p-6 shadow-sm"
+                className={`bg-surface rounded-2xl border p-4 sm:p-6 shadow-sm ${
+                  isAttempted ? 'border-line' : 'border-amber-200 dark:border-amber-800/40 bg-amber-50/30 dark:bg-amber-950/10'
+                }`}
               >
                 {/* Question Title */}
                 <div className="mb-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="text-base sm:text-lg font-semibold font-display text-ink">
-                      Question {index + 1}
+                    <h3 className="text-base sm:text-lg font-semibold font-display text-ink flex items-center gap-3">
+                      Question {globalIndex + 1}
+                      {questionSection && selectedSection === 'all' && hasSections && sections.length > 1 && (
+                        <span className="text-xs font-medium text-ink-soft bg-line/60 px-2 py-0.5 rounded-full">
+                          {questionSection.title}
+                        </span>
+                      )}
                     </h3>
+                    {!isAttempted && (
+                      <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-xs font-bold border border-amber-300 dark:border-amber-700/50 bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 whitespace-nowrap">
+                        <AlertTriangle className="w-3 h-3" /> Not Attempted
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm sm:text-base text-ink mb-4">
                     {question.question}
@@ -219,11 +434,17 @@ const StudentQuizResult = () => {
                   {isCoding ? (
                     <div className="mb-4">
                       <h5 className="text-sm font-semibold text-gray-700 mb-2">Student Code</h5>
-                      <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-                        <pre className="text-gray-100 text-sm font-mono">
-                          <code>{answer.code || 'No code submitted'}</code>
-                        </pre>
-                      </div>
+                      {isAttempted ? (
+                        <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
+                          <pre className="text-gray-100 text-sm font-mono">
+                            <code>{answer.code}</code>
+                          </pre>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 text-center">
+                          <p className="text-sm text-ink-soft italic">No code submitted</p>
+                        </div>
+                      )}
                       {answer.testResults && (
                         <div className="mt-4 bg-white p-4 rounded-lg border border-gray-200">
                           <h6 className="font-bold text-gray-900 mb-2">Test Results</h6>
@@ -271,14 +492,19 @@ const StudentQuizResult = () => {
                                 <span className={isCorrect ? "text-green-800 dark:text-green-300" : isWrongSelection ? "text-rose-800 dark:text-rose-350" : "text-ink"}>
                                   {option}
                                 </span>
-                                {isCorrect && (
+                                {isCorrect && isSelected && (
                                   <span className="ml-auto text-xs font-bold text-green-700 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 border border-line px-2 py-1 rounded-full">
                                     Correct Answer
                                   </span>
                                 )}
+                                {isCorrect && !isSelected && (
+                                  <span className="ml-auto text-xs font-bold text-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300 border border-line px-2 py-1 rounded-full">
+                                    Correct Option
+                                  </span>
+                                )}
                                 {isWrongSelection && (
                                   <span className="ml-auto text-xs font-bold text-rose-700 bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350 border border-line px-2 py-1 rounded-full">
-                                    Wrong Choice
+                                    Your Choice
                                   </span>
                                 )}
                               </div>
@@ -294,24 +520,33 @@ const StudentQuizResult = () => {
                 <div className="flex items-center justify-between pt-4 border-t border-line">
                   <span className="text-sm text-ink-soft">
                     {isCoding ? "Coding Challenge" : "Multiple Choice Question"}
+                    <span className="ml-2 font-semibold text-ink">
+                      {typeof answer.marksAwarded === 'number' ? answer.marksAwarded.toFixed(1) : (answer.marksAwarded || 0)}/{question.marks || 1} marks
+                    </span>
                   </span>
-                  <span
-                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border border-line ${
-                      answer.isCorrect
-                        ? "bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300"
-                        : "bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350"
-                    }`}
-                  >
-                    {answer.isCorrect ? (
-                      <>
-                        <CheckCircle className="w-3 h-3" /> Correct
-                      </>
-                    ) : (
-                      <>
-                        <AlertTriangle className="w-3 h-3" /> Incorrect
-                      </>
-                    )}
-                  </span>
+                  {isAttempted ? (
+                    <span
+                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border border-line ${
+                        answer.isCorrect || (isCoding && answer.marksAwarded > 0)
+                          ? "bg-green-100 dark:bg-green-955/40 text-green-800 dark:text-green-300"
+                          : "bg-rose-100 dark:bg-rose-955/40 text-rose-800 dark:text-rose-350"
+                      }`}
+                    >
+                      {answer.isCorrect || (isCoding && answer.marksAwarded > 0) ? (
+                        <>
+                          <CheckCircle className="w-3 h-3" /> {isCoding ? `${answer.testResults?.passed || 0}/${answer.testResults?.total || 0} passed` : 'Correct'}
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="w-3 h-3" /> Incorrect
+                        </>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border border-amber-300 dark:border-amber-700/50 bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300">
+                      — Skipped
+                    </span>
+                  )}
                 </div>
               </div>
             );

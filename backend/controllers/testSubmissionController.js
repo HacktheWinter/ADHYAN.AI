@@ -83,9 +83,13 @@ export const submitTest = async (req, res) => {
       });
     }
 
-    // Check test timing
-    if (testPaper.endTime && new Date() > new Date(testPaper.endTime)) {
-      return res.status(400).json({ error: "Test time has expired" });
+    // Check test timing — allow 5-min grace for auto-submit edge cases
+    if (testPaper.endTime) {
+      const graceEnd = new Date(testPaper.endTime);
+      graceEnd.setMinutes(graceEnd.getMinutes() + 5);
+      if (new Date() > graceEnd) {
+        return res.status(400).json({ error: "Test time has expired" });
+      }
     }
 
     // Add question details to answers

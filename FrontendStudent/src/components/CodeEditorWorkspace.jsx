@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
-import { Play, RotateCcw, AlertTriangle, CheckCircle, XCircle, ChevronDown } from "lucide-react";
+import { Play, RotateCcw, ChevronDown, CheckCircle2, XCircle, Loader2, Terminal, FileText, AlertTriangle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 const LANGUAGE_MAP = {
@@ -24,6 +24,179 @@ const DEFAULT_BOILERPLATES = {
 
 const formatLanguageName = (lang) => LANGUAGE_MAP[lang] || lang.toUpperCase();
 
+/* ─── Skeleton Loading Placeholder ─── */
+const SkeletonLoader = () => (
+  <div className="p-5 space-y-6 animate-pulse">
+    {/* Status skeleton */}
+    <div className="h-6 w-36 bg-gray-200 rounded-lg" />
+    {/* Case tabs skeleton */}
+    <div className="flex gap-2">
+      <div className="h-9 w-20 bg-gray-200 rounded-lg" />
+      <div className="h-9 w-20 bg-gray-200 rounded-lg" />
+      <div className="h-9 w-20 bg-gray-200 rounded-lg" />
+    </div>
+    {/* Input skeleton */}
+    <div className="space-y-2">
+      <div className="h-4 w-14 bg-gray-100 rounded" />
+      <div className="h-12 w-full bg-gray-100 rounded-lg" />
+    </div>
+    {/* Output skeleton */}
+    <div className="space-y-2">
+      <div className="h-4 w-16 bg-gray-100 rounded" />
+      <div className="h-12 w-full bg-gray-100 rounded-lg" />
+    </div>
+    {/* Expected skeleton */}
+    <div className="space-y-2">
+      <div className="h-4 w-20 bg-gray-100 rounded" />
+      <div className="h-12 w-full bg-gray-100 rounded-lg" />
+    </div>
+  </div>
+);
+
+/* ─── Error Display (Compile / Runtime) ─── */
+const ErrorDisplay = ({ results }) => {
+  // Check if there's a compile or runtime error from the first result
+  const firstResult = results?.[0];
+  const compileError = firstResult?.compileOutput;
+  const runtimeError = firstResult?.runError;
+  const errorMsg = compileError || runtimeError;
+  const errorType = compileError ? "Compile Error" : "Runtime Error";
+
+  if (!errorMsg) return null;
+
+  return (
+    <div className="p-5">
+      <h3 className="text-lg font-bold text-red-600 mb-4 flex items-center gap-2">
+        <AlertTriangle className="w-5 h-5" />
+        {errorType}
+      </h3>
+      <div className="bg-red-950/10 border border-red-200 rounded-xl p-4 overflow-x-auto">
+        <pre className="text-red-600 font-mono text-sm whitespace-pre-wrap leading-relaxed">
+          {errorMsg}
+        </pre>
+      </div>
+    </div>
+  );
+};
+
+/* ─── Test Result Panel ─── */
+const TestResultPanel = ({ results, isExecuting }) => {
+  const [activeCase, setActiveCase] = useState(0);
+
+  useEffect(() => {
+    setActiveCase(0);
+  }, [results]);
+
+  if (isExecuting) return <SkeletonLoader />;
+  if (!results || results.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8">
+        <Terminal className="w-12 h-12 mb-3 opacity-40" />
+        <p className="text-sm font-medium">Use the Run Code button to execute your code.</p>
+        <p className="text-xs mt-1 text-gray-300">Results will appear here</p>
+      </div>
+    );
+  }
+
+  // Check if ALL results have compile/runtime errors (no actual test output)
+  const hasOnlyErrors = results.every(r => 
+    (r.compileOutput && r.compileOutput.trim() !== "") || 
+    (r.runError && r.runError.trim() !== "" && (!r.actualOutput || r.actualOutput.trim() === ""))
+  );
+
+  if (hasOnlyErrors) {
+    return <ErrorDisplay results={results} />;
+  }
+
+  const allPassed = results.every(r => r.passed);
+  const passedCount = results.filter(r => r.passed).length;
+  const currentResult = results[activeCase];
+
+  return (
+    <div className="p-5 h-full flex flex-col overflow-y-auto" style={{ animation: 'fadeSlideIn 0.35s ease-out' }}>
+      {/* Status Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          {allPassed ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+          ) : (
+            <XCircle className="w-5 h-5 text-red-500" />
+          )}
+          <span className={`text-lg font-bold ${allPassed ? 'text-emerald-600' : 'text-red-600'}`}>
+            {allPassed ? 'Accepted' : 'Wrong Answer'}
+          </span>
+        </div>
+        <span className="text-xs text-gray-400 font-medium">
+          {passedCount}/{results.length} passed
+        </span>
+      </div>
+
+      {/* Case Tabs */}
+      <div className="flex gap-2 mb-5 flex-wrap">
+        {results.map((res, idx) => (
+          <button
+            key={idx}
+            onClick={() => setActiveCase(idx)}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer ${
+              activeCase === idx
+                ? res.passed
+                  ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 shadow-sm'
+                  : 'bg-red-50 text-red-700 ring-1 ring-red-200 shadow-sm'
+                : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${
+              res.passed ? 'bg-emerald-500' : 'bg-red-500'
+            }`} />
+            Case {idx + 1}
+          </button>
+        ))}
+      </div>
+
+      {/* Active Case Details */}
+      {currentResult && (
+        <div className="space-y-4 flex-1" style={{ animation: 'fadeSlideIn 0.25s ease-out' }}>
+          {/* Input */}
+          {currentResult.input && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Input</label>
+              <div className="bg-gray-50 border border-gray-100 rounded-lg p-3">
+                <pre className="text-sm font-mono text-gray-800 whitespace-pre-wrap">{currentResult.input}</pre>
+              </div>
+            </div>
+          )}
+
+          {/* Your Output */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Output</label>
+            <div className={`border rounded-lg p-3 ${
+              currentResult.passed === false
+                ? 'bg-red-50 border-red-200'
+                : 'bg-gray-50 border-gray-100'
+            }`}>
+              <pre className={`text-sm font-mono whitespace-pre-wrap ${
+                currentResult.passed === false ? 'text-red-700' : 'text-gray-800'
+              }`}>
+                {currentResult.actualOutput || "No output"}
+              </pre>
+            </div>
+          </div>
+
+          {/* Expected Output */}
+          {currentResult.expectedOutput && currentResult.expectedOutput.trim() !== "" && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Expected</label>
+              <div className="bg-gray-50 border border-gray-100 rounded-lg p-3">
+                <pre className="text-sm font-mono text-gray-800 whitespace-pre-wrap">{currentResult.expectedOutput}</pre>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CodeEditorWorkspace = ({
   question,
   code,
@@ -34,8 +207,7 @@ const CodeEditorWorkspace = ({
   isExecuting,
   runResult,
 }) => {
-  const [activeTab, setActiveTab] = useState("description"); // description, testcases, output
-  const [customInput, setCustomInput] = useState("");
+  const [activeTab, setActiveTab] = useState("description");
   
   const coding = question.coding || {};
 
@@ -48,171 +220,217 @@ const CodeEditorWorkspace = ({
     }
   };
 
+  const handleSubmit = () => {
+    setActiveTab('result');
+    onRunCode(); // No custom input - uses predefined test cases
+  };
+
   return (
-    <div className="flex h-full min-h-[600px] border border-line rounded-2xl overflow-hidden bg-surface">
-      {/* Left Panel: Description & Output */}
-      <div className="w-[45%] flex flex-col border-r border-line bg-paper">
-        <div className="flex border-b border-line">
-          <button
-            className={`flex-1 py-3 text-sm font-bold ${activeTab === 'description' ? 'border-b-2 border-indigo-600 text-indigo-700' : 'text-ink-soft hover:bg-gray-50'}`}
-            onClick={() => setActiveTab('description')}
-          >
-            Description
-          </button>
-          <button
-            className={`flex-1 py-3 text-sm font-bold ${activeTab === 'output' ? 'border-b-2 border-indigo-600 text-indigo-700' : 'text-ink-soft hover:bg-gray-50'}`}
-            onClick={() => setActiveTab('output')}
-          >
-            Execution Output
-          </button>
-        </div>
+    <>
+      {/* Inline keyframe styles */}
+      <style>{`
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+      `}</style>
 
-        <div className="flex-1 overflow-y-auto p-5">
-          {activeTab === 'description' && (
-            <div className="prose prose-sm max-w-none text-ink">
-              <h2 className="text-xl font-bold font-display text-indigo-800 mb-4">{coding.title}</h2>
-              <ReactMarkdown>{coding.description || ""}</ReactMarkdown>
-              
-              {coding.examples && coding.examples.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-lg font-bold mb-3 text-indigo-800">Examples</h3>
-                  {coding.examples.map((ex, idx) => (
-                    <div key={idx} className="bg-gray-100 p-4 rounded-xl mb-4 font-mono text-sm border border-gray-200 shadow-sm">
-                      <div className="mb-2"><strong className="text-gray-700 font-sans text-xs uppercase tracking-wider block mb-1">Input:</strong> {ex.input}</div>
-                      <div className="mb-2"><strong className="text-gray-700 font-sans text-xs uppercase tracking-wider block mb-1">Output:</strong> {ex.output}</div>
-                      {ex.explanation && <div><strong className="text-gray-700 font-sans text-xs uppercase tracking-wider block mb-1">Explanation:</strong> <span className="text-gray-600 font-sans text-sm">{ex.explanation}</span></div>}
-                    </div>
-                  ))}
-                </div>
+      <div className="flex h-full min-h-[600px] border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+        {/* ──── Left Panel: Description & Test Results ──── */}
+        <div className="w-[45%] flex flex-col border-r border-gray-200 bg-white">
+          {/* Tabs */}
+          <div className="flex border-b border-gray-200 bg-gray-50/50">
+            <button
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold transition-all relative cursor-pointer ${
+                activeTab === 'description'
+                  ? 'text-gray-900'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+              onClick={() => setActiveTab('description')}
+            >
+              <FileText className="w-4 h-4" />
+              Description
+              {activeTab === 'description' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900 rounded-t" />
               )}
-
-              {coding.constraints && coding.constraints.length > 0 && coding.constraints.some(c => c.trim() !== '') && (
-                <div className="mt-6 mb-8">
-                  <h3 className="text-lg font-bold mb-3 text-indigo-800">Constraints</h3>
-                  <ul className="list-disc pl-5 space-y-2">
-                    {coding.constraints.filter(c => c.trim() !== '').map((c, idx) => (
-                      <li key={idx} className="font-mono text-sm bg-gray-100 px-2 py-1 rounded inline-block text-gray-800 border border-gray-200">{c}</li>
-                    ))}
-                  </ul>
-                </div>
+            </button>
+            <button
+              className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold transition-all relative cursor-pointer ${
+                activeTab === 'result'
+                  ? 'text-gray-900'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+              onClick={() => setActiveTab('result')}
+            >
+              <Terminal className="w-4 h-4" />
+              Test Result
+              {/* Show dot indicator when results are available */}
+              {runResult && runResult.length > 0 && activeTab !== 'result' && (
+                <span className={`w-2 h-2 rounded-full ${
+                  runResult.every(r => r.passed) ? 'bg-emerald-500' : 'bg-red-500'
+                }`} />
               )}
-            </div>
-          )}
+              {activeTab === 'result' && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900 rounded-t" />
+              )}
+            </button>
+          </div>
 
-          {activeTab === 'output' && (
-            <div className="h-full flex flex-col">
-              <div className="mb-4">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Custom Input (Optional)</label>
-                <textarea 
-                  value={customInput}
-                  onChange={e => setCustomInput(e.target.value)}
-                  className="w-full h-20 p-2 text-sm font-mono border rounded outline-none focus:ring-1 focus:ring-indigo-500"
-                  placeholder="Enter input to pass to your program..."
-                />
-              </div>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto">
+            {activeTab === 'description' && (
+              <div className="p-5 prose prose-sm max-w-none text-gray-800">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">{coding.title}</h2>
+                <ReactMarkdown>{coding.description || ""}</ReactMarkdown>
 
-              <div className="flex-1 bg-gray-900 rounded-xl p-4 overflow-y-auto text-gray-300 font-mono text-sm">
-                {!runResult ? (
-                  <div className="text-gray-500 h-full flex items-center justify-center">Run code to see output</div>
-                ) : (
-                  <div>
-                    {runResult.map((res, i) => (
-                      <div key={i} className="mb-6 pb-4 border-b border-gray-700 last:border-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="font-bold text-gray-400">Test Case {i + 1}</span>
-                          {res.passed !== undefined && (
-                            res.passed ? 
-                            <span className="text-green-500 flex items-center text-xs"><CheckCircle className="w-3 h-3 mr-1"/> Passed</span> : 
-                            <span className="text-rose-500 flex items-center text-xs"><XCircle className="w-3 h-3 mr-1"/> Failed</span>
+                {/* Function Parameters */}
+                {coding.functionParams && coding.functionParams.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-base font-bold mb-3 text-gray-900">Parameters</h3>
+                    <div className="bg-purple-50/60 border border-purple-100 rounded-xl p-4 space-y-2">
+                      {coding.functionParams.map((param, idx) => (
+                        <div key={idx} className="flex items-baseline gap-2">
+                          <code className="text-sm font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded font-mono">{param.name}</code>
+                          {param.description && (
+                            <>
+                              <span className="text-gray-300">—</span>
+                              <span className="text-sm text-gray-600">{param.description}</span>
+                            </>
                           )}
                         </div>
-                        
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Examples (no test cases, just illustrative examples) */}
+                {coding.examples && coding.examples.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-base font-bold mb-3 text-gray-900">Examples</h3>
+                    {coding.examples.map((ex, idx) => (
+                      <div key={idx} className="bg-gray-50 p-4 rounded-xl mb-4 font-mono text-sm border border-gray-100">
                         <div className="mb-2">
-                          <div className="text-xs text-gray-500">Input:</div>
-                          <pre className="bg-gray-800 p-2 rounded">{res.input || "None"}</pre>
+                          <strong className="text-gray-500 font-sans text-xs uppercase tracking-wider block mb-1">Input:</strong>
+                          <span className="text-gray-800">{ex.input}</span>
                         </div>
-                        
                         <div className="mb-2">
-                          <div className="text-xs text-gray-500">Your Output:</div>
-                          <pre className={`p-2 rounded ${res.passed === false ? 'bg-rose-950/30' : 'bg-gray-800'}`}>
-                            {res.actualOutput || res.runError || res.compileOutput || "No output"}
-                          </pre>
+                          <strong className="text-gray-500 font-sans text-xs uppercase tracking-wider block mb-1">Output:</strong>
+                          <span className="text-gray-800">{ex.output}</span>
                         </div>
-
-                        {res.expectedOutput !== undefined && res.expectedOutput !== "" && (
+                        {ex.explanation && (
                           <div>
-                            <div className="text-xs text-gray-500">Expected Output:</div>
-                            <pre className="bg-gray-800 p-2 rounded">{res.expectedOutput}</pre>
+                            <strong className="text-gray-500 font-sans text-xs uppercase tracking-wider block mb-1">Explanation:</strong>
+                            <span className="text-gray-600 font-sans text-sm">{ex.explanation}</span>
                           </div>
                         )}
                       </div>
                     ))}
                   </div>
                 )}
+
+                {coding.constraints && coding.constraints.length > 0 && coding.constraints.some(c => c.trim() !== '') && (
+                  <div className="mt-6 mb-8">
+                    <h3 className="text-base font-bold mb-3 text-gray-900">Constraints</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                      {coding.constraints.filter(c => c.trim() !== '').map((c, idx) => (
+                        <li key={idx} className="font-mono text-sm bg-gray-50 px-2 py-1 rounded inline-block text-gray-700 border border-gray-100">{c}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'result' && (
+              <TestResultPanel 
+                results={runResult} 
+                isExecuting={isExecuting} 
+              />
+            )}
+          </div>
+        </div>
+
+        {/* ──── Right Panel: Code Editor ──── */}
+        <div className="w-[55%] flex flex-col bg-[#1E1E1E]">
+          {/* Editor Header */}
+          <div className="flex items-center justify-between px-4 py-2.5 bg-[#252526] border-b border-[#3C3C3C]">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Code</span>
+              <div className="w-px h-4 bg-[#3C3C3C]" />
+              <div className="relative">
+                <select
+                  value={language}
+                  onChange={e => onLanguageChange(e.target.value)}
+                  className="bg-[#3C3C3C] text-gray-200 text-xs pl-3 pr-7 py-1.5 rounded-md outline-none border border-[#4D4D4D] focus:border-blue-500 appearance-none cursor-pointer transition-colors hover:bg-[#4D4D4D] font-medium"
+                >
+                  {(coding.allowedLanguages || ["javascript"]).map(lang => (
+                    <option key={lang} value={lang}>{formatLanguageName(lang)}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-gray-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Right Panel: Editor */}
-      <div className="w-[55%] flex flex-col bg-[#1E1E1E]">
-        <div className="flex items-center justify-between p-3 bg-[#2D2D2D] border-b border-[#3D3D3D]">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <select
-                value={language}
-                onChange={e => onLanguageChange(e.target.value)}
-                className="bg-[#3D3D3D] text-gray-200 text-sm pl-3 pr-8 py-1 rounded outline-none border border-[#4D4D4D] focus:border-indigo-500 appearance-none cursor-pointer transition-colors hover:bg-[#4D4D4D]"
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleResetCode}
+                className="text-gray-500 hover:text-gray-300 p-1.5 rounded-md hover:bg-[#3C3C3C] transition-colors cursor-pointer"
+                title="Reset to starter code"
               >
-                {(coding.allowedLanguages || ["javascript"]).map(lang => (
-                  <option key={lang} value={lang}>{formatLanguageName(lang)}</option>
-                ))}
-              </select>
-              <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-            
-            <button 
-              onClick={handleResetCode}
-              className="text-gray-400 hover:text-gray-200 text-sm flex items-center gap-1 transition-colors"
-              title="Reset to starter code"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
+                <RotateCcw className="w-4 h-4" />
+              </button>
 
-          <button
-            onClick={() => {
-              setActiveTab('output');
-              onRunCode(customInput);
-            }}
-            disabled={isExecuting}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
-          >
-            <Play className="w-4 h-4" />
-            {isExecuting ? 'Running...' : 'Run Code'}
-          </button>
-        </div>
-        
-        <div className="flex-1">
-          <Editor
-            height="100%"
-            language={language}
-            theme="vs-dark"
-            value={displayCode}
-            onChange={val => onCodeChange(val || "")}
-            options={{
-              minimap: { enabled: false },
-              fontSize: 14,
-              wordWrap: "on",
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-              padding: { top: 16 }
-            }}
-          />
+              <button
+                onClick={handleSubmit}
+                disabled={isExecuting}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm shadow-emerald-900/20 active:scale-[0.97]"
+              >
+                {isExecuting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Running...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" />
+                    <span>Run Code</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+          
+          {/* Monaco Editor */}
+          <div className="flex-1">
+            <Editor
+              height="100%"
+              language={language}
+              theme="vs-dark"
+              value={displayCode}
+              onChange={val => onCodeChange(val || "")}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 14,
+                wordWrap: "on",
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                padding: { top: 16 },
+                lineNumbersMinChars: 3,
+                glyphMargin: false,
+                folding: true,
+                renderLineHighlight: 'line',
+                cursorBlinking: 'smooth',
+                smoothScrolling: true,
+              }}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

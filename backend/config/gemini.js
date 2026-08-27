@@ -479,6 +479,170 @@ IMPORTANT:
 };
 
 /**
+ * Generate Coding Challenge Questions from Topics (without PDF)
+ * @param {string[]} topics - Array of topics
+ * @param {object} config - Generation configuration
+ * @param {number} config.questionCount - Number of coding questions to generate (default 3)
+ * @param {string} config.difficulty - Difficulty level: easy, medium, hard, mixed (default mixed)
+ */
+export const generateCodingFromTopics = async (topics, config = {}) => {
+  const questionCount = config.questionCount || 3;
+  const difficulty = config.difficulty || "mixed";
+
+  let attempts = 0;
+
+  while (attempts < MAX_TRANSIENT_RETRIES) {
+    try {
+      console.log("Preparing Gemini prompt for Coding Questions from topics...");
+      console.log("Topics:", topics);
+      console.log(`Config: ${questionCount} coding questions, difficulty: ${difficulty}`);
+
+      const topicsText = Array.isArray(topics) ? topics.join(", ") : topics;
+
+      const difficultyInstruction = difficulty === "mixed"
+        ? "Mix difficulty levels (easy, medium, hard)"
+        : `All questions should be ${difficulty.toUpperCase()} difficulty level`;
+
+      const prompt = `
+You are an expert programming challenge creator.
+Generate exactly ${questionCount} coding challenge(s) based on the following topics.
+
+CRITICAL JSON RULES:
+1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
+2. NO LITERAL NEWLINES inside JSON string values. Use \\n for newlines within strings.
+3. Escape all double quotes within text.
+
+TOPICS:
+${topicsText}
+
+REQUIREMENTS:
+1. Generate EXACTLY ${questionCount} coding challenge(s)
+2. ${difficultyInstruction}
+3. Each challenge must have a clear problem statement, examples, constraints, and test cases
+4. Include both public and hidden test cases
+5. Provide starter code for javascript and python
+6. Problems should be well-defined, solvable, and educational
+7. Ensure hidden test cases cover edge cases
+
+RESPONSE FORMAT (Valid JSON only):
+{
+  "questions": [
+    {
+      "type": "coding",
+      "marks": 5,
+      "coding": {
+        "title": "Two Sum",
+        "description": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+        "examples": [
+          {
+            "input": "nums = [2,7,11,15], target = 9",
+            "output": "[0,1]",
+            "explanation": "Because nums[0] + nums[1] == 9, we return [0, 1]."
+          }
+        ],
+        "constraints": ["2 <= nums.length <= 10^4", "-10^9 <= nums[i] <= 10^9"],
+        "allowedLanguages": ["javascript", "python", "java", "cpp"],
+        "starterCode": [
+          { "language": "javascript", "code": "// Write your solution here\\n" },
+          { "language": "python", "code": "# Write your solution here\\n" }
+        ],
+        "testCases": [
+          { "input": "2 7 11 15\\n9", "expectedOutput": "0 1" },
+          { "input": "3 2 4\\n6", "expectedOutput": "1 2" },
+          { "input": "3 3\\n6", "expectedOutput": "0 1" }
+        ],
+        "comparisonMode": "trimmed"
+      }
+    }
+  ]
+}
+
+IMPORTANT:
+- Return ONLY valid JSON
+- No markdown, no code blocks, no extra text
+- Exactly ${questionCount} coding challenge(s)
+- Each challenge must have at least 3 test cases
+- starterCode must include at least javascript and python
+`;
+
+      console.log(" Sending request to Gemini for coding questions...");
+
+      const model = getModel();
+      const chatSession = model.startChat({
+        generationConfig,
+        history: [],
+      });
+
+      const result = await chatSession.sendMessage(prompt);
+      const response = result.response.text();
+
+      console.log(" Received coding questions response from Gemini");
+
+      let cleanedResponse = response.trim();
+      if (cleanedResponse.startsWith("\`\`\`json")) {
+        cleanedResponse = cleanedResponse.replace(/\`\`\`json\\n?/g, "").replace(/\`\`\`\\n?/g, "");
+      }
+      if (cleanedResponse.startsWith("\`\`\`")) {
+        cleanedResponse = cleanedResponse.replace(/\`\`\`\\n?/g, "");
+      }
+
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(cleanedResponse);
+      } catch (err) {
+        console.error("JSON Parse Error:", err.message);
+        throw new Error("Invalid JSON response from AI");
+      }
+
+      if (!parsedResponse.questions || !Array.isArray(parsedResponse.questions)) {
+        throw new Error("Invalid response format (questions missing)");
+      }
+
+      const validQuestions = parsedResponse.questions.filter((q) => {
+        return (
+          q.type === "coding" &&
+          q.coding &&
+          q.coding.title &&
+          q.coding.description &&
+          Array.isArray(q.coding.testCases) &&
+          q.coding.testCases.length > 0
+        );
+      });
+
+      if (validQuestions.length === 0) {
+        throw new Error("No valid coding questions generated");
+      }
+
+      console.log(`Generated ${validQuestions.length} valid coding questions from topics`);
+      return validQuestions;
+    } catch (error) {
+      console.error(`Gemini API Error (Key #${currentKeyIndex + 1}):`, error.message);
+      attempts++;
+
+      if (isQuotaOrRateLimitError(error)) {
+        rotateApiKey();
+        if (attempts < MAX_TRANSIENT_RETRIES) continue;
+      }
+
+      if (isTransientServiceError(error)) {
+        const backoffMs = getBackoffMs(attempts);
+        rotateApiKey();
+        if (attempts < MAX_TRANSIENT_RETRIES) {
+          await wait(backoffMs);
+          continue;
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  throw new Error(
+    "Gemini service is busy right now after multiple retries. Please try again in a minute."
+  );
+};
+
+/**
  *  Generate Smart Quiz Title from Topics
  */
 export const generateQuizTitle = async (topics) => {
@@ -654,16 +818,14 @@ For Coding Challenges:
     ],
     "constraints": ["Constraint 1", "Constraint 2"], // If none found, provide ["N/A"]
     "allowedLanguages": ["javascript", "python", "java", "cpp"],
-    "publicTestCases": [
-      { "input": "test input", "expectedOutput": "expected output" }
-    ],
-    "hiddenTestCases": [
+    "testCases": [
+      { "input": "test input", "expectedOutput": "expected output" },
       { "input": "hidden input", "expectedOutput": "hidden output" }
     ],
     "comparisonMode": "trimmed"
   }
 }
-*Note for coding*: If explicit test cases aren't in the document, use the examples as publicTestCases and generate at least one plausible hiddenTestCase based on the problem description.
+*Note for coding*: If explicit test cases aren't in the document, use the examples as testCases and generate at least one plausible additional testCase based on the problem description.
 
 ${contentHeader}
 
@@ -725,4 +887,4 @@ Extract all questions and return the JSON array:`;
   throw new Error("Gemini service is busy right now after multiple retries. Please try again in a minute.");
 };
 
-export default { generateQuizFromText, generateQuizFromTopics, generateQuizTitle, extractExactQuestions };
+export default { generateQuizFromText, generateQuizFromTopics, generateCodingFromTopics, generateQuizTitle, extractExactQuestions };

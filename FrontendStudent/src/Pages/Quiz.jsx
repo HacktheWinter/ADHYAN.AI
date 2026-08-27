@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
 import { Clock, CheckCircle, Play, Eye, Loader, AlertCircle } from 'lucide-react';
-import { getActiveQuizzes, checkSubmission, submitQuiz } from '../api/quizApi';
+import { getActiveQuizzes, checkSubmission, submitQuiz, autosaveQuiz } from '../api/quizApi';
 import QuizTakingModal from '../components/QuizTakingModal';
 import QuizResultModal from '../components/QuizResultModal';
 
@@ -97,17 +97,44 @@ export default function Quiz() {
             const draft = localStorage.getItem(`quiz_draft_${quiz._id}`);
             const layout = localStorage.getItem(`quiz_layout_${quiz._id}`);
             if (draft && layout) {
+              let answersArray = [];
               try {
                 const parsedDraft = JSON.parse(draft);
                 const parsedLayout = JSON.parse(layout);
-                const answersArray = parsedLayout.questions.map(q => ({
-                  questionId: q._id,
-                  selectedAnswer: parsedDraft[q._id] || ''
-                }));
+                // Build answers from sections (standard) or legacy questions
+                const allQuestions = parsedLayout.sections?.length > 0
+                  ? parsedLayout.sections.flatMap(s => s.questions || [])
+                  : (parsedLayout.questions || []);
+                answersArray = allQuestions.map(q => {
+                  const a = parsedDraft[q._id];
+                  if (q.type === 'coding' || a?.type === 'coding') {
+                    return {
+                      questionId: q._id,
+                      type: 'coding',
+                      code: a?.code || '',
+                      language: a?.language || 'javascript'
+                    };
+                  }
+                  return {
+                    questionId: q._id,
+                    type: 'mcq',
+                    selectedAnswer: a?.selectedAnswer || (typeof a === 'string' ? a : '')
+                  };
+                });
                 
                 await submitQuiz(quiz._id, classInfo.studentId, answersArray);
               } catch (error) {
                 console.error("Failed to auto-submit expired draft:", error);
+                // If submit was rejected (expired/forbidden), try autosave as fallback.
+                // The server-side cron will finalize this draft into a graded submission.
+                if (error.response?.status === 403 || error.response?.status === 400) {
+                  try {
+                    await autosaveQuiz(quiz._id, classInfo.studentId, answersArray);
+                    console.log("Fallback autosave succeeded — server cron will finalize");
+                  } catch (saveErr) {
+                    console.error("Fallback autosave also failed:", saveErr);
+                  }
+                }
               } finally {
                 // Always clear local storage for an expired draft, regardless of API success
                 localStorage.removeItem(`quiz_draft_${quiz._id}`);
@@ -224,7 +251,7 @@ export default function Quiz() {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader className="w-8 h-8 text-purple-600 animate-spin" />
-        <span className="ml-3 text-gray-600">Loading quizzes...</span>
+        <span className="ml-3 text-gray-600">Loading assessments...</span>
       </div>
     );
   }
@@ -237,8 +264,8 @@ export default function Quiz() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         </div>
-        <p className="text-xl font-semibold text-gray-900 mb-2">No Quizzes Available</p>
-        <p className="text-gray-500">Your teacher hasn't published any quizzes yet.</p>
+        <p className="text-xl font-semibold text-gray-900 mb-2">No Assessments Available</p>
+        <p className="text-gray-500">Your teacher hasn't published any assessments yet.</p>
       </div>
     );
   }
@@ -314,7 +341,7 @@ export default function Quiz() {
                         if (updatedQuiz && updatedQuiz.questions) {
                           handleTakeQuiz(updatedQuiz);
                         } else {
-                          alert("Quiz is not active yet or failed to fetch questions.");
+                          alert("Assessment is not active yet or failed to fetch questions.");
                         }
                       } catch (err) {
                         console.error(err);
@@ -328,7 +355,7 @@ export default function Quiz() {
                   className="w-full py-2 rounded-lg font-medium transition-colors bg-purple-700 text-white hover:bg-purple-800 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Play className="w-4 h-4" />
-                  Take Quiz
+                  Take Assessment
                 </button>
               ) : isUpcoming ? (
                 <button
@@ -342,7 +369,7 @@ export default function Quiz() {
                   disabled
                   className="w-full py-2 rounded-lg font-medium bg-gray-100 text-gray-400 cursor-not-allowed"
                 >
-                  Quiz Expired
+                  Assessment Expired
                 </button>
               )}
             </div>
