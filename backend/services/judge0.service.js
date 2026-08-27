@@ -107,11 +107,12 @@ const pollSubmission = async (token) => {
         {
           headers: getHeaders(),
           timeout: 5000,
+          validateStatus: (status) => true, // Do not throw on non-200 statuses so we can inspect the payload
         }
       );
 
       const data = response.data;
-      const statusId = data.status?.id;
+      const statusId = data?.status?.id;
 
       // Status 1 = In Queue, Status 2 = Processing — keep polling
       if (statusId === 1 || statusId === 2) {
@@ -119,7 +120,17 @@ const pollSubmission = async (token) => {
         continue;
       }
 
-      // Execution is complete — return normalized result
+      // If we have a valid Judge0 terminal status, return it immediately, regardless of HTTP status code.
+      if (statusId !== undefined) {
+        return normalizeResult(data);
+      }
+      
+      // If no valid statusId and HTTP status is an error, throw to trigger retry
+      if (response.status >= 300) {
+        throw new Error(`Judge0 returned HTTP ${response.status} without a valid status payload`);
+      }
+
+      // Fallback if statusId is missing but it was a 200 OK
       return normalizeResult(data);
     } catch (error) {
       // If it's a network error during polling, retry a few times
