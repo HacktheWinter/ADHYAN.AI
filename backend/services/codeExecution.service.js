@@ -52,7 +52,7 @@ export const executeCode = async (language, code, testCases = [], questionDetail
     }
 
     let finalCode = code;
-    let compilerOptions = "";
+    let compilerOptions = questionDetails?.coding?.compilerOptions || "";
 
     const executionMode = questionDetails?.coding?.executionMode || "standard";
 
@@ -60,8 +60,9 @@ export const executeCode = async (language, code, testCases = [], questionDetail
       finalCode = buildFunctionModeSource(questionDetails, code, language);
       
       // Enforce return types strictly in Function Mode for C/C++
-      if (language === "cpp" || language === "c") {
-        compilerOptions = "-Werror=return-type";
+      const normLang = normalizeLanguage(language);
+      if (normLang === "cpp" || normLang === "c") {
+        compilerOptions = compilerOptions ? `${compilerOptions} -Werror=return-type` : "-Werror=return-type";
       }
     } else {
       // Standard mode: retain existing {{USER_CODE}} backward compatibility
