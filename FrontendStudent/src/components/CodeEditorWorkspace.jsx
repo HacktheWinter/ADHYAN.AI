@@ -210,13 +210,30 @@ const CodeEditorWorkspace = ({
   const [activeTab, setActiveTab] = useState("description");
   
   const coding = question.coding || {};
+  const executionMode = coding.executionMode || "standard";
+  
+  const rawStarterCode = coding.starterCode?.find(s => s.language === language)?.code || DEFAULT_BOILERPLATES[language] || "";
+  
+  let preSignature = "";
+  let postSignature = "";
+  let defaultBody = "";
+  let isFunctionMode = false;
 
-  const displayCode = code !== undefined ? code : (coding.starterCode?.find(s => s.language === language)?.code || DEFAULT_BOILERPLATES[language] || "");
+  if (executionMode === "function" && rawStarterCode.includes("{{STUDENT_BODY}}")) {
+    isFunctionMode = true;
+    const parts = rawStarterCode.split("{{STUDENT_BODY}}");
+    preSignature = parts[0];
+    postSignature = parts[1] || "";
+    defaultBody = "\n    // Write your code here\n";
+  } else {
+    defaultBody = rawStarterCode;
+  }
+
+  const displayCode = code !== undefined ? code : defaultBody;
 
   const handleResetCode = () => {
     if (confirm("Are you sure you want to reset your code to the starter template?")) {
-      const starter = coding.starterCode?.find(s => s.language === language)?.code;
-      onCodeChange(starter || DEFAULT_BOILERPLATES[language] || "");
+      onCodeChange(defaultBody);
     }
   };
 
@@ -405,28 +422,44 @@ const CodeEditorWorkspace = ({
           </div>
           
           {/* Monaco Editor */}
-          <div className="flex-1">
-            <Editor
-              height="100%"
-              language={language}
-              theme="vs-dark"
-              value={displayCode}
-              onChange={val => onCodeChange(val || "")}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                wordWrap: "on",
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                padding: { top: 16 },
-                lineNumbersMinChars: 3,
-                glyphMargin: false,
-                folding: true,
-                renderLineHighlight: 'line',
-                cursorBlinking: 'smooth',
-                smoothScrolling: true,
-              }}
-            />
+          <div className="flex-1 flex flex-col">
+            {isFunctionMode && preSignature && (
+              <div className="bg-[#1E1E1E] px-4 pt-4 pb-2">
+                <pre className="text-[#D4D4D4] font-mono text-[14px] leading-[1.5] opacity-60 whitespace-pre-wrap select-none">
+                  {preSignature.trimEnd()}
+                </pre>
+              </div>
+            )}
+            <div className="flex-1">
+              <Editor
+                height="100%"
+                language={language}
+                theme="vs-dark"
+                value={displayCode}
+                onChange={val => onCodeChange(val || "")}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  wordWrap: "on",
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  padding: { top: isFunctionMode ? 4 : 16, bottom: isFunctionMode ? 4 : 16 },
+                  lineNumbersMinChars: 3,
+                  glyphMargin: false,
+                  folding: true,
+                  renderLineHighlight: 'line',
+                  cursorBlinking: 'smooth',
+                  smoothScrolling: true,
+                }}
+              />
+            </div>
+            {isFunctionMode && postSignature && (
+              <div className="bg-[#1E1E1E] px-4 pt-2 pb-4">
+                <pre className="text-[#D4D4D4] font-mono text-[14px] leading-[1.5] opacity-60 whitespace-pre-wrap select-none">
+                  {postSignature.trimStart()}
+                </pre>
+              </div>
+            )}
           </div>
         </div>
       </div>

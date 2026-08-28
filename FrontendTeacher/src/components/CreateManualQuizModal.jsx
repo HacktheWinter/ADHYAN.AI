@@ -25,7 +25,8 @@ const emptyCoding = {
     { language: "c", code: "" }
   ],
   testCases: [{ input: "", expectedOutput: "" }],
-  comparisonMode: "trimmed"
+  comparisonMode: "trimmed",
+  executionMode: "standard"
 };
 
 const emptyMCQ = {
@@ -948,6 +949,20 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                                     <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                                   </div>
                                 </div>
+                                <div>
+                                  <label className="block text-sm font-bold mb-1">Execution Mode</label>
+                                  <div className="relative">
+                                    <select 
+                                      value={q.coding.executionMode || "standard"}
+                                      onChange={e => updateCodingField(sIdx, qIdx, "executionMode", e.target.value)}
+                                      className="w-full px-4 py-2 border rounded-xl outline-none bg-white hover:bg-gray-50 focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer transition-all"
+                                    >
+                                      <option value="standard">Standard (Student writes full program)</option>
+                                      <option value="function">Function (Student writes function body only)</option>
+                                    </select>
+                                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                  </div>
+                                </div>
                                 <div className="col-span-1 md:col-span-2 space-y-4">
                                   <label className="block text-sm font-bold mb-1">Boilerplate & Driver Code (Required for all 5 languages)</label>
                                   {["java", "cpp", "javascript", "python", "c"].map(lang => {
@@ -988,7 +1003,9 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                                           </div>
                                           <div>
                                             <div className="flex justify-between items-center mb-1">
-                                              <label className="text-xs font-semibold text-gray-600 block">Driver Code (Use {"{"}{"{"}USER_CODE{"}"}{"}"})</label>
+                                              <label className="text-xs font-semibold text-gray-600 block">
+                                                Driver Code (Use {q.coding.executionMode === 'function' ? '{{STUDENT_BODY}}' : '{{USER_CODE}}'})
+                                              </label>
                                               <button
                                                 type="button"
                                                 onClick={() => setExpandedEditor({ sIdx, qIdx, lang, field: 'driverCode', value: driver })}
@@ -1119,7 +1136,9 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                   <span className="ml-2 text-indigo-400 uppercase text-xs tracking-wider">{expandedEditor.lang}</span>
                 </h3>
                 <p className="text-xs text-gray-400 mt-1">
-                  {expandedEditor.field === 'starterCode' ? 'This is the boilerplate code the student will see.' : 'This is the hidden runner code. Use {{USER_CODE}} to inject student code.'}
+                  {expandedEditor.field === 'starterCode' ? 
+                    'This is the boilerplate code the student will see. If using Function Mode, ensure the function signature wraps around {{STUDENT_BODY}}.' : 
+                    'This is the hidden runner code. Use {{STUDENT_BODY}} (Function Mode) or {{USER_CODE}} (Standard Mode) to inject student code.'}
                 </p>
               </div>
               <button 

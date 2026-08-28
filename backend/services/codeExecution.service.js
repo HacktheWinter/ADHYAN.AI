@@ -52,12 +52,24 @@ export const executeCode = async (language, code, testCases = [], questionDetail
     }
 
     let finalCode = code;
-    if (questionDetails?.coding?.driverCode && Array.isArray(questionDetails.coding.driverCode)) {
-      const driverObj = questionDetails.coding.driverCode.find(d => d.language === language);
-      if (driverObj && driverObj.code && driverObj.code.includes("{{USER_CODE}}")) {
-        // Ensure student code doesn't break the template structure
-        // We do a direct string replace for exactly the placeholder.
-        finalCode = driverObj.code.replace("{{USER_CODE}}", code);
+    let compilerOptions = "";
+
+    const executionMode = questionDetails?.coding?.executionMode || "standard";
+
+    if (executionMode === "function") {
+      finalCode = buildFunctionModeSource(questionDetails, code, language);
+      
+      // Enforce return types strictly in Function Mode for C/C++
+      if (language === "cpp" || language === "c") {
+        compilerOptions = "-Werror=return-type";
+      }
+    } else {
+      // Standard mode: retain existing {{USER_CODE}} backward compatibility
+      if (questionDetails?.coding?.driverCode && Array.isArray(questionDetails.coding.driverCode)) {
+        const driverObj = questionDetails.coding.driverCode.find(d => d.language === language);
+        if (driverObj && driverObj.code && driverObj.code.includes("{{USER_CODE}}")) {
+          finalCode = driverObj.code.replace("{{USER_CODE}}", code);
+        }
       }
     }
 
@@ -67,7 +79,7 @@ export const executeCode = async (language, code, testCases = [], questionDetail
     // Execute test cases sequentially to avoid flooding Judge0
     for (let i = 0; i < testCases.length; i++) {
       const tc = testCases[i];
-      const result = await executeSingleTestCase(finalCode, languageId, tc);
+      const result = await executeSingleTestCase(finalCode, languageId, tc, compilerOptions);
 
       results.push(result);
 
@@ -112,9 +124,10 @@ export const executeCode = async (language, code, testCases = [], questionDetail
  * @param {string} code - Source code.
  * @param {number} languageId - Judge0 language ID.
  * @param {Object} testCase - { input, expectedOutput }.
+ * @param {string} [compilerOptions] - Optional compiler options.
  * @returns {Object} Result: { input, expectedOutput, actualOutput, compileOutput, runError, exitCode, passed }
  */
-const executeSingleTestCase = async (code, languageId, testCase) => {
+const executeSingleTestCase = async (code, languageId, testCase, compilerOptions = "") => {
   const input = testCase.input || "";
   const expectedOutput = testCase.expectedOutput || "";
 
@@ -123,6 +136,7 @@ const executeSingleTestCase = async (code, languageId, testCase) => {
       sourceCode: code,
       languageId,
       stdin: input,
+      compilerOptions,
     });
 
     return mapJudge0ResultToResponse(judge0Result, input, expectedOutput);
@@ -239,4 +253,41 @@ const compareOutputs = (actual, expected) => {
 
   // Trimmed comparison — handles trailing newlines and whitespace
   return actual.trim() === expected.trim();
+};
+
+/**
+ * Build the executable source code for Function Mode.
+ * Assumes the student ONLY submits the function body.
+ * Injects the student's body into the trusted teacher driver code.
+ *
+ * @param {Object} questionDetails - The question schema object.
+ * @param {string} studentBody - The body submitted by the student.
+ * @param {string} language - The programming language.
+ * @returns {string} The final composite source code.
+ */
+const buildFunctionModeSource = (questionDetails, studentBody, language) => {
+  if (!questionDetails?.coding?.driverCode || !Array.isArray(questionDetails.coding.driverCode)) {
+    throw new Error("Function Mode configuration error: Missing trusted driver code.");
+  }
+
+  const driverObj = questionDetails.coding.driverCode.find(d => d.language === language);
+  if (!driverObj || !driverObj.code) {
+    throw new Error(`Function Mode configuration error: Missing driver code for language "${language}".`);
+  }
+
+  const template = driverObj.code;
+  const placeholder = "{{STUDENT_BODY}}";
+
+  const placeholderCount = (template.match(new RegExp(placeholder, "g")) || []).length;
+
+  if (placeholderCount === 0) {
+    throw new Error(`Function Mode configuration error: Missing "${placeholder}" in trusted driver code.`);
+  }
+
+  if (placeholderCount > 1) {
+    throw new Error(`Function Mode configuration error: Multiple "${placeholder}" found in trusted driver code. Only one is allowed.`);
+  }
+
+  // Inject the student body securely into the template
+  return template.replace(placeholder, studentBody);
 };

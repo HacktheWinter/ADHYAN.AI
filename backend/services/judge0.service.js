@@ -40,6 +40,7 @@ const getHeaders = () => {
  * @param {number} [params.wallTimeLimit] - Wall clock time limit in seconds (default: 10).
  * @param {number} [params.memoryLimit] - Memory limit in KB (default: 128000 = 128MB).
  * @param {number} [params.maxOutputSize] - Max output size in KB (default: 1024 = 1MB).
+ * @param {string} [params.compilerOptions] - Additional compiler options (e.g. -Werror=return-type).
  * @returns {Object} Normalized Judge0 result.
  */
 export const submitToJudge0 = async ({
@@ -50,23 +51,30 @@ export const submitToJudge0 = async ({
   wallTimeLimit = 10,
   memoryLimit = 128000,
   maxOutputSize = 1024,
+  compilerOptions = "",
 }) => {
   const baseUrl = JUDGE0_URL();
 
   // Step 1: Create submission
   let token;
   try {
+    const payload = {
+      source_code: sourceCode,
+      language_id: languageId,
+      stdin: stdin || "",
+      cpu_time_limit: cpuTimeLimit,
+      wall_time_limit: wallTimeLimit,
+      memory_limit: memoryLimit,
+      max_file_size: maxOutputSize,
+    };
+    
+    if (compilerOptions) {
+      payload.compiler_options = compilerOptions;
+    }
+
     const response = await axios.post(
       `${baseUrl}/submissions?base64_encoded=false&wait=false`,
-      {
-        source_code: sourceCode,
-        language_id: languageId,
-        stdin: stdin || "",
-        cpu_time_limit: cpuTimeLimit,
-        wall_time_limit: wallTimeLimit,
-        memory_limit: memoryLimit,
-        max_file_size: maxOutputSize,
-      },
+      payload,
       {
         headers: getHeaders(),
         timeout: 10000, // 10s timeout for the submission request itself
