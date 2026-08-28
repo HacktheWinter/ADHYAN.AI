@@ -40,6 +40,11 @@ const questionSchema = new mongoose.Schema({
       type: String,
       enum: ["exact", "trimmed"],
       default: "trimmed"
+    },
+    executionMode: {
+      type: String,
+      enum: ["standard", "function"],
+      default: "standard"
     }
   }
 });
