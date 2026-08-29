@@ -72,12 +72,6 @@ export const submitToJudge0 = async ({
       payload.compiler_options = compilerOptions;
     }
 
-    console.log({
-      languageId,
-      compilerOptions,
-      payloadCompilerOptions: payload.compiler_options
-    });
-
     const response = await axios.post(
       `${baseUrl}/submissions?base64_encoded=false&wait=false`,
       payload,

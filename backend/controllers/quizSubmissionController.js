@@ -182,7 +182,8 @@ export const gradeAndSubmitDraft = async (draft, quiz) => {
           };
         } else {
           try {
-            const results = await executeCode(language, code, codingTestCases, question);
+            const questionObj = question.toObject ? question.toObject() : question;
+            const results = await executeCode(language, code, codingTestCases, questionObj);
             const passedCount = results.filter(r => r.passed).length;
             const totalCount = results.length;
             testResults = { passed: passedCount, total: totalCount, details: results };
@@ -357,11 +358,12 @@ export const submitQuiz = async (req, res) => {
             // marksAwarded stays 0
           } else {
           try {
+            const questionObj = question.toObject ? question.toObject() : question;
             const results = await executeCode(
               language, 
               code, 
               codingTestCases, 
-              question
+              questionObj
             );
             
             const passedCount = results.filter(r => r.passed).length;
@@ -751,14 +753,14 @@ export const runCode = async (req, res) => {
         return res.status(400).json({ error: "No test cases available to run." });
       }
     }
-
+    const questionObj = question.toObject ? question.toObject() : question;
     const results = await executeCode(
       language,
       code,
       testCases,
-      question
+      questionObj
     );
-
+    
     res.status(200).json({ success: true, results });
   } catch (error) {
     console.error("Run code error:", error);
