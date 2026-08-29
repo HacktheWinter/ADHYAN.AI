@@ -81,12 +81,6 @@ export const executeCode = async (language, code, testCases = [], questionDetail
     // Execute test cases sequentially to avoid flooding Judge0
     for (let i = 0; i < testCases.length; i++) {
       const tc = testCases[i];
-      console.log({
-        language,
-        executionMode,
-        compilerOptions,
-        languageId
-      });
       const result = await executeSingleTestCase(finalCode, languageId, tc, compilerOptions);
 
       results.push(result);
