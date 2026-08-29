@@ -52,12 +52,13 @@ export const executeCode = async (language, code, testCases = [], questionDetail
     }
 
     let finalCode = code;
-    let compilerOptions = questionDetails?.coding?.compilerOptions || "";
+    const codingDetails = questionDetails?.coding || questionDetails || {};
+    let compilerOptions = codingDetails.compilerOptions || "";
 
-    const executionMode = questionDetails?.coding?.executionMode || "standard";
+    const executionMode = codingDetails.executionMode || "standard";
 
     if (executionMode === "function") {
-      finalCode = buildFunctionModeSource(questionDetails, code, language);
+      finalCode = buildFunctionModeSource(codingDetails, code, language);
       
       // Enforce return types strictly in Function Mode for C/C++
       const normLang = normalizeLanguage(language);
@@ -66,8 +67,8 @@ export const executeCode = async (language, code, testCases = [], questionDetail
       }
     } else {
       // Standard mode: retain existing {{USER_CODE}} backward compatibility
-      if (questionDetails?.coding?.driverCode && Array.isArray(questionDetails.coding.driverCode)) {
-        const driverObj = questionDetails.coding.driverCode.find(d => d.language === language);
+      if (codingDetails.driverCode && Array.isArray(codingDetails.driverCode)) {
+        const driverObj = codingDetails.driverCode.find(d => d.language === language);
         if (driverObj && driverObj.code && driverObj.code.includes("{{USER_CODE}}")) {
           finalCode = driverObj.code.replace("{{USER_CODE}}", code);
         }
@@ -266,12 +267,12 @@ const compareOutputs = (actual, expected) => {
  * @param {string} language - The programming language.
  * @returns {string} The final composite source code.
  */
-const buildFunctionModeSource = (questionDetails, studentBody, language) => {
-  if (!questionDetails?.coding?.driverCode || !Array.isArray(questionDetails.coding.driverCode)) {
+const buildFunctionModeSource = (codingDetails, studentBody, language) => {
+  if (!codingDetails?.driverCode || !Array.isArray(codingDetails.driverCode)) {
     throw new Error("Function Mode configuration error: Missing trusted driver code.");
   }
 
-  const driverObj = questionDetails.coding.driverCode.find(d => d.language === language);
+  const driverObj = codingDetails.driverCode.find(d => d.language === language);
   if (!driverObj || !driverObj.code) {
     throw new Error(`Function Mode configuration error: Missing driver code for language "${language}".`);
   }
