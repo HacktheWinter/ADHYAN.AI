@@ -5,11 +5,13 @@
 import { submitToJudge0 } from "./judge0.service.js";
 import { getJudge0LanguageId, normalizeLanguage, isSupportedLanguage } from "./languageMap.js";
 
-const MAX_ACTIVE_EXECUTIONS = process.env.MAX_ACTIVE_EXECUTIONS ? parseInt(process.env.MAX_ACTIVE_EXECUTIONS, 10) : 10;
-const MAX_EXECUTION_QUEUE = process.env.MAX_EXECUTION_QUEUE ? parseInt(process.env.MAX_EXECUTION_QUEUE, 10) : 50;
+const MAX_ACTIVE_EXECUTIONS = 8;
+const MAX_EXECUTION_QUEUE = 50;
+const RUN_CODE_COOLDOWN_SECONDS = 30;
 
 let activeExecutions = 0;
 const executionQueue = [];
+const userCooldowns = new Map();
 
 const processQueue = () => {
   if (executionQueue.length === 0 || activeExecutions >= MAX_ACTIVE_EXECUTIONS) {
@@ -27,14 +29,28 @@ const processQueue = () => {
  * as the previous geminiCodeExecutionService.executeCode(), so the
  * quizSubmissionController and frontend require zero changes.
  *
+ * @param {string} studentId - The ID of the student running the code, for cooldown tracking.
  * @param {string} language - Programming language (e.g., "python", "cpp", "java").
  * @param {string} code - Student's source code.
  * @param {Array} testCases - Array of { input, expectedOutput }.
  * @param {Object} questionDetails - Question metadata (title, description, constraints). Unused by Judge0 but kept for API compatibility.
  * @returns {Array} Array of test case results: { input, expectedOutput, actualOutput, compileOutput, runError, exitCode, passed }
  */
-export const executeCode = async (language, code, testCases = [], questionDetails = {}) => {
+export const executeCode = async (studentId, language, code, testCases = [], questionDetails = {}) => {
   try {
+    // Check cooldown
+    if (studentId) {
+      const lastExecutionTime = userCooldowns.get(studentId);
+      if (lastExecutionTime) {
+        const timeSinceLastExecution = (Date.now() - lastExecutionTime) / 1000;
+        if (timeSinceLastExecution < RUN_CODE_COOLDOWN_SECONDS) {
+          const waitTime = Math.ceil(RUN_CODE_COOLDOWN_SECONDS - timeSinceLastExecution);
+          throw new Error(`Please wait ${waitTime} seconds before running code again.`);
+        }
+      }
+      userCooldowns.set(studentId, Date.now());
+    }
+
     // No test cases → nothing to execute
     if (!testCases || testCases.length === 0) {
       return [];
@@ -105,14 +121,6 @@ export const executeCode = async (language, code, testCases = [], questionDetail
 
           const languageId = getJudge0LanguageId(language);
           const results = [];
-          
-          console.log("BACKEND DEBUG LOG - Before executeSingleTestCase:", {
-            executionMode,
-            compilerOptions,
-            language,
-            languageId,
-            finalCode
-          });
 
           // Execute test cases sequentially to avoid flooding Judge0
           for (let i = 0; i < testCases.length; i++) {
