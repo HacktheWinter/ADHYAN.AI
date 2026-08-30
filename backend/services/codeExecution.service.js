@@ -105,6 +105,14 @@ export const executeCode = async (language, code, testCases = [], questionDetail
 
           const languageId = getJudge0LanguageId(language);
           const results = [];
+          
+          console.log("BACKEND DEBUG LOG - Before executeSingleTestCase:", {
+            executionMode,
+            compilerOptions,
+            language,
+            languageId,
+            finalCode
+          });
 
           // Execute test cases sequentially to avoid flooding Judge0
           for (let i = 0; i < testCases.length; i++) {

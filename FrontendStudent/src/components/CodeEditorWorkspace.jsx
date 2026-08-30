@@ -238,6 +238,11 @@ const CodeEditorWorkspace = ({
   };
 
   const handleSubmit = () => {
+    console.log("FRONTEND DEBUG LOG - CodeEditorWorkspace Run Code:", {
+      executionMode,
+      language,
+      code
+    });
     setActiveTab('result');
     onRunCode(); // No custom input - uses predefined test cases
   };
