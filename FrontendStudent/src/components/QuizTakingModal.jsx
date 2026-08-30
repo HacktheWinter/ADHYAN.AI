@@ -447,6 +447,15 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   const handleRunCode = async (questionId, code, language) => {
     setIsExecuting(true);
     try {
+      const q = shuffledQuiz.sections?.length > 0 
+        ? shuffledQuiz.sections.flatMap(s => s.questions).find(q => q._id === questionId)
+        : shuffledQuiz.questions?.find(q => q._id === questionId);
+      console.log("FRONTEND DEBUG LOG - Before Run Code:", {
+        executionMode: q?.coding?.executionMode,
+        language,
+        code
+      });
+      
       const res = await runCode(shuffledQuiz._id, questionId, code, language);
       setRunResults(prev => ({ ...prev, [questionId]: res.results }));
       
