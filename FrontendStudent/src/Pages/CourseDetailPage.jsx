@@ -308,7 +308,7 @@ export default function CourseDetailPage() {
         <Outlet context={{ classInfo }} />
       </div>
 
-      <style jsx="true">{`
+      <style>{`
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }
