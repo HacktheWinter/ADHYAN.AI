@@ -354,16 +354,6 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
 
     try {
       setIsSaving(true);
-      mappedSections.forEach((s, sIdx) => {
-        s.questions.forEach((q, qIdx) => {
-          if (q.type === "coding") {
-            const cppDriver = q.coding.driverCode?.find(d => d.language === "cpp" || d.language === "c++");
-            console.log(`[CREATE API REQUEST] Section ${sIdx} Question ${qIdx} - executionMode:`, q.coding.executionMode);
-            console.log(`[CREATE API REQUEST] Section ${sIdx} Question ${qIdx} - C++ driverCode:`, cppDriver?.code);
-          }
-        });
-      });
-
       const res = await axios.post(
         `${API_BASE_URL}/quiz/create-manual`,
         {
