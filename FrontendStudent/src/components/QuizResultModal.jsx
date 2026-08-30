@@ -211,18 +211,21 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
                     {/* Student Answer */}
                     {isCoding ? (
                       <div className="mb-4">
-                        <h5 className="text-sm font-semibold text-gray-700 mb-2">Your Code</h5>
-                        <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-                          <pre className="text-gray-100 text-sm font-mono">
-                            <code>{answer.code || 'No code submitted'}</code>
-                          </pre>
-                        </div>
-                        {answer.testResults && (
-                          <div className="mt-4 bg-white p-4 rounded-lg border border-gray-200">
-                            <h6 className="font-bold text-gray-900 mb-2">Test Results</h6>
-                            <div className="text-sm">
-                              Passed {answer.testResults.passed} out of {answer.testResults.total} test cases.
+                        {answer.testResults ? (
+                          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                            <h6 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                              <span className="text-lg">🧪</span> Test Case Results
+                            </h6>
+                            <div className="text-sm text-gray-700">
+                              You passed <strong className="text-indigo-600">{answer.testResults.passed}</strong> out of <strong className="text-indigo-600">{answer.testResults.total}</strong> test cases.
                             </div>
+                            <div className="mt-3 text-sm font-medium text-gray-600">
+                              Score: {typeof answer.marksAwarded === 'number' ? answer.marksAwarded.toFixed(1) : (answer.marksAwarded || 0)} / {question.marks || 1} marks
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm text-center text-gray-500">
+                            No code submitted or test cases available.
                           </div>
                         )}
                       </div>

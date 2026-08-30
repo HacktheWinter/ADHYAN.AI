@@ -108,7 +108,7 @@ const FeedbackBuilder = ({ classId, onClose, onSuccess }) => {
 
         {/* Content - Hidden Scrollbar */}
         <div className="p-6 overflow-y-auto max-h-[calc(85vh-180px)] scrollbar-hide">
-          <style jsx>{`
+          <style>{`
             .scrollbar-hide::-webkit-scrollbar {
               display: none;
             }

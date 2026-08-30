@@ -46,28 +46,54 @@ const formatExportQNo = (label, defaultNo) => {
 export const exportQuizToExcel = (quiz) => {
   try {
     const data = [];
-    data.push(['Quiz Title', quiz.title]);
-    data.push(['Total Questions', quiz.questions.length]);
-    data.push(['Status', quiz.status]);
-    data.push([]);
-    data.push(['Q.No', 'Question', 'Option A', 'Option B', 'Option C', 'Option D']);
+    data.push(['Quiz Title', quiz.title || 'Untitled Quiz']);
     
-    quiz.questions.forEach((q, index) => {
-      data.push([
-        index + 1,
-        q.question,
-        q.options[0] || '',
-        q.options[1] || '',
-        q.options[2] || '',
-        q.options[3] || ''
-      ]);
-    });
+    const hasSections = quiz.sections && quiz.sections.length > 0;
+    const totalQ = hasSections 
+      ? quiz.sections.reduce((acc, s) => acc + (s.questions?.length || 0), 0)
+      : (quiz.questions?.length || 0);
+
+    data.push(['Total Questions', totalQ]);
+    data.push(['Status', quiz.status || 'Draft']);
+    data.push([]);
+    
+    if (hasSections) {
+      quiz.sections.forEach((sec, sIdx) => {
+        data.push([sec.title?.toUpperCase() || `SECTION ${sIdx + 1}`]);
+        data.push(['Q.No', 'Type', 'Question', 'Option A', 'Option B', 'Option C', 'Option D']);
+        (sec.questions || []).forEach((q, index) => {
+          data.push([
+            index + 1,
+            q.type === 'coding' ? 'Coding' : 'MCQ',
+            q.type === 'coding' ? (q.coding?.title || 'Coding Question') : (q.question || ''),
+            q.options?.[0] || '',
+            q.options?.[1] || '',
+            q.options?.[2] || '',
+            q.options?.[3] || ''
+          ]);
+        });
+        data.push([]);
+      });
+    } else {
+      data.push(['Q.No', 'Type', 'Question', 'Option A', 'Option B', 'Option C', 'Option D']);
+      (quiz.questions || []).forEach((q, index) => {
+        data.push([
+          index + 1,
+          q.type === 'coding' ? 'Coding' : 'MCQ',
+          q.type === 'coding' ? (q.coding?.title || 'Coding Question') : (q.question || ''),
+          q.options?.[0] || '',
+          q.options?.[1] || '',
+          q.options?.[2] || '',
+          q.options?.[3] || ''
+        ]);
+      });
+    }
 
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [{ wch: 6 }, { wch: 50 }, { wch: 25 }, { wch: 25 }, { wch: 25 }, { wch: 25 }];
+    ws['!cols'] = [{ wch: 6 }, { wch: 10 }, { wch: 50 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 20 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Quiz');
-    XLSX.writeFile(wb, `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_Quiz.xlsx`);
+    XLSX.writeFile(wb, `${(quiz.title || 'Quiz').replace(/[^a-z0-9]/gi, '_')}_Quiz.xlsx`);
 
     return { success: true, message: 'Quiz exported to Excel successfully!' };
   } catch (error) {
@@ -80,32 +106,54 @@ export const exportQuizToPDF = (quiz) => {
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
-    doc.text(quiz.title, 14, 20);
+    doc.text(quiz.title || 'Quiz', 14, 20);
     
     let y = 35;
-    quiz.questions.forEach((q, index) => {
+    const hasSections = quiz.sections && quiz.sections.length > 0;
+
+    const renderQuestion = (q, index) => {
       if (y > 270) { doc.addPage(); y = 20; }
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
-      doc.text(`Question ${index + 1}:`, 14, y);
+      doc.text(`Question ${index + 1} (${q.type === 'coding' ? 'Coding' : 'MCQ'}):`, 14, y);
       
       doc.setFont(undefined, 'normal');
-      const questionLines = doc.splitTextToSize(q.question, 180);
+      const questionText = q.type === 'coding' ? (q.coding?.title || 'Coding Question') : (q.question || '');
+      const questionLines = doc.splitTextToSize(questionText, 180);
       doc.text(questionLines, 14, y + 6);
       y += 6 + (questionLines.length * 6);
       
       doc.setFontSize(10);
-      q.options.forEach((option, optIndex) => {
-        const optionLetter = String.fromCharCode(65 + optIndex);
-        const optionLines = doc.splitTextToSize(`${optionLetter}. ${option}`, 170);
-        if (y > 270) { doc.addPage(); y = 20; }
-        doc.text(optionLines, 20, y);
-        y += 6 * optionLines.length;
-      });
+      if (q.type !== 'coding' && q.options) {
+        q.options.forEach((option, optIndex) => {
+          const optionLetter = String.fromCharCode(65 + optIndex);
+          const optionLines = doc.splitTextToSize(`${optionLetter}. ${option}`, 170);
+          if (y > 270) { doc.addPage(); y = 20; }
+          doc.text(optionLines, 20, y);
+          y += 6 * optionLines.length;
+        });
+      } else if (q.type === 'coding') {
+         const descLines = doc.splitTextToSize("Programming question - Check platform for full details.", 170);
+         doc.text(descLines, 20, y);
+         y += 6;
+      }
       y += 12;
-    });
+    };
+
+    if (hasSections) {
+      quiz.sections.forEach((sec, sIdx) => {
+        if (y > 260) { doc.addPage(); y = 20; }
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text(sec.title || `Section ${sIdx + 1}`, 14, y);
+        y += 10;
+        (sec.questions || []).forEach(renderQuestion);
+      });
+    } else {
+      (quiz.questions || []).forEach(renderQuestion);
+    }
     
-    doc.save(`${quiz.title.replace(/[^a-z0-9]/gi, '_')}_Quiz.pdf`);
+    doc.save(`${(quiz.title || 'Quiz').replace(/[^a-z0-9]/gi, '_')}_Quiz.pdf`);
     return { success: true, message: 'Quiz exported to PDF successfully!' };
   } catch (error) {
     return { success: false, message: 'Failed to export to PDF' };
