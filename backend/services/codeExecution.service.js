@@ -5,6 +5,21 @@
 import { submitToJudge0 } from "./judge0.service.js";
 import { getJudge0LanguageId, normalizeLanguage, isSupportedLanguage } from "./languageMap.js";
 
+const MAX_ACTIVE_EXECUTIONS = process.env.MAX_ACTIVE_EXECUTIONS ? parseInt(process.env.MAX_ACTIVE_EXECUTIONS, 10) : 10;
+const MAX_EXECUTION_QUEUE = process.env.MAX_EXECUTION_QUEUE ? parseInt(process.env.MAX_EXECUTION_QUEUE, 10) : 50;
+
+let activeExecutions = 0;
+const executionQueue = [];
+
+const processQueue = () => {
+  if (executionQueue.length === 0 || activeExecutions >= MAX_ACTIVE_EXECUTIONS) {
+    return;
+  }
+  activeExecutions++;
+  const task = executionQueue.shift();
+  task();
+};
+
 /**
  * Execute student code against test cases using Judge0.
  *
@@ -38,8 +53,12 @@ export const executeCode = async (language, code, testCases = [], questionDetail
       }));
     }
 
-    // Validate code is not empty
-    if (!code || code.trim().length === 0) {
+    const codingDetails = questionDetails?.coding || questionDetails || {};
+    const executionMode = codingDetails.executionMode || "standard";
+    const finalCodeInput = code || "";
+
+    // Validate code is not empty for standard mode
+    if (executionMode !== "function" && finalCodeInput.trim().length === 0) {
       return testCases.map((tc) => ({
         input: tc.input || "",
         expectedOutput: tc.expectedOutput || "",
@@ -51,59 +70,90 @@ export const executeCode = async (language, code, testCases = [], questionDetail
       }));
     }
 
-    let finalCode = code;
-    const codingDetails = questionDetails?.coding || questionDetails || {};
-    let compilerOptions = codingDetails.compilerOptions || "";
-
-    const executionMode = codingDetails.executionMode || "standard";
-
-    if (executionMode === "function") {
-      finalCode = buildFunctionModeSource(codingDetails, code, language);
-      
-      // Enforce return types strictly in Function Mode for C/C++
-      const normLang = normalizeLanguage(language);
-      if (normLang === "cpp" || normLang === "c") {
-        compilerOptions = compilerOptions ? `${compilerOptions} -Werror=return-type` : "-Werror=return-type";
+    return await new Promise((resolve, reject) => {
+      if (executionQueue.length >= MAX_EXECUTION_QUEUE) {
+        return reject(new Error("Execution queue is full. Please try again in a few moments."));
       }
-    } else {
-      // Standard mode: retain existing {{USER_CODE}} backward compatibility
-      if (codingDetails.driverCode && Array.isArray(codingDetails.driverCode)) {
-        const driverObj = codingDetails.driverCode.find(d => d.language === language);
-        if (driverObj && driverObj.code && driverObj.code.includes("{{USER_CODE}}")) {
-          finalCode = driverObj.code.replace("{{USER_CODE}}", code);
+
+      const enqueueTime = Date.now();
+      const task = async () => {
+        const queueWaitTime = Date.now() - enqueueTime;
+        const executionStartTime = Date.now();
+        let judge0ExecutionTime = 0;
+
+        try {
+          let finalCode = finalCodeInput;
+          let compilerOptions = codingDetails.compilerOptions || "";
+
+          if (executionMode === "function") {
+            finalCode = buildFunctionModeSource(codingDetails, finalCodeInput, language);
+            
+            // Enforce return types strictly in Function Mode for C/C++
+            const normLang = normalizeLanguage(language);
+            if (normLang === "cpp" || normLang === "c") {
+              compilerOptions = compilerOptions ? `${compilerOptions} -Werror=return-type` : "-Werror=return-type";
+            }
+          } else {
+            // Standard mode: retain existing {{USER_CODE}} backward compatibility
+            if (codingDetails.driverCode && Array.isArray(codingDetails.driverCode)) {
+              const driverObj = codingDetails.driverCode.find(d => d.language === language);
+              if (driverObj && driverObj.code && driverObj.code.includes("{{USER_CODE}}")) {
+                finalCode = driverObj.code.replace("{{USER_CODE}}", finalCodeInput);
+              }
+            }
+          }
+
+          const languageId = getJudge0LanguageId(language);
+          const results = [];
+
+          // Execute test cases sequentially to avoid flooding Judge0
+          for (let i = 0; i < testCases.length; i++) {
+            const tc = testCases[i];
+            
+            const tcStart = Date.now();
+            const result = await executeSingleTestCase(finalCode, languageId, tc, compilerOptions);
+            judge0ExecutionTime += (Date.now() - tcStart);
+
+            results.push(result);
+
+            // Short-circuit on compilation error — no point running remaining test cases
+            if (result.compileOutput && result.compileOutput.trim() !== "") {
+              // Fill remaining test cases with the same compilation error
+              for (let j = i + 1; j < testCases.length; j++) {
+                results.push({
+                  input: testCases[j].input || "",
+                  expectedOutput: testCases[j].expectedOutput || "",
+                  actualOutput: "",
+                  compileOutput: result.compileOutput,
+                  runError: "",
+                  exitCode: 1,
+                  passed: false,
+                });
+              }
+              break;
+            }
+          }
+          
+          const totalExecutionTime = Date.now() - executionStartTime;
+          console.info(`[Metrics] Code Execution: queueWaitTime=${queueWaitTime}ms, judge0ExecutionTime=${judge0ExecutionTime}ms, totalExecutionTime=${totalExecutionTime}ms`);
+
+          resolve(results);
+        } catch (err) {
+          reject(err);
+        } finally {
+          activeExecutions--;
+          processQueue();
         }
+      };
+
+      if (activeExecutions < MAX_ACTIVE_EXECUTIONS) {
+        activeExecutions++;
+        task();
+      } else {
+        executionQueue.push(task);
       }
-    }
+    });
 
-    const languageId = getJudge0LanguageId(language);
-    const results = [];
-
-    // Execute test cases sequentially to avoid flooding Judge0
-    for (let i = 0; i < testCases.length; i++) {
-      const tc = testCases[i];
-      const result = await executeSingleTestCase(finalCode, languageId, tc, compilerOptions);
-
-      results.push(result);
-
-      // Short-circuit on compilation error — no point running remaining test cases
-      if (result.compileOutput && result.compileOutput.trim() !== "") {
-        // Fill remaining test cases with the same compilation error
-        for (let j = i + 1; j < testCases.length; j++) {
-          results.push({
-            input: testCases[j].input || "",
-            expectedOutput: testCases[j].expectedOutput || "",
-            actualOutput: "",
-            compileOutput: result.compileOutput,
-            runError: "",
-            exitCode: 1,
-            passed: false,
-          });
-        }
-        break;
-      }
-    }
-
-    return results;
   } catch (error) {
     console.error("[CodeExecution] Execution error:", error.message);
 
