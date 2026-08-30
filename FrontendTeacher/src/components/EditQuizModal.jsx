@@ -318,11 +318,15 @@ const EditQuizModal = ({ quiz, onClose, onSave }) => {
 
     try {
       setIsSaving(true);
-      console.log("FRONTEND DEBUG - Edit mappedSections:", JSON.stringify(mappedSections.map(s => s.questions.map(q => ({
-        type: q.type,
-        executionMode: q.coding?.executionMode,
-        cppDriverCode: q.coding?.driverCode?.find(d => d.language === "c++" || d.language === "cpp")?.code?.substring(0, 50)
-      }))), null, 2));
+      mappedSections.forEach((s, sIdx) => {
+        s.questions.forEach((q, qIdx) => {
+          if (q.type === "coding") {
+            const cppDriver = q.coding.driverCode?.find(d => d.language === "cpp" || d.language === "c++");
+            console.log(`[UPDATE API REQUEST] Section ${sIdx} Question ${qIdx} - executionMode:`, q.coding.executionMode);
+            console.log(`[UPDATE API REQUEST] Section ${sIdx} Question ${qIdx} - C++ driverCode:`, cppDriver?.code);
+          }
+        });
+      });
 
       const res = await axios.put(
         `${API_BASE_URL}/quiz/${quiz._id}`,

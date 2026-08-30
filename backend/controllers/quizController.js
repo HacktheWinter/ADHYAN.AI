@@ -151,11 +151,27 @@ export const createQuizManually = async (req, res) => {
       });
     }
 
-    console.log("BACKEND DEBUG - createQuizManually RECEIVED:");
-    console.log(JSON.stringify((finalSections || []).flatMap(s => s.questions).filter(q => q.type === "coding").map(q => ({
-      executionMode: q.coding?.executionMode,
-      cppDriverCode: q.coding?.driverCode?.find(d => d.language === "c++" || d.language === "cpp")?.code?.substring(0, 50)
-    })), null, 2));
+    // 2. Create quiz controller: print received coding.executionMode and C++ driverCode
+    req.body.sections?.forEach((sec, sIdx) => {
+      sec.questions?.forEach((q, qIdx) => {
+        if (q.type === "coding") {
+          const cppDriver = q.coding?.driverCode?.find(d => d.language === "cpp" || d.language === "c++");
+          console.log(`[CONTROLLER RECEIVED CREATE] Section ${sIdx} Question ${qIdx} - executionMode:`, q.coding?.executionMode);
+          console.log(`[CONTROLLER RECEIVED CREATE] Section ${sIdx} Question ${qIdx} - C++ driverCode:`, cppDriver?.code);
+        }
+      });
+    });
+
+    // 3. Immediately before Quiz.create(): print question.coding.executionMode and question.coding.driverCode
+    finalSections?.forEach((sec, sIdx) => {
+      sec.questions?.forEach((q, qIdx) => {
+        if (q.type === "coding") {
+          const cppDriver = q.coding?.driverCode?.find(d => d.language === "cpp" || d.language === "c++");
+          console.log(`[BEFORE QUIZ.CREATE] Section ${sIdx} Question ${qIdx} - executionMode:`, q.coding?.executionMode);
+          console.log(`[BEFORE QUIZ.CREATE] Section ${sIdx} Question ${qIdx} - C++ driverCode:`, cppDriver?.code);
+        }
+      });
+    });
 
     const quiz = await Quiz.create({
       classroomId,
@@ -794,12 +810,16 @@ export const updateQuiz = async (req, res) => {
       }
     }
 
-    console.log("BACKEND DEBUG - updateQuiz RECEIVED:");
-    const finalSectionsUpdate = updateData.sections || [];
-    console.log(JSON.stringify(finalSectionsUpdate.flatMap(s => s.questions || []).filter(q => q.type === "coding").map(q => ({
-      executionMode: q.coding?.executionMode,
-      cppDriverCode: q.coding?.driverCode?.find(d => d.language === "c++" || d.language === "cpp")?.code?.substring(0, 50)
-    })), null, 2));
+    // 5. Update controller immediately before database update: print executionMode and C++ driverCode
+    updateData.sections?.forEach((sec, sIdx) => {
+      sec.questions?.forEach((q, qIdx) => {
+        if (q.type === "coding") {
+          const cppDriver = q.coding?.driverCode?.find(d => d.language === "cpp" || d.language === "c++");
+          console.log(`[BEFORE QUIZ.UPDATE] Section ${sIdx} Question ${qIdx} - executionMode:`, q.coding?.executionMode);
+          console.log(`[BEFORE QUIZ.UPDATE] Section ${sIdx} Question ${qIdx} - C++ driverCode:`, cppDriver?.code);
+        }
+      });
+    });
 
     const quiz = await Quiz.findByIdAndUpdate(quizId, updateData, {
       new: true,
