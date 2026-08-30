@@ -151,6 +151,12 @@ export const createQuizManually = async (req, res) => {
       });
     }
 
+    console.log("BACKEND DEBUG - createQuizManually RECEIVED:");
+    console.log(JSON.stringify((finalSections || []).flatMap(s => s.questions).filter(q => q.type === "coding").map(q => ({
+      executionMode: q.coding?.executionMode,
+      cppDriverCode: q.coding?.driverCode?.find(d => d.language === "c++" || d.language === "cpp")?.code?.substring(0, 50)
+    })), null, 2));
+
     const quiz = await Quiz.create({
       classroomId,
       title: title.trim(),
@@ -360,7 +366,8 @@ export const generateQuestionsFromPrompt = async (req, res) => {
           starterCode: q.coding?.starterCode || [],
           driverCode: q.coding?.driverCode || [],
           testCases: q.coding?.testCases || q.coding?.hiddenTestCases || q.coding?.publicTestCases || [{ input: "", expectedOutput: "" }],
-          comparisonMode: q.coding?.comparisonMode || "trimmed"
+          comparisonMode: q.coding?.comparisonMode || "trimmed",
+          executionMode: "standard"
         }
       }));
     } else {
@@ -786,6 +793,13 @@ export const updateQuiz = async (req, res) => {
         return res.status(403).json({ error: "Unauthorized" });
       }
     }
+
+    console.log("BACKEND DEBUG - updateQuiz RECEIVED:");
+    const finalSectionsUpdate = updateData.sections || [];
+    console.log(JSON.stringify(finalSectionsUpdate.flatMap(s => s.questions || []).filter(q => q.type === "coding").map(q => ({
+      executionMode: q.coding?.executionMode,
+      cppDriverCode: q.coding?.driverCode?.find(d => d.language === "c++" || d.language === "cpp")?.code?.substring(0, 50)
+    })), null, 2));
 
     const quiz = await Quiz.findByIdAndUpdate(quizId, updateData, {
       new: true,

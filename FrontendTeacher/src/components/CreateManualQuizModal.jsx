@@ -240,6 +240,21 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
   const updateCodingField = (sIdx, qIdx, field, value) => {
     const updated = [...sections];
     updated[sIdx].questions[qIdx].coding[field] = value;
+    
+    // Automatically swap placeholders if executionMode changes
+    if (field === "executionMode") {
+      const isFunction = value === "function";
+      const oldPlaceholder = isFunction ? "{{USER_CODE}}" : "{{STUDENT_BODY}}";
+      const newPlaceholder = isFunction ? "{{STUDENT_BODY}}" : "{{USER_CODE}}";
+      
+      if (updated[sIdx].questions[qIdx].coding.driverCode) {
+        updated[sIdx].questions[qIdx].coding.driverCode = updated[sIdx].questions[qIdx].coding.driverCode.map(d => ({
+          ...d,
+          code: d.code ? d.code.replace(new RegExp(oldPlaceholder, "g"), newPlaceholder) : d.code
+        }));
+      }
+    }
+    
     setSections(updated);
   };
 
@@ -328,6 +343,12 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
 
     try {
       setIsSaving(true);
+      console.log("FRONTEND DEBUG - mappedSections:", JSON.stringify(mappedSections.map(s => s.questions.map(q => ({
+        type: q.type,
+        executionMode: q.coding?.executionMode,
+        cppDriverCode: q.coding?.driverCode?.find(d => d.language === "c++" || d.language === "cpp")?.code?.substring(0, 50)
+      }))), null, 2));
+
       const res = await axios.post(
         `${API_BASE_URL}/quiz/create-manual`,
         {
