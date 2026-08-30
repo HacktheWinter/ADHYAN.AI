@@ -200,24 +200,35 @@ const EditQuizModal = ({ quiz, onClose, onSave }) => {
   };
 
   const updateCodingField = (sIdx, qIdx, field, value) => {
-    const updated = [...sections];
-    updated[sIdx].questions[qIdx].coding[field] = value;
-    
-    // Automatically swap placeholders if executionMode changes
-    if (field === "executionMode") {
-      const isFunction = value === "function";
-      const oldPlaceholder = isFunction ? "{{USER_CODE}}" : "{{STUDENT_BODY}}";
-      const newPlaceholder = isFunction ? "{{STUDENT_BODY}}" : "{{USER_CODE}}";
+    setSections(prevSections => {
+      const updated = [...prevSections];
+      const section = { ...updated[sIdx] };
+      const questions = [...section.questions];
+      const question = { ...questions[qIdx] };
+      const coding = { ...question.coding };
       
-      if (updated[sIdx].questions[qIdx].coding.driverCode) {
-        updated[sIdx].questions[qIdx].coding.driverCode = updated[sIdx].questions[qIdx].coding.driverCode.map(d => ({
-          ...d,
-          code: d.code ? d.code.replace(new RegExp(oldPlaceholder, "g"), newPlaceholder) : d.code
-        }));
+      coding[field] = value;
+      
+      // Automatically swap placeholders if executionMode changes
+      if (field === "executionMode") {
+        const isFunction = value === "function";
+        const oldPlaceholder = isFunction ? "{{USER_CODE}}" : "{{STUDENT_BODY}}";
+        const newPlaceholder = isFunction ? "{{STUDENT_BODY}}" : "{{USER_CODE}}";
+        
+        if (coding.driverCode) {
+          coding.driverCode = coding.driverCode.map(d => ({
+            ...d,
+            code: d.code ? d.code.replace(new RegExp(oldPlaceholder, "g"), newPlaceholder) : d.code
+          }));
+        }
       }
-    }
-    
-    setSections(updated);
+      
+      question.coding = coding;
+      questions[qIdx] = question;
+      section.questions = questions;
+      updated[sIdx] = section;
+      return updated;
+    });
   };
 
   const handleArrayFieldAdd = (sIdx, qIdx, arrayName, emptyObj) => {
