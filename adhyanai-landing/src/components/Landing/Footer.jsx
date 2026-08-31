@@ -30,11 +30,9 @@ const Footer = () => {
           {/* Brand & Description Column (Spans full width on mobile/tablet, 2 cols on lg) */}
           <div className="col-span-3 sm:col-span-3 lg:col-span-2">
             <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-500/20 p-1">
-                <img src="/logo02.png" alt="ADHYAN.AI" className="w-full h-full object-contain" />
-              </div>
+              <img src="/logo03.png" alt="ADHYAN.AI" className="w-8 h-8 sm:w-9 sm:h-9 object-contain" />
               <span className="font-extrabold text-white text-lg sm:text-xl tracking-tight">
-                ADHYAN<span className="text-purple-500">.AI</span>
+                ADHYAN.AI
               </span>
             </div>
 

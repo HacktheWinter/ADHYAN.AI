@@ -79,11 +79,9 @@ const Navbar = () => {
             }
           }}
         >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-500/20 p-1">
-            <img src="/logo02.png" alt="ADHYAN.AI Logo" className="w-full h-full object-contain" />
-          </div>
-          <span className="font-extrabold text-gray-900 text-lg tracking-tight">
-            ADHYAN<span className="text-purple-600">.AI</span>
+          <img src="/logo02.png" alt="ADHYAN.AI Logo" className="w-9 h-9 sm:w-10 sm:h-10 object-contain" />
+          <span className="font-extrabold text-gray-900 text-lg sm:text-xl tracking-tight">
+            ADHYAN.AI
           </span>
         </Link>
 
