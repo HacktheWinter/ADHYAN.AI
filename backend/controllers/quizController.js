@@ -133,6 +133,7 @@ export const createQuizManually = async (req, res) => {
         totalMarks += sectionMarks;
         return {
           title: sec.title || `Section ${sIdx + 1}`,
+          type: sec.type || "mcq",
           instructions: sec.instructions || "",
           durationMinutes: sec.durationMinutes || null,
           order: sec.order || sIdx,
