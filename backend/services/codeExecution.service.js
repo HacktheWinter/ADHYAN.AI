@@ -7,7 +7,7 @@ import { getJudge0LanguageId, normalizeLanguage, isSupportedLanguage } from "./l
 
 const MAX_ACTIVE_EXECUTIONS = 8;
 const MAX_EXECUTION_QUEUE = 50;
-const RUN_CODE_COOLDOWN_SECONDS = 30;
+const RUN_CODE_COOLDOWN_SECONDS = 5;
 
 let activeExecutions = 0;
 const executionQueue = [];

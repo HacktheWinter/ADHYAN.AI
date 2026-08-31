@@ -608,7 +608,7 @@ export const getQuizResult = async (req, res) => {
       quizId,
       studentId,
       isDraft: false
-    }).populate("quizId", "title questions resultsPublished");
+    }).populate("quizId", "title questions sections resultsPublished");
 
     if (!submission) {
       return res.status(404).json({ error: "No submission found" });
