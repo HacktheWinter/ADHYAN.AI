@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Brain, CheckCircle2, ChevronRight, Terminal, Cpu, Zap, Award, Layers } from 'lucide-react';
+import { Sparkles, Brain, CheckCircle2, ChevronRight, Terminal, Cpu, Zap, Award, Layers, Code2, Play } from 'lucide-react';
 
 const Demo = () => {
   const [activeTab, setActiveTab] = useState('quiz');
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [activeTestCase, setActiveTestCase] = useState(0);
   const [mobileTab, setMobileTab] = useState('quiz');
 
   const testPaperQuestions = [
@@ -19,7 +20,13 @@ const Demo = () => {
     { q: "Calculate the theoretical glucose production from 12 CO₂ molecules during photosynthesis.", type: "Problem-solving" }
   ];
 
-  // Lightweight static content used by the mobile version — no motion, no interval state
+  const codeTestCases = [
+    { input: "nums = [2,7,11,15], target = 9", expected: "[0, 1]", output: "[0, 1]", runtime: "12ms", passed: true },
+    { input: "nums = [3,2,4], target = 6", expected: "[1, 2]", output: "[1, 2]", runtime: "14ms", passed: true },
+    { input: "nums = [3,3], target = 6", expected: "[0, 1]", output: "[0, 1]", runtime: "11ms", passed: true }
+  ];
+
+  // Lightweight static content used by the mobile version
   const mobileContent = {
     quiz: {
       icon: Brain,
@@ -62,19 +69,26 @@ const Demo = () => {
         </>
       )
     },
-    assignment: {
-      icon: Brain,
-      color: 'amber',
-      label: 'Assignment',
+    coding: {
+      icon: Code2,
+      color: 'cyan',
+      label: 'Coding IDE',
       body: (
         <>
-          <p className="text-gray-400 text-xs mb-3">Biology | Due 1 Week | Intermediate</p>
-          <div className="bg-gray-800/50 rounded-lg p-4 border border-amber-500/30">
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-white text-sm font-medium">Task 1.</span>
-              <span className="bg-amber-900/30 text-amber-400 px-2 py-0.5 rounded text-xs border border-amber-900">{assignmentQuestions[0].type}</span>
-            </div>
-            <p className="text-gray-200 text-sm">{assignmentQuestions[0].q}</p>
+          <div className="flex items-center justify-between mb-2 text-xs font-mono text-cyan-400">
+            <span>two_sum.py (Python 3.10)</span>
+            <span className="text-emerald-400 font-semibold">✓ 3/3 Passed</span>
+          </div>
+          <div className="bg-gray-900 rounded-lg p-3 border border-cyan-500/30 font-mono text-xs text-gray-300 space-y-1 mb-3">
+            <p><span className="text-purple-400">def</span> <span className="text-blue-400">twoSum</span>(nums, target):</p>
+            <p className="pl-3">seen = {'{}'}</p>
+            <p className="pl-3"><span className="text-purple-400">for</span> i, n <span className="text-purple-400">in</span> <span className="text-cyan-400">enumerate</span>(nums):</p>
+            <p className="pl-6">if target - n in seen: return [seen[target - n], i]</p>
+            <p className="pl-6">seen[n] = i</p>
+          </div>
+          <div className="p-2.5 rounded bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between font-mono">
+            <span>Runtime: 12ms</span>
+            <span className="font-semibold text-emerald-400">100% Correct</span>
           </div>
         </>
       )
@@ -90,7 +104,7 @@ const Demo = () => {
           <div className="bg-gray-800/50 rounded-lg p-4 border border-indigo-500/30">
             <div className="flex justify-between items-center mb-3">
               <span className="text-white text-sm font-medium">AI Feedback</span>
-              <span className="bg-green-900/30 text-green-400 px-2 py-0.5 rounded text-xs border border-green-900">9/10</span>
+              <span className="bg-green-900/30 text-green-400 px-2 py-0.5 rounded text-xs border border-green-900">9.5/10</span>
             </div>
             <div className="flex gap-2 mb-2">
               <CheckCircle2 size={14} className="text-green-500 mt-0.5 shrink-0" />
@@ -103,12 +117,30 @@ const Demo = () => {
           </div>
         </>
       )
+    },
+    assignment: {
+      icon: Zap,
+      color: 'amber',
+      label: 'Assignment',
+      body: (
+        <>
+          <p className="text-gray-400 text-xs mb-3">Biology | Due 1 Week | Intermediate</p>
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-amber-500/30">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-white text-sm font-medium">Task 1.</span>
+              <span className="bg-amber-900/30 text-amber-400 px-2 py-0.5 rounded text-xs border border-amber-900">{assignmentQuestions[0].type}</span>
+            </div>
+            <p className="text-gray-200 text-sm">{assignmentQuestions[0].q}</p>
+          </div>
+        </>
+      )
     }
   };
 
   const colorClasses = {
     purple: 'bg-purple-600 text-purple-200',
     emerald: 'bg-emerald-600 text-emerald-200',
+    cyan: 'bg-cyan-600 text-cyan-200',
     amber: 'bg-amber-600 text-amber-200',
     indigo: 'bg-indigo-600 text-indigo-200',
   };
@@ -269,31 +301,31 @@ const Demo = () => {
                     {activeTab === 'testpaper' && <ChevronRight size={18} className="text-emerald-200" />}
                   </button>
 
-                  {/* Tab 3: Assignment */}
+                  {/* Tab 3: Coding IDE */}
                   <button
-                    onClick={() => { setActiveTab('assignment'); setCurrentQuestion(0); }}
-                    className={`w-full text-left p-4 rounded-2xl transition-all duration-200 flex items-center justify-between group cursor-pointer border ${
-                      activeTab === 'assignment'
-                        ? 'bg-amber-600 text-white border-amber-400/40 shadow-lg shadow-amber-500/20'
+                    onClick={() => { setActiveTab('coding'); setActiveTestCase(0); }}
+                    className={`w-full text-left p-3.5 sm:p-4 rounded-2xl transition-all duration-200 flex items-center justify-between group cursor-pointer border ${
+                      activeTab === 'coding'
+                        ? 'bg-cyan-600 text-white border-cyan-400/40 shadow-lg shadow-cyan-500/20'
                         : 'bg-gray-900/80 text-gray-300 border-gray-800 hover:bg-gray-850 hover:text-white hover:border-gray-700'
                     }`}
                   >
                     <div className="flex items-center gap-3.5">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeTab === 'assignment' ? 'bg-white/20' : 'bg-amber-950/70 text-amber-400 border border-amber-500/20'}`}>
-                        <Zap size={20} />
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeTab === 'coding' ? 'bg-white/20' : 'bg-cyan-950/70 text-cyan-400 border border-cyan-500/20'}`}>
+                        <Code2 size={20} />
                       </div>
                       <div>
-                        <div className="font-bold text-sm">Generate Assignment</div>
-                        <div className={`text-xs ${activeTab === 'assignment' ? 'text-amber-100' : 'text-gray-500'}`}>Research & problem-solving tasks</div>
+                        <div className="font-bold text-sm">Coding Assessment & IDE</div>
+                        <div className={`text-xs ${activeTab === 'coding' ? 'text-cyan-100' : 'text-gray-500'}`}>Multi-language testcase runner</div>
                       </div>
                     </div>
-                    {activeTab === 'assignment' && <ChevronRight size={18} className="text-amber-200" />}
+                    {activeTab === 'coding' && <ChevronRight size={18} className="text-cyan-200" />}
                   </button>
 
                   {/* Tab 4: AI Grading */}
                   <button
                     onClick={() => setActiveTab('grading')}
-                    className={`w-full text-left p-4 rounded-2xl transition-all duration-200 flex items-center justify-between group cursor-pointer border ${
+                    className={`w-full text-left p-3.5 sm:p-4 rounded-2xl transition-all duration-200 flex items-center justify-between group cursor-pointer border ${
                       activeTab === 'grading'
                         ? 'bg-indigo-600 text-white border-indigo-400/40 shadow-lg shadow-indigo-500/20'
                         : 'bg-gray-900/80 text-gray-300 border-gray-800 hover:bg-gray-850 hover:text-white hover:border-gray-700'
@@ -309,6 +341,27 @@ const Demo = () => {
                       </div>
                     </div>
                     {activeTab === 'grading' && <ChevronRight size={18} className="text-indigo-200" />}
+                  </button>
+
+                  {/* Tab 5: Assignment */}
+                  <button
+                    onClick={() => { setActiveTab('assignment'); setCurrentQuestion(0); }}
+                    className={`w-full text-left p-3.5 sm:p-4 rounded-2xl transition-all duration-200 flex items-center justify-between group cursor-pointer border ${
+                      activeTab === 'assignment'
+                        ? 'bg-amber-600 text-white border-amber-400/40 shadow-lg shadow-amber-500/20'
+                        : 'bg-gray-900/80 text-gray-300 border-gray-800 hover:bg-gray-850 hover:text-white hover:border-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activeTab === 'assignment' ? 'bg-white/20' : 'bg-amber-950/70 text-amber-400 border border-amber-500/20'}`}>
+                        <Zap size={20} />
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm">Generate Assignment</div>
+                        <div className={`text-xs ${activeTab === 'assignment' ? 'text-amber-100' : 'text-gray-500'}`}>Research & problem-solving tasks</div>
+                      </div>
+                    </div>
+                    {activeTab === 'assignment' && <ChevronRight size={18} className="text-amber-200" />}
                   </button>
                 </div>
               </div>
@@ -428,6 +481,89 @@ const Demo = () => {
                               {i + 1}
                             </button>
                           ))}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {activeTab === 'coding' && (
+                  <motion.div
+                    key="coding"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.25 }}
+                    className="h-full flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-800 text-xs font-mono text-gray-400">
+                        <span className="text-cyan-400 flex items-center gap-1.5">
+                          <Code2 size={14} /> Problem: Two Sum Target Indexing
+                        </span>
+                        <span className="text-emerald-400 font-semibold bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded">
+                          ⚡ 3/3 Testcases Passed (12ms)
+                        </span>
+                      </div>
+
+                      {/* Code Workspace Box */}
+                      <div className="bg-gray-900/90 rounded-xl p-4 mb-3 border border-gray-800 font-mono text-xs text-gray-300 shadow-inner">
+                        <div className="flex items-center justify-between text-[11px] text-gray-500 border-b border-gray-800/80 pb-2 mb-2">
+                          <span className="text-cyan-300 font-semibold">solution.py (Python 3.10)</span>
+                          <span>Time: O(N) | Space: O(N)</span>
+                        </div>
+                        <div className="space-y-1 text-gray-300 text-[11px] leading-relaxed">
+                          <p><span className="text-purple-400">def</span> <span className="text-blue-400 font-semibold">two_sum</span>(nums: List[int], target: int) -&gt; List[int]:</p>
+                          <p className="pl-4 text-gray-500"># Linear one-pass hash map</p>
+                          <p className="pl-4">prev_map = {'{}'}</p>
+                          <p className="pl-4"><span className="text-purple-400">for</span> i, n <span className="text-purple-400">in</span> <span className="text-cyan-400">enumerate</span>(nums):</p>
+                          <p className="pl-8">diff = target - n</p>
+                          <p className="pl-8"><span className="text-purple-400">if</span> diff <span className="text-purple-400">in</span> prev_map:</p>
+                          <p className="pl-12"><span className="text-purple-400">return</span> [prev_map[diff], i]</p>
+                          <p className="pl-8">prev_map[n] = i</p>
+                          <p className="pl-4"><span className="text-purple-400">return</span> []</p>
+                        </div>
+                      </div>
+
+                      {/* Interactive Test Case Runner Tabs */}
+                      <div className="bg-cyan-950/20 rounded-2xl p-4 border border-cyan-500/30">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-1.5">
+                            {codeTestCases.map((tc, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => setActiveTestCase(idx)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer ${
+                                  activeTestCase === idx
+                                    ? 'bg-cyan-600 text-white shadow-md shadow-cyan-500/30'
+                                    : 'bg-gray-900/80 text-gray-400 hover:text-white border border-gray-800'
+                                }`}
+                              >
+                                Case {idx + 1}
+                              </button>
+                            ))}
+                          </div>
+                          <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded">
+                            ✓ {codeTestCases[activeTestCase].runtime}
+                          </span>
+                        </div>
+
+                        {/* Testcase Input & Outputs */}
+                        <div className="space-y-2 text-xs font-mono">
+                          <div className="bg-gray-900/80 p-2.5 rounded-lg border border-gray-800">
+                            <span className="text-gray-500 text-[10px] block">Input</span>
+                            <span className="text-gray-200">{codeTestCases[activeTestCase].input}</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-gray-900/80 p-2.5 rounded-lg border border-gray-800">
+                              <span className="text-gray-500 text-[10px] block">Expected Output</span>
+                              <span className="text-gray-200">{codeTestCases[activeTestCase].expected}</span>
+                            </div>
+                            <div className="bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-500/30">
+                              <span className="text-emerald-400 text-[10px] block">Actual Output</span>
+                              <span className="text-emerald-300 font-bold">{codeTestCases[activeTestCase].output}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

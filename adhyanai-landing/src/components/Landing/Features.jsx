@@ -14,7 +14,9 @@ import {
   Zap,
   CheckCircle2,
   Activity,
-  Award
+  Award,
+  Code2,
+  Play
 } from 'lucide-react';
 
 const Features = () => {
@@ -31,8 +33,7 @@ const Features = () => {
     });
   };
 
-
-  // Complete, authentic 9 core features of ADHYAN.AI
+  // Complete 9 core features of ADHYAN.AI formatted for a flush 3-column Bento Grid
   const features = [
     {
       icon: FileQuestion,
@@ -63,10 +64,74 @@ const Features = () => {
     },
     {
       icon: Video,
-      title: "Live Classes",
+      title: "Live Classes & Whiteboard",
       description: "Conduct interactive live sessions with integrated digital whiteboard, seamless screen sharing, and automatic session recording for on-demand student revision.",
       tag: "Live Classroom",
       gradient: "from-blue-500 to-indigo-500",
+      colSpan: "lg:col-span-1"
+    },
+    {
+      icon: Code2,
+      title: "In-Browser Coding Workspace & Test Runner",
+      description: "Conduct hands-on technical programming evaluations with an integrated multi-language Monaco IDE. Execute Python, C++, Java, and JavaScript against automated public and hidden test cases with real-time pass/fail validation.",
+      tag: "Code Execution",
+      gradient: "from-cyan-600 via-blue-600 to-indigo-600",
+      featured: true,
+      colSpan: "lg:col-span-2",
+      preview: (
+        <div className="mt-4 bg-gray-950 rounded-2xl p-4 border border-gray-800 text-left shadow-inner font-mono text-xs">
+          {/* Top IDE Window Header */}
+          <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-gray-800 text-[11px] text-gray-400">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+              <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+              <span className="ml-2 text-gray-200 font-semibold flex items-center gap-1">
+                <span className="text-cyan-400">solution.py</span> • Python 3.10
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold">
+              <Play size={10} className="fill-emerald-400" />
+              <span>Executed (12ms)</span>
+            </div>
+          </div>
+
+          {/* Code Body */}
+          <div className="space-y-1 text-gray-300 leading-relaxed text-[11px] xs:text-xs">
+            <p><span className="text-purple-400">def</span> <span className="text-blue-400 font-semibold">maxSubArray</span>(nums: List[int]) -&gt; int:</p>
+            <p className="pl-4 text-gray-500"># Kadane's Optimal Linear Scan</p>
+            <p className="pl-4">curr_sum = max_sum = nums[<span className="text-amber-400">0</span>]</p>
+            <p className="pl-4"><span className="text-purple-400">for</span> x <span className="text-purple-400">in</span> nums[<span className="text-amber-400">1</span>:]:</p>
+            <p className="pl-8">curr_sum = <span className="text-cyan-400">max</span>(x, curr_sum + x)</p>
+            <p className="pl-8">max_sum = <span className="text-cyan-400">max</span>(max_sum, curr_sum)</p>
+            <p className="pl-4"><span className="text-purple-400">return</span> max_sum</p>
+          </div>
+
+          {/* Test Case Execution Output Bar */}
+          <div className="mt-3 pt-2.5 border-t border-gray-800 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded">
+                <CheckCircle2 size={12} /> 3/3 Testcases Passed
+              </span>
+              <span className="text-gray-500 hidden sm:inline">|</span>
+              <span className="text-gray-400 hidden sm:inline text-[10px]">Memory: 16.4 MB</span>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] text-gray-400">
+              <span className="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800">C++</span>
+              <span className="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800">Java</span>
+              <span className="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800">Python</span>
+              <span className="px-1.5 py-0.5 rounded bg-gray-900 border border-gray-800">JS</span>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      icon: Shield,
+      title: "Secure & Anti-Cheat Proctoring",
+      description: "Conduct high-stakes assessments with confidence using fullscreen lock enforcement, tab-switch monitoring, and 100% encrypted exam submissions.",
+      tag: "Integrity",
+      gradient: "from-rose-500 to-red-500",
       colSpan: "lg:col-span-1"
     },
     {
@@ -98,7 +163,15 @@ const Features = () => {
       title: "Generate Assignments",
       description: "Design engaging homework and research tasks in seconds. Specify difficulty levels, submission guidelines, and automatically structure problem-solving prompts.",
       tag: "Smart Homework",
-      gradient: "from-cyan-500 to-teal-500",
+      gradient: "from-teal-500 to-emerald-500",
+      colSpan: "lg:col-span-1"
+    },
+    {
+      icon: TrendingUp,
+      title: "Progress Tracking & Analytics",
+      description: "Comprehensive analytics and visual insights for educators and students to identify individual learning gaps, track score trends, and export gradebooks.",
+      tag: "Analytics",
+      gradient: "from-orange-500 to-amber-500",
       colSpan: "lg:col-span-1"
     },
     {
@@ -116,30 +189,6 @@ const Features = () => {
       tag: "Communication",
       gradient: "from-yellow-500 to-orange-500",
       colSpan: "lg:col-span-1"
-    },
-    {
-      icon: TrendingUp,
-      title: "Progress Tracking & Analytics",
-      description: "Comprehensive analytics and visual insights for educators and students to identify individual learning gaps, track score trends, and export gradebooks.",
-      tag: "Analytics",
-      gradient: "from-orange-500 to-amber-500",
-      colSpan: "lg:col-span-1"
-    },
-    {
-      icon: MessageCircle,
-      title: "Real-Time Collaboration",
-      description: "Encourage active peer learning with class channels, instant doubt clearing, and collaborative discussions between teachers and students.",
-      tag: "Community",
-      gradient: "from-emerald-500 to-green-500",
-      colSpan: "lg:col-span-1"
-    },
-    {
-      icon: Shield,
-      title: "Secure & Anti-Cheat Proctoring",
-      description: "Conduct high-stakes assessments with confidence using fullscreen lock enforcement, tab-switch monitoring, and 100% encrypted exam submissions.",
-      tag: "Integrity",
-      gradient: "from-rose-500 to-red-500",
-      colSpan: "lg:col-span-2"
     }
   ];
 
