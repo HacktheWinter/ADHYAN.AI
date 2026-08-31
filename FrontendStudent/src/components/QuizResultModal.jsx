@@ -180,9 +180,15 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
                     ref={(el) => (answerRefs.current[index] = el)}
                     id={`answer-${index}`}
                     className={`p-6 rounded-lg border-2 ${
-                      answer.isCorrect
-                        ? 'border-green-200 bg-green-50'
-                        : 'border-red-200 bg-red-50'
+                      isCoding
+                        ? (answer.testResults && answer.testResults.passed === answer.testResults.total
+                            ? 'border-green-200 bg-green-50'
+                            : answer.marksAwarded > 0
+                            ? 'border-yellow-200 bg-yellow-50'
+                            : 'border-red-200 bg-red-50')
+                        : (answer.isCorrect
+                            ? 'border-green-200 bg-green-50'
+                            : 'border-red-200 bg-red-50')
                     }`}
                   >
                     {/* Question Header */}
@@ -211,18 +217,90 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
                     {/* Student Answer */}
                     {isCoding ? (
                       <div className="mb-4">
-                        <h5 className="text-sm font-semibold text-gray-700 mb-2">Your Code</h5>
-                        <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
-                          <pre className="text-gray-100 text-sm font-mono">
-                            <code>{answer.code || 'No code submitted'}</code>
-                          </pre>
-                        </div>
-                        {answer.testResults && (
-                          <div className="mt-4 bg-white p-4 rounded-lg border border-gray-200">
-                            <h6 className="font-bold text-gray-900 mb-2">Test Results</h6>
-                            <div className="text-sm">
-                              Passed {answer.testResults.passed} out of {answer.testResults.total} test cases.
+                        {answer.testResults ? (
+                          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                            <h6 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                              <span className="text-lg">🧪</span> Test Case Results
+                              <span className="ml-auto text-sm font-semibold px-3 py-1 rounded-full bg-gray-100 text-gray-700">
+                                {answer.testResults.passed}/{answer.testResults.total} Passed
+                              </span>
+                            </h6>
+
+                            {/* Individual test case details */}
+                            {answer.testResults.details && answer.testResults.details.length > 0 ? (
+                              <div className="space-y-3 mt-3">
+                                {answer.testResults.details.map((tc, tcIdx) => (
+                                  <div
+                                    key={tcIdx}
+                                    className={`rounded-lg border-2 overflow-hidden ${
+                                      tc.passed
+                                        ? 'border-green-200'
+                                        : 'border-red-200'
+                                    }`}
+                                  >
+                                    {/* Test case header */}
+                                    <div className={`flex items-center justify-between px-4 py-2 ${
+                                      tc.passed ? 'bg-green-50' : 'bg-red-50'
+                                    }`}>
+                                      <span className="text-sm font-semibold text-gray-800">
+                                        Test Case {tcIdx + 1}
+                                      </span>
+                                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                        tc.passed
+                                          ? 'bg-green-600 text-white'
+                                          : 'bg-red-600 text-white'
+                                      }`}>
+                                        {tc.passed ? '✓ Passed' : '✗ Failed'}
+                                      </span>
+                                    </div>
+
+                                    {/* Test case body */}
+                                    <div className="p-4 space-y-2 bg-white text-sm">
+                                      {tc.input && (
+                                        <div>
+                                          <span className="font-semibold text-gray-600">Input:</span>
+                                          <pre className="mt-1 bg-gray-50 rounded p-2 text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap">{tc.input}</pre>
+                                        </div>
+                                      )}
+                                      <div>
+                                        <span className="font-semibold text-gray-600">Expected Output:</span>
+                                        <pre className="mt-1 bg-gray-50 rounded p-2 text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap">{tc.expectedOutput || '(empty)'}</pre>
+                                      </div>
+                                      <div>
+                                        <span className="font-semibold text-gray-600">Your Output:</span>
+                                        <pre className={`mt-1 rounded p-2 text-xs overflow-x-auto whitespace-pre-wrap ${
+                                          tc.passed ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+                                        }`}>{tc.actualOutput || '(no output)'}</pre>
+                                      </div>
+                                      {tc.compileOutput && (
+                                        <div>
+                                          <span className="font-semibold text-red-600">Compilation Error:</span>
+                                          <pre className="mt-1 bg-red-50 rounded p-2 text-xs text-red-800 overflow-x-auto whitespace-pre-wrap">{tc.compileOutput}</pre>
+                                        </div>
+                                      )}
+                                      {tc.runError && (
+                                        <div>
+                                          <span className="font-semibold text-red-600">Runtime Error:</span>
+                                          <pre className="mt-1 bg-red-50 rounded p-2 text-xs text-red-800 overflow-x-auto whitespace-pre-wrap">{tc.runError}</pre>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-700 mt-2">
+                                You passed <strong className="text-indigo-600">{answer.testResults.passed}</strong> out of <strong className="text-indigo-600">{answer.testResults.total}</strong> test cases.
+                              </div>
+                            )}
+
+                            <div className="mt-3 text-sm font-medium text-gray-600">
+                              Score: {typeof answer.marksAwarded === 'number' ? answer.marksAwarded.toFixed(1) : (answer.marksAwarded || 0)} / {question.marks || 1} marks
                             </div>
+                          </div>
+                        ) : (
+                          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm text-center text-gray-500">
+                            No code submitted or test cases available.
                           </div>
                         )}
                       </div>
@@ -262,12 +340,17 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
                                   <span className="flex-1 text-gray-900">{option}</span>
                                   {isCorrectAnswer && (
                                     <span className="px-2 py-1 bg-green-600 text-white text-xs font-semibold rounded">
-                                      Correct Answer
+                                      ✓ Correct Answer
+                                    </span>
+                                  )}
+                                  {isSelectedAnswer && answer.isCorrect && (
+                                    <span className="px-2 py-1 bg-green-500 text-white text-xs font-semibold rounded">
+                                      Your Answer ✓
                                     </span>
                                   )}
                                   {isSelectedAnswer && !answer.isCorrect && (
                                     <span className="px-2 py-1 bg-red-600 text-white text-xs font-semibold rounded">
-                                      Your Answer
+                                      ✗ Your Answer
                                     </span>
                                   )}
                                 </div>

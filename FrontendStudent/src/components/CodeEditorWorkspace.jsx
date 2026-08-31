@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
-import { Play, RotateCcw, ChevronDown, CheckCircle2, XCircle, Loader2, Terminal, FileText, AlertTriangle } from "lucide-react";
+import { Play, RotateCcw, ChevronDown, CheckCircle2, XCircle, Loader2, Terminal, FileText, AlertTriangle, Sun, Moon, GripVertical, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 const LANGUAGE_MAP = {
@@ -208,6 +208,20 @@ const CodeEditorWorkspace = ({
   runResult,
 }) => {
   const [activeTab, setActiveTab] = useState("description");
+  const [editorTheme, setEditorTheme] = useState("light");
+  const [leftWidth, setLeftWidth] = useState(45);
+  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsLangDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
   
   const coding = question.coding || {};
   const executionMode = coding.executionMode || "standard";
@@ -238,8 +252,38 @@ const CodeEditorWorkspace = ({
   };
 
   const handleSubmit = () => {
+    console.log("FRONTEND DEBUG LOG - CodeEditorWorkspace Run Code:", {
+      executionMode,
+      language,
+      code
+    });
     setActiveTab('result');
     onRunCode(); // No custom input - uses predefined test cases
+  };
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = leftWidth;
+    
+    const handleMouseMove = (moveEvent) => {
+      const container = document.getElementById("workspace-container");
+      if (!container) return;
+      const delta = moveEvent.clientX - startX;
+      const deltaPercent = (delta / container.offsetWidth) * 100;
+      const newWidth = Math.min(Math.max(startWidth + deltaPercent, 20), 80);
+      setLeftWidth(newWidth);
+    };
+    
+    const handleMouseUp = () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = 'default';
+    };
+    
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.body.style.cursor = 'col-resize';
   };
 
   return (
@@ -256,9 +300,9 @@ const CodeEditorWorkspace = ({
         }
       `}</style>
 
-      <div className="flex h-full min-h-[600px] border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+      <div id="workspace-container" className="flex h-full min-h-[600px] border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
         {/* ──── Left Panel: Description & Test Results ──── */}
-        <div className="w-[45%] flex flex-col border-r border-gray-200 bg-white">
+        <div style={{ width: `${leftWidth}%` }} className="flex flex-col border-r border-gray-200 bg-white">
           {/* Tabs */}
           <div className="flex border-b border-gray-200 bg-gray-50/50">
             <button
@@ -371,31 +415,82 @@ const CodeEditorWorkspace = ({
           </div>
         </div>
 
+        {/* ──── Resizer ──── */}
+        <div 
+          onMouseDown={handleMouseDown}
+          className="w-1.5 bg-gray-100 hover:bg-gray-300 hover:w-2 transition-all cursor-col-resize flex flex-col items-center justify-center shrink-0 z-10 relative group border-l border-gray-200"
+          title="Drag to resize panels"
+        >
+          <GripVertical className="w-4 h-4 text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity absolute" />
+        </div>
+
         {/* ──── Right Panel: Code Editor ──── */}
-        <div className="w-[55%] flex flex-col bg-[#1E1E1E]">
+        <div style={{ width: `calc(${100 - leftWidth}% - 6px)` }} className={`flex flex-col ${editorTheme === 'dark' ? 'bg-[#1E1E1E]' : 'bg-white'}`}>
           {/* Editor Header */}
-          <div className="flex items-center justify-between px-4 py-2.5 bg-[#252526] border-b border-[#3C3C3C]">
+          <div className={`flex items-center justify-between px-4 py-2.5 border-b ${editorTheme === 'dark' ? 'bg-[#252526] border-[#3C3C3C]' : 'bg-gray-50 border-gray-200'}`}>
             <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Code</span>
-              <div className="w-px h-4 bg-[#3C3C3C]" />
-              <div className="relative">
-                <select
-                  value={language}
-                  onChange={e => onLanguageChange(e.target.value)}
-                  className="bg-[#3C3C3C] text-gray-200 text-xs pl-3 pr-7 py-1.5 rounded-md outline-none border border-[#4D4D4D] focus:border-blue-500 appearance-none cursor-pointer transition-colors hover:bg-[#4D4D4D] font-medium"
+              <span className={`text-xs font-bold uppercase tracking-wider ${editorTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Code</span>
+              <div className={`w-px h-4 ${editorTheme === 'dark' ? 'bg-[#3C3C3C]' : 'bg-gray-300'}`} />
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
+                  className={`flex items-center gap-2 text-xs pl-3 pr-2 py-1.5 rounded-md outline-none cursor-pointer transition-colors font-medium border ${
+                    editorTheme === 'dark' 
+                      ? 'bg-[#3C3C3C] text-gray-200 border-[#4D4D4D] hover:bg-[#4D4D4D]' 
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                  }`}
                 >
-                  {(coding.allowedLanguages || ["javascript"]).map(lang => (
-                    <option key={lang} value={lang}>{formatLanguageName(lang)}</option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-gray-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  {formatLanguageName(language)}
+                  <ChevronDown className={`w-3.5 h-3.5 ${editorTheme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`} />
+                </button>
+                
+                {isLangDropdownOpen && (
+                  <div className={`absolute top-full mt-1 left-0 min-w-[120px] rounded-lg shadow-lg border z-50 overflow-hidden ${
+                    editorTheme === 'dark' ? 'bg-[#2D2D2D] border-[#4D4D4D] shadow-black/50' : 'bg-white border-gray-200 shadow-gray-200/50'
+                  }`}>
+                    {(coding.allowedLanguages || ["javascript"]).map(lang => (
+                      <button
+                        key={lang}
+                        onClick={() => {
+                          onLanguageChange(lang);
+                          setIsLangDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between cursor-pointer transition-colors ${
+                          editorTheme === 'dark'
+                            ? `hover:bg-[#3C3C3C] text-gray-200 ${language === lang ? 'bg-[#4D4D4D]' : ''}`
+                            : `hover:bg-gray-50 text-gray-700 ${language === lang ? 'bg-indigo-50 text-indigo-700 font-bold' : ''}`
+                        }`}
+                      >
+                        {formatLanguageName(lang)}
+                        {language === lang && <Check className="w-3.5 h-3.5" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Theme Toggle */}
+              <button
+                onClick={() => setEditorTheme(prev => prev === 'light' ? 'dark' : 'light')}
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  editorTheme === 'dark'
+                    ? 'text-amber-400 hover:text-amber-300 hover:bg-[#3C3C3C]'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
+                }`}
+                title={editorTheme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+              >
+                {editorTheme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </button>
+
               <button 
                 onClick={handleResetCode}
-                className="text-gray-500 hover:text-gray-300 p-1.5 rounded-md hover:bg-[#3C3C3C] transition-colors cursor-pointer"
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  editorTheme === 'dark'
+                    ? 'text-gray-500 hover:text-gray-300 hover:bg-[#3C3C3C]'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'
+                }`}
                 title="Reset to starter code"
               >
                 <RotateCcw className="w-4 h-4" />
@@ -424,8 +519,8 @@ const CodeEditorWorkspace = ({
           {/* Monaco Editor */}
           <div className="flex-1 flex flex-col">
             {isFunctionMode && preSignature && (
-              <div className="bg-[#1E1E1E] px-4 pt-4 pb-2">
-                <pre className="text-[#D4D4D4] font-mono text-[14px] leading-[1.5] opacity-60 whitespace-pre-wrap select-none">
+              <div className={`px-4 pt-4 pb-2 ${editorTheme === 'dark' ? 'bg-[#1E1E1E]' : 'bg-white'}`}>
+                <pre className={`font-mono text-[14px] leading-[1.5] opacity-60 whitespace-pre-wrap select-none ${editorTheme === 'dark' ? 'text-[#D4D4D4]' : 'text-gray-600'}`}>
                   {preSignature.trimEnd()}
                 </pre>
               </div>
@@ -434,7 +529,7 @@ const CodeEditorWorkspace = ({
               <Editor
                 height="100%"
                 language={language}
-                theme="vs-dark"
+                theme={editorTheme === 'dark' ? 'vs-dark' : 'light'}
                 value={displayCode}
                 onChange={val => onCodeChange(val || "")}
                 options={{
@@ -447,15 +542,17 @@ const CodeEditorWorkspace = ({
                   lineNumbersMinChars: 3,
                   glyphMargin: false,
                   folding: true,
-                  renderLineHighlight: 'line',
+                  renderLineHighlight: 'none',
+                  overviewRulerBorder: false,
+                  hideCursorInOverviewRuler: true,
                   cursorBlinking: 'smooth',
                   smoothScrolling: true,
                 }}
               />
             </div>
             {isFunctionMode && postSignature && (
-              <div className="bg-[#1E1E1E] px-4 pt-2 pb-4">
-                <pre className="text-[#D4D4D4] font-mono text-[14px] leading-[1.5] opacity-60 whitespace-pre-wrap select-none">
+              <div className={`px-4 pt-2 pb-4 ${editorTheme === 'dark' ? 'bg-[#1E1E1E]' : 'bg-white'}`}>
+                <pre className={`font-mono text-[14px] leading-[1.5] opacity-60 whitespace-pre-wrap select-none ${editorTheme === 'dark' ? 'text-[#D4D4D4]' : 'text-gray-600'}`}>
                   {postSignature.trimStart()}
                 </pre>
               </div>

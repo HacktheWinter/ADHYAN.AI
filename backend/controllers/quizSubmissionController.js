@@ -183,7 +183,9 @@ export const gradeAndSubmitDraft = async (draft, quiz) => {
         } else {
           try {
             const questionObj = question.toObject ? question.toObject() : question;
-            const results = await executeCode(language, code, codingTestCases, questionObj);
+
+            // Auto-grade bypasses user cooldown (pass null for studentId)
+            const results = await executeCode(null, language, code, codingTestCases, questionObj);
             const passedCount = results.filter(r => r.passed).length;
             const totalCount = results.length;
             testResults = { passed: passedCount, total: totalCount, details: results };
@@ -359,7 +361,9 @@ export const submitQuiz = async (req, res) => {
           } else {
           try {
             const questionObj = question.toObject ? question.toObject() : question;
+            // Auto-grade bypasses user cooldown (pass null for studentId)
             const results = await executeCode(
+              null,
               language, 
               code, 
               codingTestCases, 
@@ -604,7 +608,7 @@ export const getQuizResult = async (req, res) => {
       quizId,
       studentId,
       isDraft: false
-    }).populate("quizId", "title questions resultsPublished");
+    }).populate("quizId", "title questions sections resultsPublished");
 
     if (!submission) {
       return res.status(404).json({ error: "No submission found" });
@@ -731,6 +735,8 @@ export const runCode = async (req, res) => {
       
     const question = allQuestions.find(q => q._id.toString() === questionId);
     
+
+
     if (!question || question.type !== "coding") {
       return res.status(404).json({ error: "Coding question not found" });
     }
@@ -754,7 +760,12 @@ export const runCode = async (req, res) => {
       }
     }
     const questionObj = question.toObject ? question.toObject() : question;
+    
+    // Explicit runCode triggers cooldown check using studentId
+    const studentId = getRequestUserId(req);
+
     const results = await executeCode(
+      studentId,
       language,
       code,
       testCases,

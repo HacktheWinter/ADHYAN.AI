@@ -133,6 +133,7 @@ export const createQuizManually = async (req, res) => {
         totalMarks += sectionMarks;
         return {
           title: sec.title || `Section ${sIdx + 1}`,
+          type: sec.type || "mcq",
           instructions: sec.instructions || "",
           durationMinutes: sec.durationMinutes || null,
           order: sec.order || sIdx,
@@ -360,7 +361,8 @@ export const generateQuestionsFromPrompt = async (req, res) => {
           starterCode: q.coding?.starterCode || [],
           driverCode: q.coding?.driverCode || [],
           testCases: q.coding?.testCases || q.coding?.hiddenTestCases || q.coding?.publicTestCases || [{ input: "", expectedOutput: "" }],
-          comparisonMode: q.coding?.comparisonMode || "trimmed"
+          comparisonMode: q.coding?.comparisonMode || "trimmed",
+          executionMode: "standard"
         }
       }));
     } else {
@@ -786,6 +788,17 @@ export const updateQuiz = async (req, res) => {
         return res.status(403).json({ error: "Unauthorized" });
       }
     }
+
+    // 5. Update controller immediately before database update: print executionMode and C++ driverCode
+    updateData.sections?.forEach((sec, sIdx) => {
+      sec.questions?.forEach((q, qIdx) => {
+        if (q.type === "coding") {
+          const cppDriver = q.coding?.driverCode?.find(d => d.language === "cpp" || d.language === "c++");
+          console.log(`[BEFORE QUIZ.UPDATE] Section ${sIdx} Question ${qIdx} - executionMode:`, q.coding?.executionMode);
+          console.log(`[BEFORE QUIZ.UPDATE] Section ${sIdx} Question ${qIdx} - C++ driverCode:`, cppDriver?.code);
+        }
+      });
+    });
 
     const quiz = await Quiz.findByIdAndUpdate(quizId, updateData, {
       new: true,

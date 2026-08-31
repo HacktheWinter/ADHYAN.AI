@@ -1,8 +1,60 @@
-import React, { useState } from "react";
-import { X, Plus, Trash2, Save, ChevronDown, ChevronUp, Code, Code2, Settings, Maximize2, Minimize2, Upload, Loader2, FileUp, Clock, FileText, Sparkles } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { X, Plus, Trash2, Save, ChevronDown, ChevronUp, Code, Code2, Settings, Maximize2, Minimize2, Upload, Loader2, FileUp, Clock, FileText, Sparkles, CheckCircle, Check } from "lucide-react";
 import axios from "axios";
+import toast from "react-hot-toast";
 import API_BASE_URL from "../config";
 import Editor from "@monaco-editor/react";
+
+const CustomSelect = ({ value, onChange, options }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(o => o.value === value) || options[0];
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-2 border border-gray-200 rounded-xl outline-none bg-white hover:bg-gray-50 focus:ring-2 focus:ring-indigo-500 transition-all text-sm text-gray-800 font-medium cursor-pointer"
+      >
+        <span className="truncate">{selectedOption?.label}</span>
+        <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors cursor-pointer ${
+                value === opt.value 
+                  ? 'bg-indigo-50 text-indigo-700 font-bold' 
+                  : 'text-gray-700 hover:bg-gray-50 font-medium'
+              }`}
+            >
+              <span className="truncate">{opt.label}</span>
+              {value === opt.value && <Check className="w-4 h-4 flex-shrink-0 ml-2" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const emptyCoding = {
   title: "",
@@ -26,7 +78,7 @@ const emptyCoding = {
   ],
   testCases: [{ input: "", expectedOutput: "" }],
   comparisonMode: "trimmed",
-  executionMode: "standard"
+  executionMode: "function"
 };
 
 const emptyMCQ = {
@@ -51,12 +103,27 @@ const emptySection = (index) => ({
 const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
   const [title, setTitle] = useState("");
   const [difficulty, setDifficulty] = useState("mixed");
+  const [isDifficultyMenuOpen, setIsDifficultyMenuOpen] = useState(false);
+  const difficultyDropdownRef = useRef(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (difficultyDropdownRef.current && !difficultyDropdownRef.current.contains(event.target)) {
+        setIsDifficultyMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
   const [sections, setSections] = useState([emptySection(0)]);
   const [isSaving, setIsSaving] = useState(false);
   const [expandedEditor, setExpandedEditor] = useState(null);
   const [expandedSection, setExpandedSection] = useState(0);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [extractingSectionIdx, setExtractingSectionIdx] = useState(-1);
+
+  // Language tab state for code editors
+  const [activeLang, setActiveLang] = useState({});
 
   // AI Generation state
   const [aiPanelOpenForSection, setAiPanelOpenForSection] = useState(-1);
@@ -96,11 +163,11 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
     const selected = selectedQuestions[sIdx] || [];
     const marks = bulkMarks[sIdx];
     if (selected.length === 0) {
-      alert("Please select questions to update marks");
+      toast.error("Please select questions to update marks");
       return;
     }
     if (!marks || marks <= 0) {
-      alert("Please enter a valid marks value");
+      toast.error("Please enter a valid marks value");
       return;
     }
     const updatedSections = [...sections];
@@ -115,7 +182,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
   const handleBulkDelete = (sIdx) => {
     const selected = selectedQuestions[sIdx] || [];
     if (selected.length === 0) {
-      alert("Please select questions to delete");
+      toast.error("Please select questions to delete");
       return;
     }
     if (!confirm(`Are you sure you want to delete ${selected.length} questions?`)) return;
@@ -144,7 +211,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
     ];
     
     if (!allowedTypes.includes(file.type)) {
-      alert("Please upload a PDF, Word, or Excel document.");
+      toast.error("Please upload a PDF, Word, or Excel document.");
       return;
     }
 
@@ -189,10 +256,11 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
            updated[sIdx].questions = [...updated[sIdx].questions, ...formattedQuestions];
         }
         setSections(updated);
+        toast.success(`Imported ${formattedQuestions.length} question${formattedQuestions.length > 1 ? 's' : ''} from file`, { icon: '📄' });
       }
     } catch (error) {
       console.error("Extraction failed:", error);
-      alert(error.response?.data?.error || "Failed to extract questions from file");
+      toast.error(error.response?.data?.error || "Failed to extract questions from file");
     } finally {
       setExtractingSectionIdx(-1);
       e.target.value = null; // reset file input
@@ -238,9 +306,35 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
   };
 
   const updateCodingField = (sIdx, qIdx, field, value) => {
-    const updated = [...sections];
-    updated[sIdx].questions[qIdx].coding[field] = value;
-    setSections(updated);
+    setSections(prevSections => {
+      const updated = [...prevSections];
+      const section = { ...updated[sIdx] };
+      const questions = [...section.questions];
+      const question = { ...questions[qIdx] };
+      const coding = { ...question.coding };
+      
+      coding[field] = value;
+      
+      // Automatically swap placeholders if executionMode changes
+      if (field === "executionMode") {
+        const isFunction = value === "function";
+        const oldPlaceholder = isFunction ? "{{USER_CODE}}" : "{{STUDENT_BODY}}";
+        const newPlaceholder = isFunction ? "{{STUDENT_BODY}}" : "{{USER_CODE}}";
+        
+        if (coding.driverCode) {
+          coding.driverCode = coding.driverCode.map(d => ({
+            ...d,
+            code: d.code ? d.code.replace(new RegExp(oldPlaceholder, "g"), newPlaceholder) : d.code
+          }));
+        }
+      }
+      
+      question.coding = coding;
+      questions[qIdx] = question;
+      section.questions = questions;
+      updated[sIdx] = section;
+      return updated;
+    });
   };
 
   const handleArrayFieldAdd = (sIdx, qIdx, arrayName, emptyObj) => {
@@ -269,22 +363,22 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
 
 
   const handleSave = async () => {
-    if (!title.trim()) return alert("Please enter an assessment title");
+    if (!title.trim()) return toast.error("Please enter an assessment title");
 
     const mappedSections = [];
 
     for (let sIdx = 0; sIdx < sections.length; sIdx++) {
       const section = sections[sIdx];
-      if (!section.title.trim()) return alert(`Section ${sIdx + 1} needs a title`);
+      if (!section.title.trim()) return toast.error(`Section ${sIdx + 1} needs a title`);
 
 
       const mappedQuestions = [];
       for (let qIdx = 0; qIdx < section.questions.length; qIdx++) {
         const q = section.questions[qIdx];
         if (q.type === "mcq") {
-          if (!q.question?.trim()) return alert(`Section ${sIdx + 1}, Q${qIdx + 1} is empty`);
-          if (q.options.some(opt => !opt.trim())) return alert(`Section ${sIdx + 1}, Q${qIdx + 1} has empty options`);
-          if (q.correctOptionIndex === null) return alert(`Select a correct answer for Section ${sIdx + 1}, Q${qIdx + 1}`);
+          if (!q.question?.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} is empty`);
+          if (q.options.some(opt => !opt.trim())) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} has empty options`);
+          if (q.correctOptionIndex === null) return toast.error(`Select a correct answer for Section ${sIdx + 1}, Q${qIdx + 1}`);
           
           mappedQuestions.push({
             type: "mcq",
@@ -294,19 +388,19 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
             correctAnswer: q.options[q.correctOptionIndex]
           });
         } else {
-          if (!q.coding.title?.trim()) return alert(`Section ${sIdx + 1}, Q${qIdx + 1} missing title`);
-          if (!q.coding.description?.trim()) return alert(`Section ${sIdx + 1}, Q${qIdx + 1} missing description`);
+          if (!q.coding.title?.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} missing title`);
+          if (!q.coding.description?.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} missing description`);
           
           const reqLangs = ["java", "cpp", "javascript", "python", "c"];
           for (const lang of reqLangs) {
             const hasStarter = q.coding.starterCode?.some(s => s.language === lang && s.code?.trim());
             const hasDriver = q.coding.driverCode?.some(d => d.language === lang && d.code?.trim());
             if (!hasStarter || !hasDriver) {
-              return alert(`Section ${sIdx + 1}, Q${qIdx + 1} is missing starter code or driver code for ${lang}. Both are required for all 5 languages.`);
+              return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} is missing starter/driver code for ${lang}.`);
             }
           }
 
-          if (q.coding.testCases.length === 0 || !q.coding.testCases[0].input.trim()) return alert(`Section ${sIdx + 1}, Q${qIdx + 1} must have a valid test case`);
+          if (q.coding.testCases.length === 0 || !q.coding.testCases[0].input.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} must have a valid test case`);
 
           mappedQuestions.push({
             type: "coding",
@@ -342,7 +436,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
       onCreated(res.data.quiz);
     } catch (error) {
       console.error("Failed to create assessment", error);
-      alert(error.response?.data?.error || "Failed to create assessment");
+      toast.error(error.response?.data?.error || "Failed to create assessment");
     } finally {
       setIsSaving(false);
     }
@@ -399,18 +493,38 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Difficulty</label>
-                <div className="relative">
-                  <select
-                    value={difficulty}
-                    onChange={(e) => setDifficulty(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer transition-all text-sm"
+                <div className="relative" ref={difficultyDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsDifficultyMenuOpen(!isDifficultyMenuOpen)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 hover:bg-gray-100 focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium text-gray-800 cursor-pointer"
                   >
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                    <option value="mixed">Mixed</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <span className="capitalize">{difficulty}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </button>
+                  
+                  {isDifficultyMenuOpen && (
+                    <div className="absolute top-full mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      {['easy', 'medium', 'hard', 'mixed'].map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => {
+                            setDifficulty(level);
+                            setIsDifficultyMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors cursor-pointer ${
+                            difficulty === level 
+                              ? 'bg-indigo-50 text-indigo-700 font-bold' 
+                              : 'text-gray-700 hover:bg-gray-50 font-medium'
+                          }`}
+                        >
+                          <span className="capitalize">{level}</span>
+                          {difficulty === level && <Check className="w-4 h-4" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -502,13 +616,13 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                   <div className="p-5 space-y-5">
                     {/* AI Generation Panel */}
                     {aiPanelOpenForSection === sIdx && (
-                      <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 space-y-4 animate-in fade-in duration-200 relative overflow-hidden">
-                        {/* Subtle theme highlight at the top */}
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
+                      <div className="ai-panel-animated bg-white rounded-xl p-5 space-y-4 relative overflow-hidden shadow-lg">
+                        {/* Gradient accent bar */}
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500"></div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center border border-purple-100">
-                              <Sparkles className="w-4 h-4 text-purple-600" />
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-md shadow-purple-500/20">
+                              <Sparkles className="w-4.5 h-4.5 text-white" />
                             </div>
                             <div>
                               <h6 className="font-bold text-sm text-gray-900">AI Question Generator</h6>
@@ -532,41 +646,61 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                               ? 'e.g. binary search, linked list reversal, dynamic programming...'
                               : 'e.g. photosynthesis, cell division, genetics...'
                             }
-                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-200 outline-none transition-all text-sm resize-none h-20 shadow-inner"
+                            className="w-full px-3.5 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-200 outline-none transition-all text-sm resize-none h-20"
                             disabled={isGeneratingAI}
                           />
                         </div>
 
-                        <div className="flex items-end gap-3">
+                        <div className="flex items-end gap-4">
                           <div className="flex-shrink-0">
-                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">No. of Questions</label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="20"
-                              value={aiQuestionCount}
-                              onChange={(e) => setAiQuestionCount(Math.max(1, Math.min(20, Number(e.target.value))))}
-                              className="w-24 px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-200 outline-none text-sm text-center shadow-inner"
-                              disabled={isGeneratingAI}
-                            />
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Questions</label>
+                            <div className="flex items-center border border-gray-200 rounded-xl bg-gray-50 overflow-hidden focus-within:ring-2 focus-within:ring-purple-500 focus-within:border-purple-200 focus-within:bg-white transition-all h-10 w-24 pl-3 relative">
+                              <input
+                                type="number"
+                                min="1"
+                                max="20"
+                                value={aiQuestionCount}
+                                onChange={(e) => setAiQuestionCount(Math.max(1, Math.min(20, Number(e.target.value))))}
+                                className="w-full bg-transparent border-none outline-none text-sm font-bold text-gray-900 p-0 pr-6 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                disabled={isGeneratingAI}
+                              />
+                              <div className="absolute right-0 top-0 h-full flex flex-col border-l border-gray-200">
+                                <button type="button" onClick={() => setAiQuestionCount(Math.min(20, aiQuestionCount + 1))} disabled={isGeneratingAI} className="flex-1 w-7 flex items-center justify-center text-gray-500 hover:text-purple-700 hover:bg-purple-100 transition-colors border-b border-gray-200 disabled:opacity-50 cursor-pointer">
+                                  <ChevronUp className="w-3 h-3" />
+                                </button>
+                                <button type="button" onClick={() => setAiQuestionCount(Math.max(1, aiQuestionCount - 1))} disabled={isGeneratingAI} className="flex-1 w-7 flex items-center justify-center text-gray-500 hover:text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50 cursor-pointer">
+                                  <ChevronDown className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
                           </div>
                           <div className="flex-shrink-0">
                             <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Marks Each</label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="100"
-                              value={aiMarksPerQuestion}
-                              onChange={(e) => setAiMarksPerQuestion(Math.max(1, Math.min(100, Number(e.target.value))))}
-                              className="w-24 px-3 py-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-200 outline-none text-sm text-center shadow-inner"
-                              disabled={isGeneratingAI}
-                            />
+                            <div className="flex items-center border border-gray-200 rounded-xl bg-gray-50 overflow-hidden focus-within:ring-2 focus-within:ring-purple-500 focus-within:border-purple-200 focus-within:bg-white transition-all h-10 w-24 pl-3 relative">
+                              <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={aiMarksPerQuestion}
+                                onChange={(e) => setAiMarksPerQuestion(Math.max(1, Math.min(100, Number(e.target.value))))}
+                                className="w-full bg-transparent border-none outline-none text-sm font-bold text-gray-900 p-0 pr-6 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                disabled={isGeneratingAI}
+                              />
+                              <div className="absolute right-0 top-0 h-full flex flex-col border-l border-gray-200">
+                                <button type="button" onClick={() => setAiMarksPerQuestion(Math.min(100, aiMarksPerQuestion + 1))} disabled={isGeneratingAI} className="flex-1 w-7 flex items-center justify-center text-gray-500 hover:text-purple-700 hover:bg-purple-100 transition-colors border-b border-gray-200 disabled:opacity-50 cursor-pointer">
+                                  <ChevronUp className="w-3 h-3" />
+                                </button>
+                                <button type="button" onClick={() => setAiMarksPerQuestion(Math.max(1, aiMarksPerQuestion - 1))} disabled={isGeneratingAI} className="flex-1 w-7 flex items-center justify-center text-gray-500 hover:text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50 cursor-pointer">
+                                  <ChevronDown className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
                           </div>
                           <button
                             type="button"
                             onClick={async () => {
                               if (!aiTopicInput.trim()) {
-                                alert("Please enter topics or a prompt");
+                                toast.error("Please enter topics or a prompt");
                                 return;
                               }
                               setIsGeneratingAI(true);
@@ -586,32 +720,50 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                                 const generated = res.data.questions;
                                 if (generated && generated.length > 0) {
                                   const updated = [...sections];
-                                  // If section only has one empty placeholder, replace it
                                   const hasOnlyEmptyPlaceholder =
                                     updated[sIdx].questions.length === 1 &&
                                     !updated[sIdx].questions[0].question &&
                                     !updated[sIdx].questions[0].coding?.title;
 
                                   if (hasOnlyEmptyPlaceholder) {
-                                    updated[sIdx].questions = generated;
+                                    const preservedMode = updated[sIdx].questions[0].coding?.executionMode || "standard";
+                                    const mappedGenerated = generated.map(g => {
+                                      if (g.type === "coding" && g.coding) {
+                                        g.coding.executionMode = preservedMode;
+                                        if (preservedMode === "function" && g.coding.driverCode) {
+                                          g.coding.driverCode = g.coding.driverCode.map(d => ({
+                                            ...d,
+                                            code: d.code ? d.code.replace(new RegExp("{{USER_CODE}}", "g"), "{{STUDENT_BODY}}") : d.code
+                                          }));
+                                        }
+                                      }
+                                      return g;
+                                    });
+                                    updated[sIdx].questions = mappedGenerated;
                                   } else {
                                     updated[sIdx].questions = [...updated[sIdx].questions, ...generated];
                                   }
                                   setSections(updated);
                                   setAiPanelOpenForSection(-1);
                                   setAiTopicInput("");
+                                  
+                                  // Show success notification
+                                  toast.success(
+                                    `Generated ${generated.length} ${section.type === 'coding' ? 'coding' : 'MCQ'} question${generated.length > 1 ? 's' : ''} successfully!`,
+                                    { duration: 5000, icon: '✨' }
+                                  );
                                 } else {
-                                  alert("AI could not generate questions. Try different topics.");
+                                  toast.error("AI could not generate questions. Try different topics.");
                                 }
                               } catch (error) {
                                 console.error("AI generation failed:", error);
-                                alert(error.response?.data?.error || "Failed to generate questions. Please try again.");
+                                toast.error(error.response?.data?.error || "Failed to generate questions. Please try again.");
                               } finally {
                                 setIsGeneratingAI(false);
                               }
                             }}
                             disabled={isGeneratingAI || !aiTopicInput.trim()}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-purple-600/20"
+                            className="ai-generate-btn flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white font-bold rounded-xl transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-purple-600/25 cursor-pointer"
                           >
                             {isGeneratingAI ? (
                               <>
@@ -628,6 +780,8 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                         </div>
                       </div>
                     )}
+
+
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
@@ -739,33 +893,49 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                       </div>
                       
                       {section.questions.map((q, qIdx) => (
-                        <div key={qIdx} className="p-5 border border-line rounded-xl bg-gray-50/50">
-                          <div className="flex justify-between items-start mb-4">
+                        <div key={qIdx} className="p-5 border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                          {/* Left accent border */}
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${q.type === 'mcq' ? 'bg-indigo-500' : 'bg-amber-500'}`}></div>
+                          
+                          <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center gap-3">
                               {(selectedQuestions[sIdx] || []).length > 0 && (
                                 <input 
                                   type="checkbox" 
                                   checked={(selectedQuestions[sIdx] || []).includes(qIdx)}
                                   onChange={() => handleSelectQuestion(sIdx, qIdx)}
-                                  className="w-4 h-4 text-indigo-600 rounded cursor-pointer mt-0.5"
+                                  className="w-4 h-4 text-indigo-600 rounded cursor-pointer"
                                 />
                               )}
-                              <h6 className="font-bold text-indigo-700 flex items-center gap-2">
-                                {q.type === 'mcq' ? 'MCQ' : <Code className="w-4 h-4"/>} Question {qIdx + 1}
-                              </h6>
-                            </div>
-                            <div className="flex items-center gap-4">
                               <div className="flex items-center gap-2">
-                                <label className="text-xs font-bold text-gray-600">Marks:</label>
+                                <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${
+                                  q.type === 'mcq' 
+                                    ? 'bg-indigo-100 text-indigo-700' 
+                                    : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                  {q.type === 'mcq' ? <FileText className="w-3.5 h-3.5" /> : <Code className="w-3.5 h-3.5"/>}
+                                </span>
+                                <h6 className="font-bold text-gray-800 text-sm">
+                                  {q.type === 'mcq' ? 'MCQ' : 'Coding'} Question {qIdx + 1}
+                                </h6>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1">
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Marks</label>
                                 <input 
                                   type="number" 
                                   value={q.marks} 
                                   onChange={e => updateQuestion(sIdx, qIdx, "marks", Number(e.target.value))} 
-                                  className="w-16 px-2 py-1 text-sm border rounded outline-none"
+                                  className="w-12 px-1.5 py-0.5 text-sm border-0 bg-transparent outline-none text-center font-bold text-gray-800"
                                 />
                               </div>
                               {section.questions.length > 1 && (
-                                <button onClick={() => handleRemoveQuestion(sIdx, qIdx)} className="text-rose-500">
+                                <button 
+                                  onClick={() => handleRemoveQuestion(sIdx, qIdx)} 
+                                  className="text-gray-400 hover:text-rose-500 p-1.5 rounded-lg hover:bg-rose-50 transition-all"
+                                  title="Delete Question"
+                                >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               )}
@@ -774,40 +944,61 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
 
                           {q.type === 'mcq' ? (
                             // MCQ Editor
-                            <div>
+                            <div className="space-y-4">
                               <textarea
                                 value={q.question}
                                 onChange={(e) => updateQuestion(sIdx, qIdx, "question", e.target.value)}
-                                placeholder="Enter question text..."
-                                className="w-full px-4 py-2 mb-4 border border-line rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-20"
+                                placeholder="Enter your question text here..."
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 outline-none resize-none h-24 text-sm transition-all"
                               />
-                              <div className="space-y-3">
-                                <p className="text-xs font-bold text-gray-500 uppercase">Options (Select correct via radio)</p>
-                                {q.options.map((opt, optIndex) => (
-                                  <div key={optIndex} className="flex items-center gap-3">
-                                    <input
-                                      type="radio"
-                                      name={`correct-${sIdx}-${qIdx}`}
-                                      checked={q.correctOptionIndex === optIndex}
-                                      onChange={() => updateQuestion(sIdx, qIdx, "correctOptionIndex", optIndex)}
-                                      className="w-4 h-4 text-indigo-600"
-                                    />
-                                    <input
-                                      type="text"
-                                      value={opt}
-                                      onChange={(e) => {
-                                        const newOpts = [...q.options];
-                                        newOpts[optIndex] = e.target.value;
-                                        updateQuestion(sIdx, qIdx, "options", newOpts);
-                                      }}
-                                      placeholder={`Option ${String.fromCharCode(65 + optIndex)}`}
-                                      className="flex-1 px-4 py-2 border rounded-xl bg-white outline-none"
-                                    />
-                                  </div>
-                                ))}
+                              <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                  <CheckCircle className="w-3 h-3" /> Select the correct answer
+                                </p>
+                                {q.options.map((opt, optIndex) => {
+                                  const isCorrect = q.correctOptionIndex === optIndex;
+                                  const letter = String.fromCharCode(65 + optIndex);
+                                  return (
+                                    <label 
+                                      key={optIndex} 
+                                      className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer transition-all group ${
+                                        isCorrect 
+                                          ? 'bg-emerald-50 border-emerald-300 shadow-sm shadow-emerald-100' 
+                                          : 'bg-white border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/30'
+                                      }`}
+                                    >
+                                      <input
+                                        type="radio"
+                                        name={`correct-${sIdx}-${qIdx}`}
+                                        checked={isCorrect}
+                                        onChange={() => updateQuestion(sIdx, qIdx, "correctOptionIndex", optIndex)}
+                                        className="sr-only"
+                                      />
+                                      <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all ${
+                                        isCorrect 
+                                          ? 'bg-emerald-500 text-white shadow-sm' 
+                                          : 'bg-gray-100 text-gray-500 group-hover:bg-indigo-100 group-hover:text-indigo-600'
+                                      }`}>
+                                        {isCorrect ? <CheckCircle className="w-4 h-4" /> : letter}
+                                      </span>
+                                      <input
+                                        type="text"
+                                        value={opt}
+                                        onChange={(e) => {
+                                          const newOpts = [...q.options];
+                                          newOpts[optIndex] = e.target.value;
+                                          updateQuestion(sIdx, qIdx, "options", newOpts);
+                                        }}
+                                        placeholder={`Option ${letter}`}
+                                        className="flex-1 bg-transparent outline-none text-sm font-medium text-gray-800 placeholder-gray-400"
+                                      />
+                                    </label>
+                                  );
+                                })}
                               </div>
                             </div>
                           ) : (
+
                             // Coding Editor
                             <div className="space-y-6 bg-gray-50/30 p-6 rounded-2xl border border-indigo-100">
                               <div className="flex items-center gap-2 mb-2 pb-4 border-b border-indigo-100">
@@ -937,105 +1128,130 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <label className="block text-sm font-bold mb-1">Comparison Mode</label>
-                                  <div className="relative">
-                                    <select 
-                                      value={q.coding.comparisonMode}
-                                      onChange={e => updateCodingField(sIdx, qIdx, "comparisonMode", e.target.value)}
-                                      className="w-full px-4 py-2 border rounded-xl outline-none bg-white hover:bg-gray-50 focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer transition-all"
-                                    >
-                                      <option value="trimmed">Trimmed (Ignores extra spaces)</option>
-                                      <option value="exact">Exact (Strict match)</option>
-                                    </select>
-                                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                  </div>
+                                  <CustomSelect
+                                    value={q.coding.comparisonMode || "trimmed"}
+                                    onChange={val => updateCodingField(sIdx, qIdx, "comparisonMode", val)}
+                                    options={[
+                                      { value: "trimmed", label: "Trimmed (Ignores extra spaces)" },
+                                      { value: "exact", label: "Exact (Strict match)" }
+                                    ]}
+                                  />
                                 </div>
                                 <div>
                                   <label className="block text-sm font-bold mb-1">Execution Mode</label>
-                                  <div className="relative">
-                                    <select 
-                                      value={q.coding.executionMode || "standard"}
-                                      onChange={e => updateCodingField(sIdx, qIdx, "executionMode", e.target.value)}
-                                      className="w-full px-4 py-2 border rounded-xl outline-none bg-white hover:bg-gray-50 focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer transition-all"
-                                    >
-                                      <option value="standard">Standard (Student writes full program)</option>
-                                      <option value="function">Function (Student writes function body only)</option>
-                                    </select>
-                                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                  </div>
+                                  <CustomSelect
+                                    value={q.coding.executionMode || "function"}
+                                    onChange={val => updateCodingField(sIdx, qIdx, "executionMode", val)}
+                                    options={[
+                                      { value: "standard", label: "Standard (Student writes full program)" },
+                                      { value: "function", label: "Function (Student writes function body only)" }
+                                    ]}
+                                  />
                                 </div>
-                                <div className="col-span-1 md:col-span-2 space-y-4">
-                                  <label className="block text-sm font-bold mb-1">Boilerplate & Driver Code (Required for all 5 languages)</label>
-                                  {["java", "cpp", "javascript", "python", "c"].map(lang => {
+                                <div className="col-span-1 md:col-span-2 space-y-3">
+                                  <label className="block text-sm font-bold mb-1 flex items-center gap-2">
+                                    <Code2 className="w-4 h-4 text-indigo-600" />
+                                    Boilerplate & Driver Code
+                                    <span className="text-xs font-normal text-gray-400">(Required for all 5 languages)</span>
+                                  </label>
+                                  
+                                  {/* Language Tabs */}
+                                  <div className="flex border-b border-gray-200">
+                                    {["java", "cpp", "javascript", "python", "c"].map(lang => {
+                                      const tabKey = `${sIdx}-${qIdx}`;
+                                      const currentLang = activeLang[tabKey] || "java";
+                                      const hasCode = q.coding.starterCode?.some(s => s.language === lang && s.code?.trim()) && 
+                                                      q.coding.driverCode?.some(d => d.language === lang && d.code?.trim());
+                                      return (
+                                        <button
+                                          key={lang}
+                                          type="button"
+                                          onClick={() => setActiveLang(prev => ({ ...prev, [tabKey]: lang }))}
+                                          className={`lang-tab px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                                            currentLang === lang
+                                              ? 'active text-indigo-700 bg-indigo-50/50'
+                                              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                                          }`}
+                                        >
+                                          {lang}
+                                          {hasCode && <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+
+                                  {/* Active Language Editor */}
+                                  {(() => {
+                                    const tabKey = `${sIdx}-${qIdx}`;
+                                    const lang = activeLang[tabKey] || "java";
                                     const starter = q.coding.starterCode?.find(s => s.language === lang)?.code || "";
                                     const driver = q.coding.driverCode?.find(d => d.language === lang)?.code || "";
                                     return (
-                                      <div key={lang} className="border border-gray-200 p-4 rounded-xl bg-white shadow-sm">
-                                        <h6 className="font-bold uppercase text-xs mb-2 text-indigo-600">{lang}</h6>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                          <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                              <label className="text-xs font-semibold text-gray-600 block">Starter Code (Student sees this)</label>
-                                              <button
-                                                type="button"
-                                                onClick={() => setExpandedEditor({ sIdx, qIdx, lang, field: 'starterCode', value: starter })}
-                                                className="text-gray-400 hover:text-indigo-600 transition-colors p-1"
-                                                title="Expand Editor"
-                                              >
-                                                <Maximize2 className="w-4 h-4" />
-                                              </button>
-                                            </div>
-                                            <div className="h-32 rounded overflow-hidden border border-gray-200">
-                                              <Editor
-                                                height="100%"
-                                                language={lang === 'c' || lang === 'cpp' ? 'cpp' : lang}
-                                                theme="light"
-                                                value={starter}
-                                                onChange={(val) => {
-                                                  const newStarter = [...(q.coding.starterCode || [])];
-                                                  const idx = newStarter.findIndex(s => s.language === lang);
-                                                  if (idx >= 0) newStarter[idx].code = val || "";
-                                                  else newStarter.push({ language: lang, code: val || "" });
-                                                  updateCodingField(sIdx, qIdx, "starterCode", newStarter);
-                                                }}
-                                                options={{ minimap: { enabled: false }, lineNumbers: 'off', scrollBeyondLastLine: false, tabSize: 2 }}
-                                              />
-                                            </div>
+                                      <div key={lang} className="lang-tab-panel grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Starter Code Editor */}
+                                        <div className="code-editor-container starter">
+                                          <div className="editor-label">
+                                            <span>Starter Code (Student sees this)</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => setExpandedEditor({ sIdx, qIdx, lang, field: 'starterCode', value: starter })}
+                                              className="text-green-600 hover:text-green-800 transition-colors p-0.5"
+                                              title="Expand Editor"
+                                            >
+                                              <Maximize2 className="w-3.5 h-3.5" />
+                                            </button>
                                           </div>
-                                          <div>
-                                            <div className="flex justify-between items-center mb-1">
-                                              <label className="text-xs font-semibold text-gray-600 block">
-                                                Driver Code (Use {q.coding.executionMode === 'function' ? '{{STUDENT_BODY}}' : '{{USER_CODE}}'})
-                                              </label>
-                                              <button
-                                                type="button"
-                                                onClick={() => setExpandedEditor({ sIdx, qIdx, lang, field: 'driverCode', value: driver })}
-                                                className="text-gray-400 hover:text-indigo-600 transition-colors p-1"
-                                                title="Expand Editor"
-                                              >
-                                                <Maximize2 className="w-4 h-4" />
-                                              </button>
-                                            </div>
-                                            <div className="h-32 rounded overflow-hidden border border-gray-200 bg-gray-50">
-                                              <Editor
-                                                height="100%"
-                                                language={lang === 'c' || lang === 'cpp' ? 'cpp' : lang}
-                                                theme="vs-dark"
-                                                value={driver}
-                                                onChange={(val) => {
-                                                  const newDriver = [...(q.coding.driverCode || [])];
-                                                  const idx = newDriver.findIndex(d => d.language === lang);
-                                                  if (idx >= 0) newDriver[idx].code = val || "";
-                                                  else newDriver.push({ language: lang, code: val || "" });
-                                                  updateCodingField(sIdx, qIdx, "driverCode", newDriver);
-                                                }}
-                                                options={{ minimap: { enabled: false }, lineNumbers: 'off', scrollBeyondLastLine: false, tabSize: 2 }}
-                                              />
-                                            </div>
+                                          <div className="h-40">
+                                            <Editor
+                                              height="100%"
+                                              language={lang === 'c' || lang === 'cpp' ? 'cpp' : lang}
+                                              theme="light"
+                                              value={starter}
+                                              onChange={(val) => {
+                                                const newStarter = [...(q.coding.starterCode || [])];
+                                                const idx = newStarter.findIndex(s => s.language === lang);
+                                                if (idx >= 0) newStarter[idx].code = val || "";
+                                                else newStarter.push({ language: lang, code: val || "" });
+                                                updateCodingField(sIdx, qIdx, "starterCode", newStarter);
+                                              }}
+                                              options={{ minimap: { enabled: false }, lineNumbers: 'off', scrollBeyondLastLine: false, tabSize: 2, padding: { top: 8 } }}
+                                            />
+                                          </div>
+                                        </div>
+
+                                        {/* Driver Code Editor */}
+                                        <div className="code-editor-container driver">
+                                          <div className="editor-label">
+                                            <span>Driver Code (Use {q.coding.executionMode === 'function' ? '{{STUDENT_BODY}}' : '{{USER_CODE}}'})</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => setExpandedEditor({ sIdx, qIdx, lang, field: 'driverCode', value: driver })}
+                                              className="text-purple-400 hover:text-purple-300 transition-colors p-0.5"
+                                              title="Expand Editor"
+                                            >
+                                              <Maximize2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                          <div className="h-40">
+                                            <Editor
+                                              height="100%"
+                                              language={lang === 'c' || lang === 'cpp' ? 'cpp' : lang}
+                                              theme="vs-dark"
+                                              value={driver}
+                                              onChange={(val) => {
+                                                const newDriver = [...(q.coding.driverCode || [])];
+                                                const idx = newDriver.findIndex(d => d.language === lang);
+                                                if (idx >= 0) newDriver[idx].code = val || "";
+                                                else newDriver.push({ language: lang, code: val || "" });
+                                                updateCodingField(sIdx, qIdx, "driverCode", newDriver);
+                                              }}
+                                              options={{ minimap: { enabled: false }, lineNumbers: 'off', scrollBeyondLastLine: false, tabSize: 2, padding: { top: 8 } }}
+                                            />
                                           </div>
                                         </div>
                                       </div>
                                     );
-                                  })}
+                                  })()}
                                 </div>
                               </div>
 
@@ -1107,22 +1323,27 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
           </button>
         </div>
 
-        <div className="p-6 border-t border-line flex gap-3 bg-white rounded-b-2xl">
+        <div className="px-6 py-4 border-t border-line flex gap-3 bg-white rounded-b-2xl">
           <button
             onClick={onClose}
             disabled={isSaving}
-            className="flex-1 py-3 bg-gray-100 text-ink font-bold rounded-xl hover:bg-gray-200 transition-colors"
+            className="flex-1 py-3 bg-gray-100 text-ink font-bold rounded-xl hover:bg-gray-200 transition-all border border-gray-200 hover:border-gray-300 active:scale-[0.98]"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+            className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {isSaving ? "Saving..." : <><Save className="w-5 h-5" /> Save Assessment</>}
+            {isSaving ? (
+              <><Loader2 className="w-5 h-5 animate-spin" /> Saving...</>
+            ) : (
+              <><Save className="w-5 h-5" /> Save Assessment</>
+            )}
           </button>
         </div>
+
       </div>
       
       {/* Expanded Editor Modal */}

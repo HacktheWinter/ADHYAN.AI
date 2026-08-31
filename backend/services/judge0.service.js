@@ -71,7 +71,7 @@ export const submitToJudge0 = async ({
     if (compilerOptions) {
       payload.compiler_options = compilerOptions;
     }
-
+    
     const response = await axios.post(
       `${baseUrl}/submissions?base64_encoded=false&wait=false`,
       payload,

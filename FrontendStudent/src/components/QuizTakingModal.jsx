@@ -447,6 +447,15 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   const handleRunCode = async (questionId, code, language) => {
     setIsExecuting(true);
     try {
+      const q = shuffledQuiz.sections?.length > 0 
+        ? shuffledQuiz.sections.flatMap(s => s.questions).find(q => q._id === questionId)
+        : shuffledQuiz.questions?.find(q => q._id === questionId);
+      console.log("FRONTEND DEBUG LOG - Before Run Code:", {
+        executionMode: q?.coding?.executionMode,
+        language,
+        code
+      });
+      
       const res = await runCode(shuffledQuiz._id, questionId, code, language);
       setRunResults(prev => ({ ...prev, [questionId]: res.results }));
       
@@ -714,16 +723,9 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
               )}
             </div>
           </div>
-          
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentQuestionIdx + 1) / currentSection.questions.length) * 100}%` }}
-            />
-          </div>
         </div>
 
-        {/* MAIN BODY */}
+        {/* MAIN LAYOUT */}
         <div className="flex-1 overflow-hidden flex bg-gray-50">
           <QuestionPalette
             questions={currentSection.questions}
