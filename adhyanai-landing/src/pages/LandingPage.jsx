@@ -13,7 +13,7 @@ import Hero from '../components/Landing/Hero';
 
 const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main>
         <Hero />

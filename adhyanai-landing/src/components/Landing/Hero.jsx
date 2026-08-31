@@ -1,109 +1,131 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowRight, Wand2, Sparkles, CheckCircle2 } from 'lucide-react';
+import ParticleCanvas from './animation/ParticleCanvas';
+import AtomCore from './animation/AtomCore';
 
 const Hero = () => {
   const STUDENT_URL = import.meta.env.VITE_STUDENT_URL || "https://student.adhyanai.tech/";
   const TEACHER_URL = import.meta.env.VITE_TEACHER_URL || "https://teacher.adhyanai.tech/login";
 
+  // Staggered entrance animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.12,
+        delayChildren: 0.05
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 24 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
+    }
+  };
+
   return (
-    <section className="relative overflow-hidden pt-24 pb-20 lg:pt-32 lg:pb-28">
-      {/* Background gradients */}
-      <div className="absolute top-0 left-0 w-full h-full -z-10 bg-gradient-to-br from-purple-50 via-white to-blue-50"></div>
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-200/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-200/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+    <section id="hero" className="relative overflow-hidden pt-28 pb-20 lg:pt-36 lg:pb-32 min-h-[90vh] flex items-center">
+      {/* Background Interactive Particle Canvas */}
+      <ParticleCanvas
+        particleCount={55}
+        particleColor="rgba(147, 51, 234, 0.35)"
+        lineColor="rgba(99, 102, 241, 0.12)"
+        interactionMode="attract"
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-          {/* Text Content */}
-          <div className="text-center lg:text-left">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
+      {/* Radiant Gradient Background Auras */}
+      <div className="absolute top-0 left-0 w-full h-full -z-20 bg-gradient-to-b from-purple-50/70 via-white to-indigo-50/50 pointer-events-none" />
+      <div className="absolute top-1/4 right-10 w-[550px] h-[550px] bg-gradient-to-br from-purple-300/30 via-indigo-300/20 to-cyan-200/20 rounded-full blur-3xl -z-10 pointer-events-none animate-pulse" style={{ animationDuration: '8s' }} />
+      <div className="absolute -bottom-20 left-10 w-[450px] h-[450px] bg-gradient-to-tr from-blue-300/25 to-purple-200/20 rounded-full blur-3xl -z-10 pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+        <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+          
+          {/* ================= LEFT CONTENT COLUMN ================= */}
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="lg:col-span-7 text-center lg:text-left"
+          >
+            {/* Top Pill Tag */}
+            <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-100/90 border border-purple-200/80 text-purple-800 text-xs sm:text-sm font-semibold mb-6 shadow-sm backdrop-blur-sm">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <Sparkles size={14} className="text-purple-600 shrink-0" />
+              <span>Revolutionizing Education with AI</span>
+            </motion.div>
+
+            {/* Headline */}
+            <motion.h1
+              variants={itemVariants}
+              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-gray-900 mb-6 leading-[1.12]"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-100/80 border border-purple-200 text-purple-700 text-sm font-medium mb-6">
-                <Sparkles size={16} />
-                <span>Revolutionizing Education with AI</span>
-              </div>
-              
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 mb-6 leading-tight">
-                Transform Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">Learning Journey</span>
-              </h1>
-              
-              <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                Create, manage, and track educational content with intelligent tools designed for modern classrooms. Empowering students and teachers alike with AI-driven insights.
-              </p>
+              Transform Your{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600">
+                Learning Journey
+              </span>
+            </motion.h1>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <a 
-                  href={STUDENT_URL}
-                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full hover:shadow-lg hover:shadow-purple-500/30 transform hover:-translate-y-0.5 transition-all duration-200"
-                >
-                  Start as Student
-                  <ArrowRight size={18} />
-                </a>
-                <a 
-                  href={TEACHER_URL}
-                  className="inline-flex items-center justify-center gap-2 px-8 py-3.5 text-base font-semibold text-gray-700 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
-                >
-                  Start as Teacher
-                  <Wand2 size={18} className="text-indigo-600" />
-                </a>
+            {/* Subheading (Original Exact Copy) */}
+            <motion.p
+              variants={itemVariants}
+              className="text-lg sm:text-xl text-gray-600 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal"
+            >
+              Create, manage, and track educational content with intelligent tools designed for modern classrooms. Empowering students and teachers alike with AI-driven insights.
+            </motion.p>
+
+            {/* Dual CTA System */}
+            <motion.div
+              variants={itemVariants}
+              className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start items-center mb-10"
+            >
+              <a
+                href={STUDENT_URL}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 text-base font-bold text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-indigo-700 rounded-full shadow-[0_10px_25px_rgba(147,51,234,0.35)] hover:shadow-[0_15px_35px_rgba(147,51,234,0.5)] transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 group cursor-pointer"
+              >
+                <span>Start as Student</span>
+                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              </a>
+
+              <a
+                href={TEACHER_URL}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold text-gray-800 bg-white/90 border border-gray-200/90 rounded-full hover:bg-gray-50 hover:border-gray-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all duration-200 backdrop-blur-sm cursor-pointer"
+              >
+                <Wand2 size={18} className="text-purple-600" />
+                <span>Start as Teacher</span>
+              </a>
+            </motion.div>
+
+            {/* Micro Trust Strip */}
+            <motion.div
+              variants={itemVariants}
+              className="flex flex-wrap items-center justify-center lg:justify-start gap-6 text-xs sm:text-sm text-gray-500 pt-4 border-t border-gray-200/60"
+            >
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 size={16} className="text-emerald-600" />
+                <span>Zero setup required</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 size={16} className="text-emerald-600" />
+                <span>Free for learners</span>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
 
-          {/* Visual Content */}
+          {/* ================= RIGHT VISUAL COLUMN: ATOM CORE (Hidden on Mobile, Visible on Tablet/Desktop) ================= */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="hidden lg:flex relative lg:h-[600px] items-center justify-center"
+            className="hidden md:flex lg:col-span-5 items-center justify-center relative"
           >
-            {/* Placeholder for 3D/Abstract Visual - using CSS shapes for now */}
-            <div className="relative w-full max-w-md aspect-square">
-               <div className="absolute inset-0 bg-gradient-to-tr from-purple-100 to-indigo-100 rounded-[2rem] transform rotate-3 shadow-2xl border border-white/50"></div>
-               <div className="absolute inset-0 bg-white/60 backdrop-blur-sm rounded-[2rem] transform -rotate-3 shadow-xl border border-white/50 flex items-center justify-center">
-                  <div className="text-center p-8">
-                     <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg transform rotate-12">
-                       <Sparkles className="text-white w-10 h-10" />
-                     </div>
-                     <h3 className="text-2xl font-bold text-gray-800 mb-2">AI Grading</h3>
-                     <p className="text-gray-500">Semantic Answer Checking</p>
-                     
-                     {/* Floating Elements */}
-                     <motion.div 
-                       animate={{ y: [0, -10, 0] }}
-                       transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                       className="absolute -top-10 -right-10 bg-white p-4 rounded-xl shadow-lg border border-gray-100"
-                     >
-                       <div className="flex items-center gap-3">
-                         <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                           <span className="font-bold text-green-600">A+</span>
-                         </div>
-                         <div>
-                           <div className="text-sm font-semibold text-gray-800">Answer Score</div>
-                           <div className="text-xs text-green-600 font-medium">96% Accuracy</div>
-                         </div>
-                       </div>
-                     </motion.div>
-
-                     <motion.div 
-                       animate={{ y: [0, 10, 0] }}
-                       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                       className="absolute -bottom-5 -left-5 bg-white p-4 rounded-xl shadow-lg border border-gray-100"
-                     >
-                        <div className="flex items-center gap-3">
-                           <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <Wand2 size={16} className="text-blue-600"/>
-                           </div>
-                           <div className="text-sm font-medium text-gray-600">Generating Questions...</div>
-                        </div>
-                     </motion.div>
-                  </div>
-               </div>
-            </div>
+            <AtomCore />
           </motion.div>
         </div>
       </div>

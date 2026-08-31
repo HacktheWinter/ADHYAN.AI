@@ -1,0 +1,8 @@
+# Robots.txt for ADHYAN.AI
+# Allow all search engine crawlers (Googlebot, Bingbot, etc.)
+
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://adhyanai.tech/sitemap.xml
