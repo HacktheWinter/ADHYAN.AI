@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Scanner } from "@yudiel/react-qr-scanner";
+import AttendanceScannerV2 from "../components/AttendanceScannerV2";
 import io from "socket.io-client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -459,37 +459,24 @@ const StudentAttendancePage = () => {
                                 </div>
                                 <h2 className="text-2xl font-bold text-gray-900">Scan Attendance QR</h2>
                                 <p className="text-gray-500 mt-2">
-                                    Point your camera at the teacher QR code to mark your attendance.
+                                    Point your camera at the teacher's QR code to mark your attendance.
                                 </p>
                             </div>
 
-                            <div className="relative rounded-2xl overflow-hidden aspect-square bg-black shadow-inner mx-auto max-w-[340px]">
-                                {scanStatus === "idle" && !isTodayAttendanceLocked && (
-                                    <Scanner
-                                        onScan={handleScan}
-                                        onError={() => {}}
-                                        scanDelay={500}
-                                        allowMultiple={true}
-                                        styles={{
-                                            container: { width: "100%", height: "100%" },
-                                            video: { objectFit: "cover" },
-                                        }}
-                                        components={{
-                                            audio: false,
-                                            onOff: false,
-                                            torch: false,
-                                            zoom: false,
-                                            finder: false,
-                                        }}
-                                    />
-                                )}
+                            <div className="relative">
+                                {/* V2 Scanner — real camera zoom, HD, reticle, torch */}
+                                <AttendanceScannerV2
+                                    onScan={handleScan}
+                                    isActive={scanStatus === "idle" && !isTodayAttendanceLocked}
+                                />
 
+                                {/* Status overlays rendered on top of the scanner viewport */}
                                 <AnimatePresence>
                                     {scanStatus === "processing" && (
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center z-20"
+                                            className="absolute inset-0 bg-white/90 rounded-2xl flex flex-col items-center justify-center z-30"
                                         >
                                             <Loader2 className="w-14 h-14 text-purple-600 animate-spin mb-3" />
                                             <p className="font-semibold text-gray-800">Verifying attendance...</p>
@@ -500,7 +487,7 @@ const StudentAttendancePage = () => {
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            className="absolute inset-0 bg-emerald-50/95 flex flex-col items-center justify-center z-20 px-4"
+                                            className="absolute inset-0 bg-emerald-50/95 rounded-2xl flex flex-col items-center justify-center z-30 px-4"
                                         >
                                             <CheckCircle className="w-16 h-16 text-emerald-500 mb-3" />
                                             <p className="font-bold text-gray-900 text-xl">Attendance Marked</p>
@@ -523,7 +510,7 @@ const StudentAttendancePage = () => {
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            className="absolute inset-0 bg-rose-50/95 flex flex-col items-center justify-center z-20 px-4"
+                                            className="absolute inset-0 bg-rose-50/95 rounded-2xl flex flex-col items-center justify-center z-30 px-4"
                                         >
                                             <AlertCircle className="w-16 h-16 text-rose-500 mb-3" />
                                             <p className="font-bold text-gray-900 text-xl">Could Not Mark</p>
@@ -541,19 +528,8 @@ const StudentAttendancePage = () => {
                                     )}
                                 </AnimatePresence>
 
-                                {scanStatus === "idle" && !isTodayAttendanceLocked && (
-                                    <div className="absolute inset-0 border-[24px] border-black/25 pointer-events-none">
-                                        <div className="absolute inset-0 border-2 border-white/50 rounded-lg">
-                                            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-purple-500 rounded-tl-lg" />
-                                            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-purple-500 rounded-tr-lg" />
-                                            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-purple-500 rounded-bl-lg" />
-                                            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-purple-500 rounded-br-lg" />
-                                        </div>
-                                    </div>
-                                )}
-
                                 {isTodayAttendanceLocked && (
-                                    <div className="absolute inset-0 bg-emerald-50 flex flex-col items-center justify-center z-30 px-6 text-center">
+                                    <div className="absolute inset-0 bg-emerald-50 rounded-2xl flex flex-col items-center justify-center z-40 px-6 text-center">
                                         <ShieldCheck className="w-16 h-16 text-emerald-500 mb-3" />
                                         <p className="font-bold text-gray-900 text-xl">Attendance Finalized</p>
                                         <p className="text-emerald-700 mt-1">
