@@ -116,9 +116,10 @@ const SeminarQRGenerator = ({ onClose }) => {
     }
   };
 
-  // Build QR value: minimal JSON payload for faster scanning
+  // Build QR value: compressed payload with short keys for minimal QR density
+  // t=type, s=sessionId, k=token (key)
   const qrValue = token
-    ? JSON.stringify({ type: "seminar", sessionId, token })
+    ? JSON.stringify({ t: "s", s: sessionId, k: token })
     : "";
 
   return (
@@ -233,7 +234,7 @@ const SeminarQRGenerator = ({ onClose }) => {
                     <QRCodeCanvas
                       value={qrValue}
                       size={280}
-                      level="H"
+                      level="L"
                       includeMargin={true}
                       marginSize={5}
                       fgColor="#000000"

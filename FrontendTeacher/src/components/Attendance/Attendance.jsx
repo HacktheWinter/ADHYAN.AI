@@ -426,7 +426,7 @@ const Attendance = ({ classId, students, socket }) => {
                       </div>
                     ) : token ? (
                       <div className="bg-white p-3 rounded-xl shadow-md border border-gray-100 transition-transform hover:scale-105 duration-300">
-                        <QRCodeCanvas value={token} size={220} level={"H"} includeMargin={true} />
+                        <QRCodeCanvas value={token} size={220} level={"L"} includeMargin={true} />
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-3">

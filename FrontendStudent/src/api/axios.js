@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { getStoredToken, clearAuth } from "../utils/authStorage";
+import { getStoredToken, clearAuth, getBrowserId } from "../utils/authStorage";
 import API_BASE_URL from "../config";
 
 const attachInterceptors = (client) => {
@@ -11,6 +11,8 @@ const attachInterceptors = (client) => {
     if (token) {
       req.headers.Authorization = `Bearer ${token}`;
     }
+    // Always attach browser ID for account-switching cooldown tracking
+    req.headers["X-Browser-ID"] = getBrowserId();
     return req;
   });
 

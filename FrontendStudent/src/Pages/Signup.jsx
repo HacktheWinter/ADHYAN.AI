@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, User, BookOpen, GraduationCap, Hash, Layers, Users, ChevronDown, Sparkles, BarChart3, Target, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, BookOpen, GraduationCap, Hash, Layers, Users, ChevronDown, Sparkles, BarChart3, Target, ArrowRight, ShieldAlert } from "lucide-react";
 import axios from "axios";
-import { persistAuth } from "../utils/authStorage";
+import { persistAuth, getBrowserId } from "../utils/authStorage";
 import API_BASE_URL, { STUDENT_FRONTEND_URL, TEACHER_FRONTEND_URL, LANDING_PAGE_URL } from "../config";
 
 // ── Course → Specialization mapping ──────────────────────────────
@@ -75,6 +75,30 @@ export default function Signup() {
     role: "student", course: "", specialization: "", section: "", erpId: "", semester: "",
   });
 
+  // ── Cooldown state ──
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const cooldownTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) {
+      if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+      return;
+    }
+    cooldownTimerRef.current = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) { clearInterval(cooldownTimerRef.current); setError(""); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(cooldownTimerRef.current);
+  }, [cooldownSeconds > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const formatCooldown = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (courseDropdownRef.current && !courseDropdownRef.current.contains(e.target)) setShowCourseDropdown(false);
@@ -99,21 +123,28 @@ export default function Signup() {
     }
     setLoading(true);
     try {
+      const browserId = getBrowserId();
       const endpoint = formData.role === "teacher" ? `${API_BASE_URL}/teacher/register` : `${API_BASE_URL}/student/register`;
       const payload = { name: formData.fullName, email: formData.email, password: formData.password };
       if (formData.role === "student") {
         payload.course = formData.course.trim(); payload.specialization = formData.specialization.trim() || "None";
         payload.section = formData.section.trim(); payload.erpId = formData.erpId.trim(); payload.semester = formData.semester.trim();
       }
-      const response = await axios.post(endpoint, payload);
+      const response = await axios.post(endpoint, payload, { headers: { "X-Browser-ID": browserId } });
       const userData = { ...(response.data.student || response.data.teacher), role: formData.role };
       persistAuth(response.data.token, userData, true);
       const targetUrl = formData.role === "teacher" ? TEACHER_FRONTEND_URL : STUDENT_FRONTEND_URL;
       try { if (window.location.origin !== new URL(targetUrl).origin) { window.location.replace(targetUrl); return; } } catch (urlError) { console.error("URL parse error:", urlError); }
       navigate("/");
     } catch (err) {
-      const backendMsg = err.response?.data?.error || "Registration failed. Please try again.";
-      setError(err.response?.status === 409 || /exist/i.test(backendMsg) ? "Account already exists. Please login." : backendMsg);
+      const data = err.response?.data;
+      if (data?.cooldownActive && data?.retryAfterSeconds) {
+        setCooldownSeconds(data.retryAfterSeconds);
+        setError(data.error || "Account switching is temporarily restricted on this browser.");
+      } else {
+        const backendMsg = data?.error || "Registration failed. Please try again.";
+        setError(err.response?.status === 409 || /exist/i.test(backendMsg) ? "Account already exists. Please login." : backendMsg);
+      }
     } finally { setLoading(false); }
   };
 
@@ -197,7 +228,23 @@ export default function Signup() {
                 <p className="text-[13px] md:text-sm text-gray-500">Sign up to get started with ADHYAN.AI</p>
               </div>
 
-              {error && (
+              {cooldownSeconds > 0 && (
+                <div className="mb-4 p-4 rounded-xl text-sm" style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%)', border: '1px solid #fbbf24' }}>
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <ShieldAlert className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                    <span className="font-bold text-amber-800">Account Switching Restricted</span>
+                  </div>
+                  <p className="text-amber-700 text-xs leading-relaxed mb-3">
+                    For attendance security, switching to a different account is temporarily restricted after logout. You can still log back into your own account.
+                  </p>
+                  <div className="flex items-center justify-center gap-2 bg-amber-100 rounded-lg py-2 px-3">
+                    <span className="text-amber-800 text-xs font-medium">Try again in</span>
+                    <span className="text-amber-900 font-mono font-bold text-lg">{formatCooldown(cooldownSeconds)}</span>
+                  </div>
+                </div>
+              )}
+
+              {error && cooldownSeconds <= 0 && (
                 <div className="mb-4 p-3 rounded-xl text-sm font-medium flex items-center gap-2" style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
                   <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/></svg>
                   {error}

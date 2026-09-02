@@ -196,7 +196,8 @@ export const setupSocketHandler = (io) => {
           const expected = crypto
             .createHash("sha256")
             .update(classId + qrSecretKey + timeWindow)
-            .digest("hex");
+            .digest("hex")
+            .slice(0, 16);
 
           if (expected === token) {
             isTokenValid = true;

@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogIn, LogOut, Settings, User, UserPlus, X, Search, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
 import NotificationDropdown from './NotificationDropdown';
-import { clearAuth, getStoredUser } from '../utils/authStorage';
+import { clearAuth, getStoredUser, getStoredToken, getBrowserId } from '../utils/authStorage';
 import API_BASE_URL, { LANDING_PAGE_URL } from '../config';
 
 export default function StudentNavbar({ searchQuery = '', onSearchChange = () => {} }) {
@@ -33,7 +34,27 @@ export default function StudentNavbar({ searchQuery = '', onSearchChange = () =>
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Fire-and-forget: call backend to record cooldown, then clear auth locally.
+    // Even if the API call fails, we still clear the client-side auth state.
+    try {
+      const token = getStoredToken();
+      const browserId = getBrowserId();
+      if (token) {
+        // Don't await — we clear auth immediately for UX
+        axios.post(
+          `${API_BASE_URL}/student/logout`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'X-Browser-ID': browserId,
+            },
+          }
+        ).catch(() => {}); // Silently ignore errors
+      }
+    } catch { /* ignore */ }
+
     clearAuth();
     setUser(null);
     setIsDropdownOpen(false);
