@@ -4,6 +4,12 @@ import dotenv from "dotenv";
 import User from "../models/User.js";
 import Submission from "../models/Submission.js";
 import { sendWelcomeEmail } from "../utils/emailNotifications.js";
+import {
+  checkCooldown,
+  recordCooldown,
+  trackBrowserLogin,
+  sanitizeBrowserId,
+} from "../middleware/browserCooldown.js";
 
 dotenv.config();
 
@@ -32,6 +38,9 @@ export const registerStudent = async (req, res) => {
     if (existingErp)
       return res.status(400).json({ error: "ERP ID already registered" });
 
+    // ── Browser cooldown check (registration = auto-login) ──────────
+    const browserId = sanitizeBrowserId(req.header("X-Browser-ID"));
+
     const hashed = await bcrypt.hash(password, 10);
     const student = await User.create({
       name,
@@ -44,6 +53,22 @@ export const registerStudent = async (req, res) => {
       erpId: erpId.trim(),
       semester: String(semester).trim(),
     });
+
+    // Check cooldown AFTER creating the user (we now have an ID to compare).
+    // If cooldown blocks this new account, the account is still created but
+    // the auto-login is denied. The student can login later after cooldown.
+    if (browserId) {
+      const cooldownResult = await checkCooldown(browserId, student._id.toString());
+      if (!cooldownResult.allowed) {
+        return res.status(429).json({
+          error: "Account switching is temporarily restricted on this browser. Please try logging in after the cooldown period.",
+          retryAfterSeconds: cooldownResult.retryAfterSeconds,
+          cooldownActive: true,
+        });
+      }
+      // Track this browser → account association
+      await trackBrowserLogin(browserId, student._id.toString());
+    }
 
     // Welcome email (non-blocking)
     void sendWelcomeEmail({ name: student.name, email: student.email, role: "student" })
@@ -93,12 +118,35 @@ export const loginStudent = async (req, res) => {
     console.log(`[Student Login] bcrypt.compare() result: ${isMatch}`);
     if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
 
+    // ── Browser cooldown check ──────────────────────────────────────
+    // AFTER credential validation — we don't reveal cooldown status to
+    // unauthenticated/invalid requests.
+    const browserId = sanitizeBrowserId(req.header("X-Browser-ID"));
+    if (browserId) {
+      const cooldownResult = await checkCooldown(browserId, student._id.toString());
+      if (!cooldownResult.allowed) {
+        console.log(
+          `[Student Login] BLOCKED by browser cooldown. Browser: ${browserId.slice(0, 8)}... Retry after: ${cooldownResult.retryAfterSeconds}s`
+        );
+        return res.status(429).json({
+          error: "Account switching is temporarily restricted on this browser. Please try again after the cooldown period.",
+          retryAfterSeconds: cooldownResult.retryAfterSeconds,
+          cooldownActive: true,
+        });
+      }
+    }
+
     const token = jwt.sign(
       { id: student._id, role: student.role },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
     console.log(`[Student Login] JWT generation success: ${!!token}`);
+
+    // Track this browser → account association on successful login
+    if (browserId) {
+      await trackBrowserLogin(browserId, student._id.toString());
+    }
 
     console.log(`[Student Login] Success: Sending final response`);
     res.status(200).json({
@@ -123,5 +171,23 @@ export const loginStudent = async (req, res) => {
 };
 
 export const logoutStudent = async (req, res) => {
-  res.status(200).json({ message: "Student logged out successfully" });
+  try {
+    // ── Record browser cooldown on logout ────────────────────────────
+    // req.user is populated by authMiddleware (JWT is validated server-side)
+    const browserId = sanitizeBrowserId(req.header("X-Browser-ID"));
+    const accountId = req.user?._id?.toString();
+
+    if (browserId && accountId) {
+      await recordCooldown(browserId, accountId);
+      console.log(
+        `[Student Logout] Cooldown recorded. Browser: ${browserId.slice(0, 8)}... Account: ${accountId}`
+      );
+    }
+
+    res.status(200).json({ message: "Student logged out successfully" });
+  } catch (err) {
+    console.error("[Student Logout] Error recording cooldown:", err);
+    // Still return success — logout should not fail from the user's perspective
+    res.status(200).json({ message: "Student logged out successfully" });
+  }
 };

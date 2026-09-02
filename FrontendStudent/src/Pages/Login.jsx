@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, Sparkles, BarChart3, Users, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Sparkles, BarChart3, Users, ArrowRight, ShieldAlert } from "lucide-react";
 import axios from "axios";
-import { clearAuth, persistAuth } from "../utils/authStorage";
+import { clearAuth, persistAuth, getBrowserId } from "../utils/authStorage";
 import API_BASE_URL, {
   LANDING_PAGE_URL,
   STUDENT_FRONTEND_URL,
@@ -47,6 +47,35 @@ export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "", role: "student" });
   const [rememberMe, setRememberMe] = useState(false);
 
+  // ── Cooldown state ──
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const cooldownTimerRef = useRef(null);
+
+  // Countdown timer
+  useEffect(() => {
+    if (cooldownSeconds <= 0) {
+      if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+      return;
+    }
+    cooldownTimerRef.current = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(cooldownTimerRef.current);
+          setError("");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(cooldownTimerRef.current);
+  }, [cooldownSeconds > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const formatCooldown = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+
   const handleRoleClick = (role) => { setFormData((p) => ({ ...p, role })); };
 
   const handleChange = (e) => {
@@ -59,13 +88,13 @@ export default function Login() {
     setLoading(true);
     setError("");
     try {
-      let deviceId = localStorage.getItem("deviceId");
-      if (!deviceId) {
-        deviceId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : "dev_" + Math.random().toString(36).substring(2, 15);
-        localStorage.setItem("deviceId", deviceId);
-      }
+      const browserId = getBrowserId();
       const endpoint = formData.role === "teacher" ? `${API_BASE_URL}/teacher/login` : `${API_BASE_URL}/student/login`;
-      const response = await axios.post(endpoint, { email: formData.email, password: formData.password, deviceId });
+      const response = await axios.post(
+        endpoint,
+        { email: formData.email, password: formData.password },
+        { headers: { "X-Browser-ID": browserId } }
+      );
       const userData = { ...(response.data.student || response.data.teacher), role: formData.role };
       persistAuth(response.data.token, userData, rememberMe);
       const targetUrl = formData.role === "teacher" ? TEACHER_FRONTEND_URL : STUDENT_FRONTEND_URL;
@@ -74,8 +103,14 @@ export default function Login() {
       } catch (urlError) { console.error("URL parse error:", urlError); }
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.error || "Invalid email or password");
-    } finally { setLoading(false); }
+      const data = err.response?.data;
+      if (data?.cooldownActive && data?.retryAfterSeconds) {
+        setCooldownSeconds(data.retryAfterSeconds);
+        setError(data.error || "Account switching is temporarily restricted on this browser.");
+      } else {
+        setError(data?.error || "Invalid email or password");
+      }
+    } finally { setLoading(false); };
   };
 
   return (
@@ -152,7 +187,23 @@ export default function Login() {
                 <p className="text-[13px] md:text-sm text-gray-500">Enter your credentials to access your account</p>
               </div>
 
-              {error && (
+              {cooldownSeconds > 0 && (
+                <div className="mb-5 p-4 rounded-xl text-sm" style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%)', border: '1px solid #fbbf24' }}>
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <ShieldAlert className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                    <span className="font-bold text-amber-800">Account Switching Restricted</span>
+                  </div>
+                  <p className="text-amber-700 text-xs leading-relaxed mb-3">
+                    For attendance security, switching to a different account is temporarily restricted after logout. You can still log back into your own account.
+                  </p>
+                  <div className="flex items-center justify-center gap-2 bg-amber-100 rounded-lg py-2 px-3">
+                    <span className="text-amber-800 text-xs font-medium">Try again in</span>
+                    <span className="text-amber-900 font-mono font-bold text-lg">{formatCooldown(cooldownSeconds)}</span>
+                  </div>
+                </div>
+              )}
+
+              {error && cooldownSeconds <= 0 && (
                 <div className="mb-5 p-3.5 rounded-xl text-sm font-medium flex items-center gap-2" style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}>
                   <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/></svg>
                   {error}

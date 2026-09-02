@@ -13,7 +13,8 @@ const generateSeminarToken = (sessionId) => {
   return crypto
     .createHash("sha256")
     .update(`seminar_${sessionId}_${QR_SECRET()}_${timeWindow}`)
-    .digest("hex");
+    .digest("hex")
+    .slice(0, 16);
 };
 
 const isTokenValid = (sessionId, token) => {
@@ -22,7 +23,8 @@ const isTokenValid = (sessionId, token) => {
     const expected = crypto
       .createHash("sha256")
       .update(`seminar_${sessionId}_${QR_SECRET()}_${timeWindow}`)
-      .digest("hex");
+      .digest("hex")
+      .slice(0, 16);
     if (expected === token) return true;
   }
   return false;

@@ -105,3 +105,30 @@ export const updateStoredUser = (userPatch) => {
   storage.setItem(USER_KEY, JSON.stringify(updatedUser));
   return updatedUser;
 };
+
+// ── Browser Identity (for account-switching cooldown) ────────────────
+const BROWSER_ID_KEY = 'adhyan_browser_id';
+
+/**
+ * Returns a persistent, opaque browser identifier.
+ * - Generated once via crypto.randomUUID() and stored in localStorage.
+ * - Shared across all tabs/windows (same-origin localStorage).
+ * - Survives page reload and navigation.
+ * - Different per browser (separate localStorage).
+ * - NOT derived from any device/user characteristics.
+ */
+export const getBrowserId = () => {
+  let id = localStorage.getItem(BROWSER_ID_KEY);
+  if (id && id.length > 8) return id;
+
+  // Generate a cryptographically random UUID
+  id = (crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'b-' + Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+  localStorage.setItem(BROWSER_ID_KEY, id);
+  return id;
+};
+

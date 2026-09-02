@@ -33,11 +33,13 @@ router.get(
       // The socket handler's in-memory validation is the primary check.
       const timeWindow = Math.floor(Date.now() / 20000);
 
-      // Generate SHA256 token
+      // Generate short token (16 hex chars = 64 bits — sufficient for 20s ephemeral token,
+      // keeps QR code density low for easier scanning from distance)
       const token = crypto
         .createHash("sha256")
         .update(classId + qrSecretKey + timeWindow)
-        .digest("hex");
+        .digest("hex")
+        .slice(0, 16);
 
       res.status(200).json({ token });
     } catch (error) {
