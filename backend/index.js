@@ -6,6 +6,14 @@ import cors from "cors";
 import connectDB from "./config/db.js";
 import dotenv from "dotenv";
 
+dotenv.config();
+
+// Validate critical environment variables at startup
+if (!process.env.JWT_SECRET) {
+  console.error("FATAL: JWT_SECRET environment variable is not set. Exiting.");
+  process.exit(1);
+}
+
 import teacherRoutes from "./routes/teacherRoutes.js";
 import studentRoutes from "./routes/studentRoutes.js";
 import principalRoutes from "./routes/principalRoutes.js";
@@ -31,12 +39,14 @@ import videoRoutes from "./routes/video.routes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import seminarRoutes from "./routes/seminarRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import assessmentAnalyticsRoutes from "./routes/assessmentAnalyticsRoutes.js";
+import proctorRoutes from "./routes/proctorRoutes.js";
 import socketHandler from "./socket/socketHandler.js";
 import { startDraftFinalizerCron } from "./services/draftFinalizerCron.js";
+import { authRateLimiter, passwordResetRateLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
 
-dotenv.config();
 connectDB();
 
 const staticAllowedOrigins = [
@@ -52,10 +62,13 @@ const staticAllowedOrigins = [
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
 
-  const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(
-    origin
-  );
-  if (isLocalhost) return true;
+  // Only allow localhost in development mode
+  if (process.env.NODE_ENV === "development" || !process.env.NODE_ENV) {
+    const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(
+      origin
+    );
+    if (isLocalhost) return true;
+  }
 
   return staticAllowedOrigins.includes(origin);
 };
@@ -122,6 +135,16 @@ app.use("/api", videoRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/seminar", seminarRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/assessment-analytics", assessmentAnalyticsRoutes);
+app.use("/api/proctor", proctorRoutes);
+
+// Apply rate limiting to auth endpoints
+app.use("/api/teacher/login", authRateLimiter);
+app.use("/api/teacher/register", authRateLimiter);
+app.use("/api/student/login", authRateLimiter);
+app.use("/api/student/register", authRateLimiter);
+app.use("/api/teacher/forgot-password", passwordResetRateLimiter);
+app.use("/api/student/forgot-password", passwordResetRateLimiter);
 
 
 // Serve uploaded files
@@ -137,6 +160,26 @@ const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
   startDraftFinalizerCron();
+});
+
+// Global Express error handler — prevents stack traces leaking to clients
+app.use((err, req, res, _next) => {
+  console.error("Unhandled Express error:", err.message);
+  if (!res.headersSent) {
+    res.status(err.status || 500).json({
+      error: "An unexpected error occurred. Please try again later.",
+    });
+  }
+});
+
+// Catch unhandled promise rejections
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
+// Catch uncaught exceptions
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
 });
 
 export { io };

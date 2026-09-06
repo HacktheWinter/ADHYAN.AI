@@ -273,7 +273,7 @@ export const finalizeExpiredDrafts = async (quizId) => {
  */
 export const submitQuiz = async (req, res) => {
   try {
-    const { quizId, studentId: requestedStudentId, answers, sectionTimers } = req.body;
+    const { quizId, studentId: requestedStudentId, answers, sectionTimers, proctorPhoto } = req.body;
     const studentId = getRequestUserId(req);
 
     console.log(" Quiz submission received:", {
@@ -426,7 +426,8 @@ export const submitQuiz = async (req, res) => {
             percentage: parseFloat(percentage),
             submittedAt: new Date(),
             isDraft: false,
-            ...(sectionTimers && { sectionTimers })
+            ...(sectionTimers && { sectionTimers }),
+            ...(proctorPhoto && { proctorPhoto })
           }
         },
         { new: true }
@@ -444,6 +445,7 @@ export const submitQuiz = async (req, res) => {
         percentage: parseFloat(percentage),
         submittedAt: new Date(),
         isDraft: false,
+        ...(proctorPhoto && { proctorPhoto }),
       });
     }
 

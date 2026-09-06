@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, Bookmark, LayoutGrid } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, Bookmark, LayoutGrid, Camera, Video } from 'lucide-react';
 import { getQuizById, submitQuiz } from '../api/quizApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
+import { useWebcamProctor } from '../hooks/useWebcamProctor';
 import ViolationAlertModal from '../components/ViolationAlertModal';
+import WebcamStatusToast from '../components/WebcamStatusToast';
 import QuestionPalette from '../components/QuestionPalette';
+import { getStoredUser } from '../utils/authStorage';
 
 export default function QuizTakingPage() {
   const { id: classId, quizId } = useParams();
@@ -22,6 +25,14 @@ export default function QuizTakingPage() {
   const [visitedQuestions, setVisitedQuestions] = useState(new Set([0]));
   const [markedForReview, setMarkedForReview] = useState({});
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
+  const [totalStudents, setTotalStudents] = useState(0);
+
+  // ==================== WEBCAM PROCTORING STATE ====================
+  const [webcamStream, setWebcamStream] = useState(null);
+  const [cameraPermission, setCameraPermission] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+  const webcamVideoRef = useRef(null);
+  const proctorPhotoUrlRef = useRef(null);
 
   useEffect(() => {
     setVisitedQuestions(prev => new Set(prev).add(currentQuestion));
@@ -54,6 +65,64 @@ export default function QuizTakingPage() {
     examId: quizId,
     onAutoSubmit: (reason) => handleAutoSubmit(reason)
   });
+
+  // ==================== WEBCAM PROCTORING ====================
+  const {
+    activeWarning,
+    warningCount,
+    photoCaptured,
+    capturedPhotoUrl,
+    dismissWarning,
+    captureBeforeSubmit,
+  } = useWebcamProctor({
+    enabled: quiz?.webcamEnabled && hasStarted,
+    examStarted: hasStarted,
+    totalStudents,
+    examDurationMinutes: quiz?.duration || null,
+    videoRef: webcamVideoRef,
+    stream: webcamStream,
+    quizId: quizId || null,
+    studentId: studentId || null,
+    onPhotoUploaded: (url) => {
+      proctorPhotoUrlRef.current = url;
+    },
+  });
+
+  // Sync webcam stream to video element
+  useEffect(() => {
+    if (webcamVideoRef.current && webcamStream) {
+      webcamVideoRef.current.srcObject = webcamStream;
+    }
+  }, [webcamStream, hasStarted]);
+
+  // Cleanup webcam stream on unmount
+  useEffect(() => {
+    return () => {
+      if (webcamStream) {
+        webcamStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [webcamStream]);
+
+  // Camera enable function (called from instruction screen)
+  const handleEnableCamera = async () => {
+    try {
+      setCameraError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480, facingMode: 'user' },
+        audio: false,
+      });
+      setWebcamStream(stream);
+      setCameraPermission(true);
+    } catch (err) {
+      console.error('Camera permission denied:', err);
+      setCameraError(
+        err.name === 'NotAllowedError'
+          ? 'Camera access denied. Please allow camera permission in your browser settings and try again.'
+          : 'Failed to access camera. Please ensure your device has a working camera.'
+      );
+    }
+  };
 
   // ==================== INITIALIZATION ====================
   useEffect(() => {
@@ -196,11 +265,24 @@ export default function QuizTakingPage() {
       const answeredCount = Object.keys(currentAnswers).length;
       const violationsCount = violations.length;
 
-      await submitQuiz(quiz._id, studentId, answersArray);
+      // Capture proctor photo if not captured yet
+      let finalPhotoUrl = proctorPhotoUrlRef.current;
+      if (quiz?.webcamEnabled && typeof captureBeforeSubmit === 'function') {
+        const capturedUrl = await captureBeforeSubmit();
+        if (capturedUrl) finalPhotoUrl = capturedUrl;
+      }
+
+      await submitQuiz(quiz._id, studentId, answersArray, finalPhotoUrl);
 
       // Clean up local storage
       localStorage.removeItem(`quiz_start_time_${quizId}`);
       clearViolations();
+
+      // Stop webcam stream
+      if (webcamStream) {
+        webcamStream.getTracks().forEach(track => track.stop());
+        setWebcamStream(null);
+      }
 
       exitFullScreen();
 
@@ -311,6 +393,56 @@ export default function QuizTakingPage() {
                   <p className="text-sm leading-relaxed">Do not refresh the page during the exam. While the timer will resume properly, refreshing may count as exiting full-screen or disrupt your session.</p>
                 </div>
               </div>
+
+              {/* Webcam Proctoring Card */}
+              {quiz.webcamEnabled && (
+                <div className={`flex gap-4 items-start p-4 rounded-xl border mt-4 ${
+                  cameraPermission 
+                    ? 'bg-green-50 border-green-200 text-green-900' 
+                    : 'bg-purple-50 border-purple-200 text-purple-900'
+                }`}>
+                  <Camera className={`w-6 h-6 flex-shrink-0 mt-0.5 ${
+                    cameraPermission ? 'text-green-600' : 'text-purple-600'
+                  }`} />
+                  <div className="flex-1">
+                    <h4 className="font-bold mb-1">
+                      {cameraPermission ? '✓ Camera Active' : 'Webcam Required'}
+                    </h4>
+                    <p className="text-sm leading-relaxed mb-3">
+                      {cameraPermission 
+                        ? 'Your camera is active and AI monitoring will track your activity throughout the exam. Any suspicious behavior will be flagged automatically.'
+                        : 'This exam requires webcam access. Your camera will be monitored by AI throughout the exam to detect any suspicious activity. Please enable your camera to proceed.'
+                      }
+                    </p>
+                    
+                    {!cameraPermission ? (
+                      <div>
+                        <button
+                          onClick={handleEnableCamera}
+                          className="px-5 py-2.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-colors shadow-md shadow-purple-600/20 flex items-center gap-2 text-sm cursor-pointer"
+                        >
+                          <Video className="w-4 h-4" />
+                          Enable Camera
+                        </button>
+                        {cameraError && (
+                          <p className="text-red-600 text-xs mt-2 font-medium">{cameraError}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="w-48 aspect-video rounded-xl overflow-hidden border-2 border-green-300 shadow-sm">
+                        <video
+                          ref={webcamVideoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="w-full h-full object-cover mirror"
+                          style={{ transform: 'scaleX(-1)' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="pt-6 mt-6 border-t border-gray-100 flex items-center justify-between">
@@ -322,9 +454,21 @@ export default function QuizTakingPage() {
               </button>
               <button
                 onClick={handleStartExam}
-                className="px-8 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/30"
+                disabled={quiz.webcamEnabled && !cameraPermission}
+                className={`px-8 py-3 font-bold rounded-xl transition-colors shadow-lg flex items-center gap-2 cursor-pointer ${
+                  quiz.webcamEnabled && !cameraPermission
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none'
+                    : 'bg-green-600 text-white hover:bg-green-700 shadow-green-600/30'
+                }`}
               >
-                Start Exam
+                {quiz.webcamEnabled && !cameraPermission ? (
+                  <>
+                    <Camera className="w-5 h-5" />
+                    Enable Camera First
+                  </>
+                ) : (
+                  'Start Exam'
+                )}
               </button>
             </div>
           </div>
@@ -361,6 +505,15 @@ export default function QuizTakingPage() {
                 <LayoutGrid className="w-4 h-4" />
                 <span>Questions</span>
               </button>
+
+              {/* Camera Active Badge */}
+              {quiz.webcamEnabled && cameraPermission && (
+                <div className="flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm border border-green-200">
+                  <Camera className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Camera Active</span>
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse ml-1" />
+                </div>
+              )}
 
               {violations.length > 0 && (
                 <div className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold">
@@ -551,6 +704,30 @@ export default function QuizTakingPage() {
           </div>
         </div>
       </div>
+
+      {/* WEBCAM PREVIEW PIP */}
+      {quiz.webcamEnabled && cameraPermission && !isMobilePaletteOpen && (
+        <div className="fixed bottom-4 right-4 z-[100] w-20 sm:w-28 aspect-video rounded-lg overflow-hidden shadow-xl border-2 border-surface">
+          <video
+            ref={webcamVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover mirror"
+            style={{ transform: 'scaleX(-1)' }}
+          />
+          <div className="absolute top-1 right-1 flex gap-1">
+            <div className="bg-red-500 w-1.5 h-1.5 rounded-full animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
+          </div>
+        </div>
+      )}
+
+      {/* WEBCAM WARNING TOAST */}
+      <WebcamStatusToast
+        show={!!activeWarning}
+        message={activeWarning}
+        onDismiss={dismissWarning}
+      />
 
       {/* VIOLATION ALERT MODAL */}
       <ViolationAlertModal

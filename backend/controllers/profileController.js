@@ -168,7 +168,7 @@ export const changePassword = async (req, res) => {
     }
 
     // Get user with password field
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select("+password");
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -358,7 +358,7 @@ export const deactivateUserAccount = async (req, res) => {
     const userId = req.user.id;
     const { password } = req.body;
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select("+password");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }

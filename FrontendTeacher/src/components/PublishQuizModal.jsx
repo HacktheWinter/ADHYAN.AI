@@ -1,6 +1,6 @@
 // FrontendTeacher/src/components/PublishQuizModal.jsx
 import React, { useState } from "react";
-import { X, Clock, Calendar, AlertCircle, CheckCircle } from "lucide-react";
+import { X, Clock, Calendar, AlertCircle, CheckCircle, Camera } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
 
@@ -9,6 +9,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [manualDuration, setManualDuration] = useState("");
+  const [webcamEnabled, setWebcamEnabled] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
   const totalQuestions = quiz.sections?.reduce((sum, sec) => sum + (sec.questions?.length || 0), 0) || quiz.questions?.length || 0;
@@ -73,7 +74,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
 
       const response = await axios.put(
         `${API_BASE_URL}/quiz/${quiz._id}/publish`,
-        payload
+        { ...payload, webcamEnabled }
       );
 
       console.log("Assessment published:", response.data);
@@ -129,6 +130,42 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
               {totalQuestions} questions • Once published, students
               can take this assessment
             </p>
+          </div>
+
+          {/* Webcam Proctoring Toggle */}
+          <div>
+            <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-3">
+              Proctoring Settings
+            </label>
+            <div
+              onClick={() => setWebcamEnabled(!webcamEnabled)}
+              className={`flex items-start gap-4 p-4 border rounded-xl cursor-pointer transition-all ${
+                webcamEnabled
+                  ? "border-violet-600 bg-violet-50 shadow-sm"
+                  : "border-line bg-surface hover:border-purple-300"
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                webcamEnabled ? "bg-violet-600 text-white" : "bg-line text-ink-soft"
+              }`}>
+                <Camera className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-ink">Webcam Proctoring</span>
+                  <div className={`relative w-11 h-6 rounded-full transition-colors ${
+                    webcamEnabled ? "bg-violet-600" : "bg-gray-300 dark:bg-gray-600"
+                  }`}>
+                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
+                      webcamEnabled ? "translate-x-5" : "translate-x-0"
+                    }`} />
+                  </div>
+                </div>
+                <p className="text-sm text-ink-soft">
+                  Enable camera monitoring during the assessment. Students will be required to turn on their webcam, and AI will monitor for suspicious activity.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Timing Options */}
@@ -269,6 +306,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
               </label>
             </div>
           </div>
+
 
           {/* Warning */}
           <div className="bg-amber-50 border border-amber-250 rounded-xl p-4">

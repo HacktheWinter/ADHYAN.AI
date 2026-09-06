@@ -24,7 +24,10 @@ router.get(
   (req, res) => {
     try {
       const { classId } = req.params;
-      const qrSecretKey = process.env.QR_SECRET_KEY || "default_secret_key"; // fallback for safety, but should be in env
+      const qrSecretKey = process.env.QR_SECRET_KEY;
+      if (!qrSecretKey) {
+        return res.status(500).json({ message: "QR_SECRET_KEY is not configured on the server" });
+      }
 
       // 20-second time window
       // Note: This logic assumes the token is valid ONLY within this specific 20s window.

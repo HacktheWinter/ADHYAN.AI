@@ -40,7 +40,7 @@ router.get("/list-by-class/:classId", authMiddleware, authorizeRoles("teacher"),
 
 // ── Common routes ────────────────────────────────────────────────────────────
 router.get("/submission/:submissionId", authMiddleware, authorizeRoles("teacher"), getPhysicalSubmissionById);
-router.get("/pdf/:submissionId", getPhysicalSubmissionPDF);
+router.get("/pdf/:submissionId", authMiddleware, getPhysicalSubmissionPDF);
 router.delete("/:submissionId", authMiddleware, authorizeRoles("teacher"), deletePhysicalSubmission);
 router.put("/update-marks/:submissionId", authMiddleware, authorizeRoles("teacher"), updatePhysicalMarksManually);
 

@@ -374,7 +374,19 @@ export const getTestPaper = async (req, res) => {
       return res.status(404).json({ error: "Test paper not found" });
     }
 
-    res.status(200).json(testPaper);
+    let testPaperObj = testPaper.toObject();
+
+    // Strip answer keys for non-teacher users
+    if (req.user?.role !== "teacher") {
+      if (testPaperObj.questions) {
+        testPaperObj.questions.forEach(q => {
+          delete q.answerKey;
+          delete q.answerGuidelines;
+        });
+      }
+    }
+
+    res.status(200).json(testPaperObj);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });
@@ -392,10 +404,25 @@ export const getTestPapersByClassroom = async (req, res) => {
       createdAt: -1,
     });
 
+    // Strip answer keys for non-teacher users
+    let testPapersData = testPapers;
+    if (req.user?.role !== "teacher") {
+      testPapersData = testPapers.map(tp => {
+        const obj = tp.toObject();
+        if (obj.questions) {
+          obj.questions.forEach(q => {
+            delete q.answerKey;
+            delete q.answerGuidelines;
+          });
+        }
+        return obj;
+      });
+    }
+
     res.status(200).json({
       success: true,
-      count: testPapers.length,
-      testPapers,
+      count: testPapersData.length,
+      testPapers: testPapersData,
     });
   } catch (error) {
     console.error(error);
@@ -589,6 +616,11 @@ export const getActiveTestPapersForStudent = async (req, res) => {
       return {
         ...test.toObject(),
         isActive,
+        // Strip answer keys for student-facing endpoint
+        questions: test.toObject().questions?.map(q => {
+          const { answerKey, answerGuidelines, ...rest } = q;
+          return rest;
+        }),
       };
     });
 

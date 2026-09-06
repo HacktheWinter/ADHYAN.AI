@@ -53,34 +53,27 @@ export const registerPrincipal = async (req, res) => {
 export const loginPrincipal = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log(`[Principal Login] Attempt for email: ${email}`);
 
     if (!email || !password) {
-      console.log(`[Principal Login] Failed: Email or password missing`);
       return res.status(400).json({ error: "Email and password are required" });
     }
 
-    const principal = await User.findOne({ email, role: "principal" });
-    console.log(`[Principal Login] User exists: ${!!principal}`);
+    const principal = await User.findOne({ email: email.trim().toLowerCase(), role: "principal" }).select("+password");
     if (!principal) {
-      return res.status(404).json({ error: "Principal not found" });
+      return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    console.log(`[Principal Login] Password hash exists: ${!!principal.password}`);
     const isMatch = await bcrypt.compare(password, principal.password);
-    console.log(`[Principal Login] bcrypt.compare() result: ${isMatch}`);
     if (!isMatch) {
-      return res.status(400).json({ error: "Invalid credentials" });
+      return res.status(401).json({ error: "Invalid email or password" });
     }
 
     const token = jwt.sign(
       { id: principal._id, role: principal.role },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d", algorithm: "HS256" }
     );
-    console.log(`[Principal Login] JWT generation success: ${!!token}`);
 
-    console.log(`[Principal Login] Success: Sending final response`);
     res.status(200).json({
       message: "Principal login successful",
       token,
@@ -93,11 +86,9 @@ export const loginPrincipal = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Principal Login Error:", err);
+    console.error("Principal Login Error:", err.message);
     res.status(500).json({
       error: "Server error during login",
-      message: err.message,
-      stack: process.env.NODE_ENV === "development" ? err.stack : undefined
     });
   }
 };

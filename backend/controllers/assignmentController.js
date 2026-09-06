@@ -4,7 +4,7 @@ import Note from "../models/Note.js";
 import Classroom from "../models/Classroom.js";
 import User from "../models/User.js";
 import { getBucket } from "../config/gridfs.js";
-import { generateAssignmentFromText } from "../config/geminiAssignment.js";
+import { generateAssignmentFromText, generateAssignmentFromTopics } from "../config/geminiAssignment.js";
 import { sendAssignmentPublishedEmails } from "../utils/emailNotifications.js";
 import { logActivity } from "../utils/activityTracker.js";
 import {
@@ -147,7 +147,7 @@ export const generateAssignmentWithAI = async (req, res) => {
           : `Assignment: ${topicsArray.join(", ")}`;
 
       try {
-        questions = await geminiAssignment.generateAssignmentFromTopics(topicsArray, aiConfig);
+        questions = await generateAssignmentFromTopics(topicsArray, aiConfig);
         console.log(`Generated ${questions.length} questions from topics`);
       } catch (aiError) {
         console.error("AI Generation from Topics Error:", aiError.message);
@@ -339,7 +339,19 @@ export const getAssignment = async (req, res) => {
       return res.status(404).json({ error: "Assignment not found" });
     }
 
-    res.status(200).json(assignment);
+    let assignmentObj = assignment.toObject();
+
+    // Strip answer keys for non-teacher users
+    if (req.user?.role !== "teacher") {
+      if (assignmentObj.questions) {
+        assignmentObj.questions.forEach(q => {
+          delete q.answerKey;
+          delete q.answerGuidelines;
+        });
+      }
+    }
+
+    res.status(200).json(assignmentObj);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });
@@ -357,10 +369,25 @@ export const getAssignmentsByClassroom = async (req, res) => {
       createdAt: -1,
     });
 
+    // Strip answer keys for non-teacher users
+    let assignmentsData = assignments;
+    if (req.user?.role !== "teacher") {
+      assignmentsData = assignments.map(a => {
+        const obj = a.toObject();
+        if (obj.questions) {
+          obj.questions.forEach(q => {
+            delete q.answerKey;
+            delete q.answerGuidelines;
+          });
+        }
+        return obj;
+      });
+    }
+
     res.status(200).json({
       success: true,
-      count: assignments.length,
-      assignments,
+      count: assignmentsData.length,
+      assignments: assignmentsData,
     });
   } catch (error) {
     console.error(error);
@@ -596,6 +623,11 @@ export const getActiveAssignmentsForStudent = async (req, res) => {
       return {
         ...assignment.toObject(),
         isActive,
+        // Strip answer keys for student-facing endpoint
+        questions: assignment.toObject().questions?.map(q => {
+          const { answerKey, answerGuidelines, ...rest } = q;
+          return rest;
+        }),
       };
     });
 
