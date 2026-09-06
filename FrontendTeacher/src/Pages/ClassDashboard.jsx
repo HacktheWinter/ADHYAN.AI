@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Download, Search, FileText, User, Filter } from 'lucide-react';
+import { ChevronLeft, Download, Search, FileText, User, Filter, BarChart3, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import API_BASE_URL from '../config';
+import { getStoredUser } from '../utils/authStorage';
+import AssessmentAnalyticsPanel from '../components/AssessmentAnalyticsPanel';
 
 // Imports updated
 import { MoreVertical, Check } from 'lucide-react';
@@ -10,6 +13,9 @@ import { MoreVertical, Check } from 'lucide-react';
 const ClassDashboard = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
+  
+  const user = getStoredUser() || {};
+  const teacherId = user.id || user._id;
 
   const [loading, setLoading] = useState(true);
   const [classroom, setClassroom] = useState(null);
@@ -30,6 +36,7 @@ const ClassDashboard = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedExportItems, setSelectedExportItems] = useState([]);
   const [exportParticipationFilter, setExportParticipationFilter] = useState('all');
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
     const fetchDashboardData = useCallback(async () => {
     try {
@@ -426,8 +433,33 @@ const ClassDashboard = () => {
             </div>
         </div>
 
-        {/* Table Container */}
+        {/* Collapsible Analytics Panel */}
+        <div className="mb-4">
+          <button
+            onClick={() => setShowAnalytics(!showAnalytics)}
+            className="flex items-center gap-2 px-4 py-2 bg-surface border border-line rounded-xl hover:bg-violet-50 hover:border-violet-200 transition-colors text-sm font-semibold text-ink shadow-sm cursor-pointer"
+          >
+            <BarChart3 className="w-4 h-4 text-violet-600" />
+            {showAnalytics ? "Hide Analytics" : "View Assessment Analytics"}
+            <ChevronDown className={`w-4 h-4 text-ink-soft transition-transform ${showAnalytics ? 'rotate-180' : ''}`} />
+          </button>
+          
+          <AnimatePresence>
+            {showAnalytics && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden mt-6"
+              >
+                <AssessmentAnalyticsPanel teacherId={teacherId} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         <div className="bg-surface rounded-xl border border-line shadow-sm overflow-hidden">
+            {/* Table Container */}
             <div className="overflow-x-auto">
                 <table className="w-full min-w-[800px]">
                     <thead>
@@ -452,71 +484,59 @@ const ClassDashboard = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-line">
-                        {sortedStudents.length > 0 ? (
-                            sortedStudents.map((student, index) => (
-                                <tr key={student._id} className="hover:bg-line/40 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-soft">
-                                        {index + 1}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center gap-3">
-                                            {student.profilePhoto ? (
-                                                <img 
-                                                    src={`${API_BASE_URL.replace('/api', '')}/${student.profilePhoto}`} 
-                                                    alt={student.name}
-                                                    className="w-8 h-8 rounded-full object-cover border border-line"
-                                                    onError={(e) => {
-                                                        e.target.style.display = 'none';
-                                                        e.target.nextElementSibling.style.display = 'flex';
-                                                    }}
-                                                />
-                                            ) : (
-                                                <div className="w-8 h-8 rounded-full bg-[#F1ECFB] dark:bg-[#26163F] flex items-center justify-center text-purple-700 dark:text-[#A78BFA] font-bold text-xs">
-                                                    {student.name ? student.name.charAt(0).toUpperCase() : 'S'}
-                                                </div>
-                                            )}
-                                            <div>
-                                                <div className="font-semibold text-ink text-sm">{student.name}</div>
-                                                <div className="text-xs text-ink-soft">{student.email}</div>
-                                                <div className="text-[10px] text-ink-soft/70 uppercase tracking-wide mt-0.5">ID: {student.erpId || 'No ERP ID'}</div>
-                                            </div>
+                        {sortedStudents.map((student, index) => (
+                            <tr key={student._id} className="hover:bg-violet-50/50 transition-colors">
+                                <td className="px-6 py-4 text-sm text-ink-soft">
+                                    {index + 1}
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                                            <User className="w-4 h-4 text-purple-600" />
                                         </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-soft font-semibold">
-                                        {student.section || 'N/A'}
-                                    </td>
-                                    {items.map(item => {
-                                        const sub = submissions[student._id]?.[item._id];
-                                        return (
-                                            <td key={item._id} className="px-6 py-4 whitespace-nowrap">
-                                                {sub ? (
-                                                    <div className="flex flex-col">
-                                                        <span className={`text-sm font-semibold ${
-                                                            sub.percentage >= 40 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-450'
-                                                        }`}>
-                                                            {sub.percentage}%
-                                                        </span>
-                                                        <span className="text-xs text-ink-soft">
-                                                            {typeof sub.score === 'number' ? (Number.isInteger(sub.score) ? sub.score : Number(sub.score).toFixed(1)) : sub.score}/{sub.total}
-                                                            {sub.status && sub.status !== 'checked' && (
-                                                                <span className="text-amber-500 dark:text-amber-400 ml-1">({sub.status})</span>
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2 py-1 rounded bg-paper text-ink-soft text-xs font-semibold">
-                                                        Absent
+                                        <div>
+                                            <p className="text-sm font-medium text-ink">
+                                                {student.name}
+                                            </p>
+                                            <p className="text-xs text-ink-soft">
+                                                {student.email}
+                                            </p>
+                                            {student.erpId && (
+                                                <p className="text-[10px] text-ink-soft mt-0.5">
+                                                    ID: {student.erpId} {student.section ? `| Sec: ${student.section}` : ''}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink-soft font-semibold">
+                                    {student.section || 'N/A'}
+                                </td>
+                                {items.map(item => {
+                                    const sub = submissions[student._id]?.[item._id];
+                                    return (
+                                        <td key={`${student._id}-${item._id}`} className="px-6 py-4">
+                                            {sub ? (
+                                                <div className="flex flex-col gap-1">
+                                                    <span className={`text-sm font-medium ${sub.status === 'checked' || viewMode === 'quiz' ? 'text-ink' : 'text-amber-600'}`}>
+                                                        {Number.isInteger(sub.score) ? sub.score : Number(sub.score).toFixed(1)} / {sub.total}
                                                     </span>
-                                                )}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            ))
-                        ) : (
+                                                    <span className="text-[10px] text-ink-soft font-medium">
+                                                        {sub.percentage}% {sub.status && viewMode !== 'quiz' && `(${sub.status})`}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-ink-soft italic bg-paper px-2 py-1 rounded-md">Not Attempted</span>
+                                            )}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                        {sortedStudents.length === 0 && (
                             <tr>
-                                <td colSpan={items.length + 2} className="px-6 py-12 text-center text-ink-soft">
-                                    No students found matching your search.
+                                <td colSpan={items.length + 3} className="px-6 py-12 text-center text-ink-soft">
+                                    No students found matching the current filters.
                                 </td>
                             </tr>
                         )}

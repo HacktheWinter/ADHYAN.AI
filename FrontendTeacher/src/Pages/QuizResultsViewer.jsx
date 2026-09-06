@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, User, CheckCircle, AlertTriangle, 
   FileText, Loader, Trophy, RefreshCw, MoreVertical,
-  BarChart2, Users, Search
+  BarChart2, Users, Search, Camera, X
 } from 'lucide-react';
 import axios from 'axios';
 import API_BASE_URL from '../config';
@@ -18,6 +18,8 @@ const QuizResultsViewer = () => {
   const [loading, setLoading] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [previewPhoto, setPreviewPhoto] = useState(null);
+  const [previewStudentName, setPreviewStudentName] = useState('');
 
   const [isPublishing, setIsPublishing] = useState(false);
 
@@ -300,6 +302,7 @@ const QuizResultsViewer = () => {
                   <tr>
                     <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-ink">Student</th>
                     <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-ink">Status</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-bold text-ink">Proctor</th>
                     <th className="hidden sm:table-cell px-6 py-4 text-left text-sm font-bold text-ink">Marks</th>
                     <th className="hidden lg:table-cell px-6 py-4 text-left text-sm font-bold text-ink">Percentage</th>
                     <th className="hidden lg:table-cell px-6 py-4 text-left text-sm font-bold text-ink">Submitted</th>
@@ -357,6 +360,29 @@ const QuizResultsViewer = () => {
                           )}
                         </span>
                       </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        {submission.proctorPhoto ? (
+                          <button
+                            onClick={() => {
+                              setPreviewPhoto(submission.proctorPhoto);
+                              setPreviewStudentName(submission.studentId?.name || 'Unknown');
+                            }}
+                            className="group relative w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden border-2 border-line hover:border-violet-500 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                          >
+                            <img
+                              src={submission.proctorPhoto}
+                              alt="Proctor snapshot"
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.target.style.display = 'none'; }}
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                              <Camera className="w-3 h-3 sm:w-4 sm:h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-ink-soft">—</span>
+                        )}
+                      </td>
                       <td className="hidden sm:table-cell px-6 py-4">
                         <span className="font-semibold text-ink text-sm">
                           {typeof submission.score === 'number' ? submission.score.toFixed(1) : submission.score}/{typeof displayTotal === 'number' ? displayTotal : displayTotal}
@@ -395,6 +421,31 @@ const QuizResultsViewer = () => {
             </div>
           )}
         </div>
+
+        {/* Proctor Photo Preview Modal */}
+        {previewPhoto && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => { setPreviewPhoto(null); setPreviewStudentName(''); }}>
+            <div className="relative max-w-lg w-full bg-surface rounded-2xl overflow-hidden shadow-2xl border border-line" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 border-b border-line">
+                <div className="flex items-center gap-2">
+                  <Camera className="w-5 h-5 text-violet-dark" />
+                  <div>
+                    <span className="font-bold text-ink">Proctor Snapshot</span>
+                    {previewStudentName && (
+                      <p className="text-xs text-ink-soft">{previewStudentName}</p>
+                    )}
+                  </div>
+                </div>
+                <button onClick={() => { setPreviewPhoto(null); setPreviewStudentName(''); }} className="text-ink-soft hover:text-ink transition-colors cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-2">
+                <img src={previewPhoto} alt="Proctor snapshot" className="w-full rounded-xl" />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -12,9 +12,9 @@ import {
 const router = express.Router();
 
 router.post("/upload", authMiddleware, authorizeRoles("teacher"), uploadNote);
-router.get("/", getNotes);
-router.get("/classroom/:classroomId", getNotesByClassroom);
-router.get("/file/:fileId", getNoteFile);
+router.get("/", authMiddleware, getNotes);
+router.get("/classroom/:classroomId", authMiddleware, getNotesByClassroom);
+router.get("/file/:fileId", authMiddleware, getNoteFile);
 router.delete("/:noteId", authMiddleware, authorizeRoles("teacher"), deleteNote);
 
 export default router;

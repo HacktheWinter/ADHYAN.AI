@@ -694,6 +694,14 @@ export const getStudentAttendanceSummary = async (req, res) => {
       });
     }
 
+    // IDOR check: students can only view their own attendance summary
+    if (req.user?.role === "student" && req.user._id.toString() !== studentId) {
+      return res.status(403).json({
+        success: false,
+        error: "You can only view your own attendance summary",
+      });
+    }
+
     const summaryPayload = await buildStudentAttendanceSummary({ classId, studentId });
     if (summaryPayload.error) {
       return res.status(summaryPayload.errorStatus).json({

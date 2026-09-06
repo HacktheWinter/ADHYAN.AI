@@ -14,16 +14,16 @@ const router = express.Router();
 router.post("/create", authMiddleware, authorizeRoles("teacher"), createAnnouncement);
 
 // Get all announcements for a student's enrolled classes
-router.get("/student/:studentId", getStudentAnnouncements);
+router.get("/student/:studentId", authMiddleware, getStudentAnnouncements);
 
 // Get all announcements for a classroom
-router.get("/:classroomId", getAnnouncements);
+router.get("/:classroomId", authMiddleware, getAnnouncements);
 
 // Teacher deletes announcement
 // Teacher deletes announcement
 router.delete("/:id", authMiddleware, authorizeRoles("teacher"), deleteAnnouncement);
 
 // Get Announcement File
-router.get("/file/:fileId", getAnnouncementFile);
+router.get("/file/:fileId", authMiddleware, getAnnouncementFile);
 
 export default router;

@@ -20,13 +20,13 @@ router.post('/create-manual', authMiddleware, authorizeRoles("teacher"), createT
 router.post('/generate-ai', authMiddleware, authorizeRoles("teacher"), generateTestPaperWithAI);
 
 // Get test paper by ID
-router.get('/:testId', getTestPaper);
+router.get('/:testId', authMiddleware, getTestPaper);
 
 // Get test papers by classroom
-router.get('/classroom/:classroomId', getTestPapersByClassroom);
+router.get('/classroom/:classroomId', authMiddleware, getTestPapersByClassroom);
 
 // Get active test papers for students
-router.get('/active/classroom/:classroomId', getActiveTestPapersForStudent);
+router.get('/active/classroom/:classroomId', authMiddleware, getActiveTestPapersForStudent);
 
 // Update test paper (edit answer keys)
 router.put('/:testId', authMiddleware, authorizeRoles("teacher"), updateTestPaper);

@@ -4,11 +4,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Video, BookOpen, Layout } from "lucide-react";
 import LiveVideoUpload from "../components/LiveVideoUpload";
 import LiveMeeting from "../components/LiveMeeting";
+import { getStoredUser } from "../utils/authStorage";
 
 export default function ClassesPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = getStoredUser() || {};
 
   const [activeTab, setActiveTab] = useState("live");
 

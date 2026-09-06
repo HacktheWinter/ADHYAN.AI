@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   Layers,
   ChevronDown,
+  Camera,
+  X,
 } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
@@ -24,6 +26,7 @@ const StudentQuizResult = () => {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [selectedSection, setSelectedSection] = useState('all');
   const [sectionDropdownOpen, setSectionDropdownOpen] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const sectionDropdownRef = useRef(null);
 
   // Close section dropdown on outside click
@@ -232,6 +235,38 @@ const StudentQuizResult = () => {
             </div>
           </div>
         </div>
+
+        {/* Proctoring Snapshot Thumbnail */}
+        {submission.proctorPhoto && (
+          <div className="bg-surface rounded-2xl border border-line p-3 sm:p-4 mb-4 sm:mb-6 shadow-sm flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-violet-50 flex items-center justify-center text-violet-dark border border-line shrink-0">
+                <Camera className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-ink">Proctoring Snapshot</span>
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full shrink-0">AI Captured</span>
+                </div>
+                <p className="text-xs text-ink-soft">Click image to enlarge</p>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => setIsPhotoModalOpen(true)}
+              className="relative w-20 sm:w-24 aspect-video rounded-lg overflow-hidden border-2 border-line hover:border-violet-400 transition-colors shadow-sm cursor-pointer group shrink-0"
+            >
+              <img
+                src={submission.proctorPhoto}
+                alt="Proctor snapshot thumbnail"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-white text-xs font-bold tracking-wider">VIEW</span>
+              </div>
+            </button>
+          </div>
+        )}
 
         {/* Section Filter */}
         {hasSections && sections.length > 1 && (
@@ -553,6 +588,25 @@ const StudentQuizResult = () => {
           })}
         </div>
       </div>
+
+      {/* Photo Modal */}
+      {isPhotoModalOpen && submission?.proctorPhoto && (
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity" onClick={() => setIsPhotoModalOpen(false)}>
+          <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={() => setIsPhotoModalOpen(false)}
+              className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors bg-white/10 hover:bg-white/20 p-2 rounded-full cursor-pointer"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={submission.proctorPhoto}
+              alt="Proctor snapshot full"
+              className="w-full h-auto max-h-[80vh] object-contain rounded-xl shadow-2xl border-2 border-white/20"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

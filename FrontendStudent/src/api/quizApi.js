@@ -18,12 +18,16 @@ export const getQuizById = async (quizId) => {
 };
 
 // Submit quiz
-export const submitQuiz = async (quizId, studentId, answers) => {
-  const res = await axios.post(`${BASE_URL}/quiz-submission/submit`, {
+export const submitQuiz = async (quizId, studentId, answers, proctorPhoto = null) => {
+  const payload = {
     quizId,
     studentId,
     answers,
-  });
+  };
+  if (proctorPhoto) {
+    payload.proctorPhoto = proctorPhoto;
+  }
+  const res = await axios.post(`${BASE_URL}/quiz-submission/submit`, payload);
   return res.data;
 };
 
@@ -60,6 +64,16 @@ export const runCode = async (quizId, questionId, code, language, customInput) =
     code,
     language,
     customInput,
+  });
+  return res.data;
+};
+
+// Upload webcam proctor snapshot to Cloudinary
+export const uploadProctorSnapshot = async (base64Image, quizId = null, studentId = null) => {
+  const res = await axios.post(`${BASE_URL}/proctor/upload-snapshot`, {
+    image: base64Image,
+    quizId,
+    studentId,
   });
   return res.data;
 };

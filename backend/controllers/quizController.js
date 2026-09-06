@@ -717,13 +717,13 @@ export const getQuiz = async (req, res) => {
     // Remove root questions from response to enforce new standard in frontend
     delete quizObj.questions;
     
-    if (req.user?.role === "student") {
+    if (req.user?.role !== "teacher") {
       const now = new Date();
       if ((quiz.endTime && now > new Date(quiz.endTime)) || 
           (quiz.startTime && now < new Date(quiz.startTime))) {
         delete quizObj.sections;
       } else if (quizObj.sections) {
-        // Strip sensitive info
+        // Strip sensitive info for non-teacher users
         quizObj.sections.forEach(sec => {
           if (sec.questions) {
             sec.questions.forEach(q => {
@@ -756,10 +756,43 @@ export const getQuizzesByClassroom = async (req, res) => {
 
     const quizzes = await Quiz.find({ classroomId }).sort({ createdAt: -1 });
 
+    // Strip answer data for non-teacher users
+    let quizzesData = quizzes;
+    if (req.user?.role !== "teacher") {
+      quizzesData = quizzes.map(q => {
+        const obj = q.toObject();
+        if (obj.questions) {
+          obj.questions.forEach(question => {
+            delete question.correctAnswer;
+            if (question.coding) {
+              delete question.coding.testCases;
+              delete question.coding.hiddenTestCases;
+              delete question.coding.driverCode;
+            }
+          });
+        }
+        if (obj.sections) {
+          obj.sections.forEach(sec => {
+            if (sec.questions) {
+              sec.questions.forEach(question => {
+                delete question.correctAnswer;
+                if (question.coding) {
+                  delete question.coding.testCases;
+                  delete question.coding.hiddenTestCases;
+                  delete question.coding.driverCode;
+                }
+              });
+            }
+          });
+        }
+        return obj;
+      });
+    }
+
     res.status(200).json({
       success: true,
-      count: quizzes.length,
-      quizzes,
+      count: quizzesData.length,
+      quizzes: quizzesData,
     });
   } catch (error) {
     console.error(error);
@@ -860,7 +893,7 @@ export const deleteQuiz = async (req, res) => {
 export const publishQuizWithTiming = async (req, res) => {
   try {
     const { quizId } = req.params;
-    const { duration, startTime, endTime } = req.body;
+    const { duration, startTime, endTime, webcamEnabled } = req.body;
     const teacherId = req.user?._id?.toString();
 
     console.log("Publishing quiz:", { quizId, duration, startTime, endTime });
@@ -890,6 +923,7 @@ export const publishQuizWithTiming = async (req, res) => {
     quiz.startTime = startTime || null;
     quiz.endTime = calculatedEndTime || null;
     quiz.isActive = true;
+    quiz.webcamEnabled = webcamEnabled || false;
 
     await quiz.save();
 
@@ -954,6 +988,15 @@ export const getActiveQuizzesForStudent = async (req, res) => {
 
     const now = new Date();
 
+    // Get total students count for webcam capture logic
+    let totalStudents = 0;
+    try {
+      const classroom = await Classroom.findById(classroomId).select("students");
+      totalStudents = classroom?.students?.length || 0;
+    } catch (e) {
+      console.error("Failed to get student count:", e);
+    }
+
     const quizzes = await Quiz.find({
       classroomId,
       status: "published",
@@ -972,6 +1015,32 @@ export const getActiveQuizzesForStudent = async (req, res) => {
         delete quizObj.questions; // Security
       }
 
+      // Strip answer data — active quizzes still leak correctAnswer without this
+      if (quizObj.questions) {
+        quizObj.questions.forEach(q => {
+          delete q.correctAnswer;
+          if (q.coding) {
+            delete q.coding.testCases;
+            delete q.coding.hiddenTestCases;
+            delete q.coding.driverCode;
+          }
+        });
+      }
+      if (quizObj.sections) {
+        quizObj.sections.forEach(sec => {
+          if (sec.questions) {
+            sec.questions.forEach(q => {
+              delete q.correctAnswer;
+              if (q.coding) {
+                delete q.coding.testCases;
+                delete q.coding.hiddenTestCases;
+                delete q.coding.driverCode;
+              }
+            });
+          }
+        });
+      }
+
       return {
         ...quizObj,
         quizStatus,
@@ -982,6 +1051,7 @@ export const getActiveQuizzesForStudent = async (req, res) => {
     res.status(200).json({
       success: true,
       count: activeQuizzes.length,
+      totalStudents,
       quizzes: activeQuizzes,
     });
   } catch (error) {

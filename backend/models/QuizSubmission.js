@@ -105,6 +105,10 @@ const quizSubmissionSchema = new mongoose.Schema(
     autoSubmitted: {
       type: Boolean,
       default: false,
+    },
+    proctorPhoto: {
+      type: String,
+      default: null,
     }
   },
   { timestamps: true }

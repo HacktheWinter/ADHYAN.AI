@@ -9,7 +9,7 @@ export const authMiddleware = async (req, res, next) => {
         .status(401)
         .json({ error: "Access denied. No token provided." });
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
     if (!decoded) return res.status(401).json({ error: "Invalid token." });
 
     const user = await User.findById(decoded.id);

@@ -20,13 +20,13 @@ router.post('/create-manual', authMiddleware, authorizeRoles("teacher"), createA
 router.post('/generate-ai', authMiddleware, authorizeRoles("teacher"), generateAssignmentWithAI);
 
 // Get assignment by ID
-router.get('/:assignmentId', getAssignment);
+router.get('/:assignmentId', authMiddleware, getAssignment);
 
 // Get assignments by classroom
-router.get('/classroom/:classroomId', getAssignmentsByClassroom);
+router.get('/classroom/:classroomId', authMiddleware, getAssignmentsByClassroom);
 
 // Get active assignments for students
-router.get('/active/classroom/:classroomId', getActiveAssignmentsForStudent);
+router.get('/active/classroom/:classroomId', authMiddleware, getActiveAssignmentsForStudent);
 
 // Update assignment
 router.put('/:assignmentId', authMiddleware, authorizeRoles("teacher"), updateAssignment);

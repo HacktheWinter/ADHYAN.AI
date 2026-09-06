@@ -75,8 +75,10 @@ export const deleteVideo = async (req, res) => {
     const video = await Video.findById(req.params.id);
     if (!video) return res.status(404).json({ message: "Video not found" });
 
-    // Optional: Extra security check if needed
-    // if (video.uploadedBy.toString() !== req.user._id.toString()) { ... }
+    // Ownership check: only the uploader can delete
+    if (video.uploadedBy && video.uploadedBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Unauthorized to delete this video" });
+    }
 
     // Delete from Cloudinary if uploaded
     if (video.cloudinaryId) {

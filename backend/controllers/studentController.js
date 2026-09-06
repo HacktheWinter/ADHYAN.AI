@@ -102,21 +102,16 @@ export const registerStudent = async (req, res) => {
 export const loginStudent = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log(`[Student Login] Attempt for email: ${email}`);
 
     if (!email || !password) {
-      console.log(`[Student Login] Failed: Email or password missing`);
       return res.status(400).json({ error: "Email and password required" });
     }
-      
-    const student = await User.findOne({ email, role: "student" });
-    console.log(`[Student Login] User exists: ${!!student}`);
-    if (!student) return res.status(404).json({ error: "Student not found" });
 
-    console.log(`[Student Login] Password hash exists: ${!!student.password}`);
+    const student = await User.findOne({ email: email.trim().toLowerCase(), role: "student" }).select("+password");
+    if (!student) return res.status(401).json({ error: "Invalid email or password" });
+
     const isMatch = await bcrypt.compare(password, student.password);
-    console.log(`[Student Login] bcrypt.compare() result: ${isMatch}`);
-    if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
+    if (!isMatch) return res.status(401).json({ error: "Invalid email or password" });
 
     // ── Browser cooldown check ──────────────────────────────────────
     // AFTER credential validation — we don't reveal cooldown status to
@@ -139,16 +134,14 @@ export const loginStudent = async (req, res) => {
     const token = jwt.sign(
       { id: student._id, role: student.role },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: "1d", algorithm: "HS256" }
     );
-    console.log(`[Student Login] JWT generation success: ${!!token}`);
 
     // Track this browser → account association on successful login
     if (browserId) {
       await trackBrowserLogin(browserId, student._id.toString());
     }
 
-    console.log(`[Student Login] Success: Sending final response`);
     res.status(200).json({
       message: "Student login successful",
       token,
@@ -161,11 +154,9 @@ export const loginStudent = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Student Login Error:", err);
+    console.error("Student Login Error:", err.message);
     res.status(500).json({
       error: "Server error during login",
-      message: err.message,
-      stack: process.env.NODE_ENV === "development" ? err.stack : undefined
     });
   }
 };

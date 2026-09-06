@@ -137,6 +137,10 @@ const quizSchema = new mongoose.Schema({
     type: Boolean,
     default: true, // Auto-calculated based on time
   },
+  webcamEnabled: {
+    type: Boolean,
+    default: false,
+  },
 
   createdAt: {
     type: Date,

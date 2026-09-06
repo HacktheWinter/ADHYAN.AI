@@ -53,13 +53,13 @@ router.post(
 );
 
 // Get quiz by ID
-router.get("/:quizId", getQuiz);
+router.get("/:quizId", authMiddleware, getQuiz);
 
 // Get quizzes by classroom
-router.get("/classroom/:classroomId", getQuizzesByClassroom);
+router.get("/classroom/:classroomId", authMiddleware, getQuizzesByClassroom);
 
 // Get active quizzes for students (must be before /:quizId to avoid route conflict)
-router.get("/active/classroom/:classroomId", getActiveQuizzesForStudent);
+router.get("/active/classroom/:classroomId", authMiddleware, getActiveQuizzesForStudent);
 
 // Publish quiz with timing
 router.put("/:quizId/publish", authMiddleware, authorizeRoles("teacher"), publishQuizWithTiming);

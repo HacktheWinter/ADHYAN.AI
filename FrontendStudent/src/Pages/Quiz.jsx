@@ -14,24 +14,33 @@ export default function Quiz() {
   const [loading, setLoading] = useState(true);
   const [submissions, setSubmissions] = useState({});
   const [selectedQuiz, setSelectedQuiz] = useState(() => {
-    const saved = localStorage.getItem('activeQuiz');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.endTime && new Date() > new Date(parsed.endTime)) {
-        return null;
+    try {
+      const saved = localStorage.getItem('activeQuiz');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.endTime && new Date() > new Date(parsed.endTime)) {
+          return null;
+        }
+        return parsed;
       }
-      return parsed;
+    } catch (e) {
+      console.warn("Invalid activeQuiz data in localStorage:", e);
+      localStorage.removeItem('activeQuiz');
     }
     return null;
   });
   const [showTakingModal, setShowTakingModal] = useState(() => {
-    const saved = localStorage.getItem('activeQuiz');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.endTime && new Date() > new Date(parsed.endTime)) {
-        return false;
+    try {
+      const saved = localStorage.getItem('activeQuiz');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.endTime && new Date() > new Date(parsed.endTime)) {
+          return false;
+        }
+        return true;
       }
-      return true;
+    } catch (e) {
+      // Ignored here, handled in selectedQuiz state initialization
     }
     return false;
   });
@@ -67,7 +76,8 @@ export default function Quiz() {
       const quizzesData = response.quizzes || [];
       
       // Check submissions for each quiz
-      const submissionChecks = await Promise.all(
+      // Check submissions for each quiz (using allSettled so one failure doesn't crash the list)
+      const submissionChecks = await Promise.allSettled(
         quizzesData.map(quiz => 
           checkSubmission(quiz._id, classInfo.studentId)
         )
@@ -75,7 +85,8 @@ export default function Quiz() {
       
       const submissionMap = {};
       quizzesData.forEach((quiz, index) => {
-        submissionMap[quiz._id] = submissionChecks[index].hasSubmitted;
+        const result = submissionChecks[index];
+        submissionMap[quiz._id] = result.status === 'fulfilled' ? result.value?.hasSubmitted : false;
       });
       
       let needsRefresh = false;
@@ -144,12 +155,14 @@ export default function Quiz() {
                 
                 const active = localStorage.getItem('activeQuiz');
                 if (active) {
-                  const parsedActive = JSON.parse(active);
-                  if (parsedActive._id === quiz._id) {
-                    localStorage.removeItem('activeQuiz');
-                    setShowTakingModal(false);
-                    setSelectedQuiz(null);
-                  }
+                  try {
+                    const parsedActive = JSON.parse(active);
+                    if (parsedActive._id === quiz._id) {
+                      localStorage.removeItem('activeQuiz');
+                      setShowTakingModal(false);
+                      setSelectedQuiz(null);
+                    }
+                  } catch (e) {}
                 }
                 
                 needsRefresh = true;

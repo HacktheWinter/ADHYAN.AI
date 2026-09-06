@@ -302,6 +302,17 @@ export const deleteNote = async (req, res) => {
       });
     }
 
+    // Ownership check: verify the teacher owns the classroom this note belongs to
+    if (note.classroomId) {
+      const classroom = await Classroom.findById(note.classroomId).select("teacherId");
+      if (classroom && classroom.teacherId?.toString() !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: "Unauthorized to delete this note",
+        });
+      }
+    }
+
     // Delete file from Cloudinary or GridFS
     try {
       if (note.cloudinaryId) {
