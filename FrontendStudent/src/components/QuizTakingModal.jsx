@@ -7,12 +7,20 @@ import ViolationAlertModal from './ViolationAlertModal';
 import WebcamStatusToast from './WebcamStatusToast';
 import QuestionPalette from './QuestionPalette';
 import CodeEditorWorkspace from './CodeEditorWorkspace';
+import ToastNotification from './ToastNotification';
 import { getStoredToken } from '../utils/authStorage';
 import API_BASE_URL from '../config';
 
 export default function QuizTakingModal({ quiz, studentId, studentName, onClose, onSubmit }) {
   const [shuffledQuiz, setShuffledQuiz] = useState(null);
   const [hasStarted, setHasStarted] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitReason, setSubmitReason] = useState('');
+  
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
   
   // Section and Question tracking
   const [currentSectionIdx, setCurrentSectionIdx] = useState(0);
@@ -170,7 +178,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     }
   };
 
-  const isResuming = !!localStorage.getItem(`quiz_start_time_${quiz._id}`) || !!localStorage.getItem(`quiz_draft_${quiz._id}`);
+  const [isResuming] = useState(() => !!localStorage.getItem(`quiz_start_time_${quiz._id}`) || !!localStorage.getItem(`quiz_draft_${quiz._id}`));
 
   useEffect(() => {
     if (isResuming && !hasStarted) {
@@ -261,7 +269,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
   const handleStartExam = async () => {
     if (quiz.endTime && new Date() > new Date(quiz.endTime)) {
-      alert("Your assessment time has expired. Your previously saved answers have been safely submitted to the server.");
+      showToast("Your assessment time has expired. Your previously saved answers have been safely submitted to the server.", "warning");
       cleanupStorage();
       onSubmit();
       return;
@@ -273,12 +281,10 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     }
 
     try {
+      await enterFullScreen();
       setHasStarted(true);
-      setTimeout(async () => {
-        await enterFullScreen();
-      }, 50);
     } catch (error) {
-      alert("Please allow full screen to start the exam.");
+      showToast("Please allow full screen to start the exam.", "error");
     }
   };
 
@@ -299,7 +305,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     const type = sectionModal.type;
     setSectionModal({ show: false, type: '', title: '' });
     
-    if (type === 'timeout' || type === 'manual-next') {
+    if (type === 'manual-next') {
       moveToNextSection();
     } else if (type === 'submit-quiz') {
       handleSubmitQuiz(false);
@@ -413,8 +419,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
       const answersArray = buildAnswersArray();
       const answeredCount = getAnsweredCount();
-      const totalQuestions = shuffledQuiz.sections.reduce((acc, s) => acc + s.questions.length, 0);
-      const violationsCount = violations.length;
+      const totalQuestionsCount = shuffledQuiz.sections.reduce((acc, s) => acc + s.questions.length, 0);
 
       // Capture proctor photo if not captured yet
       let finalPhotoUrl = proctorPhotoUrlRef.current;
@@ -435,13 +440,12 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       
       exitFullScreen();
 
-      const scoreMessage = autoSubmit 
-        ? ` AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${totalQuestions}\n\n`
-        : ` Assessment Submitted!\n\n`;
-
-      alert(`${scoreMessage}Your results will be visible when the teacher publishes them.`);
-
-      onSubmit();
+      if (autoSubmit) {
+        setSubmitReason(`Auto-submitted: ${reason}. Answered: ${answeredCount}/${totalQuestionsCount}.`);
+      } else {
+        setSubmitReason('');
+      }
+      setIsSubmitted(true);
     } catch (error) {
       console.error('Submit error:', error);
       exitFullScreen();
@@ -457,15 +461,21 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
         } catch (saveErr) {
           console.error('Fallback autosave also failed:', saveErr);
         }
-        alert("Your assessment time has expired. Your answers have been saved and will be automatically graded by the server.");
-        cleanupStorage();
-        onSubmit();
-      } else if (error.response?.status === 404 || errorMsg.toLowerCase().includes("not found")) {
-        alert("This assessment is no longer available or was deleted.");
-        cleanupStorage();
-        onSubmit();
+        
+        if (error.response?.status === 403 && error.response?.data?.error?.includes("Time limit exceeded")) {
+          showToast("Your assessment time has expired. Your answers have been saved and will be automatically graded by the server.", "error");
+          setTimeout(() => onSubmit(), 3000);
+          return;
+        }
+        if (error.response?.status === 404) {
+          showToast("This assessment is no longer available or was deleted.", "error");
+          setTimeout(() => onClose(), 2000);
+          return;
+        }
+        
+        showToast(`Error: ${errorMsg}`, 'error');
       } else {
-        alert(` Error: ${errorMsg}`);
+        showToast(`Error: Failed to connect to server. Please check your internet connection.`, 'error');
         setIsSubmitting(false);
         setProctorSubmitting(false);
       }
@@ -613,6 +623,35 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
   // Intro Screen
   if (!shuffledQuiz) return null;
+
+  if (isSubmitted) {
+    return (
+      <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden p-8 text-center border border-gray-100">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+            <CheckCircle className="w-10 h-10 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Exam Submitted Successfully!</h2>
+          <p className="text-gray-600 mb-2">
+            Your results will be available once the teacher publishes them.
+          </p>
+          {submitReason && (
+            <p className="text-sm font-medium text-orange-600 mb-6 bg-orange-50 py-2 px-4 rounded-lg border border-orange-100">
+              {submitReason}
+            </p>
+          )}
+          <div className={submitReason ? "mt-4" : "mt-8"}>
+            <button 
+              onClick={onSubmit} 
+              className="w-full py-3 px-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20 cursor-pointer"
+            >
+              Go Back to Assessments
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!hasStarted) {
     return (
@@ -768,10 +807,25 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
               </button>
             ) : isResuming ? (
               <>
-                <button onClick={() => handleSubmitQuiz(false, 'Exited on Resume')} className="w-full sm:w-auto px-6 py-3 sm:py-2.5 font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors shadow-md shadow-red-600/20">
-                  Submit & Exit Exam
+                <button 
+                  onClick={() => handleSubmitQuiz(false, 'Exited on Resume')} 
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto px-6 py-3 sm:py-2.5 font-bold text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed rounded-xl transition-colors shadow-md shadow-red-600/20 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Submit & Exit Exam'
+                  )}
                 </button>
-                <button onClick={handleStartExam} className="w-full sm:w-auto px-8 py-3 sm:py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20">
+                <button 
+                  onClick={handleStartExam} 
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto px-8 py-3 sm:py-2.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed transition-colors shadow-md shadow-green-600/20"
+                >
                   Resume Exam
                 </button>
               </>
@@ -1059,64 +1113,54 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
         </div>
       </div>
 
-      <ViolationAlertModal
-        show={showViolationAlert}
-        message={violationMessage}
-        violationCount={violations.length}
-        maxViolations={4}
-        onOk={handleViolationAlertOk}
-      />
+      {showViolationAlert && (
+        <ViolationAlertModal
+          message={violationMessage}
+          onOk={handleViolationAlertOk}
+        />
+      )}
 
       {/* Section Transition Modal */}
       {sectionModal.show && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl flex flex-col items-center text-center animate-in fade-in zoom-in duration-200">
             <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-              sectionModal.type === 'timeout' ? 'bg-amber-100 text-amber-600' :
               sectionModal.type === 'submit-quiz' ? 'bg-green-100 text-green-600' :
               'bg-blue-100 text-blue-600'
             }`}>
-              {sectionModal.type === 'timeout' ? <Clock className="w-8 h-8" /> :
-               sectionModal.type === 'submit-quiz' ? <CheckCircle className="w-8 h-8" /> :
+              {sectionModal.type === 'submit-quiz' ? <CheckCircle className="w-8 h-8" /> :
                <ChevronRight className="w-8 h-8" />}
             </div>
             
             <h3 className="text-xl font-bold text-gray-900 mb-2">
-              {sectionModal.type === 'timeout' ? "Time's Up!" : 
-               sectionModal.type === 'submit-quiz' ? "Submit Entire Exam?" : 
-               "Finish Section?"}
+              {sectionModal.type === 'submit-quiz' ? "Submit Entire Exam?" : 
+               "Next Section?"}
             </h3>
             
             <p className="text-gray-600 mb-6 text-sm leading-relaxed">
-              {sectionModal.type === 'timeout' ? (
-                <>The time limit for <strong>{sectionModal.title}</strong> has expired. Your answers are saved and we will now move to the next section.</>
-              ) : sectionModal.type === 'submit-quiz' ? (
+              {sectionModal.type === 'submit-quiz' ? (
                 <>Are you sure you want to submit the exam? Once submitted, you cannot change your answers.</>
               ) : (
-                <>Are you sure you want to finish <strong>{sectionModal.title}</strong> early? You will <strong>not</strong> be able to return to this section later.</>
+                <>Are you sure you want to move to the next section? You can return to <strong>{sectionModal.title}</strong> later.</>
               )}
             </p>
             
             <div className="flex gap-3 w-full">
-              {sectionModal.type !== 'timeout' && (
-                <button
-                  onClick={() => setSectionModal({ show: false, type: '', title: '' })}
-                  className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-              )}
+              <button
+                onClick={() => setSectionModal({ show: false, type: '', title: '' })}
+                className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
               <button
                 onClick={handleSectionModalConfirm}
                 className={`flex-1 px-4 py-2.5 font-bold rounded-xl transition-colors text-white ${
-                  sectionModal.type === 'timeout' ? 'bg-amber-600 hover:bg-amber-700' :
                   sectionModal.type === 'submit-quiz' ? 'bg-green-600 hover:bg-green-700' :
                   'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
-                {sectionModal.type === 'timeout' ? "Continue to Next Section" : 
-                 sectionModal.type === 'submit-quiz' ? "Yes, Submit Exam" : 
-                 "Yes, Finish Section"}
+                {sectionModal.type === 'submit-quiz' ? "Yes, Submit Exam" : 
+                 "Yes, Move to Next Section"}
               </button>
             </div>
           </div>
@@ -1144,6 +1188,21 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       <WebcamStatusToast
         show={!!activeWarning}
         message={activeWarning}
+        onDismiss={dismissWarning}
+      />
+
+      <ViolationAlertModal
+        show={showViolationAlert}
+        message={violationMessage}
+        violationCount={violations.length}
+        maxViolations={4}
+        onOk={handleViolationAlertOk}
+      />
+
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
       />
     </div>
   );

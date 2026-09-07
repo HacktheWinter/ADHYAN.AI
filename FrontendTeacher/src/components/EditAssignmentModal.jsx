@@ -3,7 +3,7 @@ import { X, Save, AlertCircle, Download, ChevronDown } from 'lucide-react';
 import { updateAssignment } from '../api/assignmentApi';
 import { exportAssignmentToExcel, exportAssignmentToPDF } from '../utils/exportUtils';
 
-export default function EditAssignmentModal({ assignment, onClose, onSave }) {
+export default function EditAssignmentModal({ assignment, onClose, onSave, showToast }) {
   const [questions, setQuestions] = useState(assignment.questions);
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(assignment.title);
@@ -39,11 +39,11 @@ export default function EditAssignmentModal({ assignment, onClose, onSave }) {
         questions
       });
 
-      alert('Assignment updated successfully!');
+      showToast('Assignment updated successfully!', 'success');
       onSave();
     } catch (error) {
       console.error('Error updating:', error);
-      alert('Failed to update assignment');
+      showToast('Failed to update assignment', 'error');
     } finally {
       setSaving(false);
     }
@@ -52,9 +52,9 @@ export default function EditAssignmentModal({ assignment, onClose, onSave }) {
   const handleExportExcel = () => {
     const result = exportAssignmentToExcel(assignment);
     if (result.success) {
-      alert(result.message);
+      showToast(result.message, 'success');
     } else {
-      alert(result.message);
+      showToast(result.message, 'error');
     }
     setShowExportDropdown(false);
   };
@@ -62,9 +62,9 @@ export default function EditAssignmentModal({ assignment, onClose, onSave }) {
   const handleExportPDF = () => {
     const result = exportAssignmentToPDF(assignment);
     if (result.success) {
-      alert(result.message);
+      showToast(result.message, 'success');
     } else {
-      alert(result.message);
+      showToast(result.message, 'error');
     }
     setShowExportDropdown(false);
   };  return (

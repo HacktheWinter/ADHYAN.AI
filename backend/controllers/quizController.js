@@ -696,6 +696,13 @@ export const getQuiz = async (req, res) => {
       return res.status(404).json({ error: "Quiz not found" });
     }
 
+    if (req.user?.role === "teacher") {
+      const classroom = await Classroom.findById(quiz.classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ error: "Unauthorized access to this resource." });
+      }
+    }
+
     let quizObj = quiz.toObject();
     
     // Normalize to sections for consistent frontend handling
@@ -718,6 +725,9 @@ export const getQuiz = async (req, res) => {
     delete quizObj.questions;
     
     if (req.user?.role !== "teacher") {
+      if (quiz.status !== "published") {
+        return res.status(403).json({ error: "This quiz is not available." });
+      }
       const now = new Date();
       if ((quiz.endTime && now > new Date(quiz.endTime)) || 
           (quiz.startTime && now < new Date(quiz.startTime))) {
@@ -754,12 +764,19 @@ export const getQuizzesByClassroom = async (req, res) => {
   try {
     const { classroomId } = req.params;
 
+    if (req.user?.role === "teacher") {
+      const classroom = await Classroom.findById(classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ error: "Unauthorized access to this classroom." });
+      }
+    }
+
     const quizzes = await Quiz.find({ classroomId }).sort({ createdAt: -1 });
 
     // Strip answer data for non-teacher users
     let quizzesData = quizzes;
     if (req.user?.role !== "teacher") {
-      quizzesData = quizzes.map(q => {
+      quizzesData = quizzes.filter(q => q.status === "published").map(q => {
         const obj = q.toObject();
         if (obj.questions) {
           obj.questions.forEach(question => {

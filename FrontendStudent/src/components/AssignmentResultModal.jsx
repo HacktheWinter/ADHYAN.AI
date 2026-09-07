@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import { X, Award, TrendingUp, Loader } from "lucide-react";
 import { getAssignmentResult, openSubmissionPdf } from "../api/assignmentApi";
+import ToastNotification from "./ToastNotification";
 
 export default function AssignmentResultModal({
   assignmentId,
@@ -13,6 +14,11 @@ export default function AssignmentResultModal({
   //const [loading, setLoading] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const answerRefs = useRef([]);
+  
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   const fetchAssignmentResult = async ({ queryKey }) => {
     const [, assignmentId, studentId] = queryKey;
@@ -34,7 +40,7 @@ export default function AssignmentResultModal({
       answerRefs.current = [];
     },
     onError: () => {
-      alert("Failed to load result");
+      showToast("Failed to load result", "error");
       onClose();
     },
   });
@@ -182,7 +188,7 @@ export default function AssignmentResultModal({
     window.open(url, "_blank");
   } catch (error) {
     console.error("Failed to open submission PDF:", error);
-    alert("Failed to open PDF");
+    showToast("Failed to open PDF", "error");
   }
 }}
 
@@ -328,6 +334,12 @@ export default function AssignmentResultModal({
           </div>
         </div>
       </div>
+      
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
     </div>
   );
 }

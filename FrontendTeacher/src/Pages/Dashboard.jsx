@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import ClassCard from "../components/ClassCard";
@@ -8,6 +8,9 @@ import PageTransition from "../components/PageTransition";
 import { getClassrooms, createClassroom, deleteClassroom, updateClassroom } from "../api/classroomApi";
 import { getStoredUser } from "../utils/authStorage";
 import SeminarQRGenerator from "../components/SeminarQRGenerator";
+import ToastNotification from "../components/ToastNotification";
+import ConfirmationCard from "../components/ConfirmationCard";
+import PWAInstallPrompt from "../components/PWAInstallPrompt";
 import { QrCode, ClipboardList, Plus, SlidersHorizontal, ChevronDown } from "lucide-react";
 
 const containerVariants = {
@@ -41,6 +44,44 @@ const Dashboard = () => {
   const [currentSort, setCurrentSort] = useState("all");
   const [showFilterPop, setShowFilterPop] = useState(false);
   const filterRef = useRef(null);
+
+  // Toast notification state
+  const [toast, setToast] = useState({ message: '', type: 'success' });
+
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    type: 'danger',
+    onConfirm: null,
+  });
+
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ message, type });
+  }, []);
+
+  const clearToast = useCallback(() => {
+    setToast({ message: '', type: 'success' });
+  }, []);
+
+  const showConfirm = useCallback(({ title, message, confirmText, cancelText, type, onConfirm }) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      confirmText: confirmText || 'Confirm',
+      cancelText: cancelText || 'Cancel',
+      type: type || 'danger',
+      onConfirm,
+    });
+  }, []);
+
+  const closeConfirm = useCallback(() => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false, onConfirm: null }));
+  }, []);
 
   const user = getStoredUser() || {};
   const teacherId = user.id || user._id;
@@ -112,12 +153,12 @@ const Dashboard = () => {
 
       if (response && response.classroom) {
         setClasses((prev) => [...prev, response.classroom]);
-        alert(`Class created successfully! Class Code: ${response.classroom.classCode}`);
+        showToast('Class created successfully!', 'success');
       }
       setIsModalOpen(false);
     } catch (error) {
       console.error("Error creating classroom:", error);
-      alert("Failed to create classroom");
+      showToast("Failed to create classroom", 'error');
     }
   };
 
@@ -135,61 +176,85 @@ const Dashboard = () => {
             (cls._id || cls.id) === editingClass._id ? response.classroom : cls
           )
         );
-        alert("Class updated successfully");
+        showToast("Class updated successfully", 'success');
       }
     } catch (error) {
       console.error("Error updating classroom:", error);
-      alert("Failed to update classroom");
+      showToast("Failed to update classroom", 'error');
     } finally {
       setEditingClass(null);
       setIsModalOpen(false);
     }
   };
 
-  const handleDeleteClass = async (classId) => {
+  const executeDeleteClass = async (classId) => {
     try {
       await deleteClassroom(classId, teacherId);
       
       // Remove from state
       setClasses((prev) => prev.filter(c => (c._id || c.id) !== classId));
       
-      alert("Class deleted successfully!");
+      showToast("Class deleted successfully!", 'success');
     } catch (error) {
       console.error("Error deleting classroom:", error);
-      alert(error.response?.data?.error || "Failed to delete classroom");
+      showToast(error.response?.data?.error || "Failed to delete classroom", 'error');
     }
   };
 
-  const handleArchiveClass = async (classId, archiveState = true) => {
+  const handleDeleteClass = (classId, className) => {
+    showConfirm({
+      title: 'Delete Class',
+      message: `Are you sure you want to delete "${className}"? This action cannot be undone and all class data will be permanently removed.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'danger',
+      onConfirm: () => {
+        closeConfirm();
+        executeDeleteClass(classId);
+      },
+    });
+  };
+
+  const executeArchiveClass = async (classId, archiveState) => {
     try {
-      const activeClass = classes.find(c => (c._id || c.id) === classId);
-      if (!activeClass) return;
-
-      const confirmMsg = archiveState
-        ? `Are you sure you want to archive "${activeClass.name}"? It will be moved to your archived classes list.`
-        : `Are you sure you want to restore "${activeClass.name}"? It will be moved back to your active classes.`;
-
-      if (window.confirm(confirmMsg)) {
-        await updateClassroom(classId, { isArchived: archiveState });
-        
-        // Update in-memory state status
-        setClasses((prev) =>
-          prev.map((c) =>
-            (c._id || c.id) === classId ? { ...c, isArchived: archiveState } : c
-          )
-        );
-        alert(archiveState ? "Class archived successfully!" : "Class restored successfully!");
-      }
+      await updateClassroom(classId, { isArchived: archiveState });
+      
+      // Update in-memory state status
+      setClasses((prev) =>
+        prev.map((c) =>
+          (c._id || c.id) === classId ? { ...c, isArchived: archiveState } : c
+        )
+      );
+      showToast(archiveState ? "Class archived successfully!" : "Class restored successfully!", 'success');
     } catch (error) {
       console.error("Error updating archive status:", error);
-      alert(error.response?.data?.error || "Failed to update classroom status");
+      showToast(error.response?.data?.error || "Failed to update classroom status", 'error');
     }
+  };
+
+  const handleArchiveClass = (classId, archiveState = true, className) => {
+    const title = archiveState ? 'Archive Class' : 'Restore Class';
+    const message = archiveState
+      ? `Are you sure you want to archive "${className}"? It will be moved to your archived classes list.`
+      : `Are you sure you want to restore "${className}"? It will be moved back to your active classes.`;
+
+    showConfirm({
+      title,
+      message,
+      confirmText: archiveState ? 'Archive' : 'Restore',
+      cancelText: 'Cancel',
+      type: 'warning',
+      onConfirm: () => {
+        closeConfirm();
+        executeArchiveClass(classId, archiveState);
+      },
+    });
   };
 
   const handleClassClick = (classItem) => {
     // Only navigate to classroom details if it's active (not archived)
     if (classItem.isArchived) {
-      alert("This class is archived. Please restore it first to view student details and sessions.");
+      showToast("This class is archived. Please restore it first to view student details and sessions.", 'info');
       return;
     }
     navigate(`/class/${classItem._id}`);
@@ -494,6 +559,28 @@ const Dashboard = () => {
       {showSeminarQR && (
         <SeminarQRGenerator onClose={() => setShowSeminarQR(false)} />
       )}
+
+      {/* Toast Notification */}
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={clearToast}
+      />
+
+      {/* Confirmation Card Dialog */}
+      <ConfirmationCard
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        type={confirmDialog.type}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirm}
+      />
+      
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
   );
 };

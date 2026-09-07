@@ -697,3 +697,39 @@
 .dark .lang-tab.active::after {
   background: #a78bfa;
 }
+
+/* ─── Confirmation Card Dark Mode ─── */
+.dark .confirm-card {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-line) !important;
+}
+.dark .confirm-footer {
+  background-color: var(--color-paper) !important;
+  border-color: var(--color-line) !important;
+}
+.dark .confirm-cancel-btn {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-line) !important;
+  color: var(--color-ink) !important;
+}
+.dark .confirm-cancel-btn:hover {
+  background-color: var(--color-violet-50) !important;
+}
+.dark .dark-confirm-danger .confirm-icon-bg {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+}
+.dark .dark-confirm-danger .confirm-icon-color {
+  color: #FB7185 !important;
+}
+.dark .dark-confirm-warning .confirm-icon-bg {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+.dark .dark-confirm-warning .confirm-icon-color {
+  color: #FBBF24 !important;
+}
+.dark .dark-confirm-info .confirm-icon-bg {
+  background-color: rgba(139, 92, 246, 0.15) !important;
+}
+.dark .dark-confirm-info .confirm-icon-color {
+  color: #A78BFA !important;
+}

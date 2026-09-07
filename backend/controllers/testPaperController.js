@@ -374,10 +374,20 @@ export const getTestPaper = async (req, res) => {
       return res.status(404).json({ error: "Test paper not found" });
     }
 
+    if (req.user?.role === "teacher") {
+      const classroom = await Classroom.findById(testPaper.classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ error: "Unauthorized access to this resource." });
+      }
+    }
+
     let testPaperObj = testPaper.toObject();
 
     // Strip answer keys for non-teacher users
     if (req.user?.role !== "teacher") {
+      if (testPaper.status !== "published") {
+        return res.status(403).json({ error: "This test paper is not available." });
+      }
       if (testPaperObj.questions) {
         testPaperObj.questions.forEach(q => {
           delete q.answerKey;
@@ -400,6 +410,13 @@ export const getTestPapersByClassroom = async (req, res) => {
   try {
     const { classroomId } = req.params;
 
+    if (req.user?.role === "teacher") {
+      const classroom = await Classroom.findById(classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ error: "Unauthorized access to this classroom." });
+      }
+    }
+
     const testPapers = await TestPaper.find({ classroomId }).sort({
       createdAt: -1,
     });
@@ -407,7 +424,7 @@ export const getTestPapersByClassroom = async (req, res) => {
     // Strip answer keys for non-teacher users
     let testPapersData = testPapers;
     if (req.user?.role !== "teacher") {
-      testPapersData = testPapers.map(tp => {
+      testPapersData = testPapers.filter(tp => tp.status === "published").map(tp => {
         const obj = tp.toObject();
         if (obj.questions) {
           obj.questions.forEach(q => {

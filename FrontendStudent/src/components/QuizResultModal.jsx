@@ -2,12 +2,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Award, TrendingUp, Loader } from 'lucide-react';
 import { getQuizResult } from '../api/quizApi';
+import ToastNotification from './ToastNotification';
 
 export default function QuizResultModal({ quizId, studentId, onClose }) {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const answerRefs = useRef([]);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   useEffect(() => {
     fetchResult();
@@ -26,8 +32,8 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
         return;
       }
       console.error('Error fetching result:', error);
-      alert('Failed to load result');
-      onClose();
+      showToast('Failed to load result', 'error');
+      setTimeout(() => onClose(), 2000);
     } finally {
       setLoading(false);
     }
@@ -51,11 +57,24 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
             <span className="text-gray-600">Loading result...</span>
           </div>
         </div>
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ ...toast, show: false })}
+        />
       </div>
     );
   }
 
-  if (!result) return null;
+  if (!result) {
+    return (
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
+    );
+  }
 
   if (result.isPending) {
     return (
@@ -391,6 +410,11 @@ export default function QuizResultModal({ quizId, studentId, onClose }) {
           </div>
         </div>
       </div>
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
     </div>
   );
 }

@@ -339,10 +339,20 @@ export const getAssignment = async (req, res) => {
       return res.status(404).json({ error: "Assignment not found" });
     }
 
+    if (req.user?.role === "teacher") {
+      const classroom = await Classroom.findById(assignment.classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ error: "Unauthorized access to this resource." });
+      }
+    }
+
     let assignmentObj = assignment.toObject();
 
     // Strip answer keys for non-teacher users
     if (req.user?.role !== "teacher") {
+      if (assignment.status !== "published") {
+        return res.status(403).json({ error: "This assignment is not available." });
+      }
       if (assignmentObj.questions) {
         assignmentObj.questions.forEach(q => {
           delete q.answerKey;
@@ -365,6 +375,13 @@ export const getAssignmentsByClassroom = async (req, res) => {
   try {
     const { classroomId } = req.params;
 
+    if (req.user?.role === "teacher") {
+      const classroom = await Classroom.findById(classroomId).select("teacherId");
+      if (!classroom || classroom.teacherId?.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ error: "Unauthorized access to this classroom." });
+      }
+    }
+
     const assignments = await Assignment.find({ classroomId }).sort({
       createdAt: -1,
     });
@@ -372,7 +389,7 @@ export const getAssignmentsByClassroom = async (req, res) => {
     // Strip answer keys for non-teacher users
     let assignmentsData = assignments;
     if (req.user?.role !== "teacher") {
-      assignmentsData = assignments.map(a => {
+      assignmentsData = assignments.filter(a => a.status === "published").map(a => {
         const obj = a.toObject();
         if (obj.questions) {
           obj.questions.forEach(q => {

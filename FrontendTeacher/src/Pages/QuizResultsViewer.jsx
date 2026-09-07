@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import API_BASE_URL from '../config';
+import ToastNotification from '../components/ToastNotification';
+import ConfirmationCard from '../components/ConfirmationCard';
 
 const QuizResultsViewer = () => {
   const { classId, quizId } = useParams();
@@ -22,6 +24,13 @@ const QuizResultsViewer = () => {
   const [previewStudentName, setPreviewStudentName] = useState('');
 
   const [isPublishing, setIsPublishing] = useState(false);
+  
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: null });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   useEffect(() => {
     fetchData();
@@ -77,7 +86,7 @@ const QuizResultsViewer = () => {
       setSubmissions(submissionsData);
     } catch (error) {
       console.error('Error in fetchData:', error);
-      alert('Failed to load quiz results');
+      showToast('Failed to load quiz results', 'error');
     } finally {
       setLoading(false);
     }
@@ -89,24 +98,28 @@ const QuizResultsViewer = () => {
     });
   };
 
-  const handlePublishResults = async () => {
-    if (!confirm("Are you sure you want to publish results? Students will now be able to see their scores.")) {
-      return;
-    }
-    
-    try {
-      setIsPublishing(true);
-      await axios.put(`${API_BASE_URL}/quiz/${quizId}/publish-results`, {}, {
-        withCredentials: true
-      });
-      alert("Results published successfully!");
-      setQuiz({...quiz, resultsPublished: true});
-    } catch (error) {
-      console.error("Error publishing results:", error);
-      alert(error.response?.data?.error || "Failed to publish results");
-    } finally {
-      setIsPublishing(false);
-    }
+  const handlePublishResults = () => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Publish Results',
+      message: 'Are you sure you want to publish results? Students will now be able to see their scores.',
+      type: 'info',
+      onConfirm: async () => {
+        try {
+          setIsPublishing(true);
+          await axios.put(`${API_BASE_URL}/quiz/${quizId}/publish-results`, {}, {
+            withCredentials: true
+          });
+          showToast("Results published successfully!", 'success');
+          setQuiz({...quiz, resultsPublished: true});
+        } catch (error) {
+          console.error("Error publishing results:", error);
+          showToast(error.response?.data?.error || "Failed to publish results", 'error');
+        } finally {
+          setIsPublishing(false);
+        }
+      }
+    });
   };
 
   if (loading) {
@@ -447,6 +460,23 @@ const QuizResultsViewer = () => {
           </div>
         )}
       </div>
+
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
+      <ConfirmationCard
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        onConfirm={() => {
+          confirmDialog.onConfirm();
+          setConfirmDialog({ ...confirmDialog, isOpen: false });
+        }}
+        onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+      />
     </div>
   );
 };

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Star, MessageSquare, History, ChevronDown, Trash2 } from "lucide-react";
 import API_BASE_URL from "../config";
 import { getStoredToken } from "../utils/authStorage";
+import ToastNotification from './ToastNotification';
+import ConfirmationCard from './ConfirmationCard';
 
 const FeedbackResults = ({ classId }) => {
   const [responses, setResponses] = useState([]);
@@ -12,6 +14,13 @@ const FeedbackResults = ({ classId }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   // =======================
   // Fetch CURRENT feedback
@@ -79,38 +88,43 @@ const FeedbackResults = ({ classId }) => {
   // =======================
   // Delete Handlers
   // =======================
-  const handleDeleteFeedback = async (feedbackId, e) => {
+  const handleDeleteFeedback = (feedbackId, e) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this entire feedback session? This cannot be undone.")) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Feedback Session',
+      message: 'Are you sure you want to delete this entire feedback session? This cannot be undone.',
+      onConfirm: async () => {
+        try {
+          const token = getStoredToken();
+          if (!token) {
+            showToast("Authentication required. Please login again.", 'error');
+            return;
+          }
 
-    try {
-      const token = getStoredToken();
-      if (!token) {
-        alert("Authentication required. Please login again.");
-        return;
-      }
+          const res = await fetch(`${API_BASE_URL}/feedback/delete/${feedbackId}`, {
+             method: 'DELETE',
+             headers: {
+                Authorization: `Bearer ${token}`,
+             }
+          });
 
-      const res = await fetch(`${API_BASE_URL}/feedback/delete/${feedbackId}`, {
-         method: 'DELETE',
-         headers: {
-            Authorization: `Bearer ${token}`,
-         }
-      });
-
-      if (res.ok) {
-        setHistory(prev => prev.filter(f => f._id !== feedbackId));
-        // If we deleted the currently active feedback, refresh current view
-        const deletedFeedback = history.find(f => f._id === feedbackId);
-        if (deletedFeedback && deletedFeedback.isActive) {
-           fetchResults();
+          if (res.ok) {
+            setHistory(prev => prev.filter(f => f._id !== feedbackId));
+            const deletedFeedback = history.find(f => f._id === feedbackId);
+            if (deletedFeedback && deletedFeedback.isActive) {
+               fetchResults();
+            }
+            showToast('Feedback deleted successfully', 'success');
+          } else {
+            showToast("Failed to delete feedback", 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          showToast("Error deleting feedback", 'error');
         }
-      } else {
-        alert("Failed to delete feedback");
       }
-    } catch (err) {
-      console.error(err);
-      alert("Error deleting feedback");
-    }
+    });
   };
 
   const handleDeleteResponse = async (studentId, feedbackId, e) => {
@@ -169,30 +183,37 @@ const FeedbackResults = ({ classId }) => {
   }, [classId]);
 
 
-  const deleteActiveResponse = async (studentId) => {
+  const deleteActiveResponse = (studentId) => {
       if (!activeFeedbackId) return;
-      if (!window.confirm("Delete this response?")) return;
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Delete Response',
+        message: 'Delete this response?',
+        onConfirm: async () => {
+          try {
+            const token = getStoredToken();
+            if (!token) {
+              showToast("Authentication required. Please login again.", 'error');
+              return;
+            }
 
-      try {
-        const token = getStoredToken();
-        if (!token) {
-          alert("Authentication required. Please login again.");
-          return;
+            const res = await fetch(`${API_BASE_URL}/feedback/response/${activeFeedbackId}/${studentId}`, {
+               method: 'DELETE',
+               headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+               setResponses(prev => prev.filter(r => r.studentId !== studentId));
+               showToast('Response deleted', 'success');
+            } else {
+               showToast("Failed to delete response", 'error');
+            }
+          } catch (e) {
+             console.error(e);
+             showToast("Error deleting response", 'error');
+          }
         }
-
-        const res = await fetch(`${API_BASE_URL}/feedback/response/${activeFeedbackId}/${studentId}`, {
-           method: 'DELETE',
-           headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (res.ok) {
-           setResponses(prev => prev.filter(r => r.studentId !== studentId));
-        } else {
-           alert("Failed to delete response");
-        }
-      } catch (e) {
-         console.error(e);
-      }
+      });
   };
 
 
@@ -413,6 +434,22 @@ const FeedbackResults = ({ classId }) => {
           })}
         </div>
       )}
+
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
+      <ConfirmationCard
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={() => {
+          confirmDialog.onConfirm();
+          setConfirmDialog({ ...confirmDialog, isOpen: false });
+        }}
+        onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+      />
     </div>
   );
 };

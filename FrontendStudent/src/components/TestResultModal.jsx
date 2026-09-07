@@ -2,12 +2,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Award, TrendingUp, Loader } from 'lucide-react';
 import { getTestResult } from '../api/testApi';
+import ToastNotification from './ToastNotification';
 
 export default function TestResultModal({ testPaperId, studentId, onClose }) {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const answerRefs = useRef([]);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   useEffect(() => {
     fetchResult();
@@ -23,8 +29,8 @@ export default function TestResultModal({ testPaperId, studentId, onClose }) {
       setSelectedIndex(0);
     } catch (error) {
       console.error('Error fetching result:', error);
-      alert('Failed to load result');
-      onClose();
+      showToast('Failed to load result', 'error');
+      setTimeout(() => onClose(), 2000);
     } finally {
       setLoading(false);
     }
@@ -52,7 +58,15 @@ export default function TestResultModal({ testPaperId, studentId, onClose }) {
     );
   }
 
-  if (!result) return null;
+  if (!result) {
+    return (
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
+    );
+  }
 
   const gradeInfo = getGrade(result.percentage);
   const testPaper = result.testPaperId;
@@ -240,6 +254,11 @@ export default function TestResultModal({ testPaperId, studentId, onClose }) {
           </div>
         </div>
       </div>
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
     </div>
   );
 }

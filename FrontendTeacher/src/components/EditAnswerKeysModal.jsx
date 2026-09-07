@@ -3,7 +3,7 @@ import { X, Save, AlertCircle, Download, ChevronDown } from 'lucide-react';
 import { updateTestPaper } from '../api/testPaperApi';
 import { exportTestPaperToExcel, exportTestPaperToPDF } from '../utils/exportUtils';
 
-export default function EditAnswerKeysModal({ testPaper, onClose, onSave }) {
+export default function EditAnswerKeysModal({ testPaper, onClose, onSave, showToast }) {
   const [questions, setQuestions] = useState(testPaper.questions);
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(testPaper.title);
@@ -27,11 +27,11 @@ export default function EditAnswerKeysModal({ testPaper, onClose, onSave }) {
         questions
       });
 
-      alert('Answer keys updated successfully!');
+      showToast('Answer keys updated successfully!', 'success');
       onSave();
     } catch (error) {
       console.error('Error updating:', error);
-      alert('Failed to update answer keys');
+      showToast('Failed to update answer keys', 'error');
     } finally {
       setSaving(false);
     }
@@ -40,9 +40,9 @@ export default function EditAnswerKeysModal({ testPaper, onClose, onSave }) {
   const handleExportExcel = () => {
     const result = exportTestPaperToExcel(testPaper);
     if (result.success) {
-      alert(result.message);
+      showToast(result.message, 'success');
     } else {
-      alert(result.message);
+      showToast(result.message, 'error');
     }
     setShowExportDropdown(false);
   };
@@ -50,9 +50,9 @@ export default function EditAnswerKeysModal({ testPaper, onClose, onSave }) {
   const handleExportPDF = () => {
     const result = exportTestPaperToPDF(testPaper);
     if (result.success) {
-      alert(result.message);
+      showToast(result.message, 'success');
     } else {
-      alert(result.message);
+      showToast(result.message, 'error');
     }
     setShowExportDropdown(false);
   };

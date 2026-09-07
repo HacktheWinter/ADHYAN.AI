@@ -1,5 +1,5 @@
 // FrontendTeacher/src/components/TestPapersPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles, Pencil, Trash2, CheckCircle, Eye, Loader, FileText, X, MoreVertical, Upload, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
@@ -14,6 +14,8 @@ import EditAnswerKeysModal from './EditAnswerKeysModal';
 import AddTopicsButton from "./AddTopicsButton";
 import TopicsInputCard from "./TopicsInputCard";
 import CreateManualTestModal from "./CreateManualTestModal";
+import ToastNotification from "./ToastNotification";
+import ConfirmationCard from "./ConfirmationCard";
 
 const TestPapersPage = () => {
   const { classData } = useOutletContext();
@@ -47,6 +49,15 @@ const TestPapersPage = () => {
   });
   const [difficulty, setDifficulty] = useState("mixed");
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
+  // Toast & Confirmation state
+  const [toast, setToast] = useState({ message: '', type: 'success' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', confirmText: 'Confirm', cancelText: 'Cancel', type: 'danger', onConfirm: null });
+
+  const showToast = useCallback((message, type = 'success') => setToast({ message, type }), []);
+  const clearToast = useCallback(() => setToast({ message: '', type: 'success' }), []);
+  const showConfirm = useCallback((opts) => setConfirmDialog({ isOpen: true, ...opts, confirmText: opts.confirmText || 'Confirm', cancelText: opts.cancelText || 'Cancel', type: opts.type || 'danger' }), []);
+  const closeConfirm = useCallback(() => setConfirmDialog(prev => ({ ...prev, isOpen: false, onConfirm: null })), []);
 
   useEffect(() => {
     if (classData?.id) {
@@ -101,7 +112,7 @@ const TestPapersPage = () => {
       setAvailableNotes(response.notes || []);
     } catch (error) {
       console.error('Error fetching notes:', error);
-      alert('Failed to load notes');
+      showToast('Failed to load notes', 'error');
     } finally {
       setLoadingNotes(false);
     }
@@ -109,11 +120,11 @@ const TestPapersPage = () => {
 
   const handleGenerateWithAI = async () => {
     if (showTopicsInput && topics.length === 0) {
-      alert('Please add at least one topic');
+      showToast('Please add at least one topic', 'error');
       return;
     }
     if (!showTopicsInput && selectedNotes.length === 0) {
-      alert('Please select at least one note');
+      showToast('Please select at least one note', 'error');
       return;
     }
 
@@ -138,15 +149,7 @@ const TestPapersPage = () => {
 
       setDrafts(prev => [response.testPaper, ...prev]);
 
-      alert(`Test Paper Generated!\n\n` +
-        `Details:\n` +
-        `• Questions: ${response.stats.questionsGenerated}\n` +
-        `• Total Marks: ${response.stats.totalMarks}\n` +
-        `• Difficulty: ${response.stats.difficulty}\n` +
-        (showTopicsInput 
-          ? `• Generated from custom topics\n`
-          : `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}\n`)
-      );
+      showToast(`Test paper generated! ${response.stats.questionsGenerated} questions, ${response.stats.totalMarks} marks (${response.stats.difficulty})`, 'success');
 
       setSelectedNotes([]);
       setCustomTitle("");
@@ -155,15 +158,13 @@ const TestPapersPage = () => {
       setShowAIModal(false);
     } catch (error) {
       console.error('Generation error:', error);
-      alert(error.response?.data?.error || 'Failed to generate test paper');
+      showToast(error.response?.data?.error || 'Failed to generate test paper', 'error');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleDelete = async (testId, status) => {
-    if (!confirm('Are you sure you want to delete this test paper?')) return;
-
+  const executeDeleteTest = async (testId, status) => {
     try {
       await deleteTestPaper(testId);
 
@@ -173,11 +174,24 @@ const TestPapersPage = () => {
         setPublished(published.filter(t => t._id !== testId));
       }
 
-      alert('Test paper deleted successfully!');
+      showToast('Test paper deleted successfully!', 'success');
     } catch (error) {
       console.error(error);
-      alert('Failed to delete test paper');
+      showToast('Failed to delete test paper', 'error');
     }
+  };
+
+  const handleDelete = (testId, status) => {
+    showConfirm({
+      title: 'Delete Test Paper',
+      message: 'Are you sure you want to delete this test paper? This action cannot be undone.',
+      confirmText: 'Delete',
+      type: 'danger',
+      onConfirm: () => {
+        closeConfirm();
+        executeDeleteTest(testId, status);
+      },
+    });
   };
 
   const handleEditAnswerKeys = (test) => {
@@ -824,6 +838,7 @@ const TestPapersPage = () => {
             setEditingTest(null);
             fetchTestPapers();
           }}
+          showToast={showToast}
         />
       )}
 
@@ -840,6 +855,7 @@ const TestPapersPage = () => {
             setPublishingTest(null);
             fetchTestPapers();
           }}
+          showToast={showToast}
         />
       )}
 
@@ -852,8 +868,24 @@ const TestPapersPage = () => {
             setShowManualModal(false);
             setDrafts((prev) => [newTest, ...prev]);
           }}
+          showToast={showToast}
         />
       )}
+
+      {/* Toast Notification */}
+      <ToastNotification message={toast.message} type={toast.type} onClose={clearToast} />
+
+      {/* Confirmation Card */}
+      <ConfirmationCard
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        type={confirmDialog.type}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirm}
+      />
     </div>
   );
 };

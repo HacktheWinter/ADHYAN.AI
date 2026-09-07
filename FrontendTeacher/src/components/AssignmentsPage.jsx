@@ -1,5 +1,5 @@
 // FrontendTeacher/src/components/AssignmentsPage.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -27,6 +27,8 @@ import EditAssignmentModal from "./EditAssignmentModal";
 import CreateManualAssignmentModal from "./CreateManualAssignmentModal";
 import AddTopicsButton from "./AddTopicsButton";
 import TopicsInputCard from "./TopicsInputCard";
+import ToastNotification from "./ToastNotification";
+import ConfirmationCard from "./ConfirmationCard";
 
 const AssignmentsPage = () => {
   const { classData } = useOutletContext();
@@ -58,6 +60,15 @@ const AssignmentsPage = () => {
   const [marksPerQuestion, setMarksPerQuestion] = useState(2);
   const [difficulty, setDifficulty] = useState("mixed");
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
+  // Toast & Confirmation state
+  const [toast, setToast] = useState({ message: '', type: 'success' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', confirmText: 'Confirm', cancelText: 'Cancel', type: 'danger', onConfirm: null });
+
+  const showToast = useCallback((message, type = 'success') => setToast({ message, type }), []);
+  const clearToast = useCallback(() => setToast({ message: '', type: 'success' }), []);
+  const showConfirm = useCallback((opts) => setConfirmDialog({ isOpen: true, ...opts, confirmText: opts.confirmText || 'Confirm', cancelText: opts.cancelText || 'Cancel', type: opts.type || 'danger' }), []);
+  const closeConfirm = useCallback(() => setConfirmDialog(prev => ({ ...prev, isOpen: false, onConfirm: null })), []);
 
   const clampQuestionCount = (value) => {
     const parsed = parseInt(value, 10);
@@ -115,7 +126,7 @@ const AssignmentsPage = () => {
       setAvailableNotes(response.notes || []);
     } catch (error) {
       console.error("Error fetching notes:", error);
-      alert("Failed to load notes");
+      showToast("Failed to load notes", 'error');
     } finally {
       setLoadingNotes(false);
     }
@@ -123,11 +134,11 @@ const AssignmentsPage = () => {
 
   const handleGenerateWithAI = async () => {
     if (showTopicsInput && topics.length === 0) {
-      alert("Please add at least one topic");
+      showToast("Please add at least one topic", 'error');
       return;
     }
     if (!showTopicsInput && selectedNotes.length === 0) {
-      alert("Please select at least one note");
+      showToast("Please select at least one note", 'error');
       return;
     }
 
@@ -153,17 +164,7 @@ const AssignmentsPage = () => {
 
       setDrafts((prev) => [response.assignment, ...prev]);
 
-      alert(
-        "Assignment Generated!\n\n" +
-          "Details:\n" +
-          `• Questions: ${response.stats.questionsGenerated}\n` +
-          `• Marks per Q: ${response.stats.marksPerQuestion}\n` +
-          `• Total Marks: ${response.stats.totalMarks}\n` +
-          `• Difficulty: ${response.stats.difficulty}\n` +
-          (showTopicsInput 
-            ? `• Generated from custom topics\n`
-            : `• Notes processed: ${response.stats.processedNotes}/${response.stats.totalNotes}\n`)
-      );
+      showToast(`Assignment generated! ${response.stats.questionsGenerated} questions, ${response.stats.totalMarks} marks (${response.stats.difficulty})`, 'success');
 
       setSelectedNotes([]);
       setTopics([]);
@@ -172,15 +173,13 @@ const AssignmentsPage = () => {
       setShowAIModal(false);
     } catch (error) {
       console.error("Generation error:", error);
-      alert(error.response?.data?.error || "Failed to generate assignment");
+      showToast(error.response?.data?.error || "Failed to generate assignment", 'error');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleDelete = async (assignmentId, status) => {
-    if (!confirm("Are you sure you want to delete this assignment?")) return;
-
+  const executeDeleteAssignment = async (assignmentId, status) => {
     try {
       await deleteAssignment(assignmentId);
 
@@ -190,11 +189,24 @@ const AssignmentsPage = () => {
         setPublished(published.filter((a) => a._id !== assignmentId));
       }
 
-      alert("Assignment deleted successfully!");
+      showToast("Assignment deleted successfully!", 'success');
     } catch (error) {
       console.error(error);
-      alert("Failed to delete assignment");
+      showToast("Failed to delete assignment", 'error');
     }
+  };
+
+  const handleDelete = (assignmentId, status) => {
+    showConfirm({
+      title: 'Delete Assignment',
+      message: 'Are you sure you want to delete this assignment? This action cannot be undone.',
+      confirmText: 'Delete',
+      type: 'danger',
+      onConfirm: () => {
+        closeConfirm();
+        executeDeleteAssignment(assignmentId, status);
+      },
+    });
   };
 
   const handleEditAnswerKeys = (assignment) => {
@@ -717,6 +729,7 @@ const AssignmentsPage = () => {
             setEditingAssignment(null);
             fetchAssignments();
           }}
+          showToast={showToast}
         />
       )}
 
@@ -733,6 +746,7 @@ const AssignmentsPage = () => {
             setPublishingAssignment(null);
             fetchAssignments();
           }}
+          showToast={showToast}
         />
       )}
 
@@ -745,8 +759,24 @@ const AssignmentsPage = () => {
             setShowManualModal(false);
             setDrafts((prev) => [newAssignment, ...prev]);
           }}
+          showToast={showToast}
         />
       )}
+
+      {/* Toast Notification */}
+      <ToastNotification message={toast.message} type={toast.type} onClose={clearToast} />
+
+      {/* Confirmation Card */}
+      <ConfirmationCard
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        type={confirmDialog.type}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirm}
+      />
     </div>
   );
 };

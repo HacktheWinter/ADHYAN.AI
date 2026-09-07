@@ -17,6 +17,7 @@ import { getStoredUser } from "../utils/authStorage";
 import API_BASE_URL from "../config";
 import { getAllThemes } from "../data/themeData";
 import SeminarQRScanner from "../components/SeminarQRScanner";
+import PWAInstallPrompt from "../components/PWAInstallPrompt";
 
 export default function NoteCraftsDashboard() {
   const navigate = useNavigate();
@@ -541,6 +542,7 @@ export default function NoteCraftsDashboard() {
       {showSeminarScanner && (
         <SeminarQRScanner onClose={() => setShowSeminarScanner(false)} />
       )}
+      <PWAInstallPrompt />
     </div>
   );
 }

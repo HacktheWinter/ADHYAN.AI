@@ -6,7 +6,11 @@ import {
   Eye, RefreshCw, Timer, Filter, ChevronDown, Search
 } from "lucide-react";
 import { io as socketIO } from "socket.io-client";
-import { SOCKET_URL } from "../config";
+import API_BASE_URL from "../config";
+import ToastNotification from '../components/ToastNotification';
+import ConfirmationCard from '../components/ConfirmationCard';
+
+const SOCKET_URL = API_BASE_URL.replace("/api", "");
 import { v4 as uuidv4 } from "uuid";
 import {
   getPhysicalSubmissionsByClass,
@@ -47,12 +51,19 @@ const PhysicalTestResultsPage = () => {
 
   // ── Real-time checking state ────────────────────────────────────────
   const [isChecking, setIsChecking] = useState(false);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState(null);
+  
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
   const [sessionId, setSessionId] = useState(null);
   const [progress, setProgress] = useState({
     checkedCount: 0,
     totalCount: 0,
     failedCount: 0,
-    needsReviewCount: 0,
     needsReviewCount: 0,
     currentStudent: "",
     recentResults: [],
@@ -116,17 +127,24 @@ const PhysicalTestResultsPage = () => {
     }
   };
 
-  const handleDelete = async (submissionId) => {
-    if (!confirm("Delete this submission?")) return;
-    setDeleting(submissionId);
-    try {
-      await deletePhysicalSubmission(submissionId);
-      setSubmissions(prev => prev.filter(s => s._id !== submissionId));
-    } catch {
-      alert("Failed to delete");
-    } finally {
-      setDeleting(null);
-    }
+  const handleDelete = (submissionId) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Submission',
+      message: 'Delete this submission?',
+      onConfirm: async () => {
+        setDeleting(submissionId);
+        try {
+          await deletePhysicalSubmission(submissionId);
+          setSubmissions(prev => prev.filter(s => s._id !== submissionId));
+          showToast('Submission deleted successfully', 'success');
+        } catch {
+          showToast("Failed to delete", 'error');
+        } finally {
+          setDeleting(null);
+        }
+      }
+    });
   };
 
   // ── Start AI Checking ─────────────────────────────────────────────
@@ -213,7 +231,7 @@ const PhysicalTestResultsPage = () => {
       setIsChecking(true);
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.error || "Failed to start checking");
+      showToast(err.response?.data?.error || "Failed to start checking", 'error');
       socket.disconnect();
       socketRef.current = null;
     }
@@ -644,6 +662,21 @@ const PhysicalTestResultsPage = () => {
           animation: slideIn 0.3s ease-out;
         }
       `}</style>
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
+      <ConfirmationCard
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={() => {
+          confirmDialog.onConfirm();
+          setConfirmDialog({ ...confirmDialog, isOpen: false });
+        }}
+        onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+      />
     </div>
   );
 };

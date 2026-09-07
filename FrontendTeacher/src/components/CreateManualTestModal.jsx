@@ -3,7 +3,7 @@ import { X, Plus, Trash2, Save } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
 
-const CreateManualTestModal = ({ classId, onClose, onCreated }) => {
+const CreateManualTestModal = ({ classId, onClose, onCreated, showToast }) => {
   const [title, setTitle] = useState("");
   const [questions, setQuestions] = useState([
     { question: "", type: "short", marks: 2, answerKey: "", section: "Section A" }
@@ -39,22 +39,22 @@ const CreateManualTestModal = ({ classId, onClose, onCreated }) => {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      alert("Please enter a title");
+      showToast("Please enter a title", 'error');
       return;
     }
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       if (!q.question.trim()) {
-        alert(`Question ${i + 1} text is empty`);
+        showToast(`Question ${i + 1} text is empty`, 'error');
         return;
       }
       if (!q.answerKey.trim()) {
-        alert(`Question ${i + 1} answer key is empty`);
+        showToast(`Question ${i + 1} answer key is empty`, 'error');
         return;
       }
       if (!q.marks || q.marks <= 0) {
-        alert(`Question ${i + 1} must have valid marks`);
+        showToast(`Question ${i + 1} must have valid marks`, 'error');
         return;
       }
     }
@@ -74,7 +74,7 @@ const CreateManualTestModal = ({ classId, onClose, onCreated }) => {
       onCreated(res.data.testPaper);
     } catch (error) {
       console.error("Failed to create test paper", error);
-      alert(error.response?.data?.error || "Failed to create test paper");
+      showToast(error.response?.data?.error || "Failed to create test paper", 'error');
     } finally {
       setIsSaving(false);
     }

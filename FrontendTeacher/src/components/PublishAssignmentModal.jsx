@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
 import { publishAssignment } from '../api/assignmentApi';
 
-export default function PublishAssignmentModal({ assignment, onClose, onPublished }) {
+export default function PublishAssignmentModal({ assignment, onClose, onPublished, showToast }) {
   const [dueDate, setDueDate] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
 
@@ -12,11 +12,11 @@ export default function PublishAssignmentModal({ assignment, onClose, onPublishe
 
       await publishAssignment(assignment._id, dueDate || null);
 
-      alert('Assignment published successfully!');
+      showToast('Assignment published successfully!', 'success');
       onPublished();
     } catch (error) {
       console.error('Publish error:', error);
-      alert(error.response?.data?.error || 'Failed to publish assignment');
+      showToast(error.response?.data?.error || 'Failed to publish assignment', 'error');
     } finally {
       setIsPublishing(false);
     }
@@ -108,6 +108,7 @@ export default function PublishAssignmentModal({ assignment, onClose, onPublishe
                 </p>
                 <p className="text-sm text-amber-800">
                   Once published, students will be able to see and attempt this assignment. 
+                  You cannot edit questions or change timing after publishing.
                   Answer keys will be used for AI-powered evaluation of submissions.
                 </p>
               </div>

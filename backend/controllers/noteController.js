@@ -9,6 +9,10 @@ import { sendNoteUploadedEmails } from "../utils/emailNotifications.js";
 import { logActivity } from "../utils/activityTracker.js";
 import { ALLOWED_MIMETYPES } from "../utils/fileExtractor.js";
 import cloudinary from "../config/cloudinary.js";
+import {
+  createHttpError,
+  getAuthorizedClassroomForUser,
+} from "../utils/accessControl.js";
 
 // Multer setup for GridFS (memory storage for streaming to bucket)
 const storage = multer.memoryStorage();
@@ -28,7 +32,8 @@ export const uploadNote = [
   upload.single("file"),
   async (req, res) => {
     try {
-      const { title, uploadedBy, classroomId } = req.body;
+      const { title, classroomId } = req.body;
+      const uploadedBy = req.user?.name || "Teacher";
       const bucket = getBucket();
 
       if (!bucket) {
@@ -40,9 +45,6 @@ export const uploadNote = [
       }
       if (!title) {
         return res.status(400).json({ message: "Title is required" });
-      }
-      if (!uploadedBy) {
-        return res.status(400).json({ message: "uploadedBy is required" });
       }
       if (!classroomId) {
         return res.status(400).json({ message: "classroomId is required" });
@@ -63,7 +65,7 @@ export const uploadNote = [
         return res.status(404).json({ message: "Classroom not found" });
       }
 
-      if (teacherId && classroom.teacherId?.toString() !== teacherId) {
+      if (classroom.teacherId?.toString() !== teacherId) {
         return res.status(403).json({ message: "Unauthorized to upload notes for this class" });
       }
 
@@ -211,11 +213,28 @@ export const uploadNote = [
 // Get all notes (for admin purposes)
 export const getNotes = async (req, res) => {
   try {
-    const notes = await Note.find().sort({ createdAt: -1 });
+    const userId = req.user?._id;
+    let classroomFilter;
+
+    if (req.user?.role === "teacher") {
+      classroomFilter = { teacherId: userId };
+    } else if (req.user?.role === "student") {
+      classroomFilter = { students: userId };
+    } else {
+      throw createHttpError(403, "You are not allowed to access notes.");
+    }
+
+    // Notes may reference either the classroom ObjectId or its class code.
+    const classrooms = await Classroom.find(classroomFilter).select("_id classCode");
+    const classroomIds = classrooms.flatMap((classroom) => [
+      classroom._id.toString(),
+      classroom.classCode,
+    ]);
+    const notes = await Note.find({ classroomId: { $in: classroomIds } }).sort({ createdAt: -1 });
     res.status(200).json(notes);
   } catch (error) {
     console.error("Get Notes Error:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(error.statusCode || 500).json({ message: error.message || "Server error" });
   }
 };
 
@@ -228,6 +247,8 @@ export const getNotesByClassroom = async (req, res) => {
       return res.status(400).json({ message: "Classroom ID is required" });
     }
 
+    await getAuthorizedClassroomForUser(req, classroomId);
+
     // Try finding by classroomId (as stored in DB)
     const notes = await Note.find({ classroomId }).sort({ createdAt: -1 });
 
@@ -238,8 +259,8 @@ export const getNotesByClassroom = async (req, res) => {
     });
   } catch (error) {
     console.error("Get Classroom Notes Error:", error);
-    res.status(500).json({
-      message: "Server error",
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Server error",
       error: error.message,
     });
   }
@@ -249,13 +270,22 @@ export const getNotesByClassroom = async (req, res) => {
 export const getNoteFile = async (req, res) => {
   try {
     const { fileId } = req.params;
-    const bucket = getBucket();
-
-    if (!bucket) {
-      return res.status(503).json({ message: "Database connection not ready" });
+    if (!mongoose.Types.ObjectId.isValid(fileId)) {
+      return res.status(404).json({ message: "File not found" });
     }
 
     const _id = new mongoose.Types.ObjectId(fileId);
+    const note = await Note.findOne({ fileId: _id }).select("classroomId");
+    if (!note) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    await getAuthorizedClassroomForUser(req, note.classroomId);
+
+    const bucket = getBucket();
+    if (!bucket) {
+      return res.status(503).json({ message: "Database connection not ready" });
+    }
 
     // Look up file metadata to determine the correct content type
     const files = await bucket.find({ _id }).toArray();
@@ -278,7 +308,9 @@ export const getNoteFile = async (req, res) => {
   } catch (error) {
     console.error(error);
     if (!res.headersSent) {
-      res.status(500).json({ message: "Server error" });
+      res.status(error.statusCode || 500).json({
+        message: error.message || "Server error",
+      });
     }
   }
 };
@@ -302,16 +334,8 @@ export const deleteNote = async (req, res) => {
       });
     }
 
-    // Ownership check: verify the teacher owns the classroom this note belongs to
-    if (note.classroomId) {
-      const classroom = await Classroom.findById(note.classroomId).select("teacherId");
-      if (classroom && classroom.teacherId?.toString() !== req.user._id.toString()) {
-        return res.status(403).json({
-          success: false,
-          message: "Unauthorized to delete this note",
-        });
-      }
-    }
+    // Resolve ObjectId and class-code references alike before enforcing ownership.
+    await getAuthorizedClassroomForUser(req, note.classroomId);
 
     // Delete file from Cloudinary or GridFS
     try {
@@ -339,7 +363,7 @@ export const deleteNote = async (req, res) => {
     });
   } catch (error) {
     console.error("Delete Note Error:", error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       message: "Server error while deleting note",
       error: error.message,

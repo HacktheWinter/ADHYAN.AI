@@ -14,7 +14,7 @@ const ClassCodeModal = ({ isOpen, onClose, classData }) => {
   };
 
   const handleShare = () => {
-    const shareText = `Join my class "${classData.name}" on ADHYAYAN.AI using code: ${classData.classCode}`;
+    const shareText = `Join my class "${classData.name}" on ADHYAN.AI using code: ${classData.classCode}`;
     
     if (navigator.share) {
       navigator.share({
