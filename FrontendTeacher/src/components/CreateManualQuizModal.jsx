@@ -1390,6 +1390,12 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated, showToast }) => {
                   else newArray.push({ language: expandedEditor.lang, code: updatedVal });
                   updateCodingField(expandedEditor.sIdx, expandedEditor.qIdx, expandedEditor.field, newArray);
                 }}
+                onMount={(editor, monaco) => {
+                  // Auto-format the code when the editor opens to fix any single-line AI code
+                  setTimeout(() => {
+                    editor.getAction('editor.action.formatDocument').run().catch(() => {});
+                  }, 100);
+                }}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 15,

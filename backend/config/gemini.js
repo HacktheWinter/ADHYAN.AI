@@ -47,6 +47,189 @@ const isTransientServiceError = (error) => {
 const getBackoffMs = (attempt) => Math.min(12000, 1500 * Math.max(1, attempt));
 
 /**
+ * Format single line code to properly indented multi-line code
+ */
+const formatSingleLineCode = (code, language) => {
+  if (!code || code.trim().length === 0) return code;
+  
+  const isPython = language === "python";
+  let result = [];
+  let indent = 0;
+  const indentStr = "    "; // 4 spaces
+  
+  if (isPython) {
+    const parts = code.split(/\s*(?=(?:import |from |def |class |if |elif |else:|for |while |return |print|pass|#))/g);
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      
+      if (trimmed.startsWith("def ") || trimmed.startsWith("class ") || 
+          trimmed.startsWith("if ") || trimmed.startsWith("for ") || 
+          trimmed.startsWith("while ") || trimmed.startsWith("elif ") ||
+          trimmed === "else:") {
+        result.push(indentStr.repeat(indent) + trimmed);
+        if (trimmed.endsWith(":")) indent++;
+      } else if (trimmed.startsWith("return ") || trimmed.startsWith("pass") || trimmed.startsWith("print")) {
+        result.push(indentStr.repeat(Math.max(indent, 1)) + trimmed);
+      } else if (trimmed.startsWith("import ") || trimmed.startsWith("from ")) {
+        result.push(trimmed); // top-level imports
+      } else if (trimmed.startsWith("#")) {
+        result.push(indentStr.repeat(Math.max(indent, 1)) + trimmed);
+      } else {
+        result.push(indentStr.repeat(indent) + trimmed);
+      }
+    }
+    return result.join("\n");
+  }
+  
+  let i = 0;
+  let current = "";
+  
+  const flush = () => {
+    const trimmed = current.trim();
+    if (trimmed) {
+      result.push(indentStr.repeat(indent) + trimmed);
+    }
+    current = "";
+  };
+  
+  while (i < code.length) {
+    const ch = code[i];
+    const remaining = code.substring(i);
+    
+    if (ch === '"' || ch === "'") {
+      const quote = ch;
+      current += ch;
+      i++;
+      while (i < code.length && code[i] !== quote) {
+        if (code[i] === '\\\\') { current += code[i]; i++; } // escaped char
+        current += code[i];
+        i++;
+      }
+      if (i < code.length) { current += code[i]; i++; } // closing quote
+      continue;
+    }
+    
+    if (remaining.match(/^#include\s/)) {
+      flush();
+      const end = code.indexOf(">", i);
+      const endAlt = code.indexOf("\n", i);
+      let lineEnd;
+      if (end !== -1 && (endAlt === -1 || end < endAlt)) {
+        lineEnd = end + 1;
+      } else {
+        const spaceEnd = code.indexOf(" ", i + 9);
+        lineEnd = spaceEnd !== -1 ? spaceEnd : code.length;
+      }
+      result.push(code.substring(i, lineEnd).trim());
+      i = lineEnd;
+      continue;
+    }
+    
+    if (remaining.match(/^import\s/) && !current.trim()) {
+      flush();
+      const semicolonEnd = code.indexOf(";", i);
+      if (semicolonEnd !== -1) {
+        result.push(code.substring(i, semicolonEnd + 1).trim());
+        i = semicolonEnd + 1;
+      } else {
+        current += ch;
+        i++;
+      }
+      continue;
+    }
+    
+    if (remaining.match(/^using\s/) && !current.trim()) {
+      flush();
+      const semicolonEnd = code.indexOf(";", i);
+      if (semicolonEnd !== -1) {
+        result.push(code.substring(i, semicolonEnd + 1).trim());
+        i = semicolonEnd + 1;
+      } else {
+        current += ch;
+        i++;
+      }
+      continue;
+    }
+    
+    if (ch === '{') {
+      current += ' {';
+      flush();
+      indent++;
+      i++;
+      continue;
+    }
+    
+    if (ch === '}') {
+      flush();
+      indent = Math.max(0, indent - 1);
+      const afterBrace = code.substring(i + 1).trimStart();
+      if (afterBrace.startsWith("else") || afterBrace.startsWith("catch") || afterBrace.startsWith("finally")) {
+        current = indentStr.repeat(indent) + "}";
+        i++;
+        continue;
+      }
+      result.push(indentStr.repeat(indent) + "}");
+      if (indent === 0 && i + 1 < code.length) {
+        result.push("");
+      }
+      i++;
+      continue;
+    }
+    
+    if (ch === ';') {
+      current += ';';
+      flush();
+      i++;
+      continue;
+    }
+    
+    current += ch;
+    i++;
+  }
+  
+  flush();
+  
+  return result
+    .map(line => line.trimEnd())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
+
+const normalizeCodeString = (code, language) => {
+  if (!code || typeof code !== "string") return code;
+  let normalized = code.replace(/\\n/g, "\n");
+  normalized = normalized.replace(/\\\\n/g, "\n");
+  const lines = normalized.split("\n").filter(l => l.trim().length > 0);
+  if (lines.length >= 3) {
+    return normalized;
+  }
+  let flat = normalized.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+  return formatSingleLineCode(flat, language);
+};
+
+const normalizeCodeFormatting = (questions) => {
+  return questions.map(q => {
+    if (q.type === "coding" && q.coding) {
+      if (Array.isArray(q.coding.starterCode)) {
+        q.coding.starterCode = q.coding.starterCode.map(sc => ({
+          ...sc,
+          code: normalizeCodeString(sc.code, sc.language || "javascript")
+        }));
+      }
+      if (Array.isArray(q.coding.driverCode)) {
+        q.coding.driverCode = q.coding.driverCode.map(dc => ({
+          ...dc,
+          code: normalizeCodeString(dc.code, dc.language || "javascript")
+        }));
+      }
+    }
+    return q;
+  });
+};
+
+/**
  * Get Gemini model using current API key
  */
 const getModel = () => {
@@ -622,43 +805,6 @@ IMPORTANT:
         throw new Error("Invalid response format (questions missing)");
       }
 
-      // Post-process: normalize code formatting to ensure proper newlines and indentation
-      const normalizeCodeString = (code) => {
-        if (!code || typeof code !== "string") return code;
-        // Replace literal \n sequences (that weren't converted by JSON.parse) with real newlines
-        let normalized = code.replace(/\\n/g, "\n");
-        // If the code has no newlines at all (everything on one line), try to format it
-        if (!normalized.includes("\n")) {
-          // Add newlines before and after braces for C-style languages
-          normalized = normalized
-            .replace(/\{\s*/g, "{\n    ")
-            .replace(/\s*\}/g, "\n}")
-            .replace(/;\s*(?!\s*$)/g, ";\n    ")
-            .replace(/\n\s*\n/g, "\n");
-        }
-        return normalized;
-      };
-
-      const normalizeCodeFormatting = (questions) => {
-        return questions.map(q => {
-          if (q.type === "coding" && q.coding) {
-            if (Array.isArray(q.coding.starterCode)) {
-              q.coding.starterCode = q.coding.starterCode.map(sc => ({
-                ...sc,
-                code: normalizeCodeString(sc.code)
-              }));
-            }
-            if (Array.isArray(q.coding.driverCode)) {
-              q.coding.driverCode = q.coding.driverCode.map(dc => ({
-                ...dc,
-                code: normalizeCodeString(dc.code)
-              }));
-            }
-          }
-          return q;
-        });
-      };
-
       const validQuestions = normalizeCodeFormatting(
         parsedResponse.questions.filter((q) => {
           return (
@@ -943,8 +1089,10 @@ Extract all questions and return the JSON array:`;
         throw new Error("No questions extracted");
       }
 
-      console.log(`Extracted ${parsedResponse.length} questions`);
-      return parsedResponse;
+      const validQuestions = normalizeCodeFormatting(parsedResponse);
+      
+      console.log(`Extracted ${validQuestions.length} questions`);
+      return validQuestions;
     } catch (error) {
       console.error(`Gemini API Error (Key #${currentKeyIndex + 1}):`, error.message);
       attempts++;
