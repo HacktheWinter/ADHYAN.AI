@@ -222,6 +222,11 @@ const CodeEditorWorkspace = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Reset to Description tab when navigating to a new question
+  useEffect(() => {
+    setActiveTab("description");
+  }, [question?._id]);
   
   const coding = question.coding || {};
   const executionMode = coding.executionMode || "standard";
@@ -245,13 +250,22 @@ const CodeEditorWorkspace = ({
 
   const displayCode = code !== undefined ? code : defaultBody;
 
-  const handleResetCode = () => {
-    if (confirm("Are you sure you want to reset your code to the starter template?")) {
-      onCodeChange(defaultBody);
-    }
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const handleResetCode = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowResetConfirm(true);
   };
 
-  const handleSubmit = () => {
+  const confirmResetCode = () => {
+    onCodeChange(defaultBody);
+    setShowResetConfirm(false);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     console.log("FRONTEND DEBUG LOG - CodeEditorWorkspace Run Code:", {
       executionMode,
       language,
@@ -485,6 +499,7 @@ const CodeEditorWorkspace = ({
               </button>
 
               <button 
+                type="button"
                 onClick={handleResetCode}
                 className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                   editorTheme === 'dark'
@@ -497,6 +512,7 @@ const CodeEditorWorkspace = ({
               </button>
 
               <button
+                type="button"
                 onClick={handleSubmit}
                 disabled={isExecuting}
                 className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm shadow-emerald-900/20 active:scale-[0.97]"
@@ -560,6 +576,40 @@ const CodeEditorWorkspace = ({
           </div>
         </div>
       </div>
+
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowResetConfirm(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 animate-[fadeSlideIn_0.2s_ease-out]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-base">Reset Code?</h3>
+                <p className="text-sm text-gray-500">This will clear your current code</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">Your code will be reset to the starter template. This action cannot be undone.</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmResetCode}
+                className="px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors cursor-pointer"
+              >
+                Reset Code
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

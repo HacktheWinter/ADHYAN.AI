@@ -883,7 +883,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                 <p className="text-xs text-gray-600 mt-0.5">
                   Section {currentSectionIdx + 1} of {shuffledQuiz.sections.length}: <span className="font-bold text-indigo-700">{currentSection.title}</span>
                 </p>
-              </div>
+              </div> 
             </div>
 
             <div className="flex items-center gap-2">

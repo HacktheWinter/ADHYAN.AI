@@ -53,12 +53,12 @@ export const useWebcamProctor = ({
 
   const warningCooldownRef = useRef(0);
 
-  // Thresholds (ms)
-  const DETECTION_INTERVAL = 200; // ~5 FPS
-  const FACE_MISSING_GRACE_PERIOD = 5000; 
-  const MULTIPLE_FACE_DURATION = 2000;
-  const LOOK_AWAY_DURATION = 3000;
-  const WARNING_COOLDOWN = 5000;
+  // Thresholds (ms) — tuned for responsive warnings
+  const DETECTION_INTERVAL = 150; // ~7 FPS for faster detection
+  const FACE_MISSING_GRACE_PERIOD = 3000; 
+  const MULTIPLE_FACE_DURATION = 1200;
+  const LOOK_AWAY_DURATION = 1800;
+  const WARNING_COOLDOWN = 3000;
 
   // Determine photo capture at mount
   useEffect(() => {
@@ -99,15 +99,30 @@ export const useWebcamProctor = ({
         
         if (!isInitializing || !mountedRef.current) return;
 
-        const faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-            delegate: "GPU"
-          },
-          outputFaceBlendshapes: true,
-          runningMode: "VIDEO",
-          numFaces: 2, // Up to 2 faces to detect multiple faces
-        });
+        // Try GPU first, fall back to CPU for broader compatibility
+        let faceLandmarker;
+        try {
+          faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+              delegate: "GPU"
+            },
+            outputFaceBlendshapes: true,
+            runningMode: "VIDEO",
+            numFaces: 2,
+          });
+        } catch (gpuErr) {
+          console.warn('[Proctor] GPU delegate failed, falling back to CPU:', gpuErr.message);
+          faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+              delegate: "CPU"
+            },
+            outputFaceBlendshapes: true,
+            runningMode: "VIDEO",
+            numFaces: 2,
+          });
+        }
 
         if (!isInitializing || !mountedRef.current) return;
         faceLandmarkerRef.current = faceLandmarker;
@@ -229,17 +244,23 @@ export const useWebcamProctor = ({
       conditions.multipleFaces = null;
     }
 
-    // 3. Looking Away (heuristic using eye/head position if blendshapes available)
+    // 3. Looking Away (using blendshape map for fast lookup)
     if (numFaces === 1 && result.faceBlendshapes && result.faceBlendshapes.length > 0) {
-      const blendshapes = result.faceBlendshapes[0].categories;
+      const categories = result.faceBlendshapes[0].categories;
       
-      const lookLeft = blendshapes.find(b => b.categoryName === 'eyeLookOutLeft' || b.categoryName === 'eyeLookInRight')?.score || 0;
-      const lookRight = blendshapes.find(b => b.categoryName === 'eyeLookOutRight' || b.categoryName === 'eyeLookInLeft')?.score || 0;
-      const lookUp = blendshapes.find(b => b.categoryName === 'eyeLookUpLeft')?.score || 0;
-      const lookDown = blendshapes.find(b => b.categoryName === 'eyeLookDownLeft')?.score || 0;
+      // Build a quick lookup map instead of calling .find() 4 times
+      const scores = {};
+      for (let i = 0; i < categories.length; i++) {
+        const cat = categories[i];
+        scores[cat.categoryName] = cat.score;
+      }
 
-      // Heuristic threshold for looking away
-      const isLookingAway = (lookLeft > 0.6 || lookRight > 0.6 || lookUp > 0.6 || lookDown > 0.6);
+      const lookLeft = scores['eyeLookOutLeft'] || scores['eyeLookInRight'] || 0;
+      const lookRight = scores['eyeLookOutRight'] || scores['eyeLookInLeft'] || 0;
+      const lookUp = scores['eyeLookUpLeft'] || 0;
+      const lookDown = scores['eyeLookDownLeft'] || 0;
+
+      const isLookingAway = (lookLeft > 0.55 || lookRight > 0.55 || lookUp > 0.55 || lookDown > 0.55);
 
       if (isLookingAway) {
         if (!conditions.lookingAway) conditions.lookingAway = now;

@@ -112,7 +112,7 @@ export default function QuestionPalette({
             <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-gray-200 shadow-2xs">
               <div className="w-3 h-3 rounded-full bg-emerald-600 flex-shrink-0" />
               <div className="flex-1 truncate">
-                <span className="text-gray-600 font-medium block text-[11px]">Submitted</span>
+                <span className="text-gray-600 font-medium block text-[11px]">Answered</span>
                 <span className="font-bold text-gray-900">{answeredCount}</span>
               </div>
             </div>
