@@ -1,0 +1,21 @@
+{
+  "short_name": "ADHYAN.AI",
+  "name": "ADHYAN.AI - Student Portal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "description": "Student dashboard for smart learning and quizzes.",
+  "icons": [
+    {
+      "src": "/logo02.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/logo02.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

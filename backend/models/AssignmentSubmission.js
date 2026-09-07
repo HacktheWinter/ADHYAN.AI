@@ -49,7 +49,6 @@ const answerSchema = new mongoose.Schema({
   },
 });
 
-
 const assignmentSubmissionSchema = new mongoose.Schema(
   {
     assignmentId: {

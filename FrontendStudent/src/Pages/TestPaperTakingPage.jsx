@@ -5,6 +5,7 @@ import { getTestPaperById, submitTest } from '../api/testApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
 import ViolationAlertModal from '../components/ViolationAlertModal';
 import QuestionPalette from '../components/QuestionPalette';
+import ToastNotification from '../components/ToastNotification';
 
 export default function TestPaperTakingPage() {
   const { id: classId, testId } = useParams();
@@ -23,6 +24,11 @@ export default function TestPaperTakingPage() {
   const [visitedQuestions, setVisitedQuestions] = useState(new Set([0]));
   const [markedForReview, setMarkedForReview] = useState({});
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
+
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   useEffect(() => {
     setVisitedQuestions(prev => new Set(prev).add(currentQuestion));
@@ -153,7 +159,7 @@ export default function TestPaperTakingPage() {
       await requestFullScreen();
       setHasStarted(true);
     } catch (error) {
-      alert("Please allow full screen to start the exam.");
+      showToast("Please allow full screen to start the exam.", "error");
     }
   };
 
@@ -174,7 +180,7 @@ export default function TestPaperTakingPage() {
           q => q.choiceGroup === currentQ.choiceGroup && q._id !== questionId
         );
         if (otherInGroup && prev[otherInGroup._id]) {
-          alert(`You have already answered ${otherInGroup.choiceLabel || 'another choice'} in this group. Please clear that answer first if you want to switch.`);
+          showToast(`You have already answered ${otherInGroup.choiceLabel || 'another choice'} in this group. Please clear that answer first if you want to switch.`, 'warning');
           return prev;
         }
       }
@@ -241,18 +247,18 @@ export default function TestPaperTakingPage() {
       exitFullScreen();
 
       if (autoSubmit) {
-        alert(
-          ` AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${testPaper.questions.length}`
-        );
+        showToast(`AUTO-SUBMITTED! Reason: ${reason}. Answered: ${answeredCount}/${testPaper.questions.length}`, 'success');
       } else {
-        alert(" Test Submitted Successfully!");
+        showToast("Test Submitted Successfully!", 'success');
       }
 
-      navigate(`/course/${classId}/test`);
+      setTimeout(() => {
+        navigate(`/course/${classId}/test`);
+      }, 3000);
     } catch (error) {
       console.error('Submit error:', error);
       exitFullScreen();
-      alert(error.response?.data?.error || 'Failed to submit test.');
+      showToast(error.response?.data?.error || 'Failed to submit test.', 'error');
       setIsSubmitting(false);
       setProctorSubmitting(false);
     }
@@ -618,6 +624,12 @@ export default function TestPaperTakingPage() {
           </div>
         </div>
       )}
+
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
     </div>
   );
 }

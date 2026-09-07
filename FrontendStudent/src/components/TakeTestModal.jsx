@@ -4,6 +4,7 @@ import { submitTest } from '../api/testApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
 import ViolationAlertModal from './ViolationAlertModal';
 import QuestionPalette from './QuestionPalette';
+import ToastNotification from './ToastNotification';
 
 export default function TakeTestModal({ testPaper, studentId, studentName, onClose, onSubmit }) {
   const [hasStarted, setHasStarted] = useState(false);
@@ -11,10 +12,17 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitReason, setSubmitReason] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [visitedQuestions, setVisitedQuestions] = useState(new Set([0]));
   const [markedForReview, setMarkedForReview] = useState({});
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
+
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   useEffect(() => {
     setVisitedQuestions(prev => new Set(prev).add(currentQuestion));
@@ -47,7 +55,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
     onAutoSubmit: (reason) => handleAutoSubmit(reason)
   });
 
-  const isResuming = !!localStorage.getItem(`test_start_time_${testPaper._id}`);
+  const [isResuming] = useState(() => !!localStorage.getItem(`test_start_time_${testPaper._id}`));
 
   useEffect(() => {
     answersRef.current = answers;
@@ -125,7 +133,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
         await enterFullScreen();
       }, 50);
     } catch (error) {
-      alert("Please allow full screen to start the exam.");
+      showToast("Please allow full screen to start the exam.", "error");
     }
   };
 
@@ -145,7 +153,7 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
           q => q.choiceGroup === currentQ.choiceGroup && q._id !== questionId
         );
         if (otherInGroup && prev[otherInGroup._id]) {
-          alert(`You have already answered a choice in this group. Please clear that answer first if you want to switch.`);
+          showToast(`You have already answered a choice in this group. Please clear that answer first if you want to switch.`, 'warning');
           return prev;
         }
       }
@@ -206,19 +214,12 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
       clearViolations();
       exitFullScreen();
 
-      if (autoSubmit) {
-        alert(
-          ` AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${testPaper.questions.length}\n\nYour results will be visible when the teacher publishes them.`
-        );
-      } else {
-        alert(" Test Submitted Successfully!\n\nYour results will be visible when the teacher publishes them.");
-      }
-
-      onSubmit();
+      setSubmitReason(autoSubmit ? `Auto-submitted: ${reason}` : '');
+      setIsSubmitted(true);
     } catch (error) {
       console.error('Submit error:', error);
       exitFullScreen();
-      alert(error.response?.data?.error || 'Failed to submit test.');
+      showToast(error.response?.data?.error || 'Failed to submit test.', 'error');
       setIsSubmitting(false);
       setProctorSubmitting(false);
     }
@@ -232,6 +233,35 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
     if (type === 'long') return 12;
     return 5;
   };
+
+  if (isSubmitted) {
+    return (
+      <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden p-8 text-center border border-gray-100">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+            <CheckCircle className="w-10 h-10 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Exam Submitted Successfully!</h2>
+          <p className="text-gray-600 mb-2">
+            Your results will be available once the teacher publishes them.
+          </p>
+          {submitReason && (
+            <p className="text-sm font-medium text-orange-600 mb-6 bg-orange-50 py-2 px-4 rounded-lg border border-orange-100">
+              {submitReason}
+            </p>
+          )}
+          <div className={submitReason ? "mt-4" : "mt-8"}>
+            <button 
+              onClick={onSubmit} 
+              className="w-full py-3 px-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20 cursor-pointer"
+            >
+              Go Back to Assessments
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!hasStarted) {
     return (
@@ -599,6 +629,11 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
           </div>
         </div>
       )}
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
     </div>
   );
 }

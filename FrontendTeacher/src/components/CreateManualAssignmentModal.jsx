@@ -3,7 +3,7 @@ import { X, Plus, Trash2, Save } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
 
-const CreateManualAssignmentModal = ({ classId, onClose, onCreated }) => {
+const CreateManualAssignmentModal = ({ classId, onClose, onCreated, showToast }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [marksPerQuestion, setMarksPerQuestion] = useState(2);
@@ -35,18 +35,18 @@ const CreateManualAssignmentModal = ({ classId, onClose, onCreated }) => {
 
   const handleSave = async () => {
     if (!title.trim()) {
-      alert("Please enter a title");
+      showToast("Please enter a title", 'error');
       return;
     }
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       if (!q.question.trim()) {
-        alert(`Question ${i + 1} text is empty`);
+        showToast(`Question ${i + 1} text is empty`, 'error');
         return;
       }
       if (!q.answerKey.trim()) {
-        alert(`Question ${i + 1} answer key is empty`);
+        showToast(`Question ${i + 1} answer key is empty`, 'error');
         return;
       }
     }
@@ -70,7 +70,7 @@ const CreateManualAssignmentModal = ({ classId, onClose, onCreated }) => {
       onCreated(res.data.assignment);
     } catch (error) {
       console.error("Failed to create assignment", error);
-      alert(error.response?.data?.error || "Failed to create assignment");
+      showToast(error.response?.data?.error || "Failed to create assignment", 'error');
     } finally {
       setIsSaving(false);
     }

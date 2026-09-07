@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { X, Clock, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
 import { publishTestPaper } from '../api/testPaperApi';
 
-export default function PublishTestModal({ testPaper, onClose, onPublished }) {
+export default function PublishTestModal({ testPaper, onClose, onPublished, showToast }) {
   const [timingOption, setTimingOption] = useState('no-limit');
   const [duration, setDuration] = useState(60); // minutes
   const [startTime, setStartTime] = useState('');
@@ -22,7 +22,7 @@ export default function PublishTestModal({ testPaper, onClose, onPublished }) {
 
       if (timingOption === 'duration') {
         if (!duration || duration < 1) {
-          alert('Please enter a valid duration');
+          showToast('Please enter a valid duration', 'error');
           setIsPublishing(false);
           return;
         }
@@ -34,7 +34,7 @@ export default function PublishTestModal({ testPaper, onClose, onPublished }) {
         payload.endTime = end.toISOString();
       } else if (timingOption === 'schedule') {
         if (!startTime || !endTime) {
-          alert('Please select both start and end time');
+          showToast('Please select both start and end time', 'error');
           setIsPublishing(false);
           return;
         }
@@ -44,13 +44,13 @@ export default function PublishTestModal({ testPaper, onClose, onPublished }) {
         const now = new Date();
 
         if (start < now) {
-          alert('Start time cannot be in the past');
+          showToast('Start time cannot be in the past', 'error');
           setIsPublishing(false);
           return;
         }
 
         if (end <= start) {
-          alert('End time must be after start time');
+          showToast('End time must be after start time', 'error');
           setIsPublishing(false);
           return;
         }
@@ -65,11 +65,11 @@ export default function PublishTestModal({ testPaper, onClose, onPublished }) {
 
       await publishTestPaper(testPaper._id, payload);
 
-      alert('Test paper published successfully!');
+      showToast('Test paper published successfully!', 'success');
       onPublished();
     } catch (error) {
       console.error('Publish error:', error);
-      alert(error.response?.data?.error || 'Failed to publish test paper');
+      showToast(error.response?.data?.error || 'Failed to publish test paper', 'error');
     } finally {
       setIsPublishing(false);
     }
@@ -252,6 +252,7 @@ export default function PublishTestModal({ testPaper, onClose, onPublished }) {
                 <p className="text-sm font-bold text-amber-900 mb-1">Important Note</p>
                 <p className="text-sm text-amber-800">
                   Once published, students will be able to see and attempt this test paper. 
+                  You cannot edit questions or change timing after publishing.
                   Answer keys will be used for AI-powered checking.
                 </p>
               </div>

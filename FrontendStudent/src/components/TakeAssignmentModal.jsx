@@ -4,6 +4,7 @@ import { submitAssignment } from '../api/assignmentApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
 import ViolationAlertModal from './ViolationAlertModal';
 import QuestionPalette from './QuestionPalette';
+import ToastNotification from './ToastNotification';
 
 export default function TakeAssignmentModal({ assignment, studentId, studentName, onClose, onSubmit }) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -13,6 +14,11 @@ export default function TakeAssignmentModal({ assignment, studentId, studentName
   const [visitedQuestions, setVisitedQuestions] = useState(new Set([0]));
   const [markedForReview, setMarkedForReview] = useState({});
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
+
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   useEffect(() => {
     setVisitedQuestions(prev => new Set(prev).add(currentQuestion));
@@ -113,22 +119,18 @@ export default function TakeAssignmentModal({ assignment, studentId, studentName
       exitFullScreen();
 
       if (autoSubmit) {
-        alert(
-          ` AUTO-SUBMITTED!\n\n` +
-          `Reason: ${reason}\n` +
-          `Violations: ${violationsCount}\n` +
-          `Answered: ${answeredCount}/${assignment.questions.length}\n\n` +
-          `Your assignment has been submitted. Results will be available after evaluation.`
-        );
+        showToast(`AUTO-SUBMITTED! Reason: ${reason}. Answered: ${answeredCount}/${assignment.questions.length}`, 'success');
       } else {
-        alert(' Assignment Submitted Successfully!\n\nYour answers have been submitted. Results will be available after evaluation.');
+        showToast('Assignment Submitted Successfully!', 'success');
       }
 
-      onSubmit();
+      setTimeout(() => {
+        onSubmit();
+      }, 2500);
     } catch (error) {
       console.error(' Submit error:', error);
       exitFullScreen();
-      alert(error.response?.data?.error || 'Failed to submit assignment. Please try again.');
+      showToast(error.response?.data?.error || 'Failed to submit assignment. Please try again.', 'error');
       
       setIsSubmitting(false);
       setProctorSubmitting(false);
@@ -384,6 +386,11 @@ export default function TakeAssignmentModal({ assignment, studentId, studentName
           </div>
         </div>
       )}
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { X, Clock, Calendar, AlertCircle, CheckCircle, Camera } from "lucide-rea
 import axios from "axios";
 import API_BASE_URL from "../config";
 
-export default function PublishQuizModal({ quiz, onClose, onPublished }) {
+export default function PublishQuizModal({ quiz, onClose, onPublished, showToast }) {
   const [timingOption, setTimingOption] = useState("no-limit"); // 'no-limit', 'duration', 'schedule'
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -26,7 +26,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
 
       if (timingOption === "duration") {
         if (!manualDuration || manualDuration <= 0) {
-          alert("Please enter a valid duration");
+          showToast("Please enter a valid duration", 'error');
           setIsPublishing(false);
           return;
         }
@@ -39,7 +39,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
         payload.endTime = end.toISOString();
       } else if (timingOption === "schedule") {
         if (!startTime) {
-          alert("Please select a start time");
+          showToast("Please select a start time", 'error');
           setIsPublishing(false);
           return;
         }
@@ -48,7 +48,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
         const now = new Date();
 
         if (start < now) {
-          alert("Start time cannot be in the past");
+          showToast("Start time cannot be in the past", 'error');
           setIsPublishing(false);
           return;
         }
@@ -56,13 +56,13 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
         payload.startTime = start.toISOString();
 
         if (!endTime) {
-          alert("Please select an end time");
+          showToast("Please select an end time", 'error');
           setIsPublishing(false);
           return;
         }
         const end = new Date(endTime);
         if (end <= start) {
-          alert("End time must be after start time");
+          showToast("End time must be after start time", 'error');
           setIsPublishing(false);
           return;
         }
@@ -79,11 +79,11 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
 
       console.log("Assessment published:", response.data);
 
-      alert("Assessment published successfully!");
+      showToast("Assessment published successfully!", 'success');
       onPublished();
     } catch (error) {
       console.error("Publish error:", error);
-      alert(error.response?.data?.error || "Failed to publish assessment");
+      showToast(error.response?.data?.error || "Failed to publish assessment", 'error');
     } finally {
       setIsPublishing(false);
     }
@@ -318,8 +318,8 @@ export default function PublishQuizModal({ quiz, onClose, onPublished }) {
                 </p>
                 <p className="text-sm text-amber-800">
                   Once published, students will be able to see and take this
-                  assessment. You can still edit questions after publishing, but
-                  timing cannot be changed.
+                  assessment. You cannot edit questions or change timing after
+                  publishing.
                 </p>
               </div>
             </div>

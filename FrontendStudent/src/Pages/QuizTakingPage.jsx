@@ -7,6 +7,8 @@ import { useWebcamProctor } from '../hooks/useWebcamProctor';
 import ViolationAlertModal from '../components/ViolationAlertModal';
 import WebcamStatusToast from '../components/WebcamStatusToast';
 import QuestionPalette from '../components/QuestionPalette';
+import ToastNotification from '../components/ToastNotification';
+import ConfirmationCard from '../components/ConfirmationCard';
 import { getStoredUser } from '../utils/authStorage';
 
 export default function QuizTakingPage() {
@@ -26,6 +28,13 @@ export default function QuizTakingPage() {
   const [markedForReview, setMarkedForReview] = useState({});
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
   const [totalStudents, setTotalStudents] = useState(0);
+
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: null });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   // ==================== WEBCAM PROCTORING STATE ====================
   const [webcamStream, setWebcamStream] = useState(null);
@@ -156,8 +165,8 @@ export default function QuizTakingPage() {
       setQuiz(shuffledQuiz);
     } catch (error) {
       console.error('Failed to fetch quiz', error);
-      alert('Failed to load quiz data');
-      navigate(`/course/${classId}/quiz`);
+      showToast('Failed to load quiz data', 'error');
+      setTimeout(() => navigate(`/course/${classId}/quiz`), 2000);
     } finally {
       setLoading(false);
     }
@@ -230,7 +239,7 @@ export default function QuizTakingPage() {
       await requestFullScreen();
       setHasStarted(true);
     } catch (error) {
-      alert("Please allow full screen to start the exam.");
+      showToast("Please allow full screen to start the exam.", "error");
     }
   };
 
@@ -241,9 +250,15 @@ export default function QuizTakingPage() {
   };
 
   const handleSubmitClick = () => {
-    if (confirm("Are you sure you want to submit your quiz? You cannot change your answers after submission.")) {
-      handleSubmitQuiz(false);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Submit Quiz?',
+      message: 'Are you sure you want to submit your quiz? You cannot change your answers after submission.',
+      type: 'warning',
+      onConfirm: () => {
+        handleSubmitQuiz(false);
+      }
+    });
   };
 
   const handleSubmitQuiz = async (autoSubmit = false, reason = '') => {
@@ -287,20 +302,22 @@ export default function QuizTakingPage() {
       exitFullScreen();
 
       const scoreMessage = autoSubmit 
-        ? ` AUTO-SUBMITTED!\n\nReason: ${reason}\nViolations: ${violationsCount}\nAnswered: ${answeredCount}/${quiz.questions.length}\n\n`
-        : ` Quiz Submitted!\n\n`;
+        ? `AUTO-SUBMITTED! Reason: ${reason}. Answered: ${answeredCount}/${quiz.questions.length}. `
+        : `Quiz Submitted! `;
 
-      alert(
-        `${scoreMessage}Your results will be available once the teacher publishes them.`
+      showToast(
+        `${scoreMessage}Your results will be available once the teacher publishes them.`, 'success'
       );
 
-      navigate(`/course/${classId}/quiz`);
+      setTimeout(() => {
+        navigate(`/course/${classId}/quiz`);
+      }, 3000);
     } catch (error) {
       console.error('Submit error:', error);
       exitFullScreen();
       
       const errorMsg = error.response?.data?.error || error.message || 'Failed to submit quiz';
-      alert(` Error: ${errorMsg}`);
+      showToast(`Error: ${errorMsg}`, 'error');
       
       setIsSubmitting(false);
       setProctorSubmitting(false);
@@ -736,6 +753,23 @@ export default function QuizTakingPage() {
         violationCount={violations.length}
         maxViolations={2}
         onOk={handleViolationAlertOk}
+      />
+
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
+      <ConfirmationCard
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        onConfirm={() => {
+          confirmDialog.onConfirm();
+          setConfirmDialog({ ...confirmDialog, isOpen: false });
+        }}
+        onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
       />
     </div>
   );

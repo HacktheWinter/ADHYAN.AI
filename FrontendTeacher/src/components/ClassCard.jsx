@@ -37,30 +37,19 @@ const ClassCard = ({ classData, onClick, onDelete, onEdit, onArchive }) => {
   const handleDeleteClick = (e) => {
     e.stopPropagation();
     setShowDropdown(false);
-    
-    if (window.confirm(`Are you sure you want to delete "${classData.name}"? This action cannot be undone.`)) {
-      onDelete(classData._id || classData.id);
-    }
+    onDelete(classData._id || classData.id, classData.name);
   };
 
   const handleArchiveClick = (e) => {
     e.stopPropagation();
     setShowDropdown(false);
-    if (onArchive) {
-      onArchive(classData._id || classData.id, true);
-    } else {
-      alert(`Class "${classData.name}" archived successfully!`);
-    }
+    onArchive?.(classData._id || classData.id, true, classData.name);
   };
 
   const handleRestoreClick = (e) => {
     e.stopPropagation();
     setShowDropdown(false);
-    if (onArchive) {
-      onArchive(classData._id || classData.id, false);
-    } else {
-      alert(`Class "${classData.name}" restored successfully!`);
-    }
+    onArchive?.(classData._id || classData.id, false, classData.name);
   };
 
   const handleDropdownToggle = (e) => {

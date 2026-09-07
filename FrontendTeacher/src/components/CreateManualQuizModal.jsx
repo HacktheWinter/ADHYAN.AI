@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, Plus, Trash2, Save, ChevronDown, ChevronUp, Code, Code2, Settings, Maximize2, Minimize2, Upload, Loader2, FileUp, Clock, FileText, Sparkles, CheckCircle, Check } from "lucide-react";
 import axios from "axios";
-import toast from "react-hot-toast";
 import API_BASE_URL from "../config";
 import Editor from "@monaco-editor/react";
 
@@ -100,7 +99,7 @@ const emptySection = (index) => ({
   questions: [emptyQuestion("mcq")]
 });
 
-const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
+const CreateManualQuizModal = ({ classId, onClose, onCreated, showToast }) => {
   const [title, setTitle] = useState("");
   const [difficulty, setDifficulty] = useState("mixed");
   const [isDifficultyMenuOpen, setIsDifficultyMenuOpen] = useState(false);
@@ -163,11 +162,11 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
     const selected = selectedQuestions[sIdx] || [];
     const marks = bulkMarks[sIdx];
     if (selected.length === 0) {
-      toast.error("Please select questions to update marks");
+      showToast("Please select questions to update marks", 'error');
       return;
     }
     if (!marks || marks <= 0) {
-      toast.error("Please enter a valid marks value");
+      showToast("Please enter a valid marks value", 'error');
       return;
     }
     const updatedSections = [...sections];
@@ -182,7 +181,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
   const handleBulkDelete = (sIdx) => {
     const selected = selectedQuestions[sIdx] || [];
     if (selected.length === 0) {
-      toast.error("Please select questions to delete");
+      showToast("Please select questions to delete", 'error');
       return;
     }
     if (!confirm(`Are you sure you want to delete ${selected.length} questions?`)) return;
@@ -211,7 +210,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
     ];
     
     if (!allowedTypes.includes(file.type)) {
-      toast.error("Please upload a PDF, Word, or Excel document.");
+      showToast("Please upload a PDF, Word, or Excel document.", 'error');
       return;
     }
 
@@ -256,11 +255,11 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
            updated[sIdx].questions = [...updated[sIdx].questions, ...formattedQuestions];
         }
         setSections(updated);
-        toast.success(`Imported ${formattedQuestions.length} question${formattedQuestions.length > 1 ? 's' : ''} from file`, { icon: '📄' });
+        showToast(`Imported ${formattedQuestions.length} question${formattedQuestions.length > 1 ? 's' : ''} from file`, 'success');
       }
     } catch (error) {
       console.error("Extraction failed:", error);
-      toast.error(error.response?.data?.error || "Failed to extract questions from file");
+      showToast(error.response?.data?.error || "Failed to extract questions from file", 'error');
     } finally {
       setExtractingSectionIdx(-1);
       e.target.value = null; // reset file input
@@ -363,22 +362,22 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
 
 
   const handleSave = async () => {
-    if (!title.trim()) return toast.error("Please enter an assessment title");
+    if (!title.trim()) return showToast("Please enter an assessment title", 'error');
 
     const mappedSections = [];
 
     for (let sIdx = 0; sIdx < sections.length; sIdx++) {
       const section = sections[sIdx];
-      if (!section.title.trim()) return toast.error(`Section ${sIdx + 1} needs a title`);
+      if (!section.title.trim()) return showToast(`Section ${sIdx + 1} needs a title`, 'error');
 
 
       const mappedQuestions = [];
       for (let qIdx = 0; qIdx < section.questions.length; qIdx++) {
         const q = section.questions[qIdx];
         if (q.type === "mcq") {
-          if (!q.question?.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} is empty`);
-          if (q.options.some(opt => !opt.trim())) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} has empty options`);
-          if (q.correctOptionIndex === null) return toast.error(`Select a correct answer for Section ${sIdx + 1}, Q${qIdx + 1}`);
+          if (!q.question?.trim()) return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} is empty`, 'error');
+          if (q.options.some(opt => !opt.trim())) return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} has empty options`, 'error');
+          if (q.correctOptionIndex === null) return showToast(`Select a correct answer for Section ${sIdx + 1}, Q${qIdx + 1}`, 'error');
           
           mappedQuestions.push({
             type: "mcq",
@@ -388,19 +387,19 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
             correctAnswer: q.options[q.correctOptionIndex]
           });
         } else {
-          if (!q.coding.title?.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} missing title`);
-          if (!q.coding.description?.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} missing description`);
+          if (!q.coding.title?.trim()) return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} missing title`, 'error');
+          if (!q.coding.description?.trim()) return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} missing description`, 'error');
           
           const reqLangs = ["java", "cpp", "javascript", "python", "c"];
           for (const lang of reqLangs) {
             const hasStarter = q.coding.starterCode?.some(s => s.language === lang && s.code?.trim());
             const hasDriver = q.coding.driverCode?.some(d => d.language === lang && d.code?.trim());
             if (!hasStarter || !hasDriver) {
-              return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} is missing starter/driver code for ${lang}.`);
+              return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} is missing starter/driver code for ${lang}.`, 'error');
             }
           }
 
-          if (q.coding.testCases.length === 0 || !q.coding.testCases[0].input.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} must have a valid test case`);
+          if (q.coding.testCases.length === 0 || !q.coding.testCases[0].input.trim()) return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} must have a valid test case`, 'error');
 
           mappedQuestions.push({
             type: "coding",
@@ -436,7 +435,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
       onCreated(res.data.quiz);
     } catch (error) {
       console.error("Failed to create assessment", error);
-      toast.error(error.response?.data?.error || "Failed to create assessment");
+      showToast(error.response?.data?.error || "Failed to create assessment", 'error');
     } finally {
       setIsSaving(false);
     }
@@ -557,10 +556,17 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                         if (aiPanelOpenForSection === sIdx) {
                           setAiPanelOpenForSection(-1);
                         } else {
+                          setExpandedSection(sIdx);
                           setAiPanelOpenForSection(sIdx);
                           setAiTopicInput("");
                           setAiQuestionCount(section.type === "coding" ? 3 : 5);
                           setAiMarksPerQuestion(section.type === "coding" ? 5 : 1);
+                          setTimeout(() => {
+                            const panel = document.getElementById(`ai-panel-${sIdx}`);
+                            if (panel) {
+                              panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }, 100);
                         }
                       }}
                       disabled={isGeneratingAI}
@@ -616,7 +622,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                   <div className="p-5 space-y-5">
                     {/* AI Generation Panel */}
                     {aiPanelOpenForSection === sIdx && (
-                      <div className="ai-panel-animated bg-white rounded-xl p-5 space-y-4 relative overflow-hidden shadow-lg">
+                      <div id={`ai-panel-${sIdx}`} className="ai-panel-animated bg-white rounded-xl p-5 space-y-4 relative overflow-hidden shadow-lg">
                         {/* Gradient accent bar */}
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500"></div>
                         <div className="flex items-center justify-between">
@@ -700,7 +706,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                             type="button"
                             onClick={async () => {
                               if (!aiTopicInput.trim()) {
-                                toast.error("Please enter topics or a prompt");
+                                showToast("Please enter topics or a prompt", 'error');
                                 return;
                               }
                               setIsGeneratingAI(true);
@@ -747,17 +753,16 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated }) => {
                                   setAiPanelOpenForSection(-1);
                                   setAiTopicInput("");
                                   
-                                  // Show success notification
-                                  toast.success(
+                                  showToast(
                                     `Generated ${generated.length} ${section.type === 'coding' ? 'coding' : 'MCQ'} question${generated.length > 1 ? 's' : ''} successfully!`,
-                                    { duration: 5000, icon: '✨' }
+                                    'success'
                                   );
                                 } else {
-                                  toast.error("AI could not generate questions. Try different topics.");
+                                  showToast("AI could not generate questions. Try different topics.", 'error');
                                 }
                               } catch (error) {
                                 console.error("AI generation failed:", error);
-                                toast.error(error.response?.data?.error || "Failed to generate questions. Please try again.");
+                                showToast(error.response?.data?.error || "Failed to generate questions. Please try again.", 'error');
                               } finally {
                                 setIsGeneratingAI(false);
                               }

@@ -24,6 +24,8 @@ import EditQuizModal from "./EditQuizModal";
 import AddTopicsButton from "./AddTopicsButton";
 import TopicsInputCard from "./TopicsInputCard";
 import CreateManualQuizModal from "./CreateManualQuizModal";
+import ToastNotification from "./ToastNotification";
+import ConfirmationCard from "./ConfirmationCard";
 
 const QuizzesPage = () => {
   const { classId } = useParams();
@@ -54,6 +56,15 @@ const QuizzesPage = () => {
   const [questionCount, setQuestionCount] = useState(20);
   const [marksPerQuestion, setMarksPerQuestion] = useState(1);
   const [difficulty, setDifficulty] = useState("mixed");
+
+  // Toast & Confirmation state
+  const [toast, setToast] = useState({ message: '', type: 'success' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', confirmText: 'Confirm', cancelText: 'Cancel', type: 'danger', onConfirm: null });
+
+  const showToast = useCallback((message, type = 'success') => setToast({ message, type }), []);
+  const clearToast = useCallback(() => setToast({ message: '', type: 'success' }), []);
+  const showConfirm = useCallback((opts) => setConfirmDialog({ isOpen: true, ...opts, confirmText: opts.confirmText || 'Confirm', cancelText: opts.cancelText || 'Cancel', type: opts.type || 'danger' }), []);
+  const closeConfirm = useCallback(() => setConfirmDialog(prev => ({ ...prev, isOpen: false, onConfirm: null })), []);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const truncateTitle = (title, maxLength = 50) => {
@@ -108,7 +119,7 @@ const QuizzesPage = () => {
       setAvailableNotes(response.notes || []);
     } catch (error) {
       console.error("Error fetching notes:", error);
-      alert("Failed to load notes");
+      showToast("Failed to load notes", 'error');
     } finally {
       setLoadingNotes(false);
     }
@@ -138,7 +149,7 @@ const QuizzesPage = () => {
 
   const handleGenerateFromTopics = async () => {
     if (topics.length === 0) {
-      alert("Please add at least one topic");
+      showToast("Please add at least one topic", 'error');
       return;
     }
 
@@ -161,15 +172,7 @@ const QuizzesPage = () => {
       setDrafts((prev) => [response.data.quiz, ...prev]);
 
       const stats = response.data.stats;
-      alert(
-        `Assessment Generated Successfully!\n\n` +
-          `Details:\n` +
-          `• Questions: ${stats.questionsGenerated}\n` +
-          `• Marks per Q: ${stats.marksPerQuestion}\n` +
-          `• Total Marks: ${stats.totalMarks}\n` +
-          `• Difficulty: ${stats.difficulty}\n` +
-          `• Topics: ${stats.topics.join(", ")}\n`
-      );
+      showToast(`Assessment generated! ${stats.questionsGenerated} questions, ${stats.totalMarks} marks (${stats.difficulty})`, 'success');
 
       setTopics([]);
       setCustomTitle("");
@@ -177,7 +180,7 @@ const QuizzesPage = () => {
       setShowAIModal(false);
     } catch (err) {
       console.error("Generation error:", err);
-      alert(err.response?.data?.error || "Failed to generate assessment");
+      showToast(err.response?.data?.error || "Failed to generate assessment", 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -185,7 +188,7 @@ const QuizzesPage = () => {
 
   const handleGenerateWithAI = async () => {
     if (selectedNotes.length === 0) {
-      alert("Please select at least one note");
+      showToast("Please select at least one note", 'error');
       return;
     }
 
@@ -208,22 +211,14 @@ const QuizzesPage = () => {
       setDrafts((prev) => [response.data.quiz, ...prev]);
 
       const stats = response.data.stats;
-      alert(
-        `Assessment Generated Successfully!\n\n` +
-          `Details:\n` +
-          `• Questions: ${stats.questionsGenerated}\n` +
-          `• Marks per Q: ${stats.marksPerQuestion}\n` +
-          `• Total Marks: ${stats.totalMarks}\n` +
-          `• Difficulty: ${stats.difficulty}\n` +
-          `• Notes processed: ${stats.processedNotes}/${stats.totalNotes}\n`
-      );
+      showToast(`Assessment generated! ${stats.questionsGenerated} questions, ${stats.totalMarks} marks (${stats.processedNotes}/${stats.totalNotes} notes)`, 'success');
 
       setSelectedNotes([]);
       setCustomTitle("");
       setShowAIModal(false);
     } catch (err) {
       console.error("Generation error:", err);
-      alert(err.response?.data?.error || "Failed to generate assessment");
+      showToast(err.response?.data?.error || "Failed to generate assessment", 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -247,12 +242,9 @@ const QuizzesPage = () => {
 
     setEditingQuiz(null);
     setShowEditModal(false);
-    alert("Assessment updated successfully!");
   };
 
-  const handleDelete = async (id, status) => {
-    if (!confirm("Are you sure you want to delete this assessment?")) return;
-
+  const executeDeleteQuiz = async (id, status) => {
     try {
       await axios.delete(`${API_BASE_URL}/quiz/${id}`);
 
@@ -262,11 +254,24 @@ const QuizzesPage = () => {
         setPublished(published.filter((q) => q._id !== id));
       }
 
-      alert("Assessment deleted successfully!");
+      showToast("Assessment deleted successfully!", 'success');
     } catch (err) {
       console.error(err);
-      alert("Failed to delete assessment");
+      showToast("Failed to delete assessment", 'error');
     }
+  };
+
+  const handleDelete = (id, status) => {
+    showConfirm({
+      title: 'Delete Assessment',
+      message: 'Are you sure you want to delete this assessment? This action cannot be undone.',
+      confirmText: 'Delete',
+      type: 'danger',
+      onConfirm: () => {
+        closeConfirm();
+        executeDeleteQuiz(id, status);
+      },
+    });
   };
 
   const handlePublish = (quiz) => {
@@ -748,30 +753,6 @@ const QuizzesPage = () => {
         </div>
       )}
 
-      {/* Edit Modal */}
-      {showEditModal && editingQuiz && (
-        <EditQuizModal
-          quiz={editingQuiz}
-          onClose={() => {
-            setShowEditModal(false);
-            setEditingQuiz(null);
-          }}
-          onSave={handleSaveQuiz}
-        />
-      )}
-
-      {/* Publish Quiz Modal */}
-      {showPublishModal && publishingQuiz && (
-        <PublishQuizModal
-          quiz={publishingQuiz}
-          onClose={() => {
-            setShowPublishModal(false);
-            setPublishingQuiz(null);
-          }}
-          onPublished={handlePublished}
-        />
-      )}
-
       {/* Create Manual Modal */}
       {showManualModal && (
         <CreateManualQuizModal
@@ -781,8 +762,50 @@ const QuizzesPage = () => {
             setShowManualModal(false);
             setDrafts((prev) => [newQuiz, ...prev]);
           }}
+          showToast={showToast}
         />
       )}
+
+      {/* Publish Modal */}
+      {showPublishModal && publishingQuiz && (
+        <PublishQuizModal
+          quiz={publishingQuiz}
+          onClose={() => {
+            setShowPublishModal(false);
+            setPublishingQuiz(null);
+          }}
+          onPublished={handlePublished}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingQuiz && (
+        <EditQuizModal
+          quiz={editingQuiz}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingQuiz(null);
+          }}
+          onSave={handleSaveQuiz}
+          showToast={showToast}
+        />
+      )}
+      
+      {/* Toast Notification */}
+      <ToastNotification message={toast.message} type={toast.type} onClose={clearToast} />
+
+      {/* Confirmation Card */}
+      <ConfirmationCard
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        type={confirmDialog.type}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirm}
+      />
     </div>
   );
 };

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { X, Plus, Trash2, Save, ChevronDown, ChevronUp, Code, Code2, Settings, Download, Maximize2, Minimize2, FileText, CheckCircle, Check, Loader2 } from "lucide-react";
 import { exportQuizToExcel, exportQuizToPDF } from '../utils/exportUtils';
 import axios from "axios";
-import toast from "react-hot-toast";
 import API_BASE_URL from "../config";
 import Editor from "@monaco-editor/react";
 
@@ -102,7 +101,7 @@ const emptySection = (index) => ({
   questions: [emptyQuestion("mcq")]
 });
 
-const EditQuizModal = ({ quiz, onClose, onSave }) => {
+const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
   const [title, setTitle] = useState(quiz.title || "");
   const [difficulty, setDifficulty] = useState(quiz.difficulty || "mixed");
   const [isDifficultyMenuOpen, setIsDifficultyMenuOpen] = useState(false);
@@ -159,11 +158,11 @@ const EditQuizModal = ({ quiz, onClose, onSave }) => {
     const selected = selectedQuestions[sIdx] || [];
     const marks = bulkMarks[sIdx];
     if (selected.length === 0) {
-      toast.error("Please select questions to update marks");
+      showToast("Please select questions to update marks", 'error');
       return;
     }
     if (!marks || marks <= 0) {
-      toast.error("Please enter a valid marks value");
+      showToast("Please enter a valid marks value", 'error');
       return;
     }
     const updatedSections = [...sections];
@@ -178,7 +177,7 @@ const EditQuizModal = ({ quiz, onClose, onSave }) => {
   const handleBulkDelete = (sIdx) => {
     const selected = selectedQuestions[sIdx] || [];
     if (selected.length === 0) {
-      toast.error("Please select questions to delete");
+      showToast("Please select questions to delete", 'error');
       return;
     }
     if (!confirm(`Are you sure you want to delete ${selected.length} questions?`)) return;
@@ -324,14 +323,14 @@ const EditQuizModal = ({ quiz, onClose, onSave }) => {
   };
 
   const handleSave = async () => {
-    if (!title.trim()) return toast.error("Please enter an assessment title");
+    if (!title.trim()) return showToast("Please enter an assessment title", 'error');
 
     const mappedSections = [];
     let totalMarks = 0;
 
     for (let sIdx = 0; sIdx < sections.length; sIdx++) {
       const section = sections[sIdx];
-      if (!section.title.trim()) return toast.error(`Section ${sIdx + 1} needs a title`);
+      if (!section.title.trim()) return showToast(`Section ${sIdx + 1} needs a title`, 'error');
 
       const mappedQuestions = [];
       for (let qIdx = 0; qIdx < section.questions.length; qIdx++) {
@@ -339,9 +338,9 @@ const EditQuizModal = ({ quiz, onClose, onSave }) => {
         totalMarks += Number(q.marks || 1);
 
         if (q.type === "mcq") {
-          if (!q.question?.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} is empty`);
-          if (q.options.some(opt => !opt.trim())) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} has empty options`);
-          if (q.correctOptionIndex === null || q.correctOptionIndex === -1) return toast.error(`Select a correct answer for Section ${sIdx + 1}, Q${qIdx + 1}`);
+          if (!q.question?.trim()) return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} is empty`, 'error');
+          if (q.options.some(opt => !opt.trim())) return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} has empty options`, 'error');
+          if (q.correctOptionIndex === null || q.correctOptionIndex === -1) return showToast(`Select a correct answer for Section ${sIdx + 1}, Q${qIdx + 1}`, 'error');
 
           mappedQuestions.push({
             type: "mcq",
@@ -351,16 +350,16 @@ const EditQuizModal = ({ quiz, onClose, onSave }) => {
             correctAnswer: q.options[q.correctOptionIndex]
           });
         } else {
-          if (!q.coding.title?.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} missing title`);
-          if (!q.coding.description?.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} missing description`);
-          if (q.coding.testCases.length === 0 || !q.coding.testCases[0].input.trim()) return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} must have a valid test case`);
+          if (!q.coding.title?.trim()) return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} missing title`, 'error');
+          if (!q.coding.description?.trim()) return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} missing description`, 'error');
+          if (q.coding.testCases.length === 0 || !q.coding.testCases[0].input.trim()) return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} must have a valid test case`, 'error');
 
           const reqLangs = ["java", "cpp", "javascript", "python", "c"];
           for (const lang of reqLangs) {
             const hasStarter = q.coding.starterCode?.some(s => s.language === lang && s.code?.trim());
             const hasDriver = q.coding.driverCode?.some(d => d.language === lang && d.code?.trim());
             if (!hasStarter || !hasDriver) {
-              return toast.error(`Section ${sIdx + 1}, Q${qIdx + 1} is missing starter code or driver code for ${lang}. Both are required for all 5 languages.`);
+              return showToast(`Section ${sIdx + 1}, Q${qIdx + 1} is missing starter code or driver code for ${lang}. Both are required for all 5 languages.`, 'error');
             }
           }
 
@@ -405,11 +404,10 @@ const EditQuizModal = ({ quiz, onClose, onSave }) => {
         { withCredentials: true }
       );
 
-      toast.success("Assessment updated successfully");
       onSave(res.data.quiz);
     } catch (error) {
       console.error("Failed to update assessment", error);
-      toast.error(error.response?.data?.error || "Failed to update assessment");
+      showToast(error.response?.data?.error || "Failed to update assessment", 'error');
     } finally {
       setIsSaving(false);
     }

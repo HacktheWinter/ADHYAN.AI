@@ -101,8 +101,13 @@ export const executeCode = async (studentId, language, code, testCases = [], que
           let finalCode = finalCodeInput;
           let compilerOptions = codingDetails.compilerOptions || "";
 
+          let offset = 0;
+          let studentLinesCount = (finalCodeInput.match(/\n/g) || []).length + 1;
+
           if (executionMode === "function") {
-            finalCode = buildFunctionModeSource(codingDetails, finalCodeInput, language);
+            const buildRes = buildFunctionModeSource(codingDetails, finalCodeInput, language);
+            finalCode = buildRes.finalCode;
+            offset = buildRes.offset;
             
             // Enforce return types strictly in Function Mode for C/C++
             const normLang = normalizeLanguage(language);
@@ -114,6 +119,9 @@ export const executeCode = async (studentId, language, code, testCases = [], que
             if (codingDetails.driverCode && Array.isArray(codingDetails.driverCode)) {
               const driverObj = codingDetails.driverCode.find(d => d.language === language);
               if (driverObj && driverObj.code && driverObj.code.includes("{{USER_CODE}}")) {
+                const lines = driverObj.code.split('\n');
+                offset = lines.findIndex(line => line.includes("{{USER_CODE}}"));
+                if (offset === -1) offset = 0;
                 finalCode = driverObj.code.replace("{{USER_CODE}}", finalCodeInput);
               }
             }
@@ -127,7 +135,7 @@ export const executeCode = async (studentId, language, code, testCases = [], que
             const tc = testCases[i];
             
             const tcStart = Date.now();
-            const result = await executeSingleTestCase(finalCode, languageId, tc, compilerOptions);
+            const result = await executeSingleTestCase(finalCode, languageId, tc, compilerOptions, offset, studentLinesCount, language);
             judge0ExecutionTime += (Date.now() - tcStart);
 
             results.push(result);
@@ -140,7 +148,7 @@ export const executeCode = async (studentId, language, code, testCases = [], que
                   input: testCases[j].input || "",
                   expectedOutput: testCases[j].expectedOutput || "",
                   actualOutput: "",
-                  compileOutput: result.compileOutput,
+                  compileOutput: rewriteErrorLines(result.compileOutput, offset, studentLinesCount),
                   runError: "",
                   exitCode: 1,
                   passed: false,
@@ -195,7 +203,7 @@ export const executeCode = async (studentId, language, code, testCases = [], que
  * @param {string} [compilerOptions] - Optional compiler options.
  * @returns {Object} Result: { input, expectedOutput, actualOutput, compileOutput, runError, exitCode, passed }
  */
-const executeSingleTestCase = async (code, languageId, testCase, compilerOptions = "") => {
+const executeSingleTestCase = async (code, languageId, testCase, compilerOptions = "", offset = 0, studentLinesCount = 0, language = "") => {
   const input = testCase.input || "";
   const expectedOutput = testCase.expectedOutput || "";
 
@@ -207,7 +215,7 @@ const executeSingleTestCase = async (code, languageId, testCase, compilerOptions
       compilerOptions,
     });
 
-    return mapJudge0ResultToResponse(judge0Result, input, expectedOutput);
+    return mapJudge0ResultToResponse(judge0Result, input, expectedOutput, offset, studentLinesCount, language);
   } catch (error) {
     return {
       input,
@@ -221,6 +229,28 @@ const executeSingleTestCase = async (code, languageId, testCase, compilerOptions
   }
 };
 
+const rewriteErrorLines = (errorString, offset, studentLinesCount) => {
+  if (!errorString || offset === 0) return errorString;
+
+  const replacer = (match, p1, p2) => {
+    const lineNum = parseInt(p2, 10);
+    if (isNaN(lineNum)) return match;
+
+    if (lineNum <= offset) {
+      return `${p1}[Driver Code Error (Teacher Side)]`;
+    } else if (lineNum > offset && lineNum <= offset + studentLinesCount) {
+      return `${p1}${lineNum - offset}`;
+    } else {
+      return `${p1}[Driver Code Error (Teacher Side)]`;
+    }
+  };
+
+  let result = errorString;
+  result = result.replace(/(line\s+)(\d+)/gi, replacer);
+  result = result.replace(/([a-zA-Z0-9_-]+\.[a-zA-Z0-9]+:)(\d+)/g, replacer);
+  return result;
+};
+
 /**
  * Map a normalized Judge0 result to the frontend-expected response format.
  *
@@ -229,14 +259,14 @@ const executeSingleTestCase = async (code, languageId, testCase, compilerOptions
  * @param {string} expectedOutput - Expected output for comparison.
  * @returns {Object} Frontend-compatible result object.
  */
-const mapJudge0ResultToResponse = (result, input, expectedOutput) => {
+const mapJudge0ResultToResponse = (result, input, expectedOutput, offset = 0, studentLinesCount = 0, language = "") => {
   // Compilation Error
   if (result.isCompilationError) {
     return {
       input,
       expectedOutput,
       actualOutput: "",
-      compileOutput: result.compileOutput || "Compilation failed.",
+      compileOutput: rewriteErrorLines(result.compileOutput || "Compilation failed.", offset, studentLinesCount),
       runError: "",
       exitCode: 1,
       passed: false,
@@ -251,7 +281,7 @@ const mapJudge0ResultToResponse = (result, input, expectedOutput) => {
       expectedOutput,
       actualOutput: result.stdout || "",
       compileOutput: "",
-      runError: errorMessage,
+      runError: rewriteErrorLines(errorMessage, offset, studentLinesCount),
       exitCode: 1,
       passed: false,
     };
@@ -294,7 +324,7 @@ const mapJudge0ResultToResponse = (result, input, expectedOutput) => {
     expectedOutput,
     actualOutput,
     compileOutput: "",
-    runError: result.stderr || "",
+    runError: rewriteErrorLines(result.stderr || "", offset, studentLinesCount),
     exitCode: passed ? 0 : 1,
     passed,
   };
@@ -356,6 +386,10 @@ const buildFunctionModeSource = (codingDetails, studentBody, language) => {
     throw new Error(`Function Mode configuration error: Multiple "${placeholder}" found in trusted driver code. Only one is allowed.`);
   }
 
+  const lines = template.split('\n');
+  const offset = lines.findIndex(line => line.includes(placeholder));
+
   // Inject the student body securely into the template
-  return template.replace(placeholder, studentBody);
+  const finalCode = template.replace(placeholder, studentBody);
+  return { finalCode, offset: offset !== -1 ? offset : 0 };
 };

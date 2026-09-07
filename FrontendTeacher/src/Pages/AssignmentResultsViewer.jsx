@@ -12,6 +12,8 @@ import {
   publishResults
 } from '../api/assignmentApi';
 import API_BASE_URL from '../config';
+import ToastNotification from '../components/ToastNotification';
+import ConfirmationCard from '../components/ConfirmationCard';
 
 const AssignmentResultsViewer = () => {
   const { classId, assignmentId } = useParams();
@@ -23,6 +25,13 @@ const AssignmentResultsViewer = () => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', type: 'danger', onConfirm: null });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   useEffect(() => {
     fetchData();
@@ -39,63 +48,61 @@ const AssignmentResultsViewer = () => {
       setSubmissions(submissionsResponse.submissions || []);
     } catch (error) {
       console.error('Error fetching data:', error);
-      alert('Failed to load assignment results');
+      showToast('Failed to load assignment results', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAIChecking = async () => {
-    if (!confirm('This will check all pending submissions using AI. Continue?')) return;
-
-    try {
-      setIsAIChecking(true);
-
-      const response = await checkAssignmentWithAI(assignmentId);
-
-      alert(
-        `AI Checking Complete!\n\n` +
-        `Checked: ${response.checkedCount}/${response.totalSubmissions}\n` +
-        `${response.failedCount > 0 ? `✗ Failed: ${response.failedCount}\n` : ''}` +
-        `\nNote: Results are NOT visible to students yet.\n` +
-        `Click "Publish Results" to make them visible.`
-      );
-
-      await fetchData();
-    } catch (error) {
-      console.error('AI checking error:', error);
-      alert(error.response?.data?.error || 'Failed to check with AI');
-    } finally {
-      setIsAIChecking(false);
-    }
+  const handleAIChecking = () => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'AI Checking',
+      message: 'This will check all pending submissions using AI. Continue?',
+      type: 'info',
+      onConfirm: async () => {
+        try {
+          setIsAIChecking(true);
+          const response = await checkAssignmentWithAI(assignmentId);
+          showToast(`Checked: ${response.checkedCount}/${response.totalSubmissions}${response.failedCount > 0 ? ` (Failed: ${response.failedCount})` : ''}`, 'success');
+          await fetchData();
+        } catch (error) {
+          console.error('AI checking error:', error);
+          showToast(error.response?.data?.error || 'Failed to check with AI', 'error');
+        } finally {
+          setIsAIChecking(false);
+        }
+      }
+    });
   };
 
-  const handlePublishResults = async () => {
+  const handlePublishResults = () => {
     const checkedCount = submissions.filter(s => s.status === 'checked').length;
     
     if (checkedCount === 0) {
-      alert('No checked submissions to publish. Please check submissions first.');
+      showToast('No checked submissions to publish. Please check submissions first.', 'error');
       return;
     }
 
-    if (!confirm(`This will publish results for ${checkedCount} students. They will be able to see their marks. Continue?`)) {
-      return;
-    }
-
-    try {
-      setIsPublishing(true);
-
-      const response = await publishResults(assignmentId);
-
-      alert(`Results Published!\n\n${response.count} students can now view their results.`);
-
-      await fetchData();
-    } catch (error) {
-      console.error('Publish error:', error);
-      alert('Failed to publish results');
-    } finally {
-      setIsPublishing(false);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Publish Results',
+      message: `This will publish results for ${checkedCount} students. They will be able to see their marks. Continue?`,
+      type: 'info',
+      onConfirm: async () => {
+        try {
+          setIsPublishing(true);
+          const response = await publishResults(assignmentId);
+          showToast(`Results Published! ${response.count} students can view results.`, 'success');
+          await fetchData();
+        } catch (error) {
+          console.error('Publish error:', error);
+          showToast('Failed to publish results', 'error');
+        } finally {
+          setIsPublishing(false);
+        }
+      }
+    });
   };
 
   const handleViewStudent = (submission) => {
@@ -406,8 +413,8 @@ const AssignmentResultsViewer = () => {
                                 try {
                                   await openSubmissionPdf(submission._id);
                                 } catch (error) {
-                                  console.error('Failed to open submission PDF:', error);
-                                  alert('Failed to open PDF');
+                                  console.error('Error viewing PDF:', error);
+                                  showToast('Failed to open PDF', 'error');
                                 }
                               }}
                               className="px-3 py-1.5 bg-paper border border-line text-violet-dark text-xs rounded-xl font-bold hover:bg-violet-50 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1"
@@ -426,6 +433,23 @@ const AssignmentResultsViewer = () => {
           </div>
         </div>
       </div>
+
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
+      <ConfirmationCard
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        onConfirm={() => {
+          confirmDialog.onConfirm();
+          setConfirmDialog({ ...confirmDialog, isOpen: false });
+        }}
+        onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+      />
     </div>
   );
 };
