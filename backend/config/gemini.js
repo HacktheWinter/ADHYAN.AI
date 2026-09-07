@@ -509,8 +509,10 @@ Generate exactly ${questionCount} coding challenge(s) based on the following top
 
 CRITICAL JSON RULES:
 1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
-2. NO LITERAL NEWLINES inside JSON string values. Use \\n for newlines within strings.
-3. Escape all double quotes within text.
+2. For newlines inside JSON string values, use the escape sequence \\n (backslash-n).
+3. For indentation inside JSON string values, use spaces after each \\n, e.g. \\n    (4 spaces for one level of indentation).
+4. Escape all double quotes within text.
+5. NEVER put all code on a single line - code MUST be properly formatted with newlines and indentation.
 
 TOPICS:
 ${topicsText}
@@ -523,6 +525,17 @@ REQUIREMENTS:
 5. Provide BOTH starterCode (boilerplate for student) AND driverCode (hidden main function that calls the student's code) for EXACTLY 5 languages: java, cpp, javascript, python, c. The driverCode must contain the placeholder "{{USER_CODE}}" where the student's function will be injected.
 6. Problems should be well-defined, solvable, and educational
 7. Ensure hidden test cases cover edge cases
+8. ALL CODE must be properly formatted with correct newlines (\\n) and indentation (spaces). Each statement, brace, and block MUST be on its own line. Do NOT put entire classes/functions on a single line.
+
+CODE FORMATTING RULES (CRITICAL - FOLLOW EXACTLY):
+- Each opening brace { must be followed by \\n
+- Each closing brace } must be on its own line
+- Each statement must end with \\n
+- Use 4 spaces for indentation in Java, C, C++, JavaScript
+- Use 4 spaces for indentation in Python
+- Method/function signatures must be on their own line
+- Class declarations must be on their own line
+- Import statements must each be on their own line
 
 RESPONSE FORMAT (Valid JSON only):
 {
@@ -546,15 +559,15 @@ RESPONSE FORMAT (Valid JSON only):
           { "language": "java", "code": "class Solution {\\n    public int[] twoSum(int[] nums, int target) {\\n        // Write your solution here\\n    }\\n}" },
           { "language": "cpp", "code": "class Solution {\\npublic:\\n    vector<int> twoSum(vector<int>& nums, int target) {\\n        // Write your solution here\\n    }\\n};" },
           { "language": "javascript", "code": "function twoSum(nums, target) {\\n    // Write your solution here\\n}" },
-          { "language": "python", "code": "def twoSum(nums, target):\\n    # Write your solution here" },
+          { "language": "python", "code": "def twoSum(nums, target):\\n    # Write your solution here\\n    pass" },
           { "language": "c", "code": "int* twoSum(int* nums, int numsSize, int target, int* returnSize) {\\n    // Write your solution here\\n}" }
         ],
         "driverCode": [
-          { "language": "java", "code": "import java.util.*;\\n\\n{{USER_CODE}}\\n\\npublic class Main {\\n    public static void main(String[] args) {\\n        // Parse input, call Solution.twoSum, print output\\n    }\\n}" },
-          { "language": "cpp", "code": "#include <iostream>\\n#include <vector>\\nusing namespace std;\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call Solution::twoSum, print output\\n    return 0;\\n}" },
-          { "language": "javascript", "code": "{{USER_CODE}}\\n\\n// Parse input, call twoSum, print output" },
-          { "language": "python", "code": "import sys\\n\\n{{USER_CODE}}\\n\\nif __name__ == '__main__':\\n    # Parse input, call twoSum, print output" },
-          { "language": "c", "code": "#include <stdio.h>\\n#include <stdlib.h>\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call twoSum, print output\\n    return 0;\\n}" }
+          { "language": "java", "code": "import java.util.*;\\n\\n{{USER_CODE}}\\n\\npublic class Main {\\n    public static void main(String[] args) {\\n        Scanner sc = new Scanner(System.in);\\n        // Parse input and call solution\\n    }\\n}" },
+          { "language": "cpp", "code": "#include <iostream>\\n#include <vector>\\nusing namespace std;\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call solution, print output\\n    return 0;\\n}" },
+          { "language": "javascript", "code": "{{USER_CODE}}\\n\\nconst readline = require('readline');\\n// Parse input, call function, print output" },
+          { "language": "python", "code": "import sys\\n\\n{{USER_CODE}}\\n\\nif __name__ == '__main__':\\n    # Parse input, call function, print output\\n    pass" },
+          { "language": "c", "code": "#include <stdio.h>\\n#include <stdlib.h>\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call function, print output\\n    return 0;\\n}" }
         ],
         "testCases": [
           { "input": "2 7 11 15\\n9", "expectedOutput": "0 1" },
@@ -573,6 +586,7 @@ IMPORTANT:
 - Exactly ${questionCount} coding challenge(s)
 - Each challenge must have at least 3 test cases
 - starterCode and driverCode MUST contain EXACTLY these 5 languages: "java", "cpp", "javascript", "python", "c".
+- ALL code in starterCode and driverCode MUST be multi-line with proper indentation using \\n and spaces. NEVER generate single-line code.
 `;
 
       console.log(" Sending request to Gemini for coding questions...");
@@ -608,16 +622,55 @@ IMPORTANT:
         throw new Error("Invalid response format (questions missing)");
       }
 
-      const validQuestions = parsedResponse.questions.filter((q) => {
-        return (
-          q.type === "coding" &&
-          q.coding &&
-          q.coding.title &&
-          q.coding.description &&
-          Array.isArray(q.coding.testCases) &&
-          q.coding.testCases.length > 0
-        );
-      });
+      // Post-process: normalize code formatting to ensure proper newlines and indentation
+      const normalizeCodeString = (code) => {
+        if (!code || typeof code !== "string") return code;
+        // Replace literal \n sequences (that weren't converted by JSON.parse) with real newlines
+        let normalized = code.replace(/\\n/g, "\n");
+        // If the code has no newlines at all (everything on one line), try to format it
+        if (!normalized.includes("\n")) {
+          // Add newlines before and after braces for C-style languages
+          normalized = normalized
+            .replace(/\{\s*/g, "{\n    ")
+            .replace(/\s*\}/g, "\n}")
+            .replace(/;\s*(?!\s*$)/g, ";\n    ")
+            .replace(/\n\s*\n/g, "\n");
+        }
+        return normalized;
+      };
+
+      const normalizeCodeFormatting = (questions) => {
+        return questions.map(q => {
+          if (q.type === "coding" && q.coding) {
+            if (Array.isArray(q.coding.starterCode)) {
+              q.coding.starterCode = q.coding.starterCode.map(sc => ({
+                ...sc,
+                code: normalizeCodeString(sc.code)
+              }));
+            }
+            if (Array.isArray(q.coding.driverCode)) {
+              q.coding.driverCode = q.coding.driverCode.map(dc => ({
+                ...dc,
+                code: normalizeCodeString(dc.code)
+              }));
+            }
+          }
+          return q;
+        });
+      };
+
+      const validQuestions = normalizeCodeFormatting(
+        parsedResponse.questions.filter((q) => {
+          return (
+            q.type === "coding" &&
+            q.coding &&
+            q.coding.title &&
+            q.coding.description &&
+            Array.isArray(q.coding.testCases) &&
+            q.coding.testCases.length > 0
+          );
+        })
+      );
 
       if (validQuestions.length === 0) {
         throw new Error("No valid coding questions generated");
