@@ -1,12 +1,9 @@
-// Backend/index.js
+import "dotenv/config.js";
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import connectDB from "./config/db.js";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 // Validate critical environment variables at startup
 if (!process.env.JWT_SECRET) {
