@@ -705,10 +705,28 @@ REQUIREMENTS:
 2. ${difficultyInstruction}
 3. Each challenge must have a clear problem statement, examples, constraints, and test cases
 4. Include both public and hidden test cases
-5. Provide BOTH starterCode (boilerplate for student) AND driverCode (hidden main function that calls the student's code) for EXACTLY 5 languages: java, cpp, javascript, python, c. The driverCode must contain the placeholder "{{USER_CODE}}" where the student's function will be injected.
-6. Problems should be well-defined, solvable, and educational
-7. Ensure hidden test cases cover edge cases
-8. ALL CODE must be properly formatted with correct newlines (\\n) and indentation (spaces). Each statement, brace, and block MUST be on its own line. Do NOT put entire classes/functions on a single line.
+5. Provide BOTH starterCode (boilerplate for student) AND driverCode (hidden main function that calls the student's code) for EXACTLY 5 languages: java, cpp, javascript, python, c. The driverCode must contain the placeholder "{{STUDENT_BODY}}" where the student's function will be injected.
+6. Provide a referenceSolution written in C++ that is a perfect working implementation of the starterCode.
+7. ALL CODE must be properly formatted with correct newlines (\\n) and indentation (spaces). Each statement, brace, and block MUST be on its own line. Do NOT put entire classes/functions on a single line.
+
+CRITICAL FUNCTION MODE DRIVER RULES:
+- The driverCode will be executed by an online judge.
+- The driver MUST dynamically read ALL function inputs from stdin.
+- NEVER hardcode example inputs in main().
+- NEVER use fixed values such as vector<int> nums = {1,2,3}; Those values are examples only and MUST NOT appear as actual arguments in main().
+- The same driverCode must work with EVERY test case generated.
+- The driver must: (1) read input from stdin, (2) parse args, (3) call student function, (4) print result.
+- Language specific requirements:
+  - C++: Use cin
+  - C: Use scanf
+  - Java: Use Scanner or BufferedReader
+  - Python: Use sys.stdin.read().split()
+  - JavaScript: Use fs.readFileSync(0, 'utf8')
+- Before returning the JSON, verify that changing stdin would cause the student function to receive the changed values.
+
+NEVER TRUST YOUR OWN EXPECTED OUTPUT:
+- You frequently hallucinate mathematically incorrect expectedOutput values for edge cases.
+- Do your best to calculate expectedOutput, but know it will be overridden by our deterministic Judge0 execution pipeline using your referenceSolution.
 
 CODE FORMATTING RULES (CRITICAL - FOLLOW EXACTLY):
 - Each opening brace { must be followed by \\n
@@ -746,18 +764,19 @@ RESPONSE FORMAT (Valid JSON only):
           { "language": "c", "code": "int* twoSum(int* nums, int numsSize, int target, int* returnSize) {\\n    // Write your solution here\\n}" }
         ],
         "driverCode": [
-          { "language": "java", "code": "import java.util.*;\\n\\n{{USER_CODE}}\\n\\npublic class Main {\\n    public static void main(String[] args) {\\n        Scanner sc = new Scanner(System.in);\\n        // Parse input and call solution\\n    }\\n}" },
-          { "language": "cpp", "code": "#include <iostream>\\n#include <vector>\\nusing namespace std;\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call solution, print output\\n    return 0;\\n}" },
-          { "language": "javascript", "code": "{{USER_CODE}}\\n\\nconst readline = require('readline');\\n// Parse input, call function, print output" },
-          { "language": "python", "code": "import sys\\n\\n{{USER_CODE}}\\n\\nif __name__ == '__main__':\\n    # Parse input, call function, print output\\n    pass" },
-          { "language": "c", "code": "#include <stdio.h>\\n#include <stdlib.h>\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call function, print output\\n    return 0;\\n}" }
+          { "language": "java", "code": "import java.util.*;\\n\\n{{STUDENT_BODY}}\\n\\npublic class Main {\\n    public static void main(String[] args) {\\n        Scanner sc = new Scanner(System.in);\\n        // Parse input and call solution\\n    }\\n}" },
+          { "language": "cpp", "code": "#include <iostream>\\n#include <vector>\\nusing namespace std;\\n\\n{{STUDENT_BODY}}\\n\\nint main() {\\n    // Parse input, call solution, print output\\n    return 0;\\n}" },
+          { "language": "javascript", "code": "{{STUDENT_BODY}}\\n\\nconst readline = require('readline');\\n// Parse input, call function, print output" },
+          { "language": "python", "code": "import sys\\n\\n{{STUDENT_BODY}}\\n\\nif __name__ == '__main__':\\n    # Parse input, call function, print output\\n    pass" },
+          { "language": "c", "code": "#include <stdio.h>\\n#include <stdlib.h>\\n\\n{{STUDENT_BODY}}\\n\\nint main() {\\n    // Parse input, call function, print output\\n    return 0;\\n}" }
         ],
         "testCases": [
           { "input": "2 7 11 15\\n9", "expectedOutput": "0 1" },
           { "input": "3 2 4\\n6", "expectedOutput": "1 2" },
           { "input": "3 3\\n6", "expectedOutput": "0 1" }
         ],
-        "comparisonMode": "trimmed"
+        "comparisonMode": "trimmed",
+        "referenceSolution": "class Solution {\\npublic:\\n    vector<int> twoSum(vector<int>& nums, int target) {\\n        vector<int> res;\\n        // ... logic ...\\n        return res;\\n    }\\n};"
       }
     }
   ]
@@ -820,6 +839,11 @@ IMPORTANT:
 
       if (validQuestions.length === 0) {
         throw new Error("No valid coding questions generated");
+      }
+      
+      // Strip referenceSolution from output to prevent DB bloat
+      for (const q of validQuestions) {
+        if (q.coding) delete q.coding.referenceSolution;
       }
 
       console.log(`Generated ${validQuestions.length} valid coding questions from topics`);
@@ -1035,11 +1059,11 @@ For Coding Challenges:
       { "language": "c", "code": "int* twoSum(int* nums, int numsSize, int target, int* returnSize) {\\n    // Write your solution here\\n}" }
     ],
     "driverCode": [
-      { "language": "java", "code": "import java.util.*;\\n\\n{{USER_CODE}}\\n\\npublic class Main {\\n    public static void main(String[] args) {\\n        // Parse input, call Solution.twoSum, print output\\n    }\\n}" },
-      { "language": "cpp", "code": "#include <iostream>\\n#include <vector>\\nusing namespace std;\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call Solution::twoSum, print output\\n    return 0;\\n}" },
-      { "language": "javascript", "code": "{{USER_CODE}}\\n\\n// Parse input, call twoSum, print output" },
-      { "language": "python", "code": "import sys\\n\\n{{USER_CODE}}\\n\\nif __name__ == '__main__':\\n    # Parse input, call twoSum, print output" },
-      { "language": "c", "code": "#include <stdio.h>\\n#include <stdlib.h>\\n\\n{{USER_CODE}}\\n\\nint main() {\\n    // Parse input, call twoSum, print output\\n    return 0;\\n}" }
+      { "language": "java", "code": "import java.util.*;\\n\\n{{STUDENT_BODY}}\\n\\npublic class Main {\\n    public static void main(String[] args) {\\n        // Parse input, call Solution.twoSum, print output\\n    }\\n}" },
+      { "language": "cpp", "code": "#include <iostream>\\n#include <vector>\\nusing namespace std;\\n\\n{{STUDENT_BODY}}\\n\\nint main() {\\n    // Parse input, call Solution::twoSum, print output\\n    return 0;\\n}" },
+      { "language": "javascript", "code": "{{STUDENT_BODY}}\\n\\n// Parse input, call twoSum, print output" },
+      { "language": "python", "code": "import sys\\n\\n{{STUDENT_BODY}}\\n\\nif __name__ == '__main__':\\n    # Parse input, call twoSum, print output" },
+      { "language": "c", "code": "#include <stdio.h>\\n#include <stdlib.h>\\n\\n{{STUDENT_BODY}}\\n\\nint main() {\\n    // Parse input, call twoSum, print output\\n    return 0;\\n}" }
     ],
     "testCases": [
       { "input": "test input", "expectedOutput": "expected output" },
@@ -1048,7 +1072,7 @@ For Coding Challenges:
     "comparisonMode": "trimmed"
   }
 }
-*Note for coding*: If explicit test cases aren't in the document, use the examples as testCases and generate at least one plausible additional testCase based on the problem description. You MUST also generate starterCode and driverCode for exactly 5 languages: java, cpp, javascript, python, c. driverCode should have {{USER_CODE}} as placeholder.
+*Note for coding*: If explicit test cases aren't in the document, use the examples as testCases and generate at least one plausible additional testCase based on the problem description. You MUST also generate starterCode and driverCode for exactly 5 languages: java, cpp, javascript, python, c. driverCode should have {{STUDENT_BODY}} as placeholder.
 
 ${contentHeader}
 
