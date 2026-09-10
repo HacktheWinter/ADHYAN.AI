@@ -55,6 +55,79 @@ const CustomSelect = ({ value, onChange, options }) => {
   );
 };
 
+const ExpandableTextarea = ({ value, onChange, placeholder }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (textareaRef.current && !isExpanded) {
+      textareaRef.current.style.height = 'auto';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      // Auto-grow up to 150px
+      textareaRef.current.style.height = Math.min(scrollHeight, 150) + 'px';
+    }
+  }, [value, isExpanded]);
+
+  return (
+    <>
+      <div className="relative group">
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 outline-none resize-none text-sm transition-all overflow-hidden"
+          style={{ minHeight: '6rem' }}
+        />
+        <button
+          type="button"
+          onClick={() => setIsExpanded(true)}
+          className="absolute top-2 right-2 p-1.5 bg-white shadow-sm border border-gray-200 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+          title="Expand to Full Screen"
+        >
+          <Maximize2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-600" />
+                Edit Question Text
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
+              >
+                <Minimize2 className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 flex-1 flex flex-col">
+              <textarea
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                placeholder={placeholder}
+                className="w-full h-full p-6 border-2 border-indigo-100 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 outline-none resize-none text-base leading-relaxed transition-all shadow-inner"
+              />
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-200 transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                <CheckCircle className="w-5 h-5" /> Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 const emptyCoding = {
   title: "",
   description: "",
@@ -950,11 +1023,10 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated, showToast }) => {
                           {q.type === 'mcq' ? (
                             // MCQ Editor
                             <div className="space-y-4">
-                              <textarea
+                              <ExpandableTextarea
                                 value={q.question}
-                                onChange={(e) => updateQuestion(sIdx, qIdx, "question", e.target.value)}
+                                onChange={(val) => updateQuestion(sIdx, qIdx, "question", val)}
                                 placeholder="Enter your question text here..."
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 outline-none resize-none h-24 text-sm transition-all"
                               />
                               <div className="space-y-2">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
