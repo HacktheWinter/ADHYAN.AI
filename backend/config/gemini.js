@@ -761,6 +761,8 @@ RULES FOR EXAMPLES:
 - "input" should be human-readable (e.g. "nums = [2,7,11,15], target = 9").
 - "output" should show the expected result (e.g. "[0,1]").
 - "explanation" should walk through the logic step by step.
+- CRITICAL: Use 0-based indexing for all arrays and strings. NEVER use 1-based indexing.
+- CRITICAL: "input" MUST explicitly include ALL function parameters (e.g. for binary search, include BOTH the array and the target).
 
 RULES FOR CONSTRAINTS:
 - At least 2 constraints per question.
@@ -1173,9 +1175,9 @@ For Coding Challenges:
     "description": "Full problem description",
     "examples": [
       {
-        "input": "Example input",
+        "input": "Example input (MUST include ALL required parameters, e.g., nums=[1,2], target=3)",
         "output": "Example output",
-        "explanation": "Explanation if any"
+        "explanation": "Explanation if any (CRITICAL: Use 0-based indexing for all array/string positions)"
       }
     ],
     "constraints": ["Constraint 1", "Constraint 2"], // If none found, provide ["N/A"]
