@@ -672,6 +672,8 @@ export const generateCodingFromTopics = async (topics, config = {}) => {
   const questionCount = config.questionCount || 3;
   const difficulty = config.difficulty || "mixed";
 
+  const REQUIRED_LANGUAGES = ["java", "cpp", "javascript", "python", "c"];
+
   let attempts = 0;
 
   while (attempts < MAX_TRANSIENT_RETRIES) {
@@ -687,58 +689,89 @@ export const generateCodingFromTopics = async (topics, config = {}) => {
         : `All questions should be ${difficulty.toUpperCase()} difficulty level`;
 
       const prompt = `
-You are an expert programming challenge creator.
-Generate exactly ${questionCount} coding challenge(s) based on the following topics.
+You are an expert competitive-programming problem setter.
+Generate exactly ${questionCount} coding challenge(s) on these topics: ${topicsText}
 
-CRITICAL JSON RULES:
-1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
-2. For newlines inside JSON string values, use the escape sequence \\n (backslash-n).
-3. For indentation inside JSON string values, use spaces after each \\n, e.g. \\n    (4 spaces for one level of indentation).
-4. Escape all double quotes within text.
-5. NEVER put all code on a single line - code MUST be properly formatted with newlines and indentation.
+${difficultyInstruction}
 
-TOPICS:
-${topicsText}
+RETURN FORMAT — strict JSON, no markdown, no backticks.
+The response MUST be: { "questions": [ ... ] }
 
-REQUIREMENTS:
-1. Generate EXACTLY ${questionCount} coding challenge(s)
-2. ${difficultyInstruction}
-3. Each challenge must have a clear problem statement, examples, constraints, and test cases
-4. Include both public and hidden test cases
-5. Provide BOTH starterCode (boilerplate for student) AND driverCode (hidden main function that calls the student's code) for EXACTLY 5 languages: java, cpp, javascript, python, c. The driverCode must contain the placeholder "{{STUDENT_BODY}}" where the student's function will be injected.
-6. Provide a referenceSolution written in C++ that is a perfect working implementation of the starterCode.
-7. ALL CODE must be properly formatted with correct newlines (\\n) and indentation (spaces). Each statement, brace, and block MUST be on its own line. Do NOT put entire classes/functions on a single line.
+Each element of "questions" MUST have this EXACT shape:
+{
+  "type": "coding",
+  "marks": 5,
+  "coding": {
+    "title": "<short title>",
+    "description": "<full problem statement, at least 2-3 sentences>",
+    "examples": [
+      { "input": "<human-readable input description>", "output": "<expected output>", "explanation": "<step-by-step explanation>" }
+    ],
+    "constraints": ["<constraint 1>", "<constraint 2>"],
+    "starterCode": [
+      { "language": "java", "code": "<java starter>" },
+      { "language": "cpp", "code": "<cpp starter>" },
+      { "language": "javascript", "code": "<js starter>" },
+      { "language": "python", "code": "<python starter>" },
+      { "language": "c", "code": "<c starter>" }
+    ],
+    "driverCode": [
+      { "language": "java", "code": "<java driver>" },
+      { "language": "cpp", "code": "<cpp driver>" },
+      { "language": "javascript", "code": "<js driver>" },
+      { "language": "python", "code": "<python driver>" },
+      { "language": "c", "code": "<c driver>" }
+    ],
+    "testCases": [
+      { "input": "<raw stdin text>", "expectedOutput": "<raw expected stdout>" }
+    ],
+    "comparisonMode": "trimmed"
+  }
+}
 
-CRITICAL FUNCTION MODE DRIVER RULES:
-- The driverCode will be executed by an online judge.
-- The driver MUST dynamically read ALL function inputs from stdin.
-- NEVER hardcode example inputs in main().
-- NEVER use fixed values such as vector<int> nums = {1,2,3}; Those values are examples only and MUST NOT appear as actual arguments in main().
-- The same driverCode must work with EVERY test case generated.
-- The driver must: (1) read input from stdin, (2) parse args, (3) call student function, (4) print result.
-- Language specific requirements:
-  - C++: Use cin
-  - C: Use scanf
-  - Java: Use Scanner or BufferedReader
-  - Python: Use sys.stdin.read().split()
-  - JavaScript: Use fs.readFileSync(0, 'utf8')
-- Before returning the JSON, verify that changing stdin would cause the student function to receive the changed values.
+RULES FOR STARTER CODE:
+- Contains ONLY the function/class signature with an empty body and a comment "// Write your solution here" (or # for Python).
+- Java: class Solution with a public method.
+- C++: class Solution with a public method.
+- JavaScript: a standalone function.
+- Python: a standalone function using def.
+- C: a standalone function.
+- The student fills in the body. Do NOT include a main function in starter code.
 
-NEVER TRUST YOUR OWN EXPECTED OUTPUT:
-- You frequently hallucinate mathematically incorrect expectedOutput values for edge cases.
-- Do your best to calculate expectedOutput, but know it will be overridden by our deterministic Judge0 execution pipeline using your referenceSolution.
+RULES FOR DRIVER CODE (CRITICAL — FOLLOW EXACTLY):
+- Every driver code string MUST contain the literal text {{STUDENT_BODY}} — this is where the student's code is injected at runtime.
+- The driver code wraps {{STUDENT_BODY}} with imports, a main function that reads ALL inputs from stdin, calls the student's function, and prints the result to stdout.
+- NEVER hardcode test inputs. The driver MUST read from stdin dynamically so it works for every test case.
+- Language specifics:
+  * C++: use cin/getline. Include <iostream>, <vector>, <string>, <sstream>, <algorithm> as needed.
+  * Java: use Scanner. The class containing main MUST be named Main. {{STUDENT_BODY}} goes BEFORE public class Main.
+  * JavaScript: use require('fs').readFileSync(0,'utf8'). {{STUDENT_BODY}} goes at the top.
+  * Python: use sys.stdin or input(). {{STUDENT_BODY}} goes at the top, then if __name__=='__main__' block.
+  * C: use scanf/fgets. Include <stdio.h>, <stdlib.h>, <string.h> as needed.
 
-CODE FORMATTING RULES (CRITICAL - FOLLOW EXACTLY):
-- Each opening brace { must be followed by \\n
-- Each closing brace } must be on its own line
-- Each statement must end with \\n
-- Use 4 spaces for indentation in Java, C, C++, JavaScript
-- Use 4 spaces for indentation in Python
-- Method/function signatures must be on their own line
-- Class declarations must be on their own line
-- Import statements must each be on their own line
+RULES FOR TEST CASES:
+- At least 3 test cases per question.
+- "input" is the raw text fed to stdin. Use \\n for newlines inside the string.
+- "expectedOutput" is the exact text the program should print to stdout.
+- Include edge cases (empty input, single element, large values, etc.)
+- Make sure expectedOutput is mathematically correct. Double-check your arithmetic.
 
-RESPONSE FORMAT (Valid JSON only):
+RULES FOR EXAMPLES:
+- At least 1 example per question.
+- "input" should be human-readable (e.g. "nums = [2,7,11,15], target = 9").
+- "output" should show the expected result (e.g. "[0,1]").
+- "explanation" should walk through the logic step by step.
+
+RULES FOR CONSTRAINTS:
+- At least 2 constraints per question.
+- Use standard competitive-programming notation (e.g. "1 <= n <= 10^5").
+
+CODE FORMATTING:
+- Use \\n for newlines inside JSON string values.
+- Use spaces (4 per level) for indentation after each \\n.
+- Every code value MUST be multi-line. NEVER put an entire function on one line.
+
+COMPLETE WORKING EXAMPLE (follow this pattern exactly):
 {
   "questions": [
     {
@@ -746,56 +779,57 @@ RESPONSE FORMAT (Valid JSON only):
       "marks": 5,
       "coding": {
         "title": "Two Sum",
-        "description": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+        "description": "Given an array of integers nums and an integer target, return the indices of the two numbers that add up to target. Each input has exactly one solution. You may not use the same element twice. Return the answer in ascending order.",
         "examples": [
           {
             "input": "nums = [2,7,11,15], target = 9",
-            "output": "[0,1]",
-            "explanation": "Because nums[0] + nums[1] == 9, we return [0, 1]."
+            "output": "[0, 1]",
+            "explanation": "nums[0] + nums[1] = 2 + 7 = 9, so we return [0, 1]."
+          },
+          {
+            "input": "nums = [3,2,4], target = 6",
+            "output": "[1, 2]",
+            "explanation": "nums[1] + nums[2] = 2 + 4 = 6, so we return [1, 2]."
           }
         ],
-        "constraints": ["2 <= nums.length <= 10^4", "-10^9 <= nums[i] <= 10^9"],
-        "allowedLanguages": ["java", "cpp", "javascript", "python", "c"],
+        "constraints": ["2 <= nums.length <= 10^4", "-10^9 <= nums[i] <= 10^9", "Exactly one valid answer exists."],
         "starterCode": [
-          { "language": "java", "code": "class Solution {\\n    public int[] twoSum(int[] nums, int target) {\\n        // Write your solution here\\n    }\\n}" },
-          { "language": "cpp", "code": "class Solution {\\npublic:\\n    vector<int> twoSum(vector<int>& nums, int target) {\\n        // Write your solution here\\n    }\\n};" },
-          { "language": "javascript", "code": "function twoSum(nums, target) {\\n    // Write your solution here\\n}" },
+          { "language": "java", "code": "class Solution {\\n    public int[] twoSum(int[] nums, int target) {\\n        // Write your solution here\\n        return new int[]{};\\n    }\\n}" },
+          { "language": "cpp", "code": "#include <vector>\\nusing namespace std;\\n\\nclass Solution {\\npublic:\\n    vector<int> twoSum(vector<int>& nums, int target) {\\n        // Write your solution here\\n        return {};\\n    }\\n};" },
+          { "language": "javascript", "code": "function twoSum(nums, target) {\\n    // Write your solution here\\n    return [];\\n}" },
           { "language": "python", "code": "def twoSum(nums, target):\\n    # Write your solution here\\n    pass" },
-          { "language": "c", "code": "int* twoSum(int* nums, int numsSize, int target, int* returnSize) {\\n    // Write your solution here\\n}" }
+          { "language": "c", "code": "#include <stdlib.h>\\n\\nint* twoSum(int* nums, int numsSize, int target, int* returnSize) {\\n    // Write your solution here\\n    *returnSize = 0;\\n    return NULL;\\n}" }
         ],
         "driverCode": [
-          { "language": "java", "code": "import java.util.*;\\n\\n{{STUDENT_BODY}}\\n\\npublic class Main {\\n    public static void main(String[] args) {\\n        Scanner sc = new Scanner(System.in);\\n        // Parse input and call solution\\n    }\\n}" },
-          { "language": "cpp", "code": "#include <iostream>\\n#include <vector>\\nusing namespace std;\\n\\n{{STUDENT_BODY}}\\n\\nint main() {\\n    // Parse input, call solution, print output\\n    return 0;\\n}" },
-          { "language": "javascript", "code": "{{STUDENT_BODY}}\\n\\nconst readline = require('readline');\\n// Parse input, call function, print output" },
-          { "language": "python", "code": "import sys\\n\\n{{STUDENT_BODY}}\\n\\nif __name__ == '__main__':\\n    # Parse input, call function, print output\\n    pass" },
-          { "language": "c", "code": "#include <stdio.h>\\n#include <stdlib.h>\\n\\n{{STUDENT_BODY}}\\n\\nint main() {\\n    // Parse input, call function, print output\\n    return 0;\\n}" }
+          { "language": "java", "code": "import java.util.*;\\n\\n{{STUDENT_BODY}}\\n\\npublic class Main {\\n    public static void main(String[] args) {\\n        Scanner sc = new Scanner(System.in);\\n        int n = sc.nextInt();\\n        int[] nums = new int[n];\\n        for (int i = 0; i < n; i++) nums[i] = sc.nextInt();\\n        int target = sc.nextInt();\\n        Solution sol = new Solution();\\n        int[] result = sol.twoSum(nums, target);\\n        System.out.println(result[0] + \\" \\" + result[1]);\\n    }\\n}" },
+          { "language": "cpp", "code": "#include <iostream>\\n#include <vector>\\nusing namespace std;\\n\\n{{STUDENT_BODY}}\\n\\nint main() {\\n    int n;\\n    cin >> n;\\n    vector<int> nums(n);\\n    for (int i = 0; i < n; i++) cin >> nums[i];\\n    int target;\\n    cin >> target;\\n    Solution sol;\\n    vector<int> result = sol.twoSum(nums, target);\\n    cout << result[0] << \\" \\" << result[1] << endl;\\n    return 0;\\n}" },
+          { "language": "javascript", "code": "const fs = require('fs');\\nconst input = fs.readFileSync(0, 'utf8').trim().split('\\\\n');\\n\\n{{STUDENT_BODY}}\\n\\nconst n = parseInt(input[0]);\\nconst nums = input[1].split(' ').map(Number);\\nconst target = parseInt(input[2]);\\nconst result = twoSum(nums, target);\\nconsole.log(result.join(' '));" },
+          { "language": "python", "code": "import sys\\n\\n{{STUDENT_BODY}}\\n\\nif __name__ == '__main__':\\n    data = sys.stdin.read().split()\\n    n = int(data[0])\\n    nums = list(map(int, data[1:n+1]))\\n    target = int(data[n+1])\\n    result = twoSum(nums, target)\\n    print(*result)" },
+          { "language": "c", "code": "#include <stdio.h>\\n#include <stdlib.h>\\n\\n{{STUDENT_BODY}}\\n\\nint main() {\\n    int n;\\n    scanf(\\"%d\\", &n);\\n    int* nums = (int*)malloc(n * sizeof(int));\\n    for (int i = 0; i < n; i++) scanf(\\"%d\\", &nums[i]);\\n    int target;\\n    scanf(\\"%d\\", &target);\\n    int returnSize;\\n    int* result = twoSum(nums, n, target, &returnSize);\\n    printf(\\"%d %d\\\\n\\", result[0], result[1]);\\n    free(nums);\\n    free(result);\\n    return 0;\\n}" }
         ],
         "testCases": [
-          { "input": "2 7 11 15\\n9", "expectedOutput": "0 1" },
-          { "input": "3 2 4\\n6", "expectedOutput": "1 2" },
-          { "input": "3 3\\n6", "expectedOutput": "0 1" }
+          { "input": "4\\n2 7 11 15\\n9", "expectedOutput": "0 1" },
+          { "input": "3\\n3 2 4\\n6", "expectedOutput": "1 2" },
+          { "input": "2\\n3 3\\n6", "expectedOutput": "0 1" }
         ],
-        "comparisonMode": "trimmed",
-        "referenceSolution": "class Solution {\\npublic:\\n    vector<int> twoSum(vector<int>& nums, int target) {\\n        vector<int> res;\\n        // ... logic ...\\n        return res;\\n    }\\n};"
+        "comparisonMode": "trimmed"
       }
     }
   ]
 }
 
-IMPORTANT:
-- Return ONLY valid JSON
-- No markdown, no code blocks, no extra text
-- Exactly ${questionCount} coding challenge(s)
-- Each challenge must have at least 3 test cases
-- starterCode and driverCode MUST contain EXACTLY these 5 languages: "java", "cpp", "javascript", "python", "c".
-- ALL code in starterCode and driverCode MUST be multi-line with proper indentation using \\n and spaces. NEVER generate single-line code.
-`;
+DO NOT include the above Two Sum example in your output — it is only shown to demonstrate the exact format. Generate ORIGINAL challenges on the requested topics.
+
+Now generate exactly ${questionCount} ORIGINAL coding challenge(s). Return ONLY the JSON object.`;
 
       console.log(" Sending request to Gemini for coding questions...");
 
       const model = getModel();
       const chatSession = model.startChat({
-        generationConfig,
+        generationConfig: {
+          ...generationConfig,
+          maxOutputTokens: 32768, // Coding questions need more tokens
+        },
         history: [],
       });
 
@@ -817,6 +851,7 @@ IMPORTANT:
         parsedResponse = JSON.parse(cleanedResponse);
       } catch (err) {
         console.error("JSON Parse Error:", err.message);
+        console.error("Response preview:", cleanedResponse.substring(0, 500));
         throw new Error("Invalid JSON response from AI");
       }
 
@@ -824,26 +859,107 @@ IMPORTANT:
         throw new Error("Invalid response format (questions missing)");
       }
 
-      const validQuestions = normalizeCodeFormatting(
-        parsedResponse.questions.filter((q) => {
-          return (
-            q.type === "coding" &&
-            q.coding &&
-            q.coding.title &&
-            q.coding.description &&
-            Array.isArray(q.coding.testCases) &&
-            q.coding.testCases.length > 0
-          );
-        })
-      );
+      // ── Post-process and sanitize every question ────────────────
+      const sanitizedQuestions = [];
+
+      for (const q of parsedResponse.questions) {
+        if (q.type !== "coding" || !q.coding) continue;
+        const c = q.coding;
+
+        // Must have title and description
+        if (!c.title || !c.description) continue;
+
+        // Ensure examples array
+        if (!Array.isArray(c.examples) || c.examples.length === 0) {
+          c.examples = [{ input: "", output: "", explanation: "" }];
+        }
+
+        // Ensure constraints array
+        if (!Array.isArray(c.constraints) || c.constraints.length === 0) {
+          c.constraints = ["No constraints specified"];
+        }
+
+        // Ensure testCases array with proper shape
+        const rawTestCases = c.testCases || c.hiddenTestCases || c.publicTestCases || [];
+        c.testCases = rawTestCases
+          .filter(tc => tc && (tc.input !== undefined))
+          .map(tc => ({
+            input: String(tc.input || ""),
+            expectedOutput: String(tc.expectedOutput || tc.expected_output || tc.output || ""),
+          }));
+        if (c.testCases.length === 0) {
+          c.testCases = [{ input: "", expectedOutput: "" }];
+        }
+        delete c.hiddenTestCases;
+        delete c.publicTestCases;
+
+        // Ensure starterCode has all 5 languages
+        if (!Array.isArray(c.starterCode)) c.starterCode = [];
+        for (const lang of REQUIRED_LANGUAGES) {
+          const exists = c.starterCode.find(s => s.language === lang);
+          if (!exists) {
+            const placeholder = lang === "python"
+              ? `def solution():\\n    # Write your solution here\\n    pass`
+              : lang === "java"
+              ? `class Solution {\\n    // Write your solution here\\n}`
+              : lang === "cpp"
+              ? `class Solution {\\npublic:\\n    // Write your solution here\\n};`
+              : lang === "c"
+              ? `// Write your solution here`
+              : `function solution() {\\n    // Write your solution here\\n}`;
+            c.starterCode.push({ language: lang, code: placeholder });
+          }
+        }
+
+        // Ensure driverCode has all 5 languages with {{STUDENT_BODY}}
+        if (!Array.isArray(c.driverCode)) c.driverCode = [];
+        for (const lang of REQUIRED_LANGUAGES) {
+          const entry = c.driverCode.find(d => d.language === lang);
+          if (entry) {
+            // Fix if AI used {{USER_CODE}} instead of {{STUDENT_BODY}}
+            if (entry.code && !entry.code.includes("{{STUDENT_BODY}}")) {
+              entry.code = entry.code.replace(/\{\{USER_CODE\}\}/g, "{{STUDENT_BODY}}");
+            }
+            // If still missing, prepend it
+            if (entry.code && !entry.code.includes("{{STUDENT_BODY}}")) {
+              entry.code = "{{STUDENT_BODY}}\\n\\n" + entry.code;
+            }
+          } else {
+            // Add a minimal placeholder driver
+            const placeholder = lang === "python"
+              ? `import sys\\n\\n{{STUDENT_BODY}}\\n\\nif __name__ == '__main__':\\n    pass`
+              : lang === "java"
+              ? `import java.util.*;\\n\\n{{STUDENT_BODY}}\\n\\npublic class Main {\\n    public static void main(String[] args) {\\n        // TODO: Read input, call solution, print output\\n    }\\n}`
+              : lang === "cpp"
+              ? `#include <iostream>\\nusing namespace std;\\n\\n{{STUDENT_BODY}}\\n\\nint main() {\\n    // TODO: Read input, call solution, print output\\n    return 0;\\n}`
+              : lang === "javascript"
+              ? `const fs = require('fs');\\nconst input = fs.readFileSync(0, 'utf8').trim().split('\\\\n');\\n\\n{{STUDENT_BODY}}\\n\\n// TODO: Parse input, call function, print output`
+              : `#include <stdio.h>\\n#include <stdlib.h>\\n\\n{{STUDENT_BODY}}\\n\\nint main() {\\n    // TODO: Read input, call function, print output\\n    return 0;\\n}`;
+            c.driverCode.push({ language: lang, code: placeholder });
+          }
+        }
+
+        // Set comparisonMode
+        c.comparisonMode = c.comparisonMode || "trimmed";
+
+        // Set allowedLanguages
+        c.allowedLanguages = REQUIRED_LANGUAGES;
+
+        // Strip referenceSolution (not needed without Judge0 validation)
+        delete c.referenceSolution;
+
+        sanitizedQuestions.push({
+          type: "coding",
+          marks: q.marks || 5,
+          coding: c,
+        });
+      }
+
+      // Apply code formatting normalization
+      const validQuestions = normalizeCodeFormatting(sanitizedQuestions);
 
       if (validQuestions.length === 0) {
         throw new Error("No valid coding questions generated");
-      }
-      
-      // Strip referenceSolution from output to prevent DB bloat
-      for (const q of validQuestions) {
-        if (q.coding) delete q.coding.referenceSolution;
       }
 
       console.log(`Generated ${validQuestions.length} valid coding questions from topics`);
@@ -864,6 +980,19 @@ IMPORTANT:
           await wait(backoffMs);
           continue;
         }
+      }
+
+      // Retry on AI output quality issues (bad JSON, missing fields, etc.)
+      const isOutputQualityError =
+        error.message.includes("Invalid JSON") ||
+        error.message.includes("questions missing") ||
+        error.message.includes("No valid coding");
+
+      if (isOutputQualityError && attempts < MAX_TRANSIENT_RETRIES) {
+        console.log(` AI produced unusable output (attempt ${attempts}/${MAX_TRANSIENT_RETRIES}). Retrying...`);
+        rotateApiKey();
+        await wait(1500);
+        continue;
       }
 
       throw error;
