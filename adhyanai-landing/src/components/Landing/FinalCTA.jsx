@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Wand2, Sparkles } from 'lucide-react';
-import ParticleCanvas from './animation/ParticleCanvas';
 
 const FinalCTA = () => {
   const STUDENT_URL = import.meta.env.VITE_STUDENT_URL || "https://student.adhyanai.tech/";
@@ -9,13 +8,6 @@ const FinalCTA = () => {
 
   return (
     <section className="py-24 sm:py-32 relative overflow-hidden bg-gray-950">
-      {/* Background Interactive Antigravity Particles (Repel Mode) */}
-      <ParticleCanvas
-        particleCount={45}
-        particleColor="rgba(192, 132, 252, 0.35)"
-        lineColor="rgba(147, 51, 234, 0.12)"
-        interactionMode="repel"
-      />
 
       {/* Background radiant aura glow */}
       <div className="absolute inset-0 pointer-events-none -z-10">

@@ -30,14 +30,17 @@ const StudentCalendarPage = lazy(() => import("./Pages/StudentCalendarPage"));
 const SettingsPage = lazy(() => import("./Pages/SettingsPage"));
 function StudentLayout() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   return (
     <>
       <StudentNavbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        isMobileSearchOpen={isMobileSearchOpen}
+        onMobileSearchChange={setIsMobileSearchOpen}
       />
-      <Outlet context={{ searchQuery, setSearchQuery }} />
+      <Outlet context={{ searchQuery, setSearchQuery, isMobileSearchOpen }} />
     </>
   );
 }

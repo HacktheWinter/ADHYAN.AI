@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, LogOut, Settings, User, UserPlus, Trash2, Bell, MoreVertical, MessageSquare, HelpCircle, Sun, Moon } from 'lucide-react';
+import { LogIn, LogOut, Settings, User, UserPlus, Trash2, Bell, MoreVertical, MessageSquare, HelpCircle, Sun, Moon, Download } from 'lucide-react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clearAuth, getStoredUser } from '../utils/authStorage';
 import API_BASE_URL, { LANDING_PAGE_URL } from '../config';
+import { subscribeToPWAInstall, triggerInstall } from '../utils/pwaInstall';
+import ConfirmationCard from './ConfirmationCard';
 
-let globalTheme = 'light';
+let globalTheme = localStorage.getItem('theme') || 'light';
 
 const Header = ({ onLogoClick }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -22,6 +24,13 @@ const Header = ({ onLogoClick }) => {
     return globalTheme;
   });
   
+  const [canInstall, setCanInstall] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
+  useEffect(() => {
+    return subscribeToPWAInstall(setCanInstall);
+  }, []);
+
   // Custom dynamic notifications list state
   const [notifications, setNotifications] = useState([]);
 
@@ -160,6 +169,7 @@ const Header = ({ onLogoClick }) => {
     clearAuth();
     setUser(null);
     setIsDropdownOpen(false);
+    setShowLogoutConfirm(false);
     navigate('/login');
   };
 
@@ -397,8 +407,22 @@ const Header = ({ onLogoClick }) => {
                             </div>
 
                             <div className="border-t border-line py-2">
+                              {canInstall && (
+                                <button
+                                  onClick={() => {
+                                    setIsDropdownOpen(false);
+                                    triggerInstall();
+                                  }}
+                                  className="dropdown-item w-full flex items-center px-4 py-2 text-sm text-ink transition-colors text-left cursor-pointer"
+                                >
+                                  <Download className="w-4 h-4 mr-3" /> Install App
+                                </button>
+                              )}
                               <button
-                                onClick={handleLogout}
+                                onClick={() => {
+                                  setIsDropdownOpen(false);
+                                  setShowLogoutConfirm(true);
+                                }}
                                 className="dropdown-item-danger w-full flex items-center px-4 py-2 text-sm text-rose-600 dark:text-rose-400 transition-colors text-left cursor-pointer"
                               >
                                 <LogOut className="w-4 h-4 mr-3" /> Logout
@@ -439,6 +463,18 @@ const Header = ({ onLogoClick }) => {
           </div>
         </div>
       </header>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmationCard
+        isOpen={showLogoutConfirm}
+        title="Logout"
+        message="Are you sure you want to logout? You will need to sign in again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+        type="warning"
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </>
   );
 };

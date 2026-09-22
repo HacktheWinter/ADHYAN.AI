@@ -6,14 +6,24 @@ import axios from 'axios';
 import Header from '../components/Header';
 import { getStoredToken, getStoredUser, clearAuth } from '../utils/authStorage';
 import API_BASE_URL from '../config';
+import { subscribeToPWAInstall, triggerInstall } from '../utils/pwaInstall';
+import ConfirmationCard from '../components/ConfirmationCard';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const [activeForm, setActiveForm] = useState('list'); // 'list' | 'password' | 'delete'
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Theme state
   const [isDarkTheme, setIsDarkTheme] = useState(() => document.documentElement.classList.contains('dark'));
   
+  const [canInstall, setCanInstall] = useState(false);
+  
+  React.useEffect(() => {
+    const unsubscribe = subscribeToPWAInstall(setCanInstall);
+    return () => unsubscribe();
+  }, []);
+
   React.useEffect(() => {
     const handleThemeChange = () => {
       setIsDarkTheme(document.documentElement.classList.contains('dark'));
@@ -299,6 +309,26 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {canInstall && (
+          <>
+            <h2 className="font-display text-2xl font-semibold mb-4 mt-8">Application</h2>
+            <div className="bg-surface border border-line rounded-2xl p-6 shadow-sm mb-8">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1 pr-4">
+                  <strong className="text-sm sm:text-base text-ink font-semibold">Install App</strong>
+                  <span className="text-xs sm:text-sm text-ink-soft">Install ADHYAN.AI on your device for a better experience</span>
+                </div>
+                <button
+                  onClick={triggerInstall}
+                  className="btn-settings-blue"
+                >
+                  Download App
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Section 3: Account */}
         <h2 className="font-display text-2xl font-semibold mb-4">Account</h2>
 
@@ -412,7 +442,7 @@ export default function SettingsPage() {
           <div className="bg-surface border border-line rounded-2xl p-4 sm:p-5 flex items-center justify-between shadow-sm">
             <strong className="text-sm sm:text-base text-ink font-bold">Logout</strong>
             <button 
-              onClick={handleLogout} 
+              onClick={() => setShowLogoutConfirm(true)} 
               className="btn-settings-blue"
             >
               Logout
@@ -507,6 +537,18 @@ export default function SettingsPage() {
         </div>
 
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmationCard
+        isOpen={showLogoutConfirm}
+        title="Logout"
+        message="Are you sure you want to logout? You will need to sign in again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+        type="warning"
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </div>
   );
 }

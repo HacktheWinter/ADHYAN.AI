@@ -10,7 +10,6 @@ import { getStoredUser } from "../utils/authStorage";
 import SeminarQRGenerator from "../components/SeminarQRGenerator";
 import ToastNotification from "../components/ToastNotification";
 import ConfirmationCard from "../components/ConfirmationCard";
-import PWAInstallPrompt from "../components/PWAInstallPrompt";
 import { QrCode, ClipboardList, Plus, SlidersHorizontal, ChevronDown } from "lucide-react";
 
 const containerVariants = {
@@ -578,9 +577,6 @@ const Dashboard = () => {
         onConfirm={confirmDialog.onConfirm}
         onCancel={closeConfirm}
       />
-      
-      {/* PWA Install Prompt */}
-      <PWAInstallPrompt />
     </div>
   );
 };

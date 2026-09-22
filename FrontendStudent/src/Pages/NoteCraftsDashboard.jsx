@@ -17,7 +17,6 @@ import { getStoredUser } from "../utils/authStorage";
 import API_BASE_URL from "../config";
 import { getAllThemes } from "../data/themeData";
 import SeminarQRScanner from "../components/SeminarQRScanner";
-import PWAInstallPrompt from "../components/PWAInstallPrompt";
 
 export default function NoteCraftsDashboard() {
   const navigate = useNavigate();
@@ -32,7 +31,7 @@ export default function NoteCraftsDashboard() {
 
   const user = getStoredUser() || {};
   const studentId = user.id || user._id;
-  const { searchQuery = "" } = useOutletContext() || {};
+  const { searchQuery = "", isMobileSearchOpen = false } = useOutletContext() || {};
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredCourses = normalizedQuery
@@ -333,7 +332,7 @@ export default function NoteCraftsDashboard() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 sm:mb-10">
+        <div className={`flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8 sm:mb-10 ${isMobileSearchOpen ? 'hidden sm:flex' : ''}`}>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
               My Courses
@@ -542,7 +541,6 @@ export default function NoteCraftsDashboard() {
       {showSeminarScanner && (
         <SeminarQRScanner onClose={() => setShowSeminarScanner(false)} />
       )}
-      <PWAInstallPrompt />
     </div>
   );
 }

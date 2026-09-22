@@ -569,7 +569,13 @@ const AssignmentsPage = () => {
             </div>
 
             {showTopicsInput ? (
-              <TopicsInputCard topics={topics} setTopics={setTopics} />
+              <TopicsInputCard 
+                topics={topics} 
+                onAddTopic={(t) => setTopics([...topics, t])}
+                onRemoveTopic={(idx) => setTopics(topics.filter((_, i) => i !== idx))}
+                onBack={handleToggleTopicsInput}
+                isGenerating={isGenerating}
+              />
             ) : (
               <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                 {loadingNotes ? (
