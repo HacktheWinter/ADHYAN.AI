@@ -223,6 +223,34 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
         })
       }));
       setSections(mapped);
+    } else if (quiz.questions && quiz.questions.length > 0) {
+      const mappedQuestions = quiz.questions.map(q => {
+        let correctOptionIndex = null;
+        if (q.type === 'mcq' && q.options) {
+          correctOptionIndex = q.options.indexOf(q.correctAnswer);
+          if (correctOptionIndex === -1) correctOptionIndex = null;
+        }
+        return {
+          ...emptyQuestion(q.type || 'mcq'),
+          ...q,
+          coding: q.type === 'coding' ? {
+            ...emptyCoding,
+            ...q.coding,
+            testCases: q.coding?.testCases?.length > 0
+              ? q.coding.testCases
+              : [...(q.coding?.hiddenTestCases || []), ...(q.coding?.publicTestCases || [])].filter(tc => tc.input || tc.expectedOutput).length > 0
+                ? [...(q.coding?.hiddenTestCases || []), ...(q.coding?.publicTestCases || [])].filter(tc => tc.input || tc.expectedOutput)
+                : [{ input: "", expectedOutput: "" }]
+          } : undefined,
+          correctOptionIndex
+        };
+      });
+      setSections([{
+        title: "Section 1",
+        instructions: "",
+        type: "mcq",
+        questions: mappedQuestions
+      }]);
     } else {
       setSections([emptySection(0)]);
     }

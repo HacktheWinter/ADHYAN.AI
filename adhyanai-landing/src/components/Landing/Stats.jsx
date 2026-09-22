@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { UserCheck, School, FileCheck, Smile } from 'lucide-react';
-import ParticleCanvas from './animation/ParticleCanvas';
 
 // Smooth number counter from 0 to target value with easeOutExpo easing
 const AnimatedCounter = ({ target, suffix = '', duration = 2.2 }) => {
@@ -83,13 +82,7 @@ const Stats = () => {
 
   return (
     <section className="py-24 bg-gradient-to-br from-gray-950 via-indigo-950 to-purple-950 relative overflow-hidden">
-      {/* Background Particle Canvas (Ambient Subtle Drift) */}
-      <ParticleCanvas
-        particleCount={35}
-        particleColor="rgba(255, 255, 255, 0.18)"
-        lineColor="rgba(255, 255, 255, 0.05)"
-        interactionMode="none"
-      />
+
 
       {/* Background Ambient Glows */}
       <div className="absolute inset-0 opacity-20 pointer-events-none -z-10">

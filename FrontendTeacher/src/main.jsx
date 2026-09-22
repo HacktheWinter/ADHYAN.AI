@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import "./api/axios";
 import "./index.css";
+import "./utils/pwaInstall";
 
 const normalizeHashRoute = () => {
   const { hash, pathname, search } = window.location;

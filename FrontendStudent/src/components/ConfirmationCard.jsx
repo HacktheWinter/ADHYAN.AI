@@ -62,7 +62,7 @@ const ConfirmationCard = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-            className={`confirm-card relative bg-surface border border-line rounded-2xl shadow-2xl max-w-md w-[90%] mx-4 overflow-hidden ${config.darkClass}`}
+            className={`confirm-card relative bg-white border border-line rounded-2xl shadow-2xl max-w-md w-[90%] mx-4 overflow-hidden ${config.darkClass}`}
           >
             {/* Top accent line */}
             <div className={`h-1 w-full ${config.confirmBg.split(' ')[0]}`} />
@@ -94,7 +94,7 @@ const ConfirmationCard = ({
             </div>
 
             {/* Action row */}
-            <div className="flex items-center gap-3 px-6 py-4 bg-paper border-t border-line confirm-footer">
+            <div className="flex items-center gap-3 px-6 py-4 bg-gray-50 border-t border-line confirm-footer">
               <button
                 onClick={onCancel}
                 className="flex-1 px-4 py-2.5 bg-surface hover:bg-violet-50 border border-line rounded-xl text-sm font-bold text-ink transition-all cursor-pointer confirm-cancel-btn"

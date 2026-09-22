@@ -1,15 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, LogOut, Settings, User, UserPlus, X, Search, ArrowLeft } from 'lucide-react';
+import { LogIn, LogOut, Settings, User, UserPlus, X, Search, ArrowLeft, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import NotificationDropdown from './NotificationDropdown';
 import { clearAuth, getStoredUser, getStoredToken, getBrowserId } from '../utils/authStorage';
 import API_BASE_URL, { LANDING_PAGE_URL } from '../config';
+import ConfirmationCard from './ConfirmationCard';
+import { subscribeToPWAInstall, triggerInstall } from '../utils/pwaInstall';
 
-export default function StudentNavbar({ searchQuery = '', onSearchChange = () => {} }) {
+export default function StudentNavbar({ searchQuery = '', onSearchChange = () => {}, isMobileSearchOpen: isMobileSearchOpenProp, onMobileSearchChange }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isMobileSearchLocal, setIsMobileSearchLocal] = useState(false);
+  const isMobileSearchOpen = isMobileSearchOpenProp !== undefined ? isMobileSearchOpenProp : isMobileSearchLocal;
+  const setIsMobileSearchOpen = onMobileSearchChange || setIsMobileSearchLocal;
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [canInstall, setCanInstall] = useState(false);
   const [user, setUser] = useState(null);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -22,6 +28,10 @@ export default function StudentNavbar({ searchQuery = '', onSearchChange = () =>
     syncUser();
     window.addEventListener('storage', syncUser);
     return () => window.removeEventListener('storage', syncUser);
+  }, []);
+
+  useEffect(() => {
+    return subscribeToPWAInstall(setCanInstall);
   }, []);
 
   useEffect(() => {
@@ -254,8 +264,22 @@ export default function StudentNavbar({ searchQuery = '', onSearchChange = () =>
                           </div>
 
                           <div className="border-t border-gray-100 py-2">
+                            {canInstall && (
+                              <button
+                                onClick={() => {
+                                  setIsDropdownOpen(false);
+                                  triggerInstall();
+                                }}
+                                className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors focus:outline-none cursor-pointer"
+                              >
+                                <Download className="w-4 h-4 mr-3" /> Install App
+                              </button>
+                            )}
                             <button
-                              onClick={handleLogout}
+                              onClick={() => {
+                                setIsDropdownOpen(false);
+                                setShowLogoutConfirm(true);
+                              }}
                               className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors focus:outline-none cursor-pointer"
                             >
                               <LogOut className="w-4 h-4 mr-3" /> Logout
@@ -290,6 +314,18 @@ export default function StudentNavbar({ searchQuery = '', onSearchChange = () =>
           </div>
         </div>
       </nav>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmationCard
+        isOpen={showLogoutConfirm}
+        title="Logout"
+        message="Are you sure you want to logout? You will need to sign in again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+        type="warning"
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </>
   );
 }
