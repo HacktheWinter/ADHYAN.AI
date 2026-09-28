@@ -44,7 +44,7 @@ const Features = () => {
       featured: true,
       colSpan: "lg:col-span-2",
       preview: (
-        <div className="mt-4 bg-gray-950 rounded-2xl p-4 border border-gray-800 text-left shadow-inner">
+        <div className="mt-4 min-h-[130px] bg-gray-950 rounded-2xl p-4 border border-gray-800 text-left shadow-inner">
           <div className="flex items-center justify-between mb-2 text-xs text-gray-400 font-mono border-b border-gray-800 pb-2">
             <span className="text-purple-400">Input: Biology / Cellular Respiration</span>
             <span className="text-emerald-400 font-semibold">⚡ Generated in 0.8s</span>
@@ -79,7 +79,7 @@ const Features = () => {
       featured: true,
       colSpan: "lg:col-span-2",
       preview: (
-        <div className="mt-4 bg-gray-950 rounded-2xl p-4 border border-gray-800 text-left shadow-inner font-mono text-xs">
+        <div className="mt-4 min-h-[130px] bg-gray-950 rounded-2xl p-4 border border-gray-800 text-left shadow-inner font-mono text-xs">
           {/* Top IDE Window Header */}
           <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-gray-800 text-[11px] text-gray-400">
             <div className="flex items-center gap-2">
@@ -110,7 +110,7 @@ const Features = () => {
           {/* Test Case Execution Output Bar */}
           <div className="mt-3 pt-2.5 border-t border-gray-800 flex flex-wrap items-center justify-between gap-2 text-[11px]">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded">
+              <span className="inline-flex items-center gap-1 text-emerald-400 font-semibold bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded text-xs">
                 <CheckCircle2 size={12} /> 3/3 Testcases Passed
               </span>
               <span className="text-gray-500 hidden sm:inline">|</span>
@@ -143,7 +143,7 @@ const Features = () => {
       featured: true,
       colSpan: "lg:col-span-2",
       preview: (
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-gray-50 rounded-2xl p-3.5 border border-gray-200">
+        <div className="mt-4 min-h-[130px] grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-gray-50 rounded-2xl p-3.5 border border-gray-200">
           <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
             <div className="text-[11px] font-semibold text-gray-500 mb-1">Student Answer</div>
             <p className="text-xs text-gray-700 italic">"Mitochondria synthesizes ATP through oxidative phosphorylation..."</p>

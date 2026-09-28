@@ -1,7 +1,7 @@
 // FrontendTeacher/src/components/QuizzesPage.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles,
   Pencil,
@@ -317,30 +317,40 @@ const QuizzesPage = () => {
               <ChevronDown className="w-5 h-5 text-white" />
             </button>
 
-            {showCreateMenu && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-2xl border border-line p-1.5 z-50 overflow-hidden flex flex-col gap-1">
-                <button
-                  onClick={() => {
-                    setShowCreateMenu(false);
-                    handleOpenAIModal();
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+            <AnimatePresence>
+              {showCreateMenu && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-2xl border border-line p-1.5 z-50 overflow-hidden flex flex-col gap-1"
                 >
-                  <Sparkles className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
-                  <span>AI Quick Generate</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setShowCreateMenu(false);
-                    setShowManualModal(true);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Pencil className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
-                  <span>AI Custom Create</span>
-                </button>
-              </div>
-            )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      handleOpenAIModal();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
+                    <span>AI Quick Generate</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      setShowManualModal(true);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Pencil className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
+                    <span>AI Custom Create</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -538,9 +548,16 @@ const QuizzesPage = () => {
       )}
 
       {/* AI GENERATION MODAL */}
-      {showAIModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-surface border border-line rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <AnimatePresence>
+        {showAIModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-opacity duration-150">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="bg-surface border border-line rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+            >
             {/* Header */}
             <div className="p-6 border-b border-line flex items-center justify-between">
               <div>
@@ -729,6 +746,7 @@ const QuizzesPage = () => {
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={showTopicsInput ? handleGenerateFromTopics : handleGenerateWithAI}
                 disabled={
                   isGenerating ||
@@ -749,48 +767,58 @@ const QuizzesPage = () => {
                 )}
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
+    </AnimatePresence>
 
       {/* Create Manual Modal */}
-      {showManualModal && (
-        <CreateManualQuizModal
-          classId={classId}
-          onClose={() => setShowManualModal(false)}
-          onCreated={(newQuiz) => {
-            setShowManualModal(false);
-            setDrafts((prev) => [newQuiz, ...prev]);
-          }}
-          showToast={showToast}
-        />
-      )}
+      <AnimatePresence>
+        {showManualModal && (
+          <CreateManualQuizModal
+            key="manual-quiz-modal"
+            classId={classId}
+            onClose={() => setShowManualModal(false)}
+            onCreated={(newQuiz) => {
+              setShowManualModal(false);
+              setDrafts((prev) => [newQuiz, ...prev]);
+            }}
+            showToast={showToast}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Publish Modal */}
-      {showPublishModal && publishingQuiz && (
-        <PublishQuizModal
-          quiz={publishingQuiz}
-          onClose={() => {
-            setShowPublishModal(false);
-            setPublishingQuiz(null);
-          }}
-          onPublished={handlePublished}
-          showToast={showToast}
-        />
-      )}
+      <AnimatePresence>
+        {showPublishModal && publishingQuiz && (
+          <PublishQuizModal
+            key="publish-quiz-modal"
+            quiz={publishingQuiz}
+            onClose={() => {
+              setShowPublishModal(false);
+              setPublishingQuiz(null);
+            }}
+            onPublished={handlePublished}
+            showToast={showToast}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Edit Modal */}
-      {showEditModal && editingQuiz && (
-        <EditQuizModal
-          quiz={editingQuiz}
-          onClose={() => {
-            setShowEditModal(false);
-            setEditingQuiz(null);
-          }}
-          onSave={handleSaveQuiz}
-          showToast={showToast}
-        />
-      )}
+      <AnimatePresence>
+        {showEditModal && editingQuiz && (
+          <EditQuizModal
+            key="edit-quiz-modal"
+            quiz={editingQuiz}
+            onClose={() => {
+              setShowEditModal(false);
+              setEditingQuiz(null);
+            }}
+            onSave={handleSaveQuiz}
+            showToast={showToast}
+          />
+        )}
+      </AnimatePresence>
       
       {/* Toast Notification */}
       <ToastNotification message={toast.message} type={toast.type} onClose={clearToast} />

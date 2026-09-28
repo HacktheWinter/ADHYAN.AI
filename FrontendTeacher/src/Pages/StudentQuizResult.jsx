@@ -461,7 +461,7 @@ const StudentQuizResult = () => {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm sm:text-base text-ink mb-4">
+                  <p className="text-sm sm:text-base text-ink mb-4 whitespace-pre-wrap leading-relaxed">
                     {question.question}
                   </p>
 
@@ -524,7 +524,7 @@ const StudentQuizResult = () => {
                                   {isWrongSelection && "✗"}
                                   {isSelected && answer.isCorrect && "✓"}
                                 </span>
-                                <span className={isCorrect ? "text-green-800 dark:text-green-300" : isWrongSelection ? "text-rose-800 dark:text-rose-350" : "text-ink"}>
+                                <span className={`${isCorrect ? "text-green-800 dark:text-green-300" : isWrongSelection ? "text-rose-800 dark:text-rose-350" : "text-ink"} whitespace-pre-wrap leading-relaxed text-left`}>
                                   {option}
                                 </span>
                                 {isCorrect && isSelected && (

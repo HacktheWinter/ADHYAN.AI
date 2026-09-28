@@ -1,5 +1,6 @@
 // FrontendTeacher/src/components/PublishQuizModal.jsx
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { X, Clock, Calendar, AlertCircle, CheckCircle, Camera } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
@@ -96,9 +97,15 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 transition-opacity duration-150">
       {/* Outer container with scroll support */}
-      <div className="bg-surface border border-line rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl font-body text-ink">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        className="bg-surface border border-line rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col shadow-2xl font-body text-ink"
+      >
         {/* Header */}
         <div className="p-6 border-b border-line sticky top-0 bg-surface z-10">
           <div className="flex items-center justify-between">
@@ -353,7 +360,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
             )}
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

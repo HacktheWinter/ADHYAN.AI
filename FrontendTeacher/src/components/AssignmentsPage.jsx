@@ -1,7 +1,7 @@
 // FrontendTeacher/src/components/AssignmentsPage.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles,
   Pencil,
@@ -275,30 +275,40 @@ const AssignmentsPage = () => {
               <ChevronDown className="w-5 h-5 text-white" />
             </button>
 
-            {showCreateMenu && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-2xl border border-line p-1.5 z-50 overflow-hidden flex flex-col gap-1">
-                <button
-                  onClick={() => {
-                    setShowCreateMenu(false);
-                    handleOpenAIModal();
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+            <AnimatePresence>
+              {showCreateMenu && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-2xl border border-line p-1.5 z-50 overflow-hidden flex flex-col gap-1"
                 >
-                  <Sparkles className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
-                  <span>Generate with AI</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setShowCreateMenu(false);
-                    setShowManualModal(true);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Pencil className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
-                  <span>Create Manually</span>
-                </button>
-              </div>
-            )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      handleOpenAIModal();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
+                    <span>Generate with AI</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      setShowManualModal(true);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Pencil className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
+                    <span>Create Manually</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
@@ -511,9 +521,16 @@ const AssignmentsPage = () => {
       )}
 
       {/* ------------------- AI GENERATION MODAL ------------------- */}
-      {showAIModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-surface border border-line rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden font-body text-ink">
+      <AnimatePresence>
+        {showAIModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-opacity duration-150">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="bg-surface border border-line rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden font-body text-ink"
+            >
             {/* Header */}
             <div className="p-4 sm:p-6 border-b border-line flex items-center justify-between">
               <div>
@@ -718,9 +735,10 @@ const AssignmentsPage = () => {
                 )}
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
+    </AnimatePresence>
 
       {/* Edit Modal */}
       {showEditModal && editingAssignment && (

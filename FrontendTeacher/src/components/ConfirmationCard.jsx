@@ -45,30 +45,25 @@ const ConfirmationCard = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center">
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={onCancel}
-          />
-
+        <div 
+          className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity duration-150"
+          onClick={onCancel}
+        >
           {/* Card */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
             className={`confirm-card relative bg-surface border border-line rounded-2xl shadow-2xl max-w-md w-[90%] mx-4 overflow-hidden ${config.darkClass}`}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Top accent line */}
             <div className={`h-1 w-full ${config.confirmBg.split(' ')[0]}`} />
 
             {/* Close button */}
             <button
+              type="button"
               onClick={onCancel}
               className="absolute top-4 right-4 p-1.5 rounded-lg text-ink-soft hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
             >
@@ -96,12 +91,14 @@ const ConfirmationCard = ({
             {/* Action row */}
             <div className="flex items-center gap-3 px-6 py-4 bg-paper border-t border-line confirm-footer">
               <button
+                type="button"
                 onClick={onCancel}
                 className="flex-1 px-4 py-2.5 bg-surface hover:bg-violet-50 border border-line rounded-xl text-sm font-bold text-ink transition-all cursor-pointer confirm-cancel-btn"
               >
                 {cancelText}
               </button>
               <button
+                type="button"
                 onClick={onConfirm}
                 className={`flex-1 px-4 py-2.5 ${config.confirmBg} rounded-xl text-sm font-bold text-white transition-all cursor-pointer shadow-sm`}
               >

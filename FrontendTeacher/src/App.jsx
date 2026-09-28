@@ -50,6 +50,8 @@ const PhysicalTestUploadPage = lazy(() => import("./Pages/PhysicalTestUploadPage
 const PhysicalTestResultsPage = lazy(() => import("./Pages/PhysicalTestResultsPage"));
 const PhysicalTestStudentResult = lazy(() => import("./Pages/PhysicalTestStudentResult"));
 const SeminarAttendancePage = lazy(() => import("./Pages/SeminarAttendancePage"));
+const CodingRoundPage = lazy(() => import("./components/CodingRoundPage"));
+const CodingSubmissionsViewer = lazy(() => import("./Pages/CodingSubmissionsViewer"));
 
 
 export default function App() {
@@ -174,6 +176,7 @@ export default function App() {
           <Route path="live-classroom" element={<LiveClassroom />} />
           <Route path="notes" element={<NotesPage />} />
           <Route path="quizzes" element={<QuizzesPage />} />
+          <Route path="coding-round" element={<CodingRoundPage />} />
           <Route path="test-papers" element={<TestPapersPage />} />
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="students" element={<StudentsPage />} />
@@ -270,6 +273,18 @@ export default function App() {
             element={
               <ProtectedRoute requiredRole="teacher">
                 <StudentAssignmentResult />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+
+        {/* Coding Round Submissions Route */}
+        <Route element={<MobileHeaderLayout />}>
+          <Route
+            path="/class/:classId/coding-round/submissions/:assessmentId"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <CodingSubmissionsViewer />
               </ProtectedRoute>
             }
           />

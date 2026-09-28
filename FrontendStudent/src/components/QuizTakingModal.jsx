@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, X, Bookmark, LayoutGrid, ChevronRight, Camera, Video } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, X, Bookmark, LayoutGrid, ChevronRight, Camera, Video, Maximize2, Minimize2 } from 'lucide-react';
 import { submitQuiz, autosaveQuiz, runCode, uploadProctorSnapshot } from '../api/quizApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
 import { useWebcamProctor } from '../hooks/useWebcamProctor';
@@ -10,6 +10,100 @@ import CodeEditorWorkspace from './CodeEditorWorkspace';
 import ToastNotification from './ToastNotification';
 import { getStoredToken } from '../utils/authStorage';
 import API_BASE_URL from '../config';
+
+const ExpandableQuestion = ({ questionText, questionIdx }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const textRef = useRef(null);
+
+  // Reset when question changes
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [questionIdx]);
+
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (textRef.current) {
+        setIsOverflowing(textRef.current.scrollHeight > textRef.current.clientHeight);
+      }
+    };
+    
+    // Check after a tiny delay to ensure DOM is painted
+    const timer = setTimeout(checkOverflow, 50);
+    window.addEventListener('resize', checkOverflow);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkOverflow);
+    };
+  }, [questionIdx, questionText]);
+
+  return (
+    <>
+      <div className="relative mb-6 pb-4 mt-3">
+        <div 
+          ref={textRef}
+          className="text-base sm:text-lg font-semibold text-gray-900 leading-relaxed whitespace-pre-wrap rounded-xl max-h-[150px] overflow-hidden"
+        >
+          {questionIdx + 1}. {questionText}
+        </div>
+        
+        {isOverflowing && (
+          <div className="absolute bottom-4 left-0 right-0 h-12 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
+        )}
+        
+        {isOverflowing && (
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="absolute -bottom-3 right-4 bg-white shadow-md border border-gray-200 text-purple-600 rounded-full p-1.5 hover:bg-purple-50 transition-colors z-10 flex items-center justify-center gap-1 text-xs font-bold px-3 cursor-pointer"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+            View Full Question
+          </button>
+        )}
+      </div>
+
+      {/* Expanded Question Modal */}
+      {isExpanded && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
+          <div 
+            className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <LayoutGrid className="w-5 h-5 text-purple-600" />
+                Question {questionIdx + 1}
+              </h3>
+              <button
+                onClick={() => setIsExpanded(false)}
+                className="p-2 hover:bg-gray-200 rounded-full text-gray-500 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Body */}
+            <div className="p-6 overflow-y-auto custom-scrollbar">
+              <div className="text-base sm:text-lg font-medium text-gray-800 leading-relaxed whitespace-pre-wrap">
+                {questionText}
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+              <button
+                onClick={() => setIsExpanded(false)}
+                className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Close & View Options
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 
 export default function QuizTakingModal({ quiz, studentId, studentName, onClose, onSubmit }) {
   const [shuffledQuiz, setShuffledQuiz] = useState(null);
@@ -874,7 +968,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     <div className="fixed inset-0 bg-black flex items-center justify-center z-50 font-body">
       <div className="bg-white w-screen h-screen flex flex-col">
         {/* HEADER */}
-        <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+        <div className="p-3 sm:p-5 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <Shield className={`w-6 h-6 ${isFullScreen ? 'text-green-600' : 'text-red-600'}`} />
@@ -912,7 +1006,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2 gap-2">
             <span className="text-sm font-medium text-gray-700">
               Question {currentQuestionIdx + 1} of {currentSection.questions.length}
             </span>
@@ -962,9 +1056,9 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
           <div className={`flex-1 overflow-y-auto ${question.type === 'coding' ? 'p-0' : 'p-4 sm:p-6'}`}>
             {question.type === 'mcq' ? (
-              <div className="max-w-4xl mx-auto">
-                <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-100 mb-6">
-                  <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+              <div className="max-w-5xl mx-auto">
+                <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-5">
+                  <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2.5">
                     <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                       MCQ
                     </span>
@@ -991,9 +1085,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                     </div>
                   </div>
 
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-6 leading-relaxed">
-                    {currentQuestionIdx + 1}. {question.question}
-                  </h3>
+                  <ExpandableQuestion questionText={question.question} questionIdx={currentQuestionIdx} />
                   
                   <div className="space-y-3">
                     {question.options.map((option, index) => {
@@ -1003,22 +1095,22 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                           key={index}
                           onClick={() => handleMCQAnswerSelect(question._id, option)}
                           disabled={showViolationAlert}
-                          className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                          className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
                             showViolationAlert ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:shadow-md hover:border-purple-300'
                           } ${
                             isSelected ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-600/20' : 'border-gray-200 bg-white'
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                            <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                               isSelected ? 'border-purple-600 bg-purple-600' : 'border-gray-300'
                             }`}>
                               {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
                             </div>
-                            <span className="font-semibold text-gray-700 flex-shrink-0">
+                            <span className="font-semibold text-gray-700 flex-shrink-0 text-sm sm:text-base">
                               {String.fromCharCode(65 + index)}.
                             </span>
-                            <span className="flex-1 text-gray-900 text-sm sm:text-base">{option}</span>
+                            <span className="flex-1 text-gray-900 text-[15px] sm:text-base whitespace-pre-wrap text-left leading-relaxed">{option}</span>
                           </div>
                         </button>
                       );
@@ -1058,7 +1150,7 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
         {/* FOOTER */}
         <div className="p-4 sm:p-6 border-t border-gray-200 bg-white">
-          <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
             <button
               onClick={() => {
                 if (currentQuestionIdx > 0) {

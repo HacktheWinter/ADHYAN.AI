@@ -28,6 +28,8 @@ const StudentFeedbackPage = lazy(() => import("./Pages/StudentFeedbackPage"));
 const StudentAnnouncement = lazy(() => import("./Pages/StudentAnnouncement"));
 const StudentCalendarPage = lazy(() => import("./Pages/StudentCalendarPage"));
 const SettingsPage = lazy(() => import("./Pages/SettingsPage"));
+const CodingRound = lazy(() => import("./Pages/CodingRound"));
+const CodingRoundTakingPage = lazy(() => import("./Pages/CodingRoundTakingPage"));
 function StudentLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -119,6 +121,7 @@ export default function App() {
             {/* Tab Routes */}
             <Route path="notes" element={<StudentNotesPage />} />
             <Route path="quiz" element={<Quiz />} />
+            <Route path="coding-round" element={<CodingRound />} />
             <Route path="assignment" element={<Assignments />} />
             <Route path="test" element={<TestPapers />} />
             <Route path="doubt" element={<DoubtPage />} />
@@ -161,6 +164,16 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="student">
               <ClassesPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Coding Round Exam (Fullscreen - No Navbar) */}
+        <Route
+          path="/coding-round/:classId/:assessmentId"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <CodingRoundTakingPage />
             </ProtectedRoute>
           }
         />

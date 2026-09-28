@@ -51,6 +51,7 @@ export default function CourseDetailPage() {
 
     { id: "notes", label: "Notes", path: "notes" },
     { id: "quiz", label: "Assessment", path: "quiz" },
+    { id: "coding-round", label: "Coding Round", path: "coding-round" },
     { id: "assignment", label: "Assignment", path: "assignment" },
     { id: "test", label: "Test Paper", path: "test" },
     { id: "doubt", label: "Doubts", path: "doubt" },

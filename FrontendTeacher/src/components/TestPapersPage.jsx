@@ -1,7 +1,7 @@
 // FrontendTeacher/src/components/TestPapersPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Pencil, Trash2, CheckCircle, Eye, Loader, FileText, X, MoreVertical, Upload, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
 import { 
   getTestPapersByClassroom, 
@@ -261,9 +261,17 @@ const TestPapersPage = () => {
                 <ChevronDown className="w-5 h-5 text-white" />
               </button>
 
+            <AnimatePresence>
               {showCreateMenu && (
-                <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-2 w-56 bg-surface rounded-xl shadow-2xl border border-line p-1.5 z-50 overflow-hidden flex flex-col gap-1">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="absolute right-0 sm:left-0 sm:right-auto top-full mt-2 w-56 bg-surface rounded-xl shadow-2xl border border-line p-1.5 z-50 overflow-hidden flex flex-col gap-1"
+                >
                   <button
+                    type="button"
                     onClick={() => {
                       setShowCreateMenu(false);
                       handleOpenAIModal();
@@ -274,6 +282,7 @@ const TestPapersPage = () => {
                     <span>Generate with AI</span>
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setShowCreateMenu(false);
                       setShowManualModal(true);
@@ -283,8 +292,9 @@ const TestPapersPage = () => {
                     <Pencil className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
                     <span>Create Manually</span>
                   </button>
-                </div>
+                </motion.div>
               )}
+            </AnimatePresence>
             </div>
 
             <div className="relative">
@@ -299,30 +309,40 @@ const TestPapersPage = () => {
                 <MoreVertical className="w-5 h-5" />
               </button>
 
-              {showHeaderMenu && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-xl border border-line py-2 z-50 overflow-hidden">
-                  <button
-                    onClick={() => {
-                      setShowHeaderMenu(false);
-                      navigate(`/class/${classData.id}/test-papers/upload-physical`);
-                    }}
-                    className="dropdown-item w-full flex items-center gap-3 px-4 py-3 text-sm text-ink transition-colors cursor-pointer"
+              <AnimatePresence>
+                {showHeaderMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="absolute right-0 top-full mt-2 w-56 bg-surface rounded-xl shadow-xl border border-line py-2 z-50 overflow-hidden"
                   >
-                    <Upload className="w-4 h-4 text-violet-600 dark:text-[#A78BFA]" />
-                    <span>Upload Copies</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowHeaderMenu(false);
-                      navigate(`/class/${classData.id}/test-papers/physical-results`);
-                    }}
-                    className="dropdown-item w-full flex items-center gap-3 px-4 py-3 text-sm text-ink transition-colors cursor-pointer"
-                  >
-                    <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span>See Results</span>
-                  </button>
-                </div>
-              )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        navigate(`/class/${classData.id}/test-papers/upload-physical`);
+                      }}
+                      className="dropdown-item w-full flex items-center gap-3 px-4 py-3 text-sm text-ink transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4 text-violet-600 dark:text-[#A78BFA]" />
+                      <span>Upload Copies</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        navigate(`/class/${classData.id}/test-papers/physical-results`);
+                      }}
+                      className="dropdown-item w-full flex items-center gap-3 px-4 py-3 text-sm text-ink transition-colors cursor-pointer"
+                    >
+                      <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span>See Results</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
@@ -500,9 +520,16 @@ const TestPapersPage = () => {
       )}
 
       {/* ------------------- AI GENERATION MODAL ------------------- */}
-      {showAIModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-surface border border-line rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden font-body text-ink">
+      <AnimatePresence>
+        {showAIModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-opacity duration-150">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="bg-surface border border-line rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden font-body text-ink"
+            >
             <div className="p-4 sm:p-6 border-b border-line flex items-center justify-between">
               <div>
                 <h3 className="text-xl sm:text-2xl font-semibold font-display text-ink">
@@ -796,6 +823,7 @@ const TestPapersPage = () => {
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleGenerateWithAI}
                 disabled={((showTopicsInput ? topics.length === 0 : selectedNotes.length === 0) || isGenerating)}
                 className="w-full sm:flex-1 px-6 py-3 btn-settings-blue text-sm rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
@@ -821,56 +849,66 @@ const TestPapersPage = () => {
                 )}
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
+    </AnimatePresence>
 
       {/* Edit Answer Keys Modal */}
-      {showEditModal && editingTest && (
-        <EditAnswerKeysModal
-          testPaper={editingTest}
-          onClose={() => {
-            setShowEditModal(false);
-            setEditingTest(null);
-          }}
-          onSave={() => {
-            setShowEditModal(false);
-            setEditingTest(null);
-            fetchTestPapers();
-          }}
-          showToast={showToast}
-        />
-      )}
+      <AnimatePresence>
+        {showEditModal && editingTest && (
+          <EditAnswerKeysModal
+            key="edit-test-modal"
+            testPaper={editingTest}
+            onClose={() => {
+              setShowEditModal(false);
+              setEditingTest(null);
+            }}
+            onSave={() => {
+              setShowEditModal(false);
+              setEditingTest(null);
+              fetchTestPapers();
+            }}
+            showToast={showToast}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Publish Modal */}
-      {showPublishModal && publishingTest && (
-        <PublishTestModal
-          testPaper={publishingTest}
-          onClose={() => {
-            setShowPublishModal(false);
-            setPublishingTest(null);
-          }}
-          onPublished={() => {
-            setShowPublishModal(false);
-            setPublishingTest(null);
-            fetchTestPapers();
-          }}
-          showToast={showToast}
-        />
-      )}
+      <AnimatePresence>
+        {showPublishModal && publishingTest && (
+          <PublishTestModal
+            key="publish-test-modal"
+            testPaper={publishingTest}
+            onClose={() => {
+              setShowPublishModal(false);
+              setPublishingTest(null);
+            }}
+            onPublished={() => {
+              setShowPublishModal(false);
+              setPublishingTest(null);
+              fetchTestPapers();
+            }}
+            showToast={showToast}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Create Manual Modal */}
-      {showManualModal && (
-        <CreateManualTestModal
-          classId={classData.id}
-          onClose={() => setShowManualModal(false)}
-          onCreated={(newTest) => {
-            setShowManualModal(false);
-            setDrafts((prev) => [newTest, ...prev]);
-          }}
-          showToast={showToast}
-        />
-      )}
+      <AnimatePresence>
+        {showManualModal && (
+          <CreateManualTestModal
+            key="create-manual-test-modal"
+            classId={classData.id}
+            onClose={() => setShowManualModal(false)}
+            onCreated={(newTest) => {
+              setShowManualModal(false);
+              setDrafts((prev) => [newTest, ...prev]);
+            }}
+            showToast={showToast}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Toast Notification */}
       <ToastNotification message={toast.message} type={toast.type} onClose={clearToast} />

@@ -38,15 +38,14 @@ const ToastNotification = ({ message, type = 'success', onClose, duration = 4000
     return () => clearTimeout(timer);
   }, [message, duration, onClose]);
 
-  if (!message) return null;
-
   const config = typeConfig[type] || typeConfig.info;
   const { Icon, iconBg, iconColor } = config;
 
   return (
-    <AnimatePresence>
-      {!isExiting && (
+    <AnimatePresence mode="wait">
+      {message && !isExiting && (
         <motion.div
+          key="toast-notification-card"
           initial={{ opacity: 0, y: -20, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -20, scale: 0.95 }}

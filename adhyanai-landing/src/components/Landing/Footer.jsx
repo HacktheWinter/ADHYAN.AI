@@ -62,24 +62,24 @@ const Footer = () => {
 
             {/* Social Media Icons */}
             <div className="flex items-center gap-3.5">
-              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-purple-400 transition-colors" aria-label="Twitter">
-                <Twitter size={16} />
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-purple-400 transition-colors p-1.5 -m-1.5 rounded-lg" aria-label="Twitter">
+                <Twitter size={20} />
               </a>
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-purple-400 transition-colors" aria-label="GitHub">
-                <Github size={16} />
+              <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-purple-400 transition-colors p-1.5 -m-1.5 rounded-lg" aria-label="GitHub">
+                <Github size={20} />
               </a>
-              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-purple-400 transition-colors" aria-label="LinkedIn">
-                <Linkedin size={16} />
+              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-purple-400 transition-colors p-1.5 -m-1.5 rounded-lg" aria-label="LinkedIn">
+                <Linkedin size={20} />
               </a>
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-purple-400 transition-colors" aria-label="Instagram">
-                <Instagram size={16} />
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-purple-400 transition-colors p-1.5 -m-1.5 rounded-lg" aria-label="Instagram">
+                <Instagram size={20} />
               </a>
             </div>
           </div>
 
           {/* Column 1: Product */}
           <div className="col-span-1">
-            <h4 className="font-bold text-white text-xs sm:text-sm uppercase tracking-wider mb-3 font-mono">Product</h4>
+            <h3 className="font-bold text-white text-xs sm:text-sm uppercase tracking-wider mb-3 font-mono">Product</h3>
             <ul className="space-y-2 text-xs sm:text-sm">
               <li>
                 <a href="#features" onClick={(e) => scrollToSection(e, 'features')} className="hover:text-purple-400 transition-colors">
@@ -106,7 +106,7 @@ const Footer = () => {
 
           {/* Column 2: Resources */}
           <div className="col-span-1">
-            <h4 className="font-bold text-white text-xs sm:text-sm uppercase tracking-wider mb-3 font-mono">Resources</h4>
+            <h3 className="font-bold text-white text-xs sm:text-sm uppercase tracking-wider mb-3 font-mono">Resources</h3>
             <ul className="space-y-2 text-xs sm:text-sm">
               <li>
                 <a href="#demo" onClick={(e) => scrollToSection(e, 'demo')} className="hover:text-purple-400 transition-colors">
@@ -133,7 +133,7 @@ const Footer = () => {
 
           {/* Column 3: Company */}
           <div className="col-span-1">
-            <h4 className="font-bold text-white text-xs sm:text-sm uppercase tracking-wider mb-3 font-mono">Company</h4>
+            <h3 className="font-bold text-white text-xs sm:text-sm uppercase tracking-wider mb-3 font-mono">Company</h3>
             <ul className="space-y-2 text-xs sm:text-sm">
               <li>
                 <a href="#our-team" onClick={(e) => scrollToSection(e, 'our-team')} className="hover:text-purple-400 transition-colors">

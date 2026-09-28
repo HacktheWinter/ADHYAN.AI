@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { X, Plus, Trash2, Save, ChevronDown, ChevronUp, Code, Code2, Settings, Download, Maximize2, Minimize2, FileText, CheckCircle, Check, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { X, Plus, Trash2, Save, ChevronDown, ChevronUp, Code, Code2, Settings, Download, Maximize2, Minimize2, FileText, CheckCircle, Check, Loader2, Sparkles, FileUp } from "lucide-react";
 import { exportQuizToExcel, exportQuizToPDF } from '../utils/exportUtils';
 import axios from "axios";
 import API_BASE_URL from "../config";
@@ -53,6 +54,80 @@ const CustomSelect = ({ value, onChange, options }) => {
         </div>
       )}
     </div>
+  );
+};
+
+const ExpandableTextarea = ({ value, onChange, placeholder, title = 'Edit Question Text' }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (textareaRef.current && !isExpanded) {
+      textareaRef.current.style.height = 'auto';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      // Auto-grow up to 150px
+      textareaRef.current.style.height = Math.min(scrollHeight, 150) + 'px';
+    }
+  }, [value, isExpanded]);
+
+  return (
+    <>
+      <div className="relative group">
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 outline-none resize-none text-sm transition-all overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          style={{ minHeight: '6rem' }}
+        />
+        <button
+          type="button"
+          onClick={() => setIsExpanded(true)}
+          className="absolute top-2 right-2 p-1.5 bg-white shadow-sm border border-gray-200 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+          title="Expand to Full Screen"
+        >
+          <Maximize2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-600" />
+                {title}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full transition-colors cursor-pointer"
+              >
+                <Minimize2 className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 flex-1 flex flex-col">
+              <textarea
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                placeholder={placeholder}
+                className="w-full h-full p-6 border-2 border-indigo-100 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 outline-none resize-none text-base leading-relaxed transition-all shadow-inner [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              />
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-200 transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                <CheckCircle className="w-5 h-5" /> Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -130,6 +205,12 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
   // Bulk Actions State
   const [selectedQuestions, setSelectedQuestions] = useState({});
   const [bulkMarks, setBulkMarks] = useState({});
+  const [aiPanelOpenForSection, setAiPanelOpenForSection] = useState(-1);
+  const [aiTopicInput, setAiTopicInput] = useState("");
+  const [aiQuestionCount, setAiQuestionCount] = useState(5);
+  const [aiMarksPerQuestion, setAiMarksPerQuestion] = useState(1);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [extractingSectionIdx, setExtractingSectionIdx] = useState(-1);
 
   const handleSelectQuestion = (sIdx, qIdx) => {
     setSelectedQuestions(prev => {
@@ -255,6 +336,74 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
       setSections([emptySection(0)]);
     }
   }, [quiz]);
+
+  const handleExtractQuestions = async (sIdx, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const allowedTypes = [
+      "application/pdf", 
+      "application/msword", 
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
+      "application/vnd.ms-excel", 
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      showToast("Please upload a PDF, Word, or Excel document.", 'error');
+      return;
+    }
+
+    try {
+      setExtractingSectionIdx(sIdx);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await axios.post(`${API_BASE_URL}/quiz/extract-exact`, formData, {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+
+      const extractedQuestions = res.data.questions;
+      if (extractedQuestions && extractedQuestions.length > 0) {
+        const formattedQuestions = extractedQuestions.map(q => {
+          if (q.type === 'coding') {
+            return {
+              type: 'coding',
+              marks: q.marks || 5,
+              coding: {
+                ...emptyCoding,
+                ...q.coding
+              }
+            };
+          } else {
+            return {
+              type: 'mcq',
+              marks: q.marks || 1,
+              question: q.question || "",
+              options: q.options || ["", "", "", ""],
+              correctOptionIndex: q.correctOptionIndex ?? 0
+            };
+          }
+        });
+
+        const updated = [...sections];
+        if (updated[sIdx].questions.length === 1 && !updated[sIdx].questions[0].question && !updated[sIdx].questions[0].coding?.title) {
+           updated[sIdx].questions = formattedQuestions;
+        } else {
+           updated[sIdx].questions = [...updated[sIdx].questions, ...formattedQuestions];
+        }
+        setSections(updated);
+        showToast(`Imported ${formattedQuestions.length} question${formattedQuestions.length > 1 ? 's' : ''} from file`, 'success');
+      }
+    } catch (error) {
+      console.error("Extraction failed:", error);
+      showToast(error.response?.data?.error || "Failed to extract questions from file", 'error');
+    } finally {
+      setExtractingSectionIdx(-1);
+      e.target.value = null;
+    }
+  };
 
   const handleAddSection = () => {
     setSections([...sections, emptySection(sections.length)]);
@@ -470,8 +619,14 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
 
   return (
     <>
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-all duration-300">
-      <div className={`bg-surface border border-line flex flex-col shadow-2xl font-body text-ink transition-all duration-300 ${isFullScreen ? 'fixed inset-0 w-full h-full rounded-none' : 'rounded-2xl w-full max-w-5xl max-h-[90vh]'}`}>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-opacity duration-150">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        className={`bg-surface border border-line flex flex-col shadow-2xl font-body text-ink ${isFullScreen ? 'fixed inset-0 w-full h-full rounded-none' : 'rounded-2xl w-full max-w-5xl max-h-[90vh]'}`}
+      >
         <div className={`px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white sticky top-0 z-10 ${isFullScreen ? '' : 'rounded-t-2xl'}`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
@@ -598,20 +753,247 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
                       {section.questions.length} Q{section.questions.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  {sections.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleRemoveSection(sIdx); }}
-                      className="text-gray-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
-                      title="Delete Section"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {!section._id && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (aiPanelOpenForSection === sIdx) {
+                              setAiPanelOpenForSection(-1);
+                            } else {
+                              setExpandedSection(sIdx);
+                              setAiPanelOpenForSection(sIdx);
+                              setAiTopicInput("");
+                              setAiQuestionCount(section.type === "coding" ? 3 : 5);
+                              setAiMarksPerQuestion(section.type === "coding" ? 5 : 1);
+                              setTimeout(() => {
+                                const panel = document.getElementById(`ai-panel-${sIdx}`);
+                                if (panel) {
+                                  panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                              }, 100);
+                            }
+                          }}
+                          disabled={isGeneratingAI}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 font-semibold rounded-lg transition-colors text-xs border disabled:opacity-50 ${
+                            aiPanelOpenForSection === sIdx
+                              ? 'bg-purple-50 text-purple-700 border-purple-200'
+                              : 'bg-white text-purple-600 border-purple-200 hover:bg-purple-50'
+                          }`}
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Generate with AI</span>
+                        </button>
+                        <div 
+                          className="relative" 
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input 
+                            type="file" 
+                            accept=".pdf,.doc,.docx,.xls,.xlsx" 
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleExtractQuestions(sIdx, e);
+                            }}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                            disabled={extractingSectionIdx === sIdx}
+                          />
+                          <button
+                            type="button"
+                            disabled={extractingSectionIdx === sIdx}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 font-semibold rounded-lg hover:bg-emerald-100 transition-colors text-xs border border-emerald-200 disabled:opacity-50"
+                          >
+                            {extractingSectionIdx === sIdx ? (
+                              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> <span className="hidden sm:inline">Extracting...</span></>
+                            ) : (
+                              <><FileUp className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Import Questions</span></>
+                            )}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    {sections.length > 1 && (
+                      <button 
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleRemoveSection(sIdx); }} 
+                        className="text-gray-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
+                        title="Delete Section"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {expandedSection === sIdx && (
                   <div className="p-5 space-y-5">
+                    {/* AI Generation Panel */}
+                    {aiPanelOpenForSection === sIdx && (
+                      <div id={`ai-panel-${sIdx}`} className="ai-panel-animated bg-white rounded-xl p-5 space-y-4 relative overflow-hidden shadow-lg">
+                        {/* Gradient accent bar */}
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500"></div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-md shadow-purple-500/20">
+                              <Sparkles className="w-4.5 h-4.5 text-white" />
+                            </div>
+                            <div>
+                              <h6 className="font-bold text-sm text-gray-900">AI Question Generator</h6>
+                              <p className="text-xs text-gray-500">Generate {section.type === 'coding' ? 'coding challenges' : 'MCQ questions'} from your topics</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setAiPanelOpenForSection(-1)}
+                            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Topics / Prompt</label>
+                          <ExpandableTextarea
+                            value={aiTopicInput}
+                            onChange={(val) => setAiTopicInput(val)}
+                            placeholder={section.type === 'coding' 
+                              ? 'e.g. binary search, linked list reversal, dynamic programming...'
+                              : 'e.g. photosynthesis, cell division, genetics...'
+                            }
+                            title="Edit Topics / Prompt"
+                          />
+                        </div>
+
+                        <div className="flex items-end gap-4">
+                          <div className="flex-shrink-0">
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Questions</label>
+                            <div className="flex items-center border border-gray-200 rounded-xl bg-gray-50 overflow-hidden focus-within:ring-2 focus-within:ring-purple-500 focus-within:border-purple-200 focus-within:bg-white transition-all h-10 w-24 pl-3 relative">
+                              <input
+                                type="number"
+                                min="1"
+                                max="50"
+                                value={aiQuestionCount}
+                                onChange={(e) => setAiQuestionCount(Math.max(1, Math.min(50, Number(e.target.value))))}
+                                className="w-full bg-transparent border-none outline-none text-sm font-bold text-gray-900 p-0 pr-6 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                disabled={isGeneratingAI}
+                              />
+                              <div className="absolute right-0 top-0 h-full flex flex-col border-l border-gray-200">
+                                <button type="button" onClick={() => setAiQuestionCount(Math.min(50, aiQuestionCount + 1))} disabled={isGeneratingAI} className="flex-1 w-7 flex items-center justify-center text-gray-500 hover:text-purple-700 hover:bg-purple-100 transition-colors border-b border-gray-200 disabled:opacity-50 cursor-pointer">
+                                  <ChevronUp className="w-3 h-3" />
+                                </button>
+                                <button type="button" onClick={() => setAiQuestionCount(Math.max(1, aiQuestionCount - 1))} disabled={isGeneratingAI} className="flex-1 w-7 flex items-center justify-center text-gray-500 hover:text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50 cursor-pointer">
+                                  <ChevronDown className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0">
+                            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Marks Each</label>
+                            <div className="flex items-center border border-gray-200 rounded-xl bg-gray-50 overflow-hidden focus-within:ring-2 focus-within:ring-purple-500 focus-within:border-purple-200 focus-within:bg-white transition-all h-10 w-24 pl-3 relative">
+                              <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={aiMarksPerQuestion}
+                                onChange={(e) => setAiMarksPerQuestion(Math.max(1, Math.min(100, Number(e.target.value))))}
+                                className="w-full bg-transparent border-none outline-none text-sm font-bold text-gray-900 p-0 pr-6 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                disabled={isGeneratingAI}
+                              />
+                              <div className="absolute right-0 top-0 h-full flex flex-col border-l border-gray-200">
+                                <button type="button" onClick={() => setAiMarksPerQuestion(Math.min(100, aiMarksPerQuestion + 1))} disabled={isGeneratingAI} className="flex-1 w-7 flex items-center justify-center text-gray-500 hover:text-purple-700 hover:bg-purple-100 transition-colors border-b border-gray-200 disabled:opacity-50 cursor-pointer">
+                                  <ChevronUp className="w-3 h-3" />
+                                </button>
+                                <button type="button" onClick={() => setAiMarksPerQuestion(Math.max(1, aiMarksPerQuestion - 1))} disabled={isGeneratingAI} className="flex-1 w-7 flex items-center justify-center text-gray-500 hover:text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50 cursor-pointer">
+                                  <ChevronDown className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!aiTopicInput.trim()) {
+                                showToast("Please enter topics or a prompt", 'error');
+                                return;
+                              }
+                              setIsGeneratingAI(true);
+                              try {
+                                const res = await axios.post(
+                                  `${API_BASE_URL}/quiz/generate-questions-from-prompt`,
+                                  {
+                                    topics: aiTopicInput.trim(),
+                                    questionType: section.type || "mcq",
+                                    questionCount: aiQuestionCount,
+                                    marksPerQuestion: aiMarksPerQuestion,
+                                    difficulty: difficulty,
+                                  },
+                                  { withCredentials: true }
+                                );
+
+                                const generated = res.data.questions;
+                                if (generated && generated.length > 0) {
+                                  const updated = [...sections];
+                                  const hasOnlyEmptyPlaceholder =
+                                    updated[sIdx].questions.length === 1 &&
+                                    !updated[sIdx].questions[0].question &&
+                                    !updated[sIdx].questions[0].coding?.title;
+
+                                  if (hasOnlyEmptyPlaceholder) {
+                                    const preservedMode = updated[sIdx].questions[0].coding?.executionMode || "standard";
+                                    const mappedGenerated = generated.map(g => {
+                                      if (g.type === "coding" && g.coding) {
+                                        g.coding.executionMode = preservedMode;
+                                        if (preservedMode === "function" && g.coding.driverCode) {
+                                          g.coding.driverCode = g.coding.driverCode.map(d => ({
+                                            ...d,
+                                            code: d.code ? d.code.replace(new RegExp("{{USER_CODE}}", "g"), "{{STUDENT_BODY}}") : d.code
+                                          }));
+                                        }
+                                      }
+                                      return g;
+                                    });
+                                    updated[sIdx].questions = mappedGenerated;
+                                  } else {
+                                    updated[sIdx].questions = [...updated[sIdx].questions, ...generated];
+                                  }
+                                  setSections(updated);
+                                  setAiPanelOpenForSection(-1);
+                                  setAiTopicInput("");
+                                  
+                                  showToast(
+                                    `Generated ${generated.length} ${section.type === 'coding' ? 'coding' : 'MCQ'} question${generated.length > 1 ? 's' : ''} successfully!`,
+                                    'success'
+                                  );
+                                } else {
+                                  showToast("AI could not generate questions. Try different topics.", 'error');
+                                }
+                              } catch (error) {
+                                console.error("AI generation failed:", error);
+                                showToast(error.response?.data?.error || "Failed to generate questions. Please try again.", 'error');
+                              } finally {
+                                setIsGeneratingAI(false);
+                              }
+                            }}
+                            disabled={isGeneratingAI || !aiTopicInput.trim()}
+                            className="ai-generate-btn flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white font-bold rounded-xl transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-purple-600/25 cursor-pointer"
+                          >
+                            {isGeneratingAI ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Generating {section.type === 'coding' ? 'Coding' : 'MCQ'} Questions...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4" />
+                                Generate {aiQuestionCount} {section.type === 'coding' ? 'Coding' : 'MCQ'} Questions
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Section Title</label>
@@ -623,12 +1005,25 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Section Type <span className="normal-case font-normal text-gray-400">(cannot be changed)</span></label>
-                        <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200 opacity-60 cursor-not-allowed">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                          Section Type 
+                          {section._id && <span className="normal-case font-normal text-gray-400"> (cannot be changed)</span>}
+                        </label>
+                        <div className={`flex bg-gray-100 p-1 rounded-xl border border-gray-200 ${section._id ? 'opacity-60 cursor-not-allowed' : ''}`}>
                           <button
                             type="button"
-                            disabled
-                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold rounded-lg transition-all cursor-not-allowed ${
+                            disabled={!!section._id}
+                            onClick={() => {
+                              if (section.type !== "mcq") {
+                                const updated = [...sections];
+                                updated[sIdx].type = "mcq";
+                                updated[sIdx].questions = [emptyQuestion("mcq")];
+                                setSections(updated);
+                              }
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold rounded-lg transition-all ${
+                              section._id ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-white/50'
+                            } ${
                               (!section.type || section.type === "mcq")
                                 ? "bg-white text-indigo-600 shadow-sm border border-gray-200/50"
                                 : "text-gray-500"
@@ -638,8 +1033,18 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
                           </button>
                           <button
                             type="button"
-                            disabled
-                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold rounded-lg transition-all cursor-not-allowed ${
+                            disabled={!!section._id}
+                            onClick={() => {
+                              if (section.type !== "coding") {
+                                const updated = [...sections];
+                                updated[sIdx].type = "coding";
+                                updated[sIdx].questions = [emptyQuestion("coding")];
+                                setSections(updated);
+                              }
+                            }}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold rounded-lg transition-all ${
+                              section._id ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-white/50'
+                            } ${
                               section.type === "coding"
                                 ? "bg-white text-indigo-600 shadow-sm border border-gray-200/50"
                                 : "text-gray-500"
@@ -1158,7 +1563,7 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
             )}
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
 
     {/* Expanded Editor Modal */}
@@ -1217,7 +1622,7 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
 
     {/* EXPORT MODAL */}
     {exportModalConfig.isOpen && (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4 transition-all duration-300">
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4 transition-opacity duration-150">
         <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
 
           <div className="px-6 py-5 border-b border-gray-100 bg-gray-50 flex items-center justify-between">

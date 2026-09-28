@@ -24,7 +24,7 @@ const ClassDetail = () => {
   const activeTab = useMemo(() => {
     const pathParts = location.pathname.split("/").filter(Boolean);
     const lastPart = pathParts[pathParts.length - 1];
-    const validTabs = ["notes", "quizzes", "test-papers", "assignments", "students", "doubts"];
+    const validTabs = ["notes", "quizzes", "coding-round", "test-papers", "assignments", "students", "doubts"];
     return validTabs.includes(lastPart) ? lastPart : "notes";
   }, [location.pathname]);
   const MotionButton = motion.button;

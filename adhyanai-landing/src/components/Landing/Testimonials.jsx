@@ -54,7 +54,7 @@ const TestimonialCard = ({ member, isCenter, onSelect }) => {
             <img 
               src={member.image} 
               alt={member.name}
-              className="w-28 h-28 xs:w-32 xs:h-32 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-white shadow-xl relative z-10 bg-gray-100 group-hover:scale-105 transition-transform duration-300"
+              className="w-28 h-28 xs:w-32 xs:h-32 sm:w-36 sm:h-36 rounded-full object-cover object-top border-4 border-white shadow-xl relative z-10 bg-gray-100 group-hover:scale-105 transition-transform duration-300"
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop&crop=face";
@@ -64,9 +64,9 @@ const TestimonialCard = ({ member, isCenter, onSelect }) => {
           
           {/* Name & Role */}
           <div className="relative z-10 flex-grow flex flex-col justify-center">
-            <h4 className="font-extrabold text-gray-900 text-xl sm:text-2xl mb-1.5 tracking-tight">
+            <h3 className="font-extrabold text-gray-900 text-xl sm:text-2xl mb-1.5 tracking-tight">
               {member.name}
-            </h4>
+            </h3>
             <p className="text-purple-700 font-semibold text-xs sm:text-sm px-3 py-1 rounded-full bg-purple-50 border border-purple-200/60 inline-block mx-auto">
               {member.role}
             </p>
@@ -415,13 +415,16 @@ const Testimonials = () => {
               <button
                 key={index}
                 onClick={() => handleDotClick(index)}
-                className={`h-2.5 rounded-full transition-all duration-400 cursor-pointer ${
+                className={`p-2 rounded-full flex items-center justify-center transition-all duration-400 cursor-pointer`}
+                title={`View ${member.name}`}
+                aria-label={`View ${member.name}`}
+              >
+                <span className={`h-2.5 rounded-full transition-all duration-400 block ${
                   index === activeIndex
                     ? "bg-gradient-to-r from-purple-600 to-indigo-600 w-9 shadow-md shadow-purple-500/25"
                     : "bg-gray-300 hover:bg-gray-400 w-2.5"
-                }`}
-                title={`View ${member.name}`}
-              />
+                }`} />
+              </button>
             ))}
           </div>
           <span className="text-xs text-gray-400 font-medium">

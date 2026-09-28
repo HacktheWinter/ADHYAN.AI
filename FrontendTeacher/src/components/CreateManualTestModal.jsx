@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { X, Plus, Trash2, Save } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
@@ -81,8 +82,14 @@ const CreateManualTestModal = ({ classId, onClose, onCreated, showToast }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-surface border border-line rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl font-body text-ink">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-opacity duration-150">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        className="bg-surface border border-line rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl font-body text-ink"
+      >
         <div className="p-6 border-b border-line flex items-center justify-between">
           <div>
             <h3 className="text-2xl font-semibold font-display text-ink">
@@ -206,7 +213,7 @@ const CreateManualTestModal = ({ classId, onClose, onCreated, showToast }) => {
             {isSaving ? "Saving..." : <><Save className="w-5 h-5" /> Save Test Paper</>}
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

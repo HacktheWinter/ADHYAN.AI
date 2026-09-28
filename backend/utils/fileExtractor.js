@@ -149,8 +149,9 @@ export const cleanTextFull = (text) => {
   }
 
   let cleaned = text
-    .replace(/\s+/g, " ")
-    .replace(/[^\x20-\x7E\s]/g, "") // Remove non-ASCII
+    .replace(/[ \t]+/g, " ") // Collapse multiple spaces/tabs into a single space
+    .replace(/\n\s*\n+/g, "\n\n") // Collapse 3+ newlines into 2 newlines to keep paragraphs
+    .replace(/[^\x20-\x7E\n\r]/g, "") // Remove non-ASCII characters but keep newlines/returns
     .trim();
 
   if (cleaned.length < 500) {

@@ -12,6 +12,7 @@ const ClassTabs = ({ activeTab, classId }) => {
   const tabs = [
     { id: 'notes', label: 'Notes' },
     { id: 'quizzes', label: 'Assessments' },
+    { id: 'coding-round', label: 'Coding Round' },
     { id: 'test-papers', label: 'Test Papers' },
     { id: 'assignments', label: 'Assignments' },
     { id: 'students', label: 'Students' },

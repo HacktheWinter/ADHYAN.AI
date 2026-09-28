@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, Download, Search, FileText, User, Filter, BarChart3, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import API_BASE_URL from '../config';
 import { getStoredUser } from '../utils/authStorage';
 import AssessmentAnalyticsPanel from '../components/AssessmentAnalyticsPanel';
+import { getCodingAssessmentsByClassroom, getCodingSubmissions } from '../api/codingAssessmentApi';
 
 // Imports updated
 import { MoreVertical, Check } from 'lucide-react';
@@ -13,6 +14,7 @@ import { MoreVertical, Check } from 'lucide-react';
 const ClassDashboard = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const user = getStoredUser() || {};
   const teacherId = user.id || user._id;
@@ -23,7 +25,7 @@ const ClassDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   
   // New state for view mode
-  const [viewMode, setViewMode] = useState('quiz'); // 'quiz', 'assignment', 'testpaper'
+  const [viewMode, setViewMode] = useState(location.state?.activeTab || 'quiz'); // 'quiz', 'assignment', 'testpaper', 'coding'
   const [items, setItems] = useState([]); // Stores quizzes, assignments, or test papers
   const [submissions, setSubmissions] = useState({});
   const [showMenu, setShowMenu] = useState(false);
@@ -135,6 +137,43 @@ const ClassDashboard = () => {
              } catch (err) { console.error(`Failed to fetch submissions for test ${test._id}`, err); }
          }));
          setSubmissions(submissionsMap);
+
+      } else if (viewMode === 'coding') {
+        // Fetch Coding Assessments
+        try {
+          const codingRes = await getCodingAssessmentsByClassroom(classId);
+          const codingAssessments = (codingRes.assessments || [])
+            .filter(a => a.status === 'published')
+            .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+          setItems(codingAssessments);
+
+          // Fetch Submissions
+          const submissionsMap = {};
+          await Promise.all(codingAssessments.map(async (assessment) => {
+            try {
+              const subRes = await getCodingSubmissions(assessment._id);
+              const codingSubs = subRes.submissions || [];
+              codingSubs.forEach(sub => {
+                const sId = sub.studentId?._id || sub.studentId;
+                if (!submissionsMap[sId]) submissionsMap[sId] = {};
+                
+                const score = sub.marksAwarded || 0;
+                const total = assessment.maxMarks || 10;
+                const percentage = total > 0 ? Number(((score / total) * 100).toFixed(1)) : 0;
+                
+                submissionsMap[sId][assessment._id] = {
+                  score,
+                  total,
+                  percentage,
+                  status: sub.submissionStatus || 'submitted'
+                };
+              });
+            } catch (err) { console.error(`Failed to fetch submissions for coding ${assessment._id}`, err); }
+          }));
+          setSubmissions(submissionsMap);
+        } catch (err) {
+          console.error('Failed to fetch coding assessments', err);
+        }
       }
 
     } catch (error) {
@@ -229,7 +268,7 @@ const ClassDashboard = () => {
   };
 
   const handleExportSubmit = () => {
-    const itemLabel = viewMode === 'quiz' ? 'Quiz' : viewMode === 'assignment' ? 'Assignment' : 'Test Paper';
+    const itemLabel = viewMode === 'quiz' ? 'Quiz' : viewMode === 'assignment' ? 'Assignment' : viewMode === 'coding' ? 'Coding Round' : 'Test Paper';
     
     // Filter items based on selection
     const exportItems = items.filter(item => selectedExportItems.includes(item._id));
@@ -283,7 +322,7 @@ const ClassDashboard = () => {
 
   const getItemLabel = (item, index) => {
       if (item && item.title) return item.title;
-      const base = viewMode === 'quiz' ? 'Quiz' : viewMode === 'assignment' ? 'Assignment' : 'Test Paper';
+      const base = viewMode === 'quiz' ? 'Quiz' : viewMode === 'assignment' ? 'Assignment' : viewMode === 'coding' ? 'Coding Round' : 'Test Paper';
       return `${base} ${index + 1}`;
   };
 
@@ -306,7 +345,13 @@ const ClassDashboard = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
                 <button 
-                    onClick={() => navigate(`/class/${classId}/quizzes`)}
+                    onClick={() => {
+                        let route = 'quizzes';
+                        if (viewMode === 'coding') route = 'coding-round';
+                        else if (viewMode === 'assignment') route = 'assignments';
+                        else if (viewMode === 'testpaper') route = 'test-papers';
+                        navigate(`/class/${classId}/${route}`);
+                    }}
                     className="flex items-center gap-2 text-ink-soft hover:text-ink transition-colors mb-2 cursor-pointer font-semibold"
                 >
                     <ChevronLeft className="w-4 h-4" />
@@ -418,6 +463,15 @@ const ClassDashboard = () => {
                             >
                                 Test Paper
                                 {viewMode === 'testpaper' && <Check className="w-4 h-4" />}
+                            </button>
+                            <button
+                                onClick={() => { setViewMode('coding'); setShowMenu(false); }}
+                                className={`w-full px-4 py-3 text-left flex items-center justify-between text-sm cursor-pointer ${
+                                    viewMode === 'coding' ? 'bg-[#F1ECFB] dark:bg-[#26163F]/50 text-purple-700 dark:text-[#A78BFA] font-semibold' : 'dropdown-item text-ink'
+                                }`}
+                            >
+                                Coding Round
+                                {viewMode === 'coding' && <Check className="w-4 h-4" />}
                             </button>
                         </div>
                     )}
