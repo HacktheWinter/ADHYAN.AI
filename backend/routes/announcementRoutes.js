@@ -24,6 +24,6 @@ router.get("/:classroomId", authMiddleware, getAnnouncements);
 router.delete("/:id", authMiddleware, authorizeRoles("teacher"), deleteAnnouncement);
 
 // Get Announcement File
-router.get("/file/:fileId", authMiddleware, getAnnouncementFile);
+router.get("/file/:fileId", getAnnouncementFile);
 
 export default router;

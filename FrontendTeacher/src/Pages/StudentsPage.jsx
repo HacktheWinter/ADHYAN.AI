@@ -10,7 +10,8 @@ import {
   Copy,
   Check,
   UserMinus,
-  Hash
+  Hash,
+  ChevronDown
 } from 'lucide-react';
 import API_BASE_URL from '../config';
 
@@ -28,6 +29,7 @@ const StudentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
   const [activeTab, setActiveTab] = useState('present'); // 'present' or 'left'
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const handleCopyClassCode = () => {
     if (classData?.classCode) {
@@ -111,19 +113,19 @@ const StudentsPage = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 font-body text-ink">
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 font-body text-ink">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-violet-50 to-paper rounded-2xl p-4 sm:p-6 border border-line shadow-sm">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Users className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+      <div className="bg-gradient-to-r from-violet-50 to-paper rounded-2xl p-4 sm:p-5 border border-line shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
               <h2 className="text-xl sm:text-2xl font-semibold font-display text-ink">
                 Class Students
               </h2>
-              <p className="text-ink-soft text-xs sm:text-sm mt-1">
+              <p className="text-ink-soft text-xs sm:text-sm mt-0.5">
                 {students.length} active • {leftStudents.length} left
               </p>
             </div>
@@ -132,33 +134,33 @@ const StudentsPage = () => {
           <button
             onClick={handleExportStudents}
             disabled={(activeTab === 'present' ? students.length : leftStudents.length) === 0}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-line text-ink text-sm font-bold rounded-xl hover:bg-line disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-sm"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-1.5 bg-surface border border-line text-ink text-[13px] font-bold rounded-xl hover:bg-line disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-sm"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             Export CSV
           </button>
         </div>
 
         {/* Class Code Display */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-paper rounded-xl border border-line">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-paper rounded-xl border border-line">
           <div className="flex-1 w-full">
-            <p className="text-xs sm:text-sm text-ink-soft mb-1">Class Code</p>
-            <p className="text-xl sm:text-2xl font-mono font-black text-violet-600 dark:text-[#A78BFA]">
+            <p className="text-xs text-ink-soft mb-0.5">Class Code</p>
+            <p className="text-lg sm:text-xl font-mono font-black text-violet-600 dark:text-[#A78BFA]">
               {classData?.classCode || 'N/A'}
             </p>
           </div>
           <button
             onClick={handleCopyClassCode}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 btn-settings-blue text-sm rounded-xl font-bold transition-colors cursor-pointer"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-1.5 btn-settings-blue text-[13px] rounded-xl font-bold transition-colors cursor-pointer"
           >
             {copiedCode ? (
               <>
-                <Check className="w-4 h-4" />
+                <Check className="w-3.5 h-3.5" />
                 Copied!
               </>
             ) : (
               <>
-                <Copy className="w-4 h-4" />
+                <Copy className="w-3.5 h-3.5" />
                 Copy Code
               </>
             )}
@@ -167,24 +169,24 @@ const StudentsPage = () => {
       </div>
 
       {/* Stats Cards - Hidden on mobile */}
-      <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-surface rounded-2xl border border-line p-6 shadow-sm">
+      <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="bg-surface rounded-2xl border border-line p-4 sm:p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">Total Students</p>
-              <p className="text-3xl font-black font-display text-ink">{students.length}</p>
+              <p className="text-2xl sm:text-3xl font-black font-display text-ink">{students.length}</p>
             </div>
-            <div className="w-12 h-12 bg-violet-50 text-violet-dark rounded-xl flex items-center justify-center border border-line">
-              <Users className="w-6 h-6 text-violet-dark" />
+            <div className="w-10 h-10 bg-violet-50 text-violet-dark rounded-xl flex items-center justify-center border border-line">
+              <Users className="w-5 h-5 text-violet-dark" />
             </div>
           </div>
         </div>
 
-        <div className="bg-surface rounded-2xl border border-line p-6 shadow-sm">
+        <div className="bg-surface rounded-2xl border border-line p-4 sm:p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">Active This Month</p>
-              <p className="text-3xl font-black font-display text-green-600 dark:text-green-400">
+              <p className="text-2xl sm:text-3xl font-black font-display text-green-600 dark:text-green-400">
                 {students.filter(s => {
                   const monthAgo = new Date();
                   monthAgo.setMonth(monthAgo.getMonth() - 1);
@@ -192,77 +194,130 @@ const StudentsPage = () => {
                 }).length}
               </p>
             </div>
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-950/40 rounded-xl flex items-center justify-center border border-line">
-              <UserCheck className="w-6 h-6 text-green-600 dark:text-green-400" />
+            <div className="w-10 h-10 bg-green-100 dark:bg-green-950/40 rounded-xl flex items-center justify-center border border-line">
+              <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
           </div>
         </div>
 
-        <div className="bg-surface rounded-2xl border border-line p-6 shadow-sm">
+        <div className="bg-surface rounded-2xl border border-line p-4 sm:p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">Class Code</p>
-              <p className="text-2xl font-mono font-black text-indigo-600 dark:text-indigo-400">
+              <p className="text-xl sm:text-2xl font-mono font-black text-indigo-600 dark:text-indigo-400">
                 {classData?.classCode || 'N/A'}
               </p>
             </div>
-            <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-950/40 rounded-xl flex items-center justify-center border border-line">
-              <Copy className="w-6 h-6 text-indigo-600 dark:text-indigo-450" />
+            <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-950/40 rounded-xl flex items-center justify-center border border-line">
+              <Copy className="w-5 h-5 text-indigo-600 dark:text-indigo-450" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="bg-surface rounded-2xl border border-line p-3 sm:p-4 shadow-sm">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-ink-soft" />
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-ink-soft" />
           <input
             type="text"
             placeholder="Search students by name or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 sm:pl-10 pr-4 py-2 bg-paper text-ink text-sm sm:text-base border border-line rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-violet-600 focus:bg-surface transition-all"
+            className="w-full pl-10 pr-4 py-2.5 bg-paper text-ink text-sm border border-line rounded-xl outline-none focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all shadow-sm"
           />
+        </div>
+        
+        <div 
+          className="relative w-full sm:w-auto min-w-[220px] flex-shrink-0 outline-none group"
+          tabIndex={0}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) {
+              setIsDropdownOpen(false);
+            }
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className={`w-full flex items-center justify-between pl-3.5 pr-4 py-2.5 bg-paper text-ink text-sm border rounded-xl outline-none transition-all shadow-sm cursor-pointer ${
+              isDropdownOpen 
+                ? 'border-violet-500 ring-2 ring-violet-500/20' 
+                : 'border-line hover:border-violet-400 dark:hover:border-violet-500'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="text-violet-600 dark:text-violet-400">
+                {activeTab === 'present' ? <Users className="w-4 h-4" /> : <UserMinus className="w-4 h-4" />}
+              </div>
+              <span className="font-bold">
+                {activeTab === 'present' 
+                  ? `Present Students (${students.length})` 
+                  : `Left Students (${leftStudents.length})`}
+              </span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-ink-soft transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Custom Dropdown Menu */}
+          {isDropdownOpen && (
+            <div className="absolute z-10 w-full mt-2 py-1.5 bg-paper border border-line rounded-xl shadow-xl overflow-hidden origin-top-right">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('present');
+                  setIsDropdownOpen(false);
+                }}
+                className={`w-[calc(100%-12px)] mx-1.5 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-lg transition-colors cursor-pointer ${
+                  activeTab === 'present' 
+                    ? 'bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300' 
+                    : 'text-ink hover:bg-surface'
+                }`}
+              >
+                <Users className="w-4 h-4 opacity-80" />
+                Present
+                <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${
+                  activeTab === 'present' 
+                    ? 'bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300' 
+                    : 'bg-surface text-ink-soft border border-line'
+                }`}>
+                  {students.length}
+                </span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('left');
+                  setIsDropdownOpen(false);
+                }}
+                className={`w-[calc(100%-12px)] mx-1.5 mt-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold rounded-lg transition-colors cursor-pointer ${
+                  activeTab === 'left' 
+                    ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300' 
+                    : 'text-ink hover:bg-surface'
+                }`}
+              >
+                <UserMinus className="w-4 h-4 opacity-80" />
+                Left
+                <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${
+                  activeTab === 'left' 
+                    ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300' 
+                    : 'bg-surface text-ink-soft border border-line'
+                }`}>
+                  {leftStudents.length}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-surface rounded-2xl border border-line overflow-hidden shadow-sm">
-        <div className="flex border-b border-line">
-          <button
-            onClick={() => setActiveTab('present')}
-            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors cursor-pointer border-r border-line last:border-r-0 ${
-              activeTab === 'present'
-                ? 'bg-violet-50 text-violet-dark border-b-2 border-purple-600'
-                : 'text-ink-soft hover:bg-line/45'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <Users className="w-4 h-4" />
-              <span>Present Students ({students.length})</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('left')}
-            className={`flex-1 px-4 py-3 text-sm font-bold transition-colors cursor-pointer ${
-              activeTab === 'left'
-                ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-455 border-b-2 border-rose-650'
-                : 'text-ink-soft hover:bg-line/45'
-            }`}
-          >
-            <div className="flex items-center justify-center gap-2">
-              <UserMinus className="w-4 h-4" />
-              <span>Left Students ({leftStudents.length})</span>
-            </div>
-          </button>
-        </div>
-
       {/* Students List */}
+      <div className="bg-surface rounded-2xl border border-line overflow-hidden shadow-sm mt-2">
       {activeTab === 'present' ? (
         <div>
         {filteredStudents.length === 0 ? (
-          <div className="p-8 sm:p-12 text-center bg-surface border border-line rounded-b-2xl">
+          <div className="p-8 sm:p-12 text-center bg-surface">
             <Users className="w-12 h-12 sm:w-16 sm:h-16 text-line mx-auto mb-4" />
             <p className="text-ink font-semibold text-base sm:text-lg mb-2">
               {searchTerm ? 'No students found' : 'No students yet'}
@@ -274,7 +329,7 @@ const StudentsPage = () => {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-line bg-surface rounded-b-2xl border-x border-b border-line overflow-hidden">
+          <div className="divide-y divide-line bg-surface">
             {filteredStudents.map((student, index) => (
               <div
                 key={student._id}
@@ -349,7 +404,7 @@ const StudentsPage = () => {
       ) : (
         <div>
         {filteredLeftStudents.length === 0 ? (
-          <div className="p-8 sm:p-12 text-center bg-surface border border-line rounded-b-2xl">
+          <div className="p-8 sm:p-12 text-center bg-surface">
             <UserMinus className="w-12 h-12 sm:w-16 sm:h-16 text-line mx-auto mb-4" />
             <p className="text-ink font-semibold text-base sm:text-lg mb-2">
               {searchTerm ? 'No left students found' : 'No students have left'}
@@ -361,7 +416,7 @@ const StudentsPage = () => {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-line bg-surface rounded-b-2xl border-x border-b border-line overflow-hidden">
+          <div className="divide-y divide-line bg-surface">
             {filteredLeftStudents.map((student, index) => (
               <div
                 key={student._id}

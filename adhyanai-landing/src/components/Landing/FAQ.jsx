@@ -204,10 +204,10 @@ const FAQ = () => {
           className="mt-12 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-purple-50 via-indigo-50/50 to-blue-50 border border-purple-200/70 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left"
         >
           <div>
-            <h4 className="text-lg font-bold text-gray-900 mb-1 flex items-center justify-center sm:justify-start gap-2">
+            <h3 className="text-lg font-bold text-gray-900 mb-1 flex items-center justify-center sm:justify-start gap-2">
               <MessageCircleQuestion size={18} className="text-purple-600" />
               <span>Still have questions?</span>
-            </h4>
+            </h3>
             <p className="text-xs sm:text-sm text-gray-600">
               Can’t find what you’re looking for? Reach out directly to our engineering support team.
             </p>

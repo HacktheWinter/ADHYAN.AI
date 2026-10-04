@@ -1,39 +1,63 @@
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useParams, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Grid } from "lucide-react";
+import {
+  ArrowLeft,
+  LayoutDashboard,
+  BookOpenText,
+  MessageCircleQuestion,
+  ClipboardCheck,
+  MoreHorizontal,
+  Megaphone,
+  CalendarDays,
+  Video,
+  MessageSquareHeart,
+  X,
+  Users,
+  Loader,
+} from "lucide-react";
 import { getStoredUser } from "../utils/authStorage";
 import API from "../api.js";
+
+const MAIN_TABS = [
+  { id: "stream", label: "Stream", icon: LayoutDashboard, path: "stream" },
+  { id: "classwork", label: "Classwork", icon: BookOpenText, path: "classwork" },
+  { id: "doubt", label: "Doubts", icon: MessageCircleQuestion, path: "doubt" },
+];
+
+const MENU_OPTIONS = [
+  { id: "announcement", label: "Announcements", icon: Megaphone },
+  { id: "calendar", label: "Calendar", icon: CalendarDays },
+  { id: "feedback", label: "Feedback", icon: MessageSquareHeart },
+];
 
 export default function CourseDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const scrollContainerRef = useRef(null);
-
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(false);
-
-  // FEEDBACK VISIBILITY STATE
-  // const [showFeedbackBtn, setShowFeedbackBtn] = useState(false);
-
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [className, setClassName] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [classData, setClassData] = useState({
+    name: "",
+    subject: "",
+    teacherName: "",
+    studentCount: 0,
+  });
 
-  const menuOptions = [
-    { name: "Announcement", icon: "📢" },
-    { name: "Calendar", icon: "📅" },
-    { name: "Classes", icon: "📚" },
-    { name: "Feedback", icon: "💬" },
-  ];
-
-
+  // Determine active tab from URL path
   const activeTab = useMemo(() => {
     const pathParts = location.pathname.split("/");
-    return pathParts[pathParts.length - 1];
-  }, [location.pathname]);
-
-  // Memoize classInfo
+    const lastPart = pathParts[pathParts.length - 1];
+    // Map old paths to new tabs
+    if (["notes", "quiz", "coding-round", "assignment", "test"].includes(lastPart)) {
+      return "classwork";
+    }
+    if (lastPart === "doubt") return "doubt";
+    if (lastPart === "stream") return "stream";
+    // For the index route or any sub-page of classwork
+    if (lastPart === id) return "stream";
+    return lastPart;
+  }, [location.pathname, id]);
 
   const classInfo = useMemo(() => {
     const user = getStoredUser() || {};
@@ -46,108 +70,42 @@ export default function CourseDetailPage() {
     };
   }, [id]);
 
-  const tabs = [
-
-
-    { id: "notes", label: "Notes", path: "notes" },
-    { id: "quiz", label: "Assessment", path: "quiz" },
-    { id: "assignment", label: "Assignment", path: "assignment" },
-    { id: "test", label: "Test Paper", path: "test" },
-    { id: "doubt", label: "Doubts", path: "doubt" },
-  ];
-
-
-  // useEffect(() => {
-  //   const token = localStorage.getItem("token");
-  //   if (!token) return;
-
-  //   const checkFeedback = async () => {
-  //     try {
-  //       const res = await fetch(
-  //         `http://localhost:5001/api/feedback/active/${id}`,
-  //         {
-  //           headers: {
-  //             Authorization: `Bearer ${token}`,
-  //           },
-  //         }
-  //       );
-
-  //       const data = await res.json();
-
-  //       // show button only when allowed
-  //       setShowFeedbackBtn(data.isActive && !data.alreadySubmitted);
-  //     } catch (err) {
-  //       console.error("Error checking feedback", err);
-  //     }
-  //   };
-
-  //   checkFeedback();
-  // }, [id]);
+  // Check if we're on the classes page (full-screen)
   const isClassesPage = activeTab === "classes";
 
-
-  const checkScroll = () => {
-    const container = scrollContainerRef.current;
-    if (container) {
-      setShowLeftArrow(container.scrollLeft > 0);
-      setShowRightArrow(
-        container.scrollLeft < container.scrollWidth - container.clientWidth - 5
-      );
-    }
-  };
-
-  useEffect(() => {
-    checkScroll();
-    window.addEventListener("resize", checkScroll);
-    return () => window.removeEventListener("resize", checkScroll);
-  }, []);
-
+  // Close menu on outside click
   useEffect(() => {
     if (isMenuOpen) {
-      const handleClickOutside = (e) => {
-
-        if (!e.target.closest(".menu-container")) setIsMenuOpen(false);
+      const handler = (e) => {
+        if (!e.target.closest(".quick-menu-container")) setIsMenuOpen(false);
       };
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
+      document.addEventListener("mousedown", handler);
+      return () => document.removeEventListener("mousedown", handler);
     }
   }, [isMenuOpen]);
 
-
-
-  // Fetch classroom details to get the name
+  // Fetch classroom details
   useEffect(() => {
     const fetchClassroom = async () => {
       try {
         const response = await API.get(`/classroom/${id}`);
-
-        if (
-          response.data &&
-          response.data.classroom &&
-          response.data.classroom.name
-        ) {
-
-          setClassName(response.data.classroom.name);
+        if (response.data?.classroom) {
+          const c = response.data.classroom;
+          setClassData({
+            name: c.name || "",
+            subject: c.subject || "",
+            teacherName: c.teacherId?.name || "",
+            studentCount: c.students?.length || 0,
+          });
         }
       } catch (error) {
         console.error("Error fetching classroom:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchClassroom();
   }, [id]);
-
-  const scroll = (direction) => {
-    const container = scrollContainerRef.current;
-    if (container) {
-      const scrollAmount = 200;
-      container.scrollBy({
-        left: direction === "left" ? -scrollAmount : scrollAmount,
-        behavior: "smooth",
-      });
-      setTimeout(checkScroll, 300);
-    }
-  };
 
   const handleTabClick = (tabPath) => {
     navigate(`/course/${id}/${tabPath}`);
@@ -157,160 +115,166 @@ export default function CourseDetailPage() {
     navigate(`/course/${id}/attendance`);
   };
 
-  const handleMenuOption = (option) => {
-    // console.log(`Selected: ${option}`);
+  const handleMenuOption = (optionId) => {
     setIsMenuOpen(false);
-
-    if (option === "announcement") {
-      navigate(`announcement`);
-    }
-    if (option === "calendar") {
-      navigate(`calendar`);
-
-    }
-     if (option === "classes") {
-    navigate("classes");
-  }
-    if (option === "feedback"){ navigate("feedback");}
-    
+    navigate(optionId);
   };
 
-
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 w-full">
+        <Loader className="w-10 h-10 text-purple-600 animate-spin" />
+        <p className="text-gray-500 font-medium animate-pulse text-lg">Loading classroom...</p>
+      </div>
+    );
+  }
 
   return (
     <div
       className={
         isClassesPage
           ? "h-screen w-full"
-          : "max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10"
+          : "max-w-[1300px] mx-auto px-4 sm:px-8 lg:px-12 py-5 sm:py-8"
       }
     >
       {!isClassesPage && (
         <>
-          {/* Header Section */}
-          <div className="mb-6 sm:mb-8 relative">
+          {/* ─── Compact Class Header ─── */}
+          <div className="mb-5">
+            {/* Back button */}
             <button
               onClick={() => navigate("/")}
-              className="text-purple-600 hover:text-purple-700 mb-3 sm:mb-4 flex items-center gap-2 cursor-pointer text-sm sm:text-base"
+              className="flex items-center gap-1.5 text-purple-600 hover:text-purple-700 mb-3 text-sm font-medium cursor-pointer transition-colors"
             >
-              ← Back to Courses
+              <ArrowLeft className="w-4 h-4" />
+              Back to Courses
             </button>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                  {className}
+
+            {/* Class info row */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate font-serif">
+                  {classData.name}
                 </h1>
-                <p className="text-gray-600 mt-1 text-sm sm:text-base">Access notes, assessments, assignments, tests and doubts</p>
+                <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-sm text-gray-500 font-medium">
+                  {classData.subject && (
+                    <span>{classData.subject}</span>
+                  )}
+                  {classData.teacherName && (
+                    <>
+                      {classData.subject && <span className="text-gray-300">•</span>}
+                      <span>{classData.teacherName}</span>
+                    </>
+                  )}
+                </div>
               </div>
 
-              {/* Floating Action Button / Quick Tools */}
-              <div className="menu-container relative">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleAttendanceClick}
-                    className="h-12 px-4 sm:h-14 sm:px-5 rounded-full border border-purple-200 bg-white text-purple-700 shadow-md hover:bg-purple-50 hover:shadow-lg transition-all duration-300 cursor-pointer flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 104 0M9 5a2 2 0 012 2h2a2 2 0 012-2m-9 9l2 2 4-4" />
-                    </svg>
-                    <span className="hidden sm:inline font-semibold">Attendance</span>
-                  </button>
+              {/* Right-side actions */}
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {/* Attendance */}
+                <button
+                  onClick={handleAttendanceClick}
+                  className="h-10 px-4 sm:px-5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:text-purple-700 transition-all cursor-pointer flex items-center gap-2.5 text-sm font-semibold shadow-sm"
+                >
+                  <ClipboardCheck className="w-[18px] h-[18px] text-purple-600" />
+                  <span className="hidden sm:inline">Attendance</span>
+                </button>
 
+                {/* Classes */}
+                <button
+                  onClick={() => navigate("classes")}
+                  className="h-10 px-4 sm:px-5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:text-purple-700 transition-all cursor-pointer flex items-center gap-2.5 text-sm font-semibold shadow-sm"
+                >
+                  <Video className="w-[18px] h-[18px] text-purple-600" />
+                  <span className="hidden sm:inline">Classes</span>
+                </button>
+
+                {/* More menu */}
+                <div className="quick-menu-container relative">
                   <button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer flex items-center justify-center ${
-                      isMenuOpen ? 'rotate-90 scale-110' : 'hover:scale-105'
+                    className={`h-10 w-10 rounded-lg border transition-all cursor-pointer flex items-center justify-center shadow-sm ${
+                      isMenuOpen
+                        ? "bg-purple-600 border-purple-600 text-white"
+                        : "border-gray-200 bg-white text-gray-500 hover:border-purple-300 hover:text-purple-600"
                     }`}
                   >
-                    <Grid className="w-6 h-6" />
+                    {isMenuOpen ? (
+                      <X className="w-[18px] h-[18px]" />
+                    ) : (
+                      <MoreHorizontal className="w-[18px] h-[18px]" />
+                    )}
                   </button>
-                </div>
 
-                {/* Sidebar Style Dropdown */}
-                {isMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-gray-50 rounded-lg shadow-lg border border-gray-300 overflow-hidden z-50">
-                    <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-4 py-2 border-b border-purple-400">
-                      <p className="text-xs font-semibold text-white uppercase tracking-wide">Quick Tools</p>
+                  {/* Dropdown */}
+                  {isMenuOpen && (
+                    <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-xl border border-gray-200 shadow-lg z-50 py-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                      {MENU_OPTIONS.map((option) => {
+                        const Icon = option.icon;
+                        return (
+                          <button
+                            key={option.id}
+                            onClick={() => handleMenuOption(option.id)}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors cursor-pointer text-sm"
+                          >
+                            <Icon className="w-[18px] h-[18px] text-gray-400" />
+                            <span className="font-semibold">{option.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
-                    {menuOptions.map((option, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleMenuOption(option.name.toLowerCase())}
-                        className="w-full flex items-center justify-between px-4 py-3 text-gray-800 hover:bg-white hover:shadow-sm transition-all cursor-pointer border-b border-gray-200 last:border-b-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg">{option.icon}</span>
-                          <span className="font-medium text-sm">{option.name}</span>
-                        </div>
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Tabs with Scroll Arrows */}
-          <div className="relative mb-6 sm:mb-8">
-            {showLeftArrow && (
-              <button
-                onClick={() => scroll('left')}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 md:hidden"
-                aria-label="Scroll left"
-              >
-                <div className="bg-white rounded-full shadow-lg p-2 border border-gray-200 hover:bg-gray-50 transition-colors">
-                  <ChevronLeft className="w-5 h-5 text-gray-700" />
-                </div>
-              </button>
-            )}
-
-            <div
-              ref={scrollContainerRef}
-              onScroll={checkScroll}
-              className="flex gap-2 sm:gap-4 overflow-x-auto border-b border-gray-200 scrollbar-hide scroll-smooth px-8 md:px-0"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabClick(tab.path)}
-                  className={`pb-3 px-3 sm:px-4 font-semibold transition-colors cursor-pointer whitespace-nowrap text-sm sm:text-base flex-shrink-0 ${activeTab === tab.path
-                      ? "text-purple-600 border-b-2 border-purple-600"
-                      : "text-gray-600 hover:text-gray-900"
+          {/* ─── Main Navigation Tabs ─── */}
+          <div className="mb-6">
+            <div className="flex gap-1 border-b border-gray-100">
+              {MAIN_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabClick(tab.path)}
+                    className={`relative pb-3 px-5 flex items-center gap-2.5 text-[15px] font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                      isActive
+                        ? "text-purple-600"
+                        : "text-gray-500 hover:text-gray-800"
                     }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+                  >
+                    <Icon className="w-[18px] h-[18px]" />
+                    {tab.label}
+                    {isActive && (
+                      <span className="absolute bottom-0 left-3 right-3 h-[2px] bg-purple-600 rounded-full" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
-
-            {showRightArrow && (
-              <button
-                onClick={() => scroll("right")}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 md:hidden"
-                aria-label="Scroll right"
-              >
-                <div className="bg-white rounded-full shadow-lg p-2 border border-gray-200 hover:bg-gray-50 transition-colors">
-                  <ChevronRight className="w-5 h-5 text-gray-700" />
-                </div>
-              </button>
-            )}
           </div>
         </>
       )}
 
       {/* Nested Routes Content */}
-      <div className={isClassesPage ? "h-full w-full" : "mt-6"}>
+      <div className={isClassesPage ? "h-full w-full" : ""}>
         <Outlet context={{ classInfo }} />
       </div>
 
+      {/* ─── Styles ─── */}
       <style>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slide-in-from-top-1 {
+          from { transform: translateY(-4px); }
+          to { transform: translateY(0); }
+        }
+        .animate-in {
+          animation: fade-in 150ms ease-out, slide-in-from-top-1 150ms ease-out;
         }
       `}</style>
     </div>

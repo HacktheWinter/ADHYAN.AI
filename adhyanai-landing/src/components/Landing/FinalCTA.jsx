@@ -49,7 +49,7 @@ const FinalCTA = () => {
 
             <a
               href={TEACHER_URL}
-              className="w-full sm:w-auto group inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold text-white bg-white/10 border border-white/20 rounded-full hover:bg-white/20 hover:border-white/30 backdrop-blur-md shadow-sm transform hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+              className="w-full sm:w-auto group inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-bold text-white bg-white/10 border border-white/20 rounded-full hover:bg-white/20 hover:border-white/30 backdrop-blur-md shadow-sm transform hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
             >
               <Wand2 size={18} className="text-purple-300" />
               <span>Start as Teacher</span>

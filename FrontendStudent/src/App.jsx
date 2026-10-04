@@ -28,6 +28,13 @@ const StudentFeedbackPage = lazy(() => import("./Pages/StudentFeedbackPage"));
 const StudentAnnouncement = lazy(() => import("./Pages/StudentAnnouncement"));
 const StudentCalendarPage = lazy(() => import("./Pages/StudentCalendarPage"));
 const SettingsPage = lazy(() => import("./Pages/SettingsPage"));
+const CodingRound = lazy(() => import("./Pages/CodingRound"));
+const CodingRoundTakingPage = lazy(() => import("./Pages/CodingRoundTakingPage"));
+
+// New pages
+const StudentOverview = lazy(() => import("./Pages/StudentOverview"));
+const StudentClasswork = lazy(() => import("./Pages/StudentClasswork"));
+
 function StudentLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -113,15 +120,20 @@ export default function App() {
 
           {/* Course Detail with Nested Routes */}
           <Route path="course/:id" element={<CourseDetailPage />}>
-            {/* Default redirect to notes */}
-            <Route index element={<Navigate to="notes" replace />} />
+            {/* Default redirect to stream */}
+            <Route index element={<Navigate to="stream" replace />} />
 
-            {/* Tab Routes */}
-            <Route path="notes" element={<StudentNotesPage />} />
-            <Route path="quiz" element={<Quiz />} />
-            <Route path="assignment" element={<Assignments />} />
-            <Route path="test" element={<TestPapers />} />
+            {/* New main tabs */}
+            <Route path="stream" element={<StudentOverview />} />
+            <Route path="classwork" element={<StudentClasswork />} />
             <Route path="doubt" element={<DoubtPage />} />
+
+            {/* Keep old routes for backward compatibility (redirect to classwork) */}
+            <Route path="notes" element={<Navigate to="../classwork?tab=notes" replace />} />
+            <Route path="quiz" element={<Navigate to="../classwork?tab=quiz" replace />} />
+            <Route path="coding-round" element={<Navigate to="../classwork?tab=coding-round" replace />} />
+            <Route path="assignment" element={<Navigate to="../classwork?tab=assignment" replace />} />
+            <Route path="test" element={<Navigate to="../classwork?tab=test" replace />} />
           </Route>
 
           {/* Standalone Course Announcement Route (with navbar) */}
@@ -161,6 +173,16 @@ export default function App() {
           element={
             <ProtectedRoute requiredRole="student">
               <ClassesPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Coding Round Exam (Fullscreen - No Navbar) */}
+        <Route
+          path="/coding-round/:classId/:assessmentId"
+          element={
+            <ProtectedRoute requiredRole="student">
+              <CodingRoundTakingPage />
             </ProtectedRoute>
           }
         />

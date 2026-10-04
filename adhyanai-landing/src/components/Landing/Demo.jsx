@@ -253,9 +253,9 @@ const Demo = () => {
             {/* Left Tab Navigator (5 cols) */}
             <div className="lg:col-span-5 p-6 lg:p-8 flex flex-col justify-between border-r border-gray-800/80 bg-gray-900/40">
               <div>
-                <div className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <div className="text-xs font-mono text-gray-400 tracking-wider mb-4 flex items-center gap-2">
                   <Layers size={14} className="text-purple-400" />
-                  <span>Select Operation Mode</span>
+                  <span>Select operation mode</span>
                 </div>
 
                 <div className="space-y-3">

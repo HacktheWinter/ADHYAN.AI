@@ -23,6 +23,8 @@ import {
 import Header from "../components/Header";
 
 import PdfPreview from "../components/PdfPreview";
+import ToastNotification from "../components/ToastNotification";
+import ConfirmationCard from "../components/ConfirmationCard";
 
 const Announcement = () => {
   const { classId } = useParams();
@@ -45,6 +47,31 @@ const Announcement = () => {
   const [deleting, setDeleting] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [className, setClassName] = useState("Class");
+
+  const [toast, setToast] = useState({ message: "", type: "success" });
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    confirmText: "Confirm",
+    cancelText: "Cancel",
+    type: "danger",
+    onConfirm: null,
+  });
+
+  const showToast = (message, type = "success") => setToast({ message, type });
+  const clearToast = () => setToast({ message: "", type: "success" });
+
+  const showConfirm = (opts) =>
+    setConfirmDialog({
+      isOpen: true,
+      ...opts,
+      confirmText: opts.confirmText || "Confirm",
+      cancelText: opts.cancelText || "Cancel",
+      type: opts.type || "danger",
+    });
+  const closeConfirm = () =>
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false, onConfirm: null }));
 
   useEffect(() => {
     fetchAnnouncements();
@@ -77,7 +104,7 @@ const Announcement = () => {
     e.preventDefault();
 
     if (!message.trim()) {
-      alert("Please enter a message");
+      showToast("Please enter a message", "error");
       return;
     }
 
@@ -99,28 +126,38 @@ const Announcement = () => {
       setFile(null);
       setIsModalOpen(false);
 
+      showToast("Announcement created successfully!", "success");
       fetchAnnouncements();
     } catch (error) {
       console.error("Error posting announcement:", error);
-      alert("Failed to post announcement");
+      showToast(error.response?.data?.message || "Failed to post announcement", "error");
     } finally {
       setCreating(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this announcement?")) return;
-
-    try {
-      setDeleting(id);
-      await deleteAnnouncement(id, currentUser.id || currentUser._id);
-      setAnnouncements((prev) => prev.filter((a) => a._id !== id));
-    } catch (error) {
-      console.error("Error deleting announcement:", error);
-      alert("Failed to delete announcement");
-    } finally {
-      setDeleting(null);
-    }
+  const handleDelete = (id) => {
+    showConfirm({
+      title: "Delete Announcement",
+      message: "Are you sure you want to delete this announcement? This action cannot be undone.",
+      confirmText: "Delete",
+      onConfirm: async () => {
+        try {
+          setDeleting(id);
+          setConfirmDialog((prev) => ({ ...prev, isLoading: true }));
+          await deleteAnnouncement(id, currentUser.id || currentUser._id);
+          setAnnouncements((prev) => prev.filter((a) => a._id !== id));
+          showToast("Announcement deleted successfully!", "success");
+          setConfirmDialog((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+        } catch (error) {
+          console.error("Error deleting announcement:", error);
+          showToast(error.response?.data?.message || "Failed to delete announcement", "error");
+          setConfirmDialog((prev) => ({ ...prev, isLoading: false }));
+        } finally {
+          setDeleting(null);
+        }
+      },
+    });
   };
 
   const renderFilePreview = (fileId, mimeType, fileName) => {
@@ -131,13 +168,13 @@ const Announcement = () => {
     if (isImage) {
       return (
         <div
-          className="mt-2 relative group max-w-sm cursor-pointer"
+          className="mt-3 relative group inline-block cursor-pointer"
           onClick={() => setPreviewFile({ url, type: "image", name: fileName })}
         >
           <img
             src={url}
             alt="Attachment"
-            className="rounded-lg border border-gray-200 object-cover max-h-60 w-full sm:w-auto"
+            className="rounded-xl border border-line object-contain max-h-[120px] sm:max-h-[140px] w-auto max-w-[240px] sm:max-w-xs bg-surface"
           />
         </div>
       );
@@ -437,7 +474,7 @@ const Announcement = () => {
               <img
                 src={previewFile.url}
                 alt={previewFile.name}
-                className="max-w-full max-h-[85vh] rounded-lg shadow-2xl"
+                className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               />
               <p className="text-white/80 mt-4 font-medium text-sm sm:text-base px-4 text-center">
@@ -446,6 +483,23 @@ const Announcement = () => {
             </div>
           </div>
         ))}
+
+      <ToastNotification
+        message={toast.message}
+        type={toast.type}
+        onClose={clearToast}
+      />
+
+      <ConfirmationCard
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirm}
+        isLoading={confirmDialog.isLoading}
+      />
     </div>
   );
 };

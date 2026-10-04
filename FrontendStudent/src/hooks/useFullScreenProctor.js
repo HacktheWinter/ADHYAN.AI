@@ -28,6 +28,7 @@ export const useFullScreenProctor = ({
   const violationsRef = useRef(JSON.parse(localStorage.getItem(storageKey) || '[]'));
   const isSubmittingRef = useRef(false);
   const showViolationAlertRef = useRef(false);
+  const tabAwayStartRef = useRef(null);
 
   // Keep the ref in sync with state so event handlers always see latest value
   useEffect(() => {
@@ -59,7 +60,8 @@ export const useFullScreenProctor = ({
       
       setIsFullScreen(true);
     } catch (error) {
-      console.error('Failed to enter full-screen:', error);
+      console.warn('Failed to enter full-screen (requires user click):', error);
+      setIsFullScreen(false);
     }
   }, [enabled]);
 
@@ -112,7 +114,7 @@ export const useFullScreenProctor = ({
 
     if (currentCount >= maxViolations) {
       const suffix = currentCount === 1 ? 'st' : currentCount === 2 ? 'nd' : currentCount === 3 ? 'rd' : 'th';
-      setViolationMessage(` FINAL WARNING!\n\n${currentCount}${suffix} Violation: ${reason}\n\nYour assessment will be auto-submitted now.`);
+      setViolationMessage(`🚨 FINAL WARNING!\n\n${currentCount}${suffix} Violation: ${reason}\n\nYour assessment is being auto-submitted now.`);
       setShowViolationAlert(true);
       
       setTimeout(() => {
@@ -122,10 +124,15 @@ export const useFullScreenProctor = ({
         }
       }, 2000);
     } else {
-      setViolationMessage(` WARNING ${currentCount}/${maxViolations}\n\nViolation: ${reason}\n\nPlease stay in full-screen mode!\n\nOne more violation = auto-submit.`);
+      const remainingViolations = maxViolations - currentCount;
+      const remainingText = remainingViolations === 1
+        ? "1 more violation will trigger automatic test submission."
+        : `${remainingViolations} more violations remaining before auto-submit.`;
+
+      setViolationMessage(`⚠️ PROCTORING WARNING (${currentCount}/${maxViolations})\n\nViolation: ${reason}\n\nPlease stay in full-screen mode!\n\n${remainingText}`);
       setShowViolationAlert(true);
     }
-  }, [maxViolations]);
+  }, [maxViolations, storageKey]);
 
   const handleViolationAlertOk = useCallback(() => {
     setShowViolationAlert(false);
@@ -156,16 +163,42 @@ export const useFullScreenProctor = ({
       }
     };
 
-    // -- Visibility change handler (catches browser tab switches) --
+    // -- Visibility change handler (catches browser tab switches & track duration away) --
     const onVisibilityChange = () => {
-      if (document.hidden && !isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlertRef.current) {
-        recordViolation('Switched tab/window');
+      if (document.hidden) {
+        tabAwayStartRef.current = Date.now();
+        if (!isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlertRef.current) {
+          recordViolation('Switched tab/window');
+        }
+      } else {
+        // Returned to tab
+        if (tabAwayStartRef.current) {
+          const awayDurationSeconds = Math.round((Date.now() - tabAwayStartRef.current) / 1000);
+          tabAwayStartRef.current = null;
+          
+          if (awayDurationSeconds >= 5 && !isSubmittingRef.current && !violationInProgressRef.current) {
+            recordViolation(`Stayed away from exam window for ${awayDurationSeconds} seconds`);
+          }
+        }
+
+        const isCurrentlyFullScreen = !!(
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.mozFullScreenElement ||
+          document.msFullscreenElement
+        );
+        if (!isCurrentlyFullScreen && !showViolationAlertRef.current) {
+          enterFullScreen();
+        }
       }
     };
 
-    // -- Window blur handler (catches Alt+Tab, clicking other apps, taskbar, etc.) --
+    // -- Window blur handler (catches Alt+Tab, OS taskbar, clicking outside browser) --
     const onWindowBlur = () => {
-      // document.hidden may not be true yet when Alt+Tabbing, so use blur as a catch-all
+      if (document.activeElement && document.activeElement.tagName.toLowerCase() === 'iframe') {
+        return;
+      }
+
       if (!isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlertRef.current) {
         recordViolation('Switched tab/window');
       }
@@ -173,19 +206,44 @@ export const useFullScreenProctor = ({
 
     // -- Keyboard handler --
     const onKeyDown = (e) => {
-      if (e.key === 'Escape' && !isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlertRef.current) {
+      const key = e.key ? e.key.toLowerCase() : '';
+
+      // Intercept ESC
+      if (key === 'escape' && !isSubmittingRef.current && !violationInProgressRef.current && !showViolationAlertRef.current) {
         e.preventDefault();
-        recordViolation('Pressed ESC key');
+        recordViolation('Exited full-screen mode (ESC key)');
+        return;
       }
-      
-      if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'x', 'a', 'p'].includes(e.key.toLowerCase())) {
+
+      // Intercept F-keys (F5, F11, F12)
+      if (['f5', 'f11', 'f12'].includes(key)) {
         e.preventDefault();
+        recordViolation(`Pressed prohibited key (${e.key})`);
+        return;
+      }
+
+      // Intercept Ctrl/Cmd shortcut combos (Ctrl+R, Ctrl+Tab, Ctrl+W, DevTools Ctrl+Shift+I, etc.)
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        if (['r', 'w', 'tab', 'i', 'j', 'u', 's', 'p'].includes(key) || key === 'tab') {
+          e.preventDefault();
+          recordViolation(`Attempted shortcut key combination (${e.altKey ? 'Alt' : 'Ctrl'}+${e.key ? e.key.toUpperCase() : 'KEY'})`);
+        }
       }
     };
 
     // -- Context menu handler --
     const onContextMenu = (e) => {
       e.preventDefault();
+    };
+
+    // -- Before unload handler (warn on page refresh or tab close) --
+    const onBeforeUnload = (e) => {
+      if (!isSubmittingRef.current && enabled) {
+        const message = 'Reloading or leaving this page will disrupt your exam and may record a proctoring violation.';
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+      }
     };
 
     // Register all listeners
@@ -197,8 +255,9 @@ export const useFullScreenProctor = ({
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('contextmenu', onContextMenu);
     window.addEventListener('blur', onWindowBlur);
+    window.addEventListener('beforeunload', onBeforeUnload);
 
-    // Enter fullscreen on mount
+    // Initial enter fullscreen attempt on mount
     enterFullScreen();
 
     return () => {
@@ -210,6 +269,7 @@ export const useFullScreenProctor = ({
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('blur', onWindowBlur);
+      window.removeEventListener('beforeunload', onBeforeUnload);
       exitFullScreen();
     };
   }, [enabled, recordViolation, enterFullScreen, exitFullScreen]);
@@ -231,6 +291,7 @@ export const useFullScreenProctor = ({
     violations: violationsRef.current,
     enterFullScreen,
     exitFullScreen,
+    requestFullScreen: enterFullScreen,
     handleViolationAlertOk,
     setIsSubmitting,
     clearViolations

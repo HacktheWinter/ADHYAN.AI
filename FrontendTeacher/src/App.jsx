@@ -50,6 +50,10 @@ const PhysicalTestUploadPage = lazy(() => import("./Pages/PhysicalTestUploadPage
 const PhysicalTestResultsPage = lazy(() => import("./Pages/PhysicalTestResultsPage"));
 const PhysicalTestStudentResult = lazy(() => import("./Pages/PhysicalTestStudentResult"));
 const SeminarAttendancePage = lazy(() => import("./Pages/SeminarAttendancePage"));
+const CodingRoundPage = lazy(() => import("./components/CodingRoundPage"));
+const CodingSubmissionsViewer = lazy(() => import("./Pages/CodingSubmissionsViewer"));
+const StreamPage = lazy(() => import("./Pages/StreamPage"));
+const ClassworkPage = lazy(() => import("./Pages/ClassworkPage"));
 
 
 export default function App() {
@@ -134,6 +138,15 @@ export default function App() {
           />
 
           <Route
+            path="/class/:classId/doubts"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <DoubtsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/class/:classId/calendar"
             element={
               <ProtectedRoute requiredRole="teacher">
@@ -170,14 +183,26 @@ export default function App() {
           }
         >
 
-          <Route index element={<Navigate to="notes" replace />} />
+          <Route index element={<Navigate to="stream" replace />} />
+          <Route path="stream" element={<StreamPage />} />
           <Route path="live-classroom" element={<LiveClassroom />} />
-          <Route path="notes" element={<NotesPage />} />
-          <Route path="quizzes" element={<QuizzesPage />} />
-          <Route path="test-papers" element={<TestPapersPage />} />
-          <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="students" element={<StudentsPage />} />
-          <Route path="doubts" element={<DoubtsPage />} />
+
+          {/* Classwork wrapper with nested content type routes */}
+          <Route path="classwork" element={<ClassworkPage />}>
+            <Route path="notes" element={<NotesPage />} />
+            <Route path="quizzes" element={<QuizzesPage />} />
+            <Route path="coding-round" element={<CodingRoundPage />} />
+            <Route path="test-papers" element={<TestPapersPage />} />
+            <Route path="assignments" element={<AssignmentsPage />} />
+          </Route>
+
+          {/* Backward-compatible direct routes (old bookmarks still work) */}
+          <Route path="notes" element={<Navigate to={`../classwork/notes`} replace />} />
+          <Route path="quizzes" element={<Navigate to={`../classwork/quizzes`} replace />} />
+          <Route path="coding-round" element={<Navigate to={`../classwork/coding-round`} replace />} />
+          <Route path="test-papers" element={<Navigate to={`../classwork/test-papers`} replace />} />
+          <Route path="assignments" element={<Navigate to={`../classwork/assignments`} replace />} />
         </Route>
 
         {/* Standalone results and dashboard views with Mobile Header Layout */}
@@ -270,6 +295,18 @@ export default function App() {
             element={
               <ProtectedRoute requiredRole="teacher">
                 <StudentAssignmentResult />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+
+        {/* Coding Round Submissions Route */}
+        <Route element={<MobileHeaderLayout />}>
+          <Route
+            path="/class/:classId/coding-round/submissions/:assessmentId"
+            element={
+              <ProtectedRoute requiredRole="teacher">
+                <CodingSubmissionsViewer />
               </ProtectedRoute>
             }
           />

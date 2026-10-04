@@ -38,6 +38,7 @@ import seminarRoutes from "./routes/seminarRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import assessmentAnalyticsRoutes from "./routes/assessmentAnalyticsRoutes.js";
 import proctorRoutes from "./routes/proctorRoutes.js";
+import codingAssessmentRoutes from "./routes/codingAssessmentRoutes.js";
 import socketHandler from "./socket/socketHandler.js";
 import { startDraftFinalizerCron } from "./services/draftFinalizerCron.js";
 import { authRateLimiter, passwordResetRateLimiter } from "./middleware/rateLimiter.js";
@@ -134,6 +135,7 @@ app.use("/api/seminar", seminarRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/assessment-analytics", assessmentAnalyticsRoutes);
 app.use("/api/proctor", proctorRoutes);
+app.use("/api/coding-assessment", codingAssessmentRoutes);
 
 // Apply rate limiting to auth endpoints
 app.use("/api/teacher/login", authRateLimiter);

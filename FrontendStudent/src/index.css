@@ -9,4 +9,210 @@
         -ms-overflow-style: none; /* IE and Edge */
         scrollbar-width: none; /* Firefox */
     }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(15, 23, 42, 0.6);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(71, 85, 105, 0.7);
+        border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(147, 51, 234, 0.9);
+    }
+}
+
+/* ═══════════════════════════════════════════════════
+   Student Classwork — Component Styles
+   ═══════════════════════════════════════════════════ */
+
+/* Classwork list container */
+.classwork-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Individual classwork item row */
+.classwork-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    transition: box-shadow 0.2s ease;
+    cursor: default;
+}
+.classwork-item:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Icon container inside items */
+.classwork-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 9999px; /* Fully rounded */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Filter tab base */
+.classwork-filter-tab {
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid transparent;
+    flex-shrink: 0;
+}
+.classwork-filter-tab:focus {
+    outline: none;
+}
+
+/* Active filter tab */
+.classwork-filter-tab-active {
+    background: #7c3aed;
+    color: white;
+    border-color: #7c3aed;
+    box-shadow: 0 1px 3px 0 rgba(124, 58, 237, 0.3);
+}
+
+/* Inactive filter tab */
+.classwork-filter-tab-inactive {
+    background: #f9fafb;
+    color: #6b7280;
+    border-color: #f3f4f6;
+}
+.classwork-filter-tab-inactive:hover {
+    background: #f3f4f6;
+    color: #374151;
+    border-color: #e5e7eb;
+}
+
+/* Action buttons inside classwork items */
+.classwork-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+}
+.classwork-action-btn:hover {
+    background: #f5f3ff;
+    color: #7c3aed;
+}
+
+/* Primary action button */
+.classwork-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #7c3aed;
+    color: white;
+    font-size: 13.5px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    white-space: nowrap;
+}
+.classwork-btn-primary:hover {
+    background: #6d28d9;
+}
+
+/* Green result button */
+.classwork-btn-green {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #059669;
+    color: white;
+    font-size: 13.5px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    white-space: nowrap;
+}
+.classwork-btn-green:hover {
+    background: #047857;
+}
+
+/* Disabled / muted button */
+.classwork-btn-disabled {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: #f3f4f6;
+    color: #9ca3af;
+    font-size: 13.5px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: not-allowed;
+    white-space: nowrap;
+}
+
+/* Responsive: make filter tabs scroll horizontally on mobile */
+@media (max-width: 640px) {
+    .classwork-filter-tab {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+    .classwork-item {
+        padding: 16px;
+        gap: 14px;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .classwork-item > div:first-child {
+        width: 100%;
+    }
+    .classwork-item > div:not(:first-child) {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+    }
+    .classwork-item > div:not(:first-child) > button,
+    .classwork-item > div:not(:first-child) > span {
+        width: 100%;
+        justify-content: center;
+    }
+    .classwork-item > div:not(:first-child) .dropdown-container {
+        width: 100%;
+    }
+    .classwork-item > div:not(:first-child) .dropdown-container > .classwork-btn-primary {
+        flex: 1;
+        justify-content: center;
+    }
+    .classwork-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+    }
 }

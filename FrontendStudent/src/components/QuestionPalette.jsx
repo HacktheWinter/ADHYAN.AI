@@ -9,7 +9,8 @@ export default function QuestionPalette({
   markedForReview = {},
   onSelectQuestion,
   isMobileOpen = false,
-  setIsMobileOpen
+  setIsMobileOpen,
+  disableNavigation = false
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -29,7 +30,7 @@ export default function QuestionPalette({
       else hasAns = String(answers[qId]).trim() !== '';
     }
     const isMarked = !!markedForReview[qId];
-    const isVisited = visitedQuestions.has(idx) || idx === currentQuestion;
+    const isVisited = visitedQuestions.has(qId) || idx === currentQuestion;
 
     if (isMarked && hasAns) {
       reviewAndAnsweredCount++;
@@ -53,7 +54,7 @@ export default function QuestionPalette({
       else hasAns = String(answers[qId]).trim() !== '';
     }
     const isMarked = !!markedForReview[qId];
-    const isVisited = visitedQuestions.has(idx) || idx === currentQuestion;
+    const isVisited = visitedQuestions.has(qId) || idx === currentQuestion;
 
     if (isMarked && hasAns) return 'marked-answered';
     if (isMarked) return 'marked';
@@ -155,10 +156,12 @@ export default function QuestionPalette({
                   <button
                     key={q._id || idx}
                     onClick={() => {
+                      if (disableNavigation) return;
                       onSelectQuestion(idx);
                       if (setIsMobileOpen) setIsMobileOpen(false);
                     }}
-                    className={getStatusStyles(status, isCurrent)}
+                    disabled={disableNavigation}
+                    className={`${getStatusStyles(status, isCurrent)} ${disableNavigation ? 'opacity-60 cursor-not-allowed' : ''}`}
                     title={`Question ${idx + 1}: ${
                       status === 'answered' ? 'Answered' :
                       status === 'marked-answered' ? 'Answered & Marked for Review' :

@@ -136,6 +136,7 @@ export const createQuizManually = async (req, res) => {
           type: sec.type || "mcq",
           instructions: sec.instructions || "",
           durationMinutes: sec.durationMinutes || null,
+          isStrictTiming: sec.isStrictTiming || false,
           order: sec.order || sIdx,
           questions: mappedQuestions
         };
@@ -910,10 +911,10 @@ export const deleteQuiz = async (req, res) => {
 export const publishQuizWithTiming = async (req, res) => {
   try {
     const { quizId } = req.params;
-    const { duration, startTime, endTime, webcamEnabled } = req.body;
+    const { duration, startTime, endTime, webcamEnabled, strictMcqDuration, strictSectionDurations } = req.body;
     const teacherId = req.user?._id?.toString();
 
-    console.log("Publishing quiz:", { quizId, duration, startTime, endTime });
+    console.log("Publishing quiz:", { quizId, duration, startTime, endTime, strictMcqDuration, strictSectionDurations });
 
     const quiz = await Quiz.findById(quizId);
     if (!quiz) {
@@ -937,10 +938,19 @@ export const publishQuizWithTiming = async (req, res) => {
     // Update quiz
     quiz.status = "published";
     quiz.duration = duration || null;
+    quiz.strictMcqDuration = strictMcqDuration || null;
     quiz.startTime = startTime || null;
     quiz.endTime = calculatedEndTime || null;
     quiz.isActive = true;
     quiz.webcamEnabled = webcamEnabled || false;
+
+    if (strictSectionDurations) {
+      quiz.sections.forEach(section => {
+        if (strictSectionDurations[section._id.toString()]) {
+          section.durationMinutes = strictSectionDurations[section._id.toString()];
+        }
+      });
+    }
 
     await quiz.save();
 

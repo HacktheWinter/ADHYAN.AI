@@ -134,7 +134,7 @@ const HeroVisual = () => {
               <div className="h-[26px] bg-gray-50/90 rounded-lg flex items-center justify-center px-3 border border-gray-100/40">
                 <div className="flex items-center gap-1.5">
                   <Shield size={10} className="text-emerald-500" />
-                  <span className="text-[10px] text-gray-400 font-mono tracking-wide">adhyanai.tech/classroom</span>
+                  <span className="text-[12px] text-gray-400 font-mono tracking-wide">adhyanai.tech/classroom</span>
                 </div>
               </div>
             </div>
@@ -170,7 +170,7 @@ const HeroVisual = () => {
                         </div>
                       </motion.div>
                     </div>
-                    <p className="text-[11px] text-gray-500 leading-relaxed">
+                    <p className="text-[12px] text-gray-500 leading-relaxed">
                       {typedPrompt}
                       {!promptDone && (
                         <motion.span

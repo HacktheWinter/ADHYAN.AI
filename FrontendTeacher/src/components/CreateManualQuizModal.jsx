@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import { X, Plus, Trash2, Save, ChevronDown, ChevronUp, Code, Code2, Settings, Maximize2, Minimize2, Upload, Loader2, FileUp, Clock, FileText, Sparkles, CheckCircle, Check } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
@@ -55,7 +56,7 @@ const CustomSelect = ({ value, onChange, options }) => {
   );
 };
 
-const ExpandableTextarea = ({ value, onChange, placeholder }) => {
+const ExpandableTextarea = ({ value, onChange, placeholder, title = 'Edit Question Text' }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const textareaRef = useRef(null);
 
@@ -76,7 +77,7 @@ const ExpandableTextarea = ({ value, onChange, placeholder }) => {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 outline-none resize-none text-sm transition-all overflow-hidden"
+          className="w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 outline-none resize-none text-sm transition-all overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           style={{ minHeight: '6rem' }}
         />
         <button
@@ -95,7 +96,7 @@ const ExpandableTextarea = ({ value, onChange, placeholder }) => {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
               <h3 className="font-bold text-gray-800 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-indigo-600" />
-                Edit Question Text
+                {title}
               </h3>
               <button
                 type="button"
@@ -110,7 +111,7 @@ const ExpandableTextarea = ({ value, onChange, placeholder }) => {
                 value={value}
                 onChange={e => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full h-full p-6 border-2 border-indigo-100 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 outline-none resize-none text-base leading-relaxed transition-all shadow-inner"
+                className="w-full h-full p-6 border-2 border-indigo-100 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 outline-none resize-none text-base leading-relaxed transition-all shadow-inner [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
               />
             </div>
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end">
@@ -487,6 +488,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated, showToast }) => {
         title: section.title,
         instructions: section.instructions,
         type: section.type,
+        isStrictTiming: section.type === 'mcq' ? (section.isStrictTiming || false) : false,
         order: sIdx,
         questions: mappedQuestions
       });
@@ -515,8 +517,14 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated, showToast }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-all duration-300">
-      <div className={`bg-surface border border-line flex flex-col shadow-2xl font-body text-ink transition-all duration-300 ${isFullScreen ? 'fixed inset-0 w-full h-full rounded-none' : 'rounded-2xl w-full max-w-5xl max-h-[90vh]'}`}>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-opacity duration-150">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
+        className={`bg-surface border border-line flex flex-col shadow-2xl font-body text-ink ${isFullScreen ? 'fixed inset-0 w-full h-full rounded-none' : 'rounded-2xl w-full max-w-5xl max-h-[90vh]'}`}
+      >
         <div className={`px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-white sticky top-0 z-10 ${isFullScreen ? '' : 'rounded-t-2xl'}`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
@@ -718,15 +726,14 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated, showToast }) => {
 
                         <div>
                           <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Topics / Prompt</label>
-                          <textarea
+                          <ExpandableTextarea
                             value={aiTopicInput}
-                            onChange={(e) => setAiTopicInput(e.target.value)}
+                            onChange={(val) => setAiTopicInput(val)}
                             placeholder={section.type === 'coding' 
                               ? 'e.g. binary search, linked list reversal, dynamic programming...'
                               : 'e.g. photosynthesis, cell division, genetics...'
                             }
-                            className="w-full px-3.5 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-200 outline-none transition-all text-sm resize-none h-20"
-                            disabled={isGeneratingAI}
+                            title="Edit Topics / Prompt"
                           />
                         </div>
 
@@ -737,14 +744,14 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated, showToast }) => {
                               <input
                                 type="number"
                                 min="1"
-                                max="20"
+                                max="50"
                                 value={aiQuestionCount}
-                                onChange={(e) => setAiQuestionCount(Math.max(1, Math.min(20, Number(e.target.value))))}
+                                onChange={(e) => setAiQuestionCount(Math.max(1, Math.min(50, Number(e.target.value))))}
                                 className="w-full bg-transparent border-none outline-none text-sm font-bold text-gray-900 p-0 pr-6 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 disabled={isGeneratingAI}
                               />
                               <div className="absolute right-0 top-0 h-full flex flex-col border-l border-gray-200">
-                                <button type="button" onClick={() => setAiQuestionCount(Math.min(20, aiQuestionCount + 1))} disabled={isGeneratingAI} className="flex-1 w-7 flex items-center justify-center text-gray-500 hover:text-purple-700 hover:bg-purple-100 transition-colors border-b border-gray-200 disabled:opacity-50 cursor-pointer">
+                                <button type="button" onClick={() => setAiQuestionCount(Math.min(50, aiQuestionCount + 1))} disabled={isGeneratingAI} className="flex-1 w-7 flex items-center justify-center text-gray-500 hover:text-purple-700 hover:bg-purple-100 transition-colors border-b border-gray-200 disabled:opacity-50 cursor-pointer">
                                   <ChevronUp className="w-3 h-3" />
                                 </button>
                                 <button type="button" onClick={() => setAiQuestionCount(Math.max(1, aiQuestionCount - 1))} disabled={isGeneratingAI} className="flex-1 w-7 flex items-center justify-center text-gray-500 hover:text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50 cursor-pointer">
@@ -913,6 +920,23 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated, showToast }) => {
                         </div>
                       </div>
                     </div>
+                    {section.type === "mcq" && (
+                      <div className="flex items-center gap-3 bg-indigo-50/50 border border-indigo-100 p-3 rounded-xl mb-4">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer"
+                            checked={section.isStrictTiming || false}
+                            onChange={(e) => updateSection(sIdx, "isStrictTiming", e.target.checked)}
+                          />
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">Enable Strict MCQ Mode</p>
+                          <p className="text-xs text-gray-500">Students cannot navigate back and each question will have a strict timer.</p>
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Instructions (Optional)</label>
                       <textarea
@@ -1421,7 +1445,7 @@ const CreateManualQuizModal = ({ classId, onClose, onCreated, showToast }) => {
           </button>
         </div>
 
-      </div>
+      </motion.div>
       
       {/* Expanded Editor Modal */}
       {expandedEditor && (

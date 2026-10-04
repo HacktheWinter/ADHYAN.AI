@@ -211,7 +211,16 @@ const normalizeCodeString = (code, language) => {
 
 const normalizeCodeFormatting = (questions) => {
   return questions.map(q => {
+    if (q.question && typeof q.question === "string") {
+      q.question = q.question.replace(/\\n/g, "\n");
+    }
+    if (Array.isArray(q.options)) {
+      q.options = q.options.map(opt => (typeof opt === "string" ? opt.replace(/\\n/g, "\n") : opt));
+    }
     if (q.type === "coding" && q.coding) {
+      if (q.coding.description && typeof q.coding.description === "string") {
+        q.coding.description = q.coding.description.replace(/\\n/g, "\n");
+      }
       if (Array.isArray(q.coding.starterCode)) {
         q.coding.starterCode = q.coding.starterCode.map(sc => ({
           ...sc,
@@ -344,9 +353,8 @@ ${excludeInstruction}
 
 CRITICAL JSON RULES:
 1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
-2. NO LITERAL NEWLINES inside JSON string values.
+2. PRESERVE ALL ORIGINAL FORMATTING: Do NOT combine lines or strip line breaks. If a question, option, or code snippet has multiple lines, you MUST preserve them using \\n in the JSON string.
 3. Escape all double quotes (\") within question or option text.
-4. Each option and explanation must be a single-line string.
 
 ${contentHeader}
 
@@ -518,9 +526,8 @@ ${excludeInstruction}
 
 CRITICAL JSON RULES:
 1. Return ONLY valid JSON - No markdown snippets, no backticks, no "json" label.
-2. NO LITERAL NEWLINES inside JSON string values.
+2. PRESERVE ALL ORIGINAL FORMATTING: Do NOT combine lines or strip line breaks. If a question, option, or code snippet has multiple lines, you MUST preserve them using \\n in the JSON string.
 3. Escape all double quotes (\") within question or option text.
-4. Each option and explanation must be a single-line string.
 
 TOPICS:
 ${topicsText}
@@ -1154,6 +1161,7 @@ Your task is to extract EVERY question exactly as it appears and convert it into
 CRITICAL JSON RULES:
 1. Return ONLY valid JSON - No markdown snippets (e.g., no \`\`\`json), no extra text.
 2. The output MUST be a JSON array of objects.
+3. PRESERVE ALL ORIGINAL FORMATTING: Do NOT combine lines or strip line breaks. If a question, option, or code snippet has multiple lines, you MUST preserve them using \\n in the JSON string.
 
 Identify the type of each question and format it accordingly:
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, Bookmark, LayoutGrid, Camera, Video } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, Bookmark, LayoutGrid, Camera, Video, Maximize2, Minimize2, X, ChevronDown } from 'lucide-react';
 import { getQuizById, submitQuiz } from '../api/quizApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
 import { useWebcamProctor } from '../hooks/useWebcamProctor';
@@ -10,6 +10,98 @@ import QuestionPalette from '../components/QuestionPalette';
 import ToastNotification from '../components/ToastNotification';
 import ConfirmationCard from '../components/ConfirmationCard';
 import { getStoredUser } from '../utils/authStorage';
+
+const ExpandableQuestion = ({ questionText, questionIdx }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const textRef = useRef(null);
+
+  // Reset when question changes
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [questionIdx]);
+
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (textRef.current) {
+        setIsOverflowing(textRef.current.scrollHeight > textRef.current.clientHeight);
+      }
+    };
+    
+    // Check after a tiny delay to ensure DOM is painted
+    const timer = setTimeout(checkOverflow, 50);
+    window.addEventListener('resize', checkOverflow);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', checkOverflow);
+    };
+  }, [questionIdx, questionText]);
+
+  return (
+    <>
+      <div className="relative mb-6 pb-4 mt-3">
+        <div 
+          ref={textRef}
+          className="text-base sm:text-lg font-semibold text-gray-900 leading-relaxed whitespace-pre-wrap rounded-xl max-h-[150px] overflow-hidden"
+        >
+          {questionIdx + 1}. {questionText}
+        </div>
+        
+        {isOverflowing && (
+          <div className="absolute bottom-0 left-0 w-full pt-12 pb-1 bg-gradient-to-t from-white via-white/90 to-transparent flex items-end">
+            <button
+              onClick={() => setIsExpanded(true)}
+              className="text-gray-500 hover:text-gray-700 transition-colors z-10 flex items-center gap-1 text-sm font-medium cursor-pointer"
+            >
+              Show more
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Expanded Question Modal */}
+      {isExpanded && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
+          <div 
+            className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <LayoutGrid className="w-5 h-5 text-purple-600" />
+                Question {questionIdx + 1}
+              </h3>
+              <button
+                onClick={() => setIsExpanded(false)}
+                className="p-2 hover:bg-gray-200 rounded-full text-gray-500 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Body */}
+            <div className="p-6 overflow-y-auto custom-scrollbar">
+              <div className="text-base sm:text-lg font-medium text-gray-800 leading-relaxed whitespace-pre-wrap">
+                {questionText}
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+              <button
+                onClick={() => setIsExpanded(false)}
+                className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Close & View Options
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 
 export default function QuizTakingPage() {
   const { id: classId, quizId } = useParams();
@@ -501,7 +593,7 @@ export default function QuizTakingPage() {
     <div className="fixed inset-0 bg-black flex items-center justify-center z-50 font-body">
       <div className="bg-white w-screen h-screen flex flex-col">
         {/* HEADER */}
-        <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+        <div className="p-3 sm:p-5 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <Shield className={`w-6 h-6 ${isFullScreen ? 'text-green-600' : 'text-red-600'}`} />
@@ -540,7 +632,7 @@ export default function QuizTakingPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mt-2">
             <span className="text-sm font-medium text-gray-700">
               Question {currentQuestion + 1} of {quiz.questions.length}
             </span>
@@ -580,9 +672,9 @@ export default function QuizTakingPage() {
 
           {/* Question Content */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            <div className="max-w-4xl mx-auto">
-              <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-gray-100 mb-6">
-                <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+            <div className="max-w-3xl mx-auto">
+              <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-gray-100 mb-5 min-h-[450px]">
+                <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2.5">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Question {currentQuestion + 1} of {quiz.questions.length}
                   </span>
@@ -610,9 +702,7 @@ export default function QuizTakingPage() {
                   </div>
                 </div>
 
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-6 leading-relaxed">
-                  {currentQuestion + 1}. {question.question}
-                </h3>
+                <ExpandableQuestion questionText={question.question} questionIdx={currentQuestion} />
 
                 <div className="space-y-3">
                   {question.options.map((option, index) => {
@@ -623,7 +713,7 @@ export default function QuizTakingPage() {
                         key={index}
                         onClick={() => handleAnswerSelect(question._id, option)}
                         disabled={showViolationAlert}
-                        className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                        className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
                           showViolationAlert ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:shadow-md hover:border-purple-300'
                         } ${
                           isSelected
@@ -632,15 +722,15 @@ export default function QuizTakingPage() {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                          <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                             isSelected ? 'border-purple-600 bg-purple-600' : 'border-gray-300'
                           }`}>
                             {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
                           </div>
-                          <span className="font-semibold text-gray-700 flex-shrink-0">
+                          <span className="font-semibold text-gray-700 flex-shrink-0 text-sm sm:text-base">
                             {String.fromCharCode(65 + index)}.
                           </span>
-                          <span className="flex-1 text-gray-900 text-sm sm:text-base">{option}</span>
+                          <span className="flex-1 text-gray-900 text-[15px] sm:text-base whitespace-pre-wrap text-left leading-relaxed">{option}</span>
                         </div>
                       </button>
                     );
@@ -667,7 +757,7 @@ export default function QuizTakingPage() {
 
         {/* FOOTER */}
         <div className="p-4 sm:p-6 border-t border-gray-200 bg-white">
-          <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
             <button
               onClick={handlePrevious}
               disabled={currentQuestion === 0 || isSubmitting || showViolationAlert}
