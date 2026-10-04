@@ -378,9 +378,14 @@ export default function TakeAssignmentModal({ assignment, studentId, studentName
               <button
                 onClick={() => handleSubmitAssignment(false)}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors cursor-pointer"
+                className="flex-1 px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors cursor-pointer flex justify-center items-center gap-2"
               >
-                {isSubmitting ? 'Submitting...' : 'Submit Anyway'}
+                {isSubmitting ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : 'Submit Anyway'}
               </button>
             </div>
           </div>

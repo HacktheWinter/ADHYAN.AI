@@ -44,6 +44,7 @@ export default function CodingRoundTakingPage() {
   const [hasStarted, setHasStarted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
 
   // Panel resizing & stretch state
   const [leftWidth, setLeftWidth] = useState(320);
@@ -207,10 +208,16 @@ export default function CodingRoundTakingPage() {
       }, 100);
     } catch (error) {
       console.error("Failed to initialize coding round:", error);
-      showToast("Failed to start coding round session", "error");
-      setTimeout(() => {
-        navigate(`/course/${classId}/coding-round`);
-      }, 2000);
+      if (error.response?.status === 404) {
+        setIsDeleted(true);
+        localStorage.removeItem(`coding_start_time_${assessmentId}`);
+        localStorage.removeItem(`coding_refresh_count_${assessmentId}`);
+      } else {
+        showToast("Failed to start coding round session", "error");
+        setTimeout(() => {
+          navigate(`/course/${classId}/coding-round`);
+        }, 2000);
+      }
     } finally {
       setLoading(false);
     }
@@ -287,6 +294,14 @@ export default function CodingRoundTakingPage() {
         });
       } catch (error) {
         // Silently fail auto-save
+        if (error.response?.status === 404) {
+          setIsDeleted(true);
+          localStorage.removeItem(`coding_start_time_${assessmentId}`);
+          localStorage.removeItem(`coding_refresh_count_${assessmentId}`);
+          if (timerRef.current) clearInterval(timerRef.current);
+          if (autoSaveRef.current) clearInterval(autoSaveRef.current);
+          exitFullScreen();
+        }
       }
     }, 30000); // Auto-save every 30 seconds
   };
@@ -338,7 +353,7 @@ export default function CodingRoundTakingPage() {
         "Are you sure you want to submit? You won't be able to make changes after submission.",
       type: "danger",
       onConfirm: () => {
-        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        // We don't close the dialog here so the button shows the loading state
         handleSubmit(false);
       },
     });
@@ -389,11 +404,19 @@ export default function CodingRoundTakingPage() {
       );
 
       setTimeout(() => {
-        navigate(`/course/${classId}/coding-round`);
-      }, 2000);
+        navigate(`/course/${classId}/classwork?tab=coding-round`, { replace: true });
+      }, 3000);
     } catch (error) {
       console.error("Failed to submit:", error);
-      showToast("Failed to submit. Please try again.", "error");
+      if (error.response?.status === 404) {
+        setIsDeleted(true);
+        localStorage.removeItem(`coding_start_time_${assessmentId}`);
+        localStorage.removeItem(`coding_refresh_count_${assessmentId}`);
+        clearViolations();
+        exitFullScreen();
+      } else {
+        showToast("Failed to submit. Please try again.", "error");
+      }
       setIsSubmitting(false);
       setProctorSubmitting(false);
     }
@@ -418,8 +441,32 @@ export default function CodingRoundTakingPage() {
   // ==================== LOADING STATE ====================
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <Loader className="w-10 h-10 text-purple-500 animate-spin" />
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center space-y-4">
+        <Loader className="w-10 h-10 text-purple-600 animate-spin" />
+        <p className="text-gray-600 font-medium">Setting up your coding environment...</p>
+      </div>
+    );
+  }
+
+  // ==================== DELETED STATE ====================
+  if (isDeleted) {
+    return (
+      <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden p-8 text-center border border-gray-100">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+            <AlertTriangle className="w-10 h-10 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Assessment Unavailable</h2>
+          <p className="text-gray-600 mb-6">
+            This assessment is no longer available. It may have been deleted by your teacher.
+          </p>
+          <button 
+            onClick={() => navigate(`/course/${classId}/classwork?tab=coding-round`, { replace: true })} 
+            className="w-full py-3 px-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-md cursor-pointer"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }
@@ -438,10 +485,10 @@ export default function CodingRoundTakingPage() {
           </p>
           <div className="mt-8">
             <button 
-              onClick={() => navigate('/student/assignments')}
+              onClick={() => navigate(`/course/${classId}/classwork?tab=coding-round`, { replace: true })}
               className="w-full py-3 px-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors shadow-md shadow-green-600/20 cursor-pointer"
             >
-              Go Back to Assessments
+              Go Back to Classwork
             </button>
           </div>
         </div>
@@ -896,13 +943,20 @@ export default function CodingRoundTakingPage() {
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  confirmDialog.onConfirm();
-                  setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-                }}
-                className="flex-1 px-4 py-2.5 font-bold rounded-xl transition-colors text-white bg-green-600 hover:bg-green-700 cursor-pointer"
+                onClick={() => confirmDialog.onConfirm()}
+                disabled={isSubmitting}
+                className={`flex-1 px-4 py-2.5 font-bold rounded-xl transition-colors text-white flex justify-center items-center gap-2 ${
+                  isSubmitting ? 'bg-green-600/70 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 cursor-pointer'
+                }`}
               >
-                Yes, Submit Exam
+                {isSubmitting ? (
+                  <>
+                    <Loader className="w-5 h-5 animate-spin" />
+                    <span>Please wait...</span>
+                  </>
+                ) : (
+                  "Yes, Submit Exam"
+                )}
               </button>
             </div>
           </div>

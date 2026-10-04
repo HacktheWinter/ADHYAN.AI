@@ -91,6 +91,7 @@ const quizSchema = new mongoose.Schema({
       title: String,
       instructions: String,
       durationMinutes: Number,
+      isStrictTiming: { type: Boolean, default: false },
       order: Number,
       questions: [questionSchema]
     }
@@ -122,6 +123,11 @@ const quizSchema = new mongoose.Schema({
     type: Number,
     required: false,
     default: null, // Duration in minutes
+  },
+  strictMcqDuration: {
+    type: Number,
+    required: false,
+    default: null, // Specific duration for strict MCQ sections
   },
   startTime: {
     type: Date,

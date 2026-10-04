@@ -8,6 +8,15 @@ import ClassHeader from "../components/ClassHeader";
 import ClassTabs from "../components/ClassTabs";
 import PageTransition from "../components/PageTransition";
 import { getStoredUser } from "../utils/authStorage";
+import {
+  CalendarDays,
+  Video,
+  MessageCircleQuestion,
+  BarChart3,
+  MessageSquare,
+  MoreVertical,
+  ClipboardList,
+} from "lucide-react";
 
 const ClassDetail = () => {
   const { classId } = useParams();
@@ -22,14 +31,16 @@ const ClassDetail = () => {
   const currentUser = useMemo(() => getStoredUser() || {}, []);
 
   const activeTab = useMemo(() => {
-    const pathParts = location.pathname.split("/").filter(Boolean);
-    const lastPart = pathParts[pathParts.length - 1];
-    const validTabs = ["notes", "quizzes", "coding-round", "test-papers", "assignments", "students", "doubts"];
-    return validTabs.includes(lastPart) ? lastPart : "notes";
+    const path = location.pathname;
+    if (path.includes("/classwork")) return "classwork";
+    if (path.includes("/students")) return "students";
+    if (path.includes("/stream")) return "stream";
+    // Default
+    return "stream";
   }, [location.pathname]);
+
   const MotionButton = motion.button;
   const MotionDiv = motion.div;
-  const MotionSvg = motion.svg;
 
   const handleBack = useCallback(() => navigate("/"), [navigate]);
   const handleLogoClick = useCallback(() => navigate("/"), [navigate]);
@@ -43,14 +54,20 @@ const ClassDetail = () => {
       setIsDropdownOpen(false);
 
       switch (option) {
+        case "dashboard":
+          navigate(`/class/${classId}/dashboard`);
+          return;
+        case "doubts":
+          navigate(`/class/${classId}/doubts`);
+          return;
+        case "live-class":
+          navigate(`/class/${classId}/live-classroom`);
+          return;
         case "announcement":
           navigate(`/class/${classId}/announcement`);
           return;
         case "calendar":
           navigate(`/class/${classId}/calendar`);
-          return;
-        case "classes":
-          navigate(`/class/${classId}/live-classroom`);
           return;
         case "feedback":
           if (classData) {
@@ -58,9 +75,6 @@ const ClassDetail = () => {
               state: { className: classData.subject },
             });
           }
-          return;
-        case "dashboard":
-          navigate(`/class/${classId}/dashboard`);
           return;
         default:
           return;
@@ -133,6 +147,39 @@ const ClassDetail = () => {
 
   if (!classData) return null;
 
+  const dropdownItems = [
+    {
+      name: "Doubts",
+      key: "doubts",
+      icon: MessageCircleQuestion,
+      iconColor: "text-amber-600 dark:text-amber-400",
+    },
+    {
+      name: "Live Class",
+      key: "live-class",
+      icon: Video,
+      iconColor: "text-red-500 dark:text-red-400",
+    },
+    {
+      name: "Announcements",
+      key: "announcement",
+      icon: MessageSquare,
+      iconColor: "text-blue-600 dark:text-blue-400",
+    },
+    {
+      name: "Calendar",
+      key: "calendar",
+      icon: CalendarDays,
+      iconColor: "text-teal-600 dark:text-teal-400",
+    },
+    {
+      name: "Feedback",
+      key: "feedback",
+      icon: MessageSquare,
+      iconColor: "text-pink-600 dark:text-pink-400",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-paper font-body text-ink">
       {isLiveClassroom ? (
@@ -145,97 +192,72 @@ const ClassDetail = () => {
       
       <PageTransition
         className={
-          isLiveClassroom ? "h-screen p-0" : "max-w-7xl mx-auto px-6 py-8"
+          isLiveClassroom ? "h-screen p-0" : "max-w-7xl mx-auto px-6 py-6"
         }
       >
         {!isLiveClassroom && (
           <>
-            <div className="relative">
+            {/* ─── Class Header + Actions ─── */}
+            <div className="flex items-start justify-between gap-4">
               <ClassHeader classData={classData} onBack={handleBack} />
-          
-              {/* Dropdown Menu */}
-              <div className="absolute top-0 right-0 flex items-center gap-3 bg-transparent">
+
+              {/* Right-side Actions */}
+              <div className="flex items-center gap-2 mt-8 flex-shrink-0">
+                {/* Dashboard Button */}
+                <MotionButton
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleDropdownOption("dashboard")}
+                  className="group flex items-center gap-2 px-3.5 py-2 bg-surface text-ink rounded-lg border border-line shadow-sm hover:shadow-md hover:border-purple-200 dark:hover:border-violet-700/40 transition-all duration-200 cursor-pointer"
+                >
+                  <BarChart3 className="w-[18px] h-[18px] text-violet-600 dark:text-violet-400 group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline text-[15px] font-medium">Dashboard</span>
+                </MotionButton>
+
+                {/* Attendance Button */}
                 <MotionButton
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleAttendanceClick}
-                  className="group flex h-12 items-center gap-3 px-4 bg-surface text-violet-dark rounded-xl border border-line shadow-md hover:shadow-lg hover:bg-violet-50 transition-all duration-200 cursor-pointer"
+                  className="group flex items-center gap-2 px-3.5 py-2 bg-surface text-ink rounded-lg border border-line shadow-sm hover:shadow-md hover:border-purple-200 dark:hover:border-violet-700/40 transition-all duration-200 cursor-pointer"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-dark border border-line">
-                    <svg
-                      className="w-5 h-5 group-hover:scale-110 transition-transform duration-150"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 8v4M6 12v4M6 16v4M6 8H4m2 0h2m-2 4H4m2 0h2m-2 4H4m2 0h2m12-16v4m0 4v4m0 4v4m0-12h-2m2 0h2m-2 4h-2m2 0h2m-2 4h-2m2 0h2"
-                      />
-                    </svg>
-                  </span>
-                  <span className="hidden sm:flex sm:items-center font-semibold text-base text-violet-dark">
-                    Attendance
-                  </span>
+                  <ClipboardList className="w-[18px] h-[18px] text-violet-600 dark:text-violet-400 group-hover:scale-110 transition-transform" />
+                  <span className="hidden sm:inline text-[15px] font-medium">Attendance</span>
                 </MotionButton>
- 
+
+                {/* More Options Dropdown */}
                 <div className="relative dropdown-container">
                   <MotionButton
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl shadow-lg hover:shadow-xl hover:from-purple-700 hover:to-purple-800 transition-all duration-200 cursor-pointer"
+                    className="flex items-center justify-center w-10 h-10 bg-surface text-ink rounded-lg border border-line shadow-sm hover:shadow-md hover:border-purple-200 dark:hover:border-violet-700/40 transition-all cursor-pointer"
                   >
-                    <span className="font-semibold hidden sm:inline">More Options</span>
-                    <MotionSvg
-                      animate={{ rotate: isDropdownOpen ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </MotionSvg>
-                    {/* Three dots for mobile */}
-                    <svg className="w-5 h-5 sm:hidden" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-                    </svg>
+                    <MoreVertical className="w-5 h-5 text-ink-soft" />
                   </MotionButton>
  
                   <AnimatePresence>
                     {isDropdownOpen && (
                       <MotionDiv
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        initial={{ opacity: 0, y: -8, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute right-0 top-full mt-3 w-56 bg-surface rounded-2xl shadow-2xl border border-line overflow-hidden z-50"
+                        exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 top-full mt-2 w-52 bg-surface rounded-xl shadow-2xl border border-line py-1.5 z-50"
                       >
-                        {[
-                          { name: "Dashboard", icon: "M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z", highlight: true },
-                          { name: "Announcement", icon: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" },
-                          { name: "Calendar", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
-                          { name: "Classes", icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
-                          { name: "Feedback", icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" }
-                        ].map((item, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => handleDropdownOption(item.name.toLowerCase())}
-                            className={`w-full flex items-center gap-3 px-5 py-3.5 transition-all duration-150 cursor-pointer group border-b border-line last:border-b-0 ${
-                              item.highlight 
-                                ? "bg-violet-50 text-violet-dark font-semibold" 
-                                : "dropdown-item text-ink"
-                            }`}
-                          >
-                            <svg className={`w-5 h-5 group-hover:scale-110 transition-transform duration-150 ${item.highlight ? "text-violet-dark" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
-                            </svg>
-                            <span className={item.highlight ? "font-bold" : "font-medium"}>{item.name}</span>
-                          </button>
-                        ))}
+                        {dropdownItems.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <button
+                              key={item.key}
+                              onClick={() => handleDropdownOption(item.key)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-[15px] font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors cursor-pointer"
+                            >
+                              <Icon className={`w-[18px] h-[18px] ${item.iconColor}`} />
+                              <span>{item.name}</span>
+                            </button>
+                          );
+                        })}
                       </MotionDiv>
                     )}
                   </AnimatePresence>
@@ -243,6 +265,7 @@ const ClassDetail = () => {
               </div>
             </div>
 
+            {/* ─── Navigation Tabs ─── */}
             <ClassTabs activeTab={activeTab} classId={classId} />
           </>
         )}

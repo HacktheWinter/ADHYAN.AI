@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Archive, AlertTriangle, Info, X } from 'lucide-react';
+import { Trash2, Archive, AlertTriangle, Info, X, Loader } from 'lucide-react';
 
 const typeConfig = {
   danger: {
@@ -38,6 +38,7 @@ const ConfirmationCard = ({
   onConfirm,
   onCancel,
   type = 'danger',
+  isLoading = false,
 }) => {
   const config = typeConfig[type] || typeConfig.danger;
   const Icon = config.icon;
@@ -93,16 +94,19 @@ const ConfirmationCard = ({
               <button
                 type="button"
                 onClick={onCancel}
-                className="flex-1 px-4 py-2.5 bg-surface hover:bg-violet-50 border border-line rounded-xl text-sm font-bold text-ink transition-all cursor-pointer confirm-cancel-btn"
+                disabled={isLoading}
+                className="flex-1 px-4 py-2.5 bg-surface hover:bg-violet-50 border border-line rounded-xl text-sm font-bold text-ink transition-all cursor-pointer confirm-cancel-btn disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {cancelText}
               </button>
               <button
                 type="button"
                 onClick={onConfirm}
-                className={`flex-1 px-4 py-2.5 ${config.confirmBg} rounded-xl text-sm font-bold text-white transition-all cursor-pointer shadow-sm`}
+                disabled={isLoading}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 ${config.confirmBg} rounded-xl text-sm font-bold text-white transition-all cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                {confirmText}
+                {isLoading && <Loader className="w-4 h-4 animate-spin" />}
+                {isLoading ? 'Processing...' : confirmText}
               </button>
             </div>
           </motion.div>

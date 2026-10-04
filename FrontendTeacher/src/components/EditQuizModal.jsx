@@ -553,6 +553,7 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
         title: section.title,
         instructions: section.instructions,
         type: section.type,
+        isStrictTiming: section.type === 'mcq' ? (section.isStrictTiming || false) : false,
         order: sIdx,
         questions: mappedQuestions
       });
@@ -1055,6 +1056,23 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
                         </div>
                       </div>
                     </div>
+                    {section.type === "mcq" && (
+                      <div className="flex items-center gap-3 bg-indigo-50/50 border border-indigo-100 p-3 rounded-xl mb-4">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer"
+                            checked={section.isStrictTiming || false}
+                            onChange={(e) => updateSection(sIdx, "isStrictTiming", e.target.checked)}
+                          />
+                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">Enable Strict MCQ Mode</p>
+                          <p className="text-xs text-gray-500">Students cannot navigate back and each question will have a strict timer.</p>
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Instructions (Optional)</label>
                       <textarea

@@ -176,6 +176,25 @@ export default function Quiz() {
         return fetchQuizzes(); // Refetch to get updated status
       }
 
+      // Check if active quiz was deleted
+      const activeStr = localStorage.getItem('activeQuiz');
+      if (activeStr) {
+        try {
+          const activeQ = JSON.parse(activeStr);
+          if (!quizzesData.some(q => q._id === activeQ._id)) {
+            // Quiz was deleted, clean up
+            localStorage.removeItem('activeQuiz');
+            localStorage.removeItem(`quiz_start_time_${activeQ._id}`);
+            localStorage.removeItem(`quiz_layout_${activeQ._id}`);
+            localStorage.removeItem(`quiz_draft_${activeQ._id}`);
+            localStorage.removeItem(`quiz_refresh_count_${activeQ._id}`);
+            localStorage.removeItem(`quiz_selected_language_${activeQ._id}`);
+            setShowTakingModal(false);
+            setSelectedQuiz(null);
+          }
+        } catch (e) {}
+      }
+
       setQuizzes(quizzesData);
       setSubmissions(submissionMap);
     } catch (error) {

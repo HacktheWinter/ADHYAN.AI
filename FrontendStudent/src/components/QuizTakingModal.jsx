@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, X, Bookmark, LayoutGrid, ChevronRight, Camera, Video, Maximize2, Minimize2 } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, X, Bookmark, LayoutGrid, ChevronRight, Camera, Video, Maximize2, Minimize2, ChevronDown } from 'lucide-react';
 import { submitQuiz, autosaveQuiz, runCode, uploadProctorSnapshot } from '../api/quizApi';
+import { getQuizById } from '../api/quizApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
 import { useWebcamProctor } from '../hooks/useWebcamProctor';
 import ViolationAlertModal from './ViolationAlertModal';
@@ -39,32 +40,38 @@ const ExpandableQuestion = ({ questionText, questionIdx }) => {
 
   return (
     <>
-      <div className="relative mb-6 pb-4 mt-3">
-        <div 
-          ref={textRef}
-          className="text-base sm:text-lg font-semibold text-gray-900 leading-relaxed whitespace-pre-wrap rounded-xl max-h-[150px] overflow-hidden"
-        >
-          {questionIdx + 1}. {questionText}
+      <div className="relative mb-6">
+        <div className="relative group">
+          <div 
+            ref={textRef}
+            className="text-base sm:text-lg font-semibold text-gray-900 leading-relaxed whitespace-pre-wrap rounded-xl line-clamp-5"
+          >
+            {questionIdx + 1}. {questionText}
+          </div>
+          {isOverflowing && (
+            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+          )}
         </div>
         
         {isOverflowing && (
-          <div className="absolute bottom-4 left-0 right-0 h-12 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
-        )}
-        
-        {isOverflowing && (
           <button
-            onClick={() => setIsExpanded(true)}
-            className="absolute -bottom-3 right-4 bg-white shadow-md border border-gray-200 text-purple-600 rounded-full p-1.5 hover:bg-purple-50 transition-colors z-10 flex items-center justify-center gap-1 text-xs font-bold px-3 cursor-pointer"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsExpanded(true);
+            }}
+            className="text-purple-600 hover:text-purple-700 transition-colors z-10 flex items-center gap-1 text-sm font-bold cursor-pointer mt-2 bg-purple-50 px-3 py-1.5 rounded-lg inline-flex"
           >
+            View full question
             <Maximize2 className="w-3.5 h-3.5" />
-            View Full Question
           </button>
         )}
       </div>
 
       {/* Expanded Question Modal */}
       {isExpanded && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6 bg-slate-900/80">
           <div 
             className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95"
           >
@@ -75,7 +82,12 @@ const ExpandableQuestion = ({ questionText, questionIdx }) => {
                 Question {questionIdx + 1}
               </h3>
               <button
-                onClick={() => setIsExpanded(false)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsExpanded(false);
+                }}
                 className="p-2 hover:bg-gray-200 rounded-full text-gray-500 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -83,7 +95,7 @@ const ExpandableQuestion = ({ questionText, questionIdx }) => {
             </div>
             
             {/* Body */}
-            <div className="p-6 overflow-y-auto custom-scrollbar">
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 min-h-0">
               <div className="text-base sm:text-lg font-medium text-gray-800 leading-relaxed whitespace-pre-wrap">
                 {questionText}
               </div>
@@ -92,7 +104,12 @@ const ExpandableQuestion = ({ questionText, questionIdx }) => {
             {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end">
               <button
-                onClick={() => setIsExpanded(false)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsExpanded(false);
+                }}
                 className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-colors cursor-pointer"
               >
                 Close & View Options
@@ -127,9 +144,22 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   
   // Time tracking
   const [globalTimeLeft, setGlobalTimeLeft] = useState(null);
+  const [strictMcqTimeLeft, setStrictMcqTimeLeft] = useState(null);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [visitedQuestions, setVisitedQuestions] = useState(new Set([0])); // Needs update based on section
+  const [visitedQuestions, setVisitedQuestions] = useState(new Set()); // Uses question._id
+
+  // Track visited questions whenever the current question changes (via Next, Previous, strict timer, or palette)
+  useEffect(() => {
+    if (shuffledQuiz && shuffledQuiz.sections?.[currentSectionIdx]?.questions?.[currentQuestionIdx]) {
+      const qId = shuffledQuiz.sections[currentSectionIdx].questions[currentQuestionIdx]._id;
+      setVisitedQuestions(prev => {
+        const updated = new Set(prev);
+        updated.add(qId);
+        return updated;
+      });
+    }
+  }, [currentQuestionIdx, currentSectionIdx, shuffledQuiz]);
   const [markedForReview, setMarkedForReview] = useState({});
   const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
   const [sectionModal, setSectionModal] = useState({ show: false, type: '', title: '' });
@@ -161,6 +191,28 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     const saved = localStorage.getItem(`quiz_draft_${quiz._id}`);
     return saved ? JSON.parse(saved) : {};
   })());
+
+  const strictMcqSecondsPerQuestion = React.useMemo(() => {
+    if (!shuffledQuiz) return 0;
+    const currentSection = shuffledQuiz.sections[currentSectionIdx];
+    if (!currentSection || !currentSection.isStrictTiming || currentSection.type !== 'mcq') return 0;
+
+    const strictSections = shuffledQuiz.sections.filter(s => s.type === 'mcq' && s.isStrictTiming);
+    
+    // Check if current section has a specific duration set
+    if (currentSection.durationMinutes && currentSection.durationMinutes > 0) {
+       return Math.floor((currentSection.durationMinutes * 60) / currentSection.questions.length);
+    }
+    
+    // Fallback for older quizzes or when exactly 1 strict section has the global duration
+    if (shuffledQuiz.strictMcqDuration) {
+       const totalStrictQs = strictSections.reduce((sum, s) => sum + s.questions.length, 0);
+       if (totalStrictQs === 0) return 0;
+       return Math.floor((shuffledQuiz.strictMcqDuration * 60) / totalStrictQs);
+    }
+    
+    return 0;
+  }, [shuffledQuiz, currentSectionIdx]);
 
   // Setup Quiz Layout
   useEffect(() => {
@@ -273,6 +325,36 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   };
 
   const [isResuming] = useState(() => !!localStorage.getItem(`quiz_start_time_${quiz._id}`) || !!localStorage.getItem(`quiz_draft_${quiz._id}`));
+  const [isQuizDeleted, setIsQuizDeleted] = useState(false);
+
+  // Validate quiz still exists on mount / resume (handles teacher deletion)
+  useEffect(() => {
+    const validateQuizExists = async () => {
+      try {
+        await getQuizById(quiz._id);
+      } catch (error) {
+        if (error.response?.status === 404) {
+          console.warn('Quiz was deleted by teacher, cleaning up...');
+          setIsQuizDeleted(true);
+          // Cleanup all localStorage for this quiz
+          localStorage.removeItem(`quiz_start_time_${quiz._id}`);
+          localStorage.removeItem(`quiz_layout_${quiz._id}`);
+          localStorage.removeItem(`quiz_draft_${quiz._id}`);
+          localStorage.removeItem(`quiz_refresh_count_${quiz._id}`);
+          localStorage.removeItem(`quiz_selected_language_${quiz._id}`);
+          localStorage.removeItem('activeQuiz');
+          // Clear any strict timing keys
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`quiz_${quiz._id}_strict_q_`)) {
+              localStorage.removeItem(key);
+            }
+          }
+        }
+      }
+    };
+    validateQuizExists();
+  }, [quiz._id]);
 
   useEffect(() => {
     if (isResuming && !hasStarted) {
@@ -333,6 +415,76 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
     return () => clearInterval(globalTimerRef.current);
   }, [globalTimeLeft]);
 
+  // Strict Timer logic
+  useEffect(() => {
+    if (!hasStarted || !shuffledQuiz || isSubmitting) return;
+
+    const currentSection = shuffledQuiz.sections[currentSectionIdx];
+    if (currentSection.type === 'mcq' && currentSection.isStrictTiming) {
+      const storageKey = `quiz_${shuffledQuiz._id}_strict_q_${currentSectionIdx}_${currentQuestionIdx}`;
+      let qStartTime = localStorage.getItem(storageKey);
+      
+      if (!qStartTime) {
+        qStartTime = Date.now().toString();
+        localStorage.setItem(storageKey, qStartTime);
+      }
+      
+      const elapsedSeconds = Math.floor((Date.now() - parseInt(qStartTime)) / 1000);
+      const remaining = strictMcqSecondsPerQuestion - elapsedSeconds;
+      
+      if (remaining <= 0) {
+        // Mark the current question as visited (skipped if unanswered) before moving
+        setVisitedQuestions(prev => {
+          const updated = new Set(prev);
+          updated.add(currentSection.questions[currentQuestionIdx]._id);
+          return updated;
+        });
+        // Time already expired for this question, move to next
+        if (currentQuestionIdx < currentSection.questions.length - 1) {
+          setCurrentQuestionIdx(prev => prev + 1);
+        } else if (currentSectionIdx < shuffledQuiz.sections.length - 1) {
+          setCurrentSectionIdx(prev => prev + 1);
+          setCurrentQuestionIdx(0);
+        } else {
+          handleAutoSubmit('Time Expired for strict section');
+        }
+        setStrictMcqTimeLeft(0);
+      } else {
+        setStrictMcqTimeLeft(remaining);
+      }
+    } else {
+      setStrictMcqTimeLeft(null);
+    }
+  }, [hasStarted, shuffledQuiz, currentSectionIdx, currentQuestionIdx, strictMcqSecondsPerQuestion, isSubmitting]);
+
+  useEffect(() => {
+    if (strictMcqTimeLeft !== null && strictMcqTimeLeft > 0 && !isSubmitting) {
+      const timer = setInterval(() => {
+        setStrictMcqTimeLeft(prev => {
+          if (prev <= 1) {
+            // Mark the current question as visited (skipped if unanswered) before auto-advancing
+            setVisitedQuestions(prevVisited => {
+              const updated = new Set(prevVisited);
+              updated.add(shuffledQuiz.sections[currentSectionIdx].questions[currentQuestionIdx]._id);
+              return updated;
+            });
+            if (currentQuestionIdx < shuffledQuiz.sections[currentSectionIdx].questions.length - 1) {
+              setCurrentQuestionIdx(currentQuestionIdx + 1);
+            } else if (currentSectionIdx < shuffledQuiz.sections.length - 1) {
+              setCurrentSectionIdx(currentSectionIdx + 1);
+              setCurrentQuestionIdx(0);
+            } else {
+              handleAutoSubmit('Time Expired for strict section');
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [strictMcqTimeLeft, currentSectionIdx, currentQuestionIdx, isSubmitting, shuffledQuiz]);
+
   const moveToNextSection = () => {
     if (currentSectionIdx < shuffledQuiz.sections.length - 1) {
       setCurrentSectionIdx(prev => prev + 1);
@@ -362,6 +514,17 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   }, [shuffledQuiz, resumeCount, isSubmitting]);
 
   const handleStartExam = async () => {
+    // Check if quiz still exists before starting/resuming
+    try {
+      await getQuizById(quiz._id);
+    } catch (error) {
+      if (error.response?.status === 404) {
+        setIsQuizDeleted(true);
+        cleanupStorage();
+        return;
+      }
+    }
+
     if (quiz.endTime && new Date() > new Date(quiz.endTime)) {
       showToast("Your assessment time has expired. Your previously saved answers have been safely submitted to the server.", "warning");
       cleanupStorage();
@@ -397,9 +560,9 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
   const handleSectionModalConfirm = () => {
     const type = sectionModal.type;
-    setSectionModal({ show: false, type: '', title: '' });
     
     if (type === 'manual-next') {
+      setSectionModal({ show: false, type: '', title: '' });
       moveToNextSection();
     } else if (type === 'submit-quiz') {
       handleSubmitQuiz(false);
@@ -546,6 +709,13 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       
       const errorMsg = error.response?.data?.error || error.message || 'Failed to submit assessment';
       
+      // Handle deleted quiz (404)
+      if (error.response?.status === 404) {
+        setIsQuizDeleted(true);
+        cleanupStorage();
+        return;
+      }
+
       if (error.response?.status === 403 && errorMsg.toLowerCase().includes("expired")) {
         // Submit was rejected because time expired — try one final autosave so the
         // server-side cron can finalize this draft into a proper submission.
@@ -554,6 +724,12 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
           await autosaveQuiz(shuffledQuiz._id, studentId, answersArray);
         } catch (saveErr) {
           console.error('Fallback autosave also failed:', saveErr);
+          // If the quiz was deleted, handle that
+          if (saveErr.response?.status === 404) {
+            setIsQuizDeleted(true);
+            cleanupStorage();
+            return;
+          }
         }
         
         if (error.response?.status === 403 && error.response?.data?.error?.includes("Time limit exceeded")) {
@@ -561,13 +737,10 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
           setTimeout(() => onSubmit(), 3000);
           return;
         }
-        if (error.response?.status === 404) {
-          showToast("This assessment is no longer available or was deleted.", "error");
-          setTimeout(() => onClose(), 2000);
-          return;
-        }
         
         showToast(`Error: ${errorMsg}`, 'error');
+        setIsSubmitting(false);
+        setProctorSubmitting(false);
       } else {
         showToast(`Error: Failed to connect to server. Please check your internet connection.`, 'error');
         setIsSubmitting(false);
@@ -667,12 +840,25 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
   const handleNext = () => {
     const currentSec = shuffledQuiz.sections[currentSectionIdx];
+    // Mark current question as visited before moving to next
+    setVisitedQuestions(prev => {
+      const updated = new Set(prev);
+      updated.add(currentSec.questions[currentQuestionIdx]._id);
+      return updated;
+    });
     if (currentQuestionIdx < currentSec.questions.length - 1) {
       setCurrentQuestionIdx(prev => prev + 1);
     }
   };
 
   const handlePrevious = () => {
+    const currentSec = shuffledQuiz.sections[currentSectionIdx];
+    // Mark current question as visited before moving to previous
+    setVisitedQuestions(prev => {
+      const updated = new Set(prev);
+      updated.add(currentSec.questions[currentQuestionIdx]._id);
+      return updated;
+    });
     if (currentQuestionIdx > 0) {
       setCurrentQuestionIdx(prev => prev - 1);
     }
@@ -717,6 +903,31 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
   // Intro Screen
   if (!shuffledQuiz) return null;
+
+  if (isQuizDeleted) {
+    return (
+      <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden p-8 text-center border border-gray-100">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+            <AlertTriangle className="w-10 h-10 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Assessment Unavailable</h2>
+          <p className="text-gray-600 mb-6">
+            This assessment is no longer available. It may have been deleted by your teacher.
+          </p>
+          <button 
+            onClick={() => {
+              cleanupStorage();
+              onClose();
+            }} 
+            className="w-full py-3 px-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-md cursor-pointer"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (isSubmitted) {
     return (
@@ -885,7 +1096,12 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                     <LayoutGrid className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-0.5" />
                     <div>
                       <h4 className="font-bold text-gray-900 mb-1">Sections</h4>
-                      <p className="text-sm text-gray-600 leading-relaxed">This assessment may include one or more sections. You can navigate between sections during the exam.</p>
+                      <p className="text-sm text-gray-600 leading-relaxed">
+                        {shuffledQuiz.sections.some(sec => sec.isStrictTiming)
+                          ? "This assessment includes multiple sections. Due to strict timing, you cannot navigate between sections freely."
+                          : "This assessment may include one or more sections. You can navigate between sections during the exam."
+                        }
+                      </p>
                     </div>
                   </div>
                 )}
@@ -955,13 +1171,16 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   }
 
   const currentSection = shuffledQuiz.sections[currentSectionIdx];
+  const isStrictSection = currentSection.type === 'mcq' && currentSection.isStrictTiming;
+  const isPrevSectionStrict = currentSectionIdx > 0 && shuffledQuiz.sections[currentSectionIdx - 1].type === 'mcq' && shuffledQuiz.sections[currentSectionIdx - 1].isStrictTiming;
   const question = currentSection.questions[currentQuestionIdx];
   const totalQuizQuestions = shuffledQuiz.sections.reduce((a, s) => a + s.questions.length, 0);
 
   // When a question is selected in the palette, it only selects within the current section
   const handlePaletteSelect = (idx) => {
+    if (isStrictSection) return;
     setCurrentQuestionIdx(idx);
-    setVisitedQuestions(prev => new Set(prev).add(idx));
+    setVisitedQuestions(prev => new Set(prev).add(currentSection.questions[idx]._id));
   };
 
   return (
@@ -1027,8 +1246,9 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                 </div>
               )}
 
+
               {/* Top button for next section */}
-              {currentSectionIdx < shuffledQuiz.sections.length - 1 && (
+              {currentSectionIdx < shuffledQuiz.sections.length - 1 && !isStrictSection && (
                 <button
                   onClick={handleFinishSectionClick}
                   disabled={isSubmitting || showViolationAlert}
@@ -1043,25 +1263,54 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
         {/* MAIN LAYOUT */}
         <div className="flex-1 overflow-hidden flex bg-gray-50">
-          <QuestionPalette
-            questions={currentSection.questions}
-            currentQuestion={currentQuestionIdx}
-            answers={answers}
-            visitedQuestions={visitedQuestions}
-            markedForReview={markedForReview}
-            onSelectQuestion={handlePaletteSelect}
-            isMobileOpen={isMobilePaletteOpen}
-            setIsMobileOpen={setIsMobilePaletteOpen}
-          />
+            <QuestionPalette
+              questions={currentSection.questions}
+              currentQuestion={currentQuestionIdx}
+              answers={answers}
+              visitedQuestions={visitedQuestions}
+              markedForReview={markedForReview}
+              onSelectQuestion={handlePaletteSelect}
+              isMobileOpen={isMobilePaletteOpen}
+              setIsMobileOpen={setIsMobilePaletteOpen}
+              disableNavigation={isStrictSection}
+            />
 
           <div className={`flex-1 overflow-y-auto ${question.type === 'coding' ? 'p-0' : 'p-4 sm:p-6'}`}>
             {question.type === 'mcq' ? (
-              <div className="max-w-5xl mx-auto">
-                <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-5">
-                  <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2.5">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      MCQ
-                    </span>
+              <div className="max-w-4xl mx-auto">
+                <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-gray-100 mb-5 min-h-[450px] relative overflow-hidden">
+                  {/* Strict Mode Line Timer */}
+                  {isStrictSection && strictMcqTimeLeft !== null && strictMcqSecondsPerQuestion > 0 && (
+                    <div key={currentQuestionIdx} className="absolute top-0 left-0 w-full h-1.5 bg-gray-100">
+                      <div 
+                        className={`h-full ${
+                          strictMcqTimeLeft < 15 ? 'bg-red-500' : 'bg-purple-600'
+                        }`}
+                        style={{ 
+                          width: `${Math.max(0, (strictMcqTimeLeft / strictMcqSecondsPerQuestion) * 100)}%`,
+                          transition: strictMcqTimeLeft === strictMcqSecondsPerQuestion ? 'none' : 'width 1s linear'
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2.5 mt-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        MCQ
+                      </span>
+                      {isStrictSection && strictMcqTimeLeft !== null && (
+                        <div
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs shadow-sm border ${
+                            strictMcqTimeLeft < 15 
+                              ? 'bg-red-50 text-red-700 border-red-200 font-bold animate-pulse' 
+                              : 'bg-orange-50 text-orange-700 border-orange-200 font-bold'
+                          }`}
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>{formatTime(strictMcqTimeLeft)}</span>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       {answers[question._id]?.selectedAnswer && (
                         <button
@@ -1071,17 +1320,19 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
                           Clear Response
                         </button>
                       )}
-                      <button
-                        onClick={() => handleToggleMarkForReview(question._id)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                          markedForReview[question._id]
-                            ? 'bg-purple-600 text-white shadow-sm'
-                            : 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100'
-                        }`}
-                      >
-                        <Bookmark className={`w-3.5 h-3.5 ${markedForReview[question._id] ? 'fill-yellow-300 text-purple-900' : ''}`} />
-                        {markedForReview[question._id] ? 'Marked for Review' : 'Mark for Review'}
-                      </button>
+                      {!isStrictSection && (
+                        <button
+                          onClick={() => handleToggleMarkForReview(question._id)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            markedForReview[question._id]
+                              ? 'bg-purple-600 text-white shadow-sm'
+                              : 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100'
+                          }`}
+                        >
+                          <Bookmark className={`w-3.5 h-3.5 ${markedForReview[question._id] ? 'fill-yellow-300 text-purple-900' : ''}`} />
+                          {markedForReview[question._id] ? 'Marked for Review' : 'Mark for Review'}
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1151,27 +1402,29 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
         {/* FOOTER */}
         <div className="p-4 sm:p-6 border-t border-gray-200 bg-white">
           <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
-            <button
-              onClick={() => {
-                if (currentQuestionIdx > 0) {
-                  handlePrevious();
-                } else {
-                  moveToPreviousSection();
-                }
-              }}
-              disabled={(currentSectionIdx === 0 && currentQuestionIdx === 0) || isSubmitting || showViolationAlert}
-              style={{ color: '#000000' }}
-              className="px-4 sm:px-6 py-2.5 bg-gray-200 text-black font-bold rounded-xl hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer border border-gray-300 shadow-2xs"
-            >
-              Previous
-            </button>
+            {!isStrictSection && (
+              <button
+                onClick={() => {
+                  if (currentQuestionIdx > 0) {
+                    handlePrevious();
+                  } else {
+                    moveToPreviousSection();
+                  }
+                }}
+                disabled={(currentSectionIdx === 0 && currentQuestionIdx === 0) || (currentQuestionIdx === 0 && isPrevSectionStrict) || isSubmitting || showViolationAlert}
+                style={{ color: '#000000' }}
+                className="px-4 sm:px-6 py-2.5 bg-gray-200 text-black font-bold rounded-xl hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer border border-gray-300 shadow-2xs"
+              >
+                Previous
+              </button>
+            )}
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 ml-auto">
               {currentQuestionIdx < currentSection.questions.length - 1 ? (
                 <button
                   onClick={handleNext}
                   disabled={isSubmitting || showViolationAlert}
-                  className="px-6 sm:px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors cursor-pointer shadow-md shadow-indigo-600/20"
+                  className="px-6 sm:px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-xl transition-colors shadow-md shadow-indigo-600/20 hover:bg-indigo-700 cursor-pointer"
                 >
                   Next Question
                 </button>
@@ -1232,6 +1485,8 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
             <p className="text-gray-600 mb-6 text-sm leading-relaxed">
               {sectionModal.type === 'submit-quiz' ? (
                 <>Are you sure you want to submit the exam? Once submitted, you cannot change your answers.</>
+              ) : isStrictSection ? (
+                <>Are you sure you want to move to the next section? You <strong>cannot</strong> return to <strong>{sectionModal.title}</strong> later because it is in strict mode.</>
               ) : (
                 <>Are you sure you want to move to the next section? You can return to <strong>{sectionModal.title}</strong> later.</>
               )}
@@ -1246,13 +1501,22 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
               </button>
               <button
                 onClick={handleSectionModalConfirm}
-                className={`flex-1 px-4 py-2.5 font-bold rounded-xl transition-colors text-white ${
+                disabled={isSubmitting}
+                className={`flex-1 px-4 py-2.5 font-bold rounded-xl transition-colors text-white flex justify-center items-center gap-2 ${
                   sectionModal.type === 'submit-quiz' ? 'bg-green-600 hover:bg-green-700' :
                   'bg-blue-600 hover:bg-blue-700'
-                }`}
+                } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
-                {sectionModal.type === 'submit-quiz' ? "Yes, Submit Exam" : 
-                 "Yes, Move to Next Section"}
+                {isSubmitting ? (
+                  <>
+                    <Loader className="w-5 h-5 animate-spin" />
+                    <span>Please wait...</span>
+                  </>
+                ) : sectionModal.type === 'submit-quiz' ? (
+                  "Yes, Submit Exam"
+                ) : (
+                  "Yes, Move"
+                )}
               </button>
             </div>
           </div>

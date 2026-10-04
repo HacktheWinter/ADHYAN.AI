@@ -1,8 +1,8 @@
 // FrontendTeacher/src/components/TestPapersPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Pencil, Trash2, CheckCircle, Eye, Loader, FileText, X, MoreVertical, Upload, Settings2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, Pencil, Trash2, CheckCircle, Eye, Loader, FileText, X, MoreVertical, Upload, Settings2, ChevronDown, ChevronUp, Maximize, Minimize } from 'lucide-react';
 import { 
   getTestPapersByClassroom, 
   deleteTestPaper,
@@ -20,6 +20,9 @@ import ConfirmationCard from "./ConfirmationCard";
 const TestPapersPage = () => {
   const { classData } = useOutletContext();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [viewFilter, setViewFilter] = useState("all");
 
   const [drafts, setDrafts] = useState([]);
   const [published, setPublished] = useState([]);
@@ -34,6 +37,9 @@ const TestPapersPage = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [openActionMenuId, setOpenActionMenuId] = useState(null);
+  const [menuDirection, setMenuDirection] = useState("down");
 
   const [availableNotes, setAvailableNotes] = useState([]);
   const [selectedNotes, setSelectedNotes] = useState([]);
@@ -76,6 +82,30 @@ const TestPapersPage = () => {
     if (showCreateMenu) document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [showCreateMenu]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setShowFilterMenu(false);
+    if (showFilterMenu) document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showFilterMenu]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenActionMenuId(null);
+    if (openActionMenuId) document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [openActionMenuId]);
+
+  useEffect(() => {
+    if (location.state?.openModal) {
+      if (location.state.openModal === "ai") {
+        handleOpenAIModal();
+      } else if (location.state.openModal === "manual") {
+        setShowManualModal(true);
+      }
+      // Clear state so it doesn't reopen on reload
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state]);
 
   const fetchTestPapers = async () => {
     try {
@@ -234,15 +264,92 @@ const TestPapersPage = () => {
   }
 
   return (
-    <div className="space-y-8 font-body">
-      {/* HEADER */}
-      <div className="bg-gradient-to-r from-violet-50 to-paper rounded-2xl p-4 sm:p-6 border border-line">
+    <div className={isFullscreen ? "fixed inset-0 z-[100] bg-paper overflow-y-auto font-body" : "space-y-8 font-body"}>
+      {/* FULLSCREEN STICKY TOP BAR */}
+      {isFullscreen && (
+        <div className="sticky top-0 z-10 bg-paper/80 backdrop-blur-md border-b border-line">
+          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-lg">📄</span>
+              <h2 className="text-lg font-semibold font-display text-ink">Test Papers</h2>
+              <span className="text-xs text-ink-soft">·</span>
+              <span className="text-xs text-ink-soft">{drafts.length + published.length} total</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowFilterMenu(!showFilterMenu); setShowHeaderMenu(false); }}
+                  className="flex items-center gap-2 h-9 px-3.5 bg-surface border border-line hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 dark:hover:bg-violet-900/20 dark:hover:border-violet-800 dark:hover:text-violet-300 rounded-lg transition-all cursor-pointer text-ink"
+                >
+                  <span className="text-sm font-medium capitalize">{viewFilter}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-inherit" />
+                </button>
+                <AnimatePresence>
+                  {showFilterMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                      transition={{ duration: 0.12 }}
+                      className="absolute right-0 top-full mt-1.5 w-36 bg-surface rounded-xl shadow-xl border border-line py-1.5 z-50"
+                    >
+                      {["all", "published", "drafts"].map(filter => (
+                        <button key={filter} type="button" onClick={(e) => { e.stopPropagation(); setViewFilter(filter); setShowFilterMenu(false); }}
+                          className={`w-full flex items-center px-4 py-2 text-sm font-medium transition-colors cursor-pointer capitalize ${viewFilter === filter ? 'bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-300' : 'text-ink hover:bg-violet-50/50 dark:hover:bg-violet-900/10'}`}
+                        >{filter}</button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowHeaderMenu(!showHeaderMenu); setShowFilterMenu(false); }}
+                  className="flex items-center justify-center w-9 h-9 bg-surface border border-line hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 dark:hover:bg-violet-900/20 dark:hover:border-violet-800 dark:hover:text-violet-300 rounded-lg transition-all cursor-pointer text-ink"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+                <AnimatePresence>
+                  {showHeaderMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                      transition={{ duration: 0.12 }}
+                      className="absolute right-0 top-full mt-1.5 w-52 bg-surface rounded-xl shadow-xl border border-line py-1.5 z-50"
+                    >
+                      <button type="button" onClick={() => { setShowHeaderMenu(false); navigate(`/class/${classData.id}/test-papers/upload-physical`); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-ink hover:bg-violet-50/50 dark:hover:bg-violet-900/10 transition-colors cursor-pointer"
+                      >
+                        <Upload className="w-4 h-4 text-violet-600" /><span>Upload Copies</span>
+                      </button>
+                      <button type="button" onClick={() => { setShowHeaderMenu(false); navigate(`/class/${classData.id}/test-papers/physical-results`); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-ink hover:bg-violet-50/50 dark:hover:bg-violet-900/10 transition-colors cursor-pointer"
+                      >
+                        <Eye className="w-4 h-4 text-blue-600" /><span>See Results</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              <button onClick={() => setIsFullscreen(false)} className="flex items-center justify-center w-9 h-9 bg-surface border border-line hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 dark:hover:bg-violet-900/20 dark:hover:border-violet-800 dark:hover:text-violet-300 rounded-lg transition-all cursor-pointer text-ink" title="Exit Fullscreen">
+                <Minimize className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={isFullscreen ? "max-w-5xl mx-auto px-6 py-6 space-y-8" : "space-y-8"}>
+      {/* HEADER - shown in both modes but gradient only in non-fullscreen */}
+      {!isFullscreen && (
+      <div className="bg-surface rounded-2xl p-4 sm:p-6 border border-line">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl sm:text-2xl font-semibold font-display text-ink mb-1">
+            <h2 className="text-lg font-semibold font-display text-ink mb-1">
               📄 Test Papers
             </h2>
-            <p className="text-ink-soft text-sm">
+            <p className="text-ink-soft text-[13px]">
               Create and manage test papers with AI-powered question generation
             </p>
           </div>
@@ -252,50 +359,53 @@ const TestPapersPage = () => {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowCreateMenu(!showCreateMenu);
+                  setShowFilterMenu(!showFilterMenu);
                   setShowHeaderMenu(false);
                 }}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-purple-600 dark:to-indigo-650 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer text-sm sm:text-base"
+                className="flex items-center gap-2 h-9 px-3.5 bg-surface border border-line hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 dark:hover:bg-violet-900/20 dark:hover:border-violet-800 dark:hover:text-violet-300 rounded-lg transition-all cursor-pointer text-ink"
               >
-                <span>Create Question</span>
-                <ChevronDown className="w-5 h-5 text-white" />
+                <span className="text-sm font-medium capitalize">{viewFilter}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-inherit" />
               </button>
 
-            <AnimatePresence>
-              {showCreateMenu && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -8 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -8 }}
-                  transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="absolute right-0 sm:left-0 sm:right-auto top-full mt-2 w-56 bg-surface rounded-xl shadow-2xl border border-line p-1.5 z-50 overflow-hidden flex flex-col gap-1"
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreateMenu(false);
-                      handleOpenAIModal();
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
+              <AnimatePresence>
+                {showFilterMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-36 bg-surface rounded-xl shadow-xl border border-line py-1.5 z-50"
                   >
-                    <Sparkles className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
-                    <span>Generate with AI</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreateMenu(false);
-                      setShowManualModal(true);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <Pencil className="w-4 h-4 text-indigo-600 dark:text-blue-400" />
-                    <span>Create Manually</span>
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    {["all", "published", "drafts"].map(filter => (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViewFilter(filter);
+                          setShowFilterMenu(false);
+                        }}
+                        className={`w-full flex items-center px-4 py-2 text-sm font-medium transition-colors cursor-pointer capitalize ${viewFilter === filter ? 'bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-300' : 'text-ink hover:bg-violet-50/50 dark:hover:bg-violet-900/10'}`}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFullscreen(!isFullscreen);
+              }}
+              className="flex items-center justify-center w-9 h-9 bg-surface border border-line hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 dark:hover:bg-violet-900/20 dark:hover:border-violet-800 dark:hover:text-violet-300 rounded-lg transition-all cursor-pointer text-ink flex-shrink-0"
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            >
+              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+            </button>
 
             <div className="relative">
               <button
@@ -304,9 +414,9 @@ const TestPapersPage = () => {
                   setShowHeaderMenu(!showHeaderMenu);
                   setShowCreateMenu(false);
                 }}
-                className="flex items-center justify-center w-12 h-[3.2rem] bg-surface border border-line hover:bg-line rounded-xl transition-colors cursor-pointer shadow-sm text-ink"
+                className="flex items-center justify-center w-9 h-9 bg-surface border border-line hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 dark:hover:bg-violet-900/20 dark:hover:border-violet-800 dark:hover:text-violet-300 rounded-lg transition-all cursor-pointer text-ink flex-shrink-0"
               >
-                <MoreVertical className="w-5 h-5" />
+                <MoreVertical className="w-4 h-4" />
               </button>
 
               <AnimatePresence>
@@ -324,9 +434,9 @@ const TestPapersPage = () => {
                         setShowHeaderMenu(false);
                         navigate(`/class/${classData.id}/test-papers/upload-physical`);
                       }}
-                      className="dropdown-item w-full flex items-center gap-3 px-4 py-3 text-sm text-ink transition-colors cursor-pointer"
+                      className="dropdown-item w-full flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors cursor-pointer"
                     >
-                      <Upload className="w-4 h-4 text-violet-600 dark:text-[#A78BFA]" />
+                      <Upload className="w-5 h-5 text-violet-600 dark:text-[#A78BFA]" />
                       <span>Upload Copies</span>
                     </button>
                     <button
@@ -335,9 +445,9 @@ const TestPapersPage = () => {
                         setShowHeaderMenu(false);
                         navigate(`/class/${classData.id}/test-papers/physical-results`);
                       }}
-                      className="dropdown-item w-full flex items-center gap-3 px-4 py-3 text-sm text-ink transition-colors cursor-pointer"
+                      className="dropdown-item w-full flex items-center gap-3 px-4 py-3 text-[15px] font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors cursor-pointer"
                     >
-                      <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <Eye className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                       <span>See Results</span>
                     </button>
                   </motion.div>
@@ -347,9 +457,26 @@ const TestPapersPage = () => {
           </div>
         </div>
       </div>
+      )}
+
+      {/* EMPTY STATE */}
+      {drafts.length === 0 && published.length === 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+          className="flex flex-col items-center justify-center py-16 px-4 bg-surface rounded-2xl border border-line text-center mt-4"
+        >
+          <div className="w-16 h-16 bg-violet-50 dark:bg-violet-900/20 rounded-full flex items-center justify-center mb-4">
+            <FileText className="w-8 h-8 text-violet-500" />
+          </div>
+          <h3 className="text-lg font-semibold text-ink font-display mb-2">No Test Papers Here</h3>
+          <p className="text-sm text-ink-soft max-w-md">
+            You haven't created any test papers yet. Get started by creating your first one!
+          </p>
+        </motion.div>
+      )}
 
       {/* ------------------- DRAFT TEST PAPERS ------------------- */}
-      {drafts.length > 0 && (
+      {(viewFilter === "all" || viewFilter === "drafts") && drafts.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -370,20 +497,20 @@ const TestPapersPage = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                className="bg-surface rounded-2xl border border-line p-4 sm:p-6 hover:shadow-lg transition-all font-body text-ink"
+                className="bg-surface rounded-2xl border border-line p-4 sm:p-5 hover:shadow-lg transition-all font-body text-ink"
               >
-                <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                   <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                    <div className="w-11 h-11 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-[22px] h-[22px] text-white" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-base sm:text-lg font-semibold font-display text-ink mb-1 truncate">
+                      <h4 className="text-base font-semibold font-display text-ink mb-0.5 truncate">
                         {test.title}
                       </h4>
 
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-ink-soft">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[13px] text-ink-soft">
                         <span className="flex items-center gap-1">
                           <span className="font-bold text-violet-dark">
                             {test.questions?.length || 0}
@@ -405,31 +532,57 @@ const TestPapersPage = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                    <button
-                      onClick={() => handleEditAnswerKeys(test)}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors cursor-pointer"
-                      title="Edit Answer Keys"
+                  <div className="relative">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const spaceBelow = window.innerHeight - rect.bottom;
+                        setMenuDirection(spaceBelow < 150 ? "up" : "down");
+                        setOpenActionMenuId(openActionMenuId === test._id ? null : test._id);
+                      }}
+                      className="p-2 hover:bg-line rounded-lg transition-colors cursor-pointer text-ink-soft hover:text-ink"
                     >
-                      <Pencil className="w-4 h-4" />
-                      <span>Edit</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleDelete(test._id, 'draft')}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Delete</span>
-                    </button>
-
-                    <button
-                      onClick={() => handlePublish(test)}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 btn-settings-blue text-sm font-semibold rounded-xl transition-colors cursor-pointer"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Publish</span>
-                    </button>
+                      <MoreVertical className="w-5 h-5" />
+                    </motion.button>
+                    <AnimatePresence>
+                      {openActionMenuId === test._id && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, y: menuDirection === "up" ? 4 : -4 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: menuDirection === "up" ? 4 : -4 }}
+                          transition={{ duration: 0.12 }}
+                          className={`absolute right-0 ${menuDirection === "up" ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-40 bg-surface rounded-xl shadow-xl border border-line py-1.5 z-50 overflow-hidden`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => { setOpenActionMenuId(null); handleEditAnswerKeys(test); }}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            <span>Edit Keys</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setOpenActionMenuId(null); handlePublish(test); }}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            <span>Publish</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setOpenActionMenuId(null); handleDelete(test._id, 'draft'); }}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Delete</span>
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               </motion.div>
@@ -439,7 +592,7 @@ const TestPapersPage = () => {
       )}
 
       {/* ------------------- PUBLISHED TEST PAPERS ------------------- */}
-      {published.length > 0 && (
+      {(viewFilter === "all" || viewFilter === "published") && published.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -460,20 +613,20 @@ const TestPapersPage = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                className="bg-surface rounded-2xl border border-line p-4 sm:p-6 hover:shadow-lg transition-all font-body text-ink"
+                className="bg-surface rounded-2xl border border-line p-4 sm:p-5 hover:shadow-lg transition-all font-body text-ink"
               >
-                <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                   <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                    <div className="w-11 h-11 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-[22px] h-[22px] text-white" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-base sm:text-lg font-semibold font-display text-ink mb-1 truncate">
+                      <h4 className="text-base font-semibold font-display text-ink mb-0.5 truncate">
                         {test.title}
                       </h4>
 
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-ink-soft">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[13px] text-ink-soft">
                         <span className="flex items-center gap-1">
                           <span className="font-bold text-violet-dark">
                             {test.questions?.length || 0}
@@ -495,22 +648,49 @@ const TestPapersPage = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto relative">
-                    <button
-                      onClick={() => handleViewResults(test._id)}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+                  <div className="relative">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const spaceBelow = window.innerHeight - rect.bottom;
+                        setMenuDirection(spaceBelow < 150 ? "up" : "down");
+                        setOpenActionMenuId(openActionMenuId === test._id ? null : test._id);
+                      }}
+                      className="p-2 hover:bg-line rounded-lg transition-colors cursor-pointer text-ink-soft hover:text-ink"
                     >
-                      <Eye className="w-4 h-4" />
-                      <span>View Results</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleDelete(test._id, "published")}
-                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Delete</span>
-                    </button>
+                      <MoreVertical className="w-5 h-5" />
+                    </motion.button>
+                    <AnimatePresence>
+                      {openActionMenuId === test._id && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, y: menuDirection === "up" ? 4 : -4 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: menuDirection === "up" ? 4 : -4 }}
+                          transition={{ duration: 0.12 }}
+                          className={`absolute right-0 ${menuDirection === "up" ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-40 bg-surface rounded-xl shadow-xl border border-line py-1.5 z-50 overflow-hidden`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => { setOpenActionMenuId(null); handleViewResults(test._id); }}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>View Results</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setOpenActionMenuId(null); handleDelete(test._id, "published"); }}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Delete</span>
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               </motion.div>
@@ -518,6 +698,7 @@ const TestPapersPage = () => {
           </div>
         </motion.div>
       )}
+      </div>{/* end max-w-5xl wrapper */}
 
       {/* ------------------- AI GENERATION MODAL ------------------- */}
       <AnimatePresence>

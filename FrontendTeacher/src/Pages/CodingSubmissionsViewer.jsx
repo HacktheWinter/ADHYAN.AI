@@ -424,16 +424,16 @@ export default function CodingSubmissionsViewer() {
             </div>
 
             {/* Code / Preview Content */}
-            <div className="flex-1 min-h-0 overflow-auto">
+            <div className={`flex-1 min-h-0 ${tab === 'preview' ? 'overflow-hidden flex flex-col' : 'overflow-auto'}`}>
               {tab === "preview" ? (
-                <div className="relative">
+                <div className="relative flex-1 flex flex-col min-h-[52vh] bg-white">
                   <iframe
                     srcDoc={`<!DOCTYPE html><html><head><style>${selected.cssCode || ""}</style></head><body>${(selected.htmlCode || "").replace(
                       /<!DOCTYPE html>|<\/?html[^>]*>|<\/?head[^>]*>|<\/?body[^>]*>|<meta[^>]*>|<title[^>]*>.*?<\/title>/gi,
                       ""
                     )}<script>${selected.jsCode || ""}<\/script></body></html>`}
                     title="Student Preview"
-                    className="w-full h-[52vh] border-0"
+                    className="w-full flex-1 border-0 block"
                     sandbox="allow-scripts"
                   />
                   <button

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useOutletContext, useParams } from "react-router-dom";
+import { useOutletContext, useParams, useLocation } from "react-router-dom";
 import {
   Upload,
   FileText,
@@ -20,6 +20,8 @@ import {
 import PdfPreview from "../components/PdfPreview";
 import { motion, AnimatePresence } from "framer-motion";
 import PageTransition from "../components/PageTransition";
+import ToastNotification from "../components/ToastNotification";
+import ConfirmationCard from "../components/ConfirmationCard";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -46,6 +48,8 @@ const NotesPage = () => {
   const [previewNote, setPreviewNote] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const location = useLocation();
 
   const [uploadForm, setUploadForm] = useState({
     title: "",
@@ -54,9 +58,24 @@ const NotesPage = () => {
 
   const menuRef = useRef(null);
 
+  // Toast & Confirmation state
+  const [toast, setToast] = useState({ message: '', type: 'success' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', confirmText: 'Confirm', cancelText: 'Cancel', type: 'danger', onConfirm: null, isLoading: false });
+
+  const showToast = React.useCallback((message, type = 'success') => setToast({ message, type }), []);
+  const clearToast = React.useCallback(() => setToast({ message: '', type: 'success' }), []);
+  const showConfirm = React.useCallback((opts) => setConfirmDialog({ isOpen: true, isLoading: false, ...opts, confirmText: opts.confirmText || 'Confirm', cancelText: opts.cancelText || 'Cancel', type: opts.type || 'danger' }), []);
+
   useEffect(() => {
     fetchNotes();
   }, [classId]);
+
+  useEffect(() => {
+    if (location.state?.openUpload) {
+      setShowUploadForm(true);
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -78,7 +97,7 @@ const NotesPage = () => {
       setNotes(response.notes || []);
     } catch (error) {
       console.error("Error fetching notes:", error);
-      alert("Failed to load notes");
+      showToast("Failed to load notes", "error");
     } finally {
       setLoading(false);
     }
@@ -135,35 +154,38 @@ const NotesPage = () => {
 
       document.getElementById("file-upload").value = "";
 
-      alert("Note uploaded successfully!");
+      showToast("Note uploaded successfully!", "success");
     } catch (error) {
       console.error("Error uploading note:", error);
-      alert(error.response?.data?.message || "Failed to upload note");
+      showToast(error.response?.data?.message || "Failed to upload note", "error");
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDelete = async (noteId, noteTitle) => {
-    if (!window.confirm(`Are you sure you want to delete "${noteTitle}"? This action cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      setDeleting(noteId);
-      setOpenMenuId(null);
-
-      await deleteNote(noteId);
-
-      setNotes(notes.filter(note => note._id !== noteId));
-
-      alert("Note deleted successfully!");
-    } catch (error) {
-      console.error("Error deleting note:", error);
-      alert(error.response?.data?.message || "Failed to delete note");
-    } finally {
-      setDeleting(null);
-    }
+  const handleDelete = (noteId, noteTitle) => {
+    setOpenMenuId(null);
+    showConfirm({
+      title: "Delete Note",
+      message: `Are you sure you want to delete "${noteTitle}"? This action cannot be undone.`,
+      confirmText: "Delete",
+      onConfirm: async () => {
+        try {
+          setConfirmDialog(prev => ({ ...prev, isLoading: true }));
+          setDeleting(noteId);
+          await deleteNote(noteId);
+          setNotes(notes.filter(note => note._id !== noteId));
+          showToast("Note deleted successfully!", "success");
+          setConfirmDialog(prev => ({ ...prev, isOpen: false, isLoading: false }));
+        } catch (error) {
+          console.error("Error deleting note:", error);
+          showToast(error.response?.data?.message || "Failed to delete note", "error");
+          setConfirmDialog(prev => ({ ...prev, isLoading: false }));
+        } finally {
+          setDeleting(null);
+        }
+      }
+    });
   };
 
   const handlePreview = (note) => {
@@ -235,12 +257,28 @@ const NotesPage = () => {
 
   return (
     <PageTransition className="space-y-6">
-      {/* Upload Form */}
-      <div className="bg-surface rounded-2xl border border-line shadow-sm">
-        <div className="p-4 sm:p-6 font-body">
-          <h3 className="text-base sm:text-lg font-semibold font-display text-ink mb-4">
-            Upload New Note
-          </h3>
+      {/* Upload Form (Hidden by default, triggered by ClassworkPage Create menu) */}
+      <AnimatePresence>
+        {showUploadForm && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-surface rounded-2xl border border-line shadow-sm mb-6">
+              <div className="p-4 sm:p-6 font-body">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold font-display text-ink">
+                    Upload New Note
+                  </h3>
+                  <button 
+                    onClick={() => setShowUploadForm(false)}
+                    className="p-1 text-ink-soft hover:text-ink hover:bg-line rounded-lg transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
           <form onSubmit={handleUpload} className="space-y-4">
             <div>
@@ -318,6 +356,9 @@ const NotesPage = () => {
           </form>
         </div>
       </div>
+      </motion.div>
+      )}
+      </AnimatePresence>
 
       {/* Notes List */}
       <div>
@@ -347,20 +388,20 @@ const NotesPage = () => {
                 whileHover={{ scale: 1.005 }}
                 className="bg-surface rounded-2xl border border-line shadow-sm hover:shadow-md transition-shadow font-body"
               >
-                <div className="p-4 sm:p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-line">
-                      <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-violet-dark" />
+                <div className="p-4 sm:p-5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-line">
+                      <FileText className="w-[22px] h-[22px] text-violet-dark" />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-base sm:text-lg font-semibold text-ink mb-1 truncate">
+                      <h4 className="text-base font-semibold text-ink mb-0.5 truncate">
                         {note.title}
                       </h4>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-ink-soft">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-[13px] text-ink-soft">
                         <span className="truncate">Uploaded by {note.uploadedBy}</span>
                         <span className="hidden sm:inline">•</span>
-                        <span className="text-xs">{formatDate(note.createdAt)}</span>
+                        <span>{formatDate(note.createdAt)}</span>
                       </div>
                     </div>
 
@@ -436,6 +477,28 @@ const NotesPage = () => {
           onClose={closePreview}
         />
       )}
+
+      {/* Toast Notification */}
+      <ToastNotification message={toast.message} type={toast.type} onClose={clearToast} />
+      
+      {/* Confirmation Dialog */}
+      <ConfirmationCard
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        type={confirmDialog.type}
+        isLoading={confirmDialog.isLoading}
+        onConfirm={() => {
+          if (confirmDialog.onConfirm) confirmDialog.onConfirm();
+        }}
+        onCancel={() => {
+          if (!confirmDialog.isLoading) {
+            setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+          }
+        }}
+      />
     </PageTransition>
   );
 };

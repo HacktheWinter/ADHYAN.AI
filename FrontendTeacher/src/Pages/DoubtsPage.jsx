@@ -1,19 +1,16 @@
-// FrontendTeacher/src/Pages/DoubtsPage.jsx
 import React from 'react';
-import { useParams, useOutletContext } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import DoubtChat from '../components/TeacherDoubts';
+import { getStoredUser } from '../utils/authStorage';
 
 const DoubtsPage = () => {
   const { classId } = useParams();
-  const { classData, currentUser } = useOutletContext();
+  const currentUser = getStoredUser() || {};
 
   return (
-    <div
-      className="bg-surface rounded-2xl border border-line overflow-hidden shadow-sm"
-      style={{ height: "calc(100vh - 280px)" }}
-    >
+    <div className="min-h-screen bg-transparent">
       <DoubtChat
-        classId={classData._id || classData.id || classId}
+        classId={classId}
         user={{
           id: currentUser._id || currentUser.id,
           _id: currentUser._id || currentUser.id,

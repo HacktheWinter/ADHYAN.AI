@@ -1,6 +1,6 @@
 // FrontendTeacher/src/components/CodingRoundPage.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useOutletContext, useNavigate, useParams } from "react-router-dom";
+import { useOutletContext, useNavigate, useParams, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 import {
@@ -19,11 +19,14 @@ import {
   Send,
   X,
   ImagePlus,
+  Maximize,
   Maximize2,
+  Minimize,
   Minimize2,
   FileText,
   Calendar,
   AlertCircle,
+  MoreVertical,
 } from "lucide-react";
 import {
   getCodingAssessmentsByClassroom,
@@ -40,6 +43,9 @@ export default function CodingRoundPage() {
   useOutletContext();
   const { classId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [viewFilter, setViewFilter] = useState("all");
 
   const [drafts, setDrafts] = useState([]);
   const [published, setPublished] = useState([]);
@@ -49,6 +55,9 @@ export default function CodingRoundPage() {
   const [selectedAssessment, setSelectedAssessment] = useState(null);
   const [editingAssessment, setEditingAssessment] = useState(null);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [openActionMenuId, setOpenActionMenuId] = useState(null);
+  const [menuDirection, setMenuDirection] = useState("down");
 
   // Toast & Confirmation state
   const [toast, setToast] = useState({ message: '', type: 'success' });
@@ -64,6 +73,18 @@ export default function CodingRoundPage() {
     if (showCreateMenu) document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [showCreateMenu]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setShowFilterMenu(false);
+    if (showFilterMenu) document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [showFilterMenu]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setOpenActionMenuId(null);
+    if (openActionMenuId) document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [openActionMenuId]);
 
   const fetchAssessments = useCallback(async (showLoader = false) => {
     try {
@@ -82,6 +103,13 @@ export default function CodingRoundPage() {
   useEffect(() => {
     fetchAssessments(true);
   }, [fetchAssessments]);
+
+  useEffect(() => {
+    if (location.state?.openCreate) {
+      setShowCreateModal(true);
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state]);
 
   const handleCreate = async (formData) => {
     try {
@@ -177,72 +205,142 @@ export default function CodingRoundPage() {
   }
 
   return (
-    <div className="space-y-8 font-body">
-      {/* HEADER */}
-      <div className="bg-gradient-to-r from-violet-50 to-paper rounded-2xl p-4 sm:p-6 border border-line">
+    <div className={isFullscreen ? "fixed inset-0 z-[100] bg-paper overflow-y-auto font-body" : "space-y-8 font-body"}>
+      {/* FULLSCREEN STICKY TOP BAR */}
+      {isFullscreen && (
+        <div className="sticky top-0 z-10 bg-paper/80 backdrop-blur-md border-b border-line">
+          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-lg">💻</span>
+              <h2 className="text-lg font-semibold font-display text-ink">Machine Coding Rounds</h2>
+              <span className="text-xs text-ink-soft">·</span>
+              <span className="text-xs text-ink-soft">{drafts.length + published.length} total</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowFilterMenu(!showFilterMenu); setShowCreateMenu(false); }}
+                  className="flex items-center gap-2 h-9 px-3.5 bg-surface border border-line hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 dark:hover:bg-violet-900/20 dark:hover:border-violet-800 dark:hover:text-violet-300 rounded-lg transition-all cursor-pointer text-ink"
+                >
+                  <span className="text-sm font-medium capitalize">{viewFilter}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-inherit" />
+                </button>
+                <AnimatePresence>
+                  {showFilterMenu && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -4 }} transition={{ duration: 0.12 }}
+                      className="absolute right-0 top-full mt-1.5 w-36 bg-surface rounded-xl shadow-xl border border-line py-1.5 z-50"
+                    >
+                      {["all", "published", "drafts"].map(filter => (
+                        <button key={filter} type="button" onClick={(e) => { e.stopPropagation(); setViewFilter(filter); setShowFilterMenu(false); }}
+                          className={`w-full flex items-center px-4 py-2 text-sm font-medium transition-colors cursor-pointer capitalize ${viewFilter === filter ? 'bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-300' : 'text-ink hover:bg-violet-50/50 dark:hover:bg-violet-900/10'}`}
+                        >{filter}</button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              <button onClick={() => setIsFullscreen(false)} className="flex items-center justify-center w-9 h-9 bg-surface border border-line hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 dark:hover:bg-violet-900/20 dark:hover:border-violet-800 dark:hover:text-violet-300 rounded-lg transition-all cursor-pointer text-ink" title="Exit Fullscreen">
+                <Minimize className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={isFullscreen ? "max-w-5xl mx-auto px-6 py-6 space-y-8" : "space-y-8"}>
+      {!isFullscreen && (
+      <div className="bg-surface rounded-2xl p-4 sm:p-6 border border-line">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl sm:text-2xl font-semibold font-display text-ink mb-1">
+            <h2 className="text-lg font-semibold font-display text-ink mb-1">
               💻 Machine Coding Rounds
             </h2>
-            <p className="text-ink-soft text-sm">
+            <p className="text-ink-soft text-[13px]">
               Create and manage coding assessments for your students
             </p>
           </div>
 
-          <div className="relative">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFilterMenu(!showFilterMenu);
+                  setShowCreateMenu(false);
+                }}
+                className="flex items-center gap-2 h-9 px-3.5 bg-surface border border-line hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 dark:hover:bg-violet-900/20 dark:hover:border-violet-800 dark:hover:text-violet-300 rounded-lg transition-all cursor-pointer text-ink"
+              >
+                <span className="text-sm font-medium capitalize">{viewFilter}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-inherit" />
+              </button>
+
+              <AnimatePresence>
+                {showFilterMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-36 bg-surface rounded-xl shadow-xl border border-line py-1.5 z-50"
+                  >
+                    {["all", "published", "drafts"].map(filter => (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViewFilter(filter);
+                          setShowFilterMenu(false);
+                        }}
+                        className={`w-full flex items-center px-4 py-2 text-sm font-medium transition-colors cursor-pointer capitalize ${viewFilter === filter ? 'bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-300' : 'text-ink hover:bg-violet-50/50 dark:hover:bg-violet-900/10'}`}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setShowCreateMenu(!showCreateMenu);
+                setIsFullscreen(!isFullscreen);
               }}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-purple-600 dark:to-indigo-650 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl cursor-pointer text-sm sm:text-base"
+              className="flex items-center justify-center w-9 h-9 bg-surface border border-line hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 dark:hover:bg-violet-900/20 dark:hover:border-violet-800 dark:hover:text-violet-300 rounded-lg transition-all cursor-pointer text-ink flex-shrink-0"
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
-              <span>Create Coding Round</span>
-              <ChevronDown className="w-5 h-5 text-white" />
+              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
             </button>
-
-            {showCreateMenu && (
-              <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-2 w-56 bg-surface rounded-xl shadow-2xl border border-line p-1.5 z-50 overflow-hidden flex flex-col gap-1">
-                <button
-                  onClick={() => {
-                    setShowCreateMenu(false);
-                    setShowCreateModal(true);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/30 rounded-lg transition-colors cursor-pointer"
-                >
-                  <Plus className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />
-                  <span>Create Manually</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
+      )}
+
 
       {/* EMPTY STATE */}
       {drafts.length === 0 && published.length === 0 && (
-        <div className="text-center py-16 bg-surface rounded-2xl border border-line">
-          <FileCode className="w-16 h-16 text-ink-soft/40 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold font-display text-ink mb-2">No coding rounds yet</h3>
-          <p className="text-ink-soft mb-6">Create your first machine coding round to get started</p>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg cursor-pointer"
-          >
-            <Plus className="w-5 h-5 inline mr-2" />
-            Create First Coding Round
-          </button>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+          className="flex flex-col items-center justify-center py-16 px-4 bg-surface rounded-2xl border border-line text-center mt-4"
+        >
+          <div className="w-16 h-16 bg-violet-50 dark:bg-violet-900/20 rounded-full flex items-center justify-center mb-4">
+            <Code2 className="w-8 h-8 text-violet-500" />
+          </div>
+          <h3 className="text-lg font-semibold text-ink font-display mb-2">No Coding Rounds Here</h3>
+          <p className="text-sm text-ink-soft max-w-md">
+            You haven't created any coding rounds yet. Get started by creating your first one!
+          </p>
+        </motion.div>
       )}
 
       {/* ------------------- DRAFT CODING ROUNDS ------------------- */}
-      {drafts.length > 0 && (
+      {(viewFilter === "all" || viewFilter === "drafts") && drafts.length > 0 && (
         <div>
           <div className="flex items-center gap-3 mb-4 font-body">
             <div className="w-2 h-8 bg-yellow-500 rounded-full"></div>
-            <h3 className="text-lg sm:text-xl font-semibold font-display text-ink">Draft Coding Rounds</h3>
-            <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-350 text-xs sm:text-sm rounded-full font-semibold">
+            <h3 className="text-[15px] font-semibold font-display text-ink">Draft Coding Rounds</h3>
+            <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-950/40 text-yellow-800 dark:text-yellow-350 text-xs rounded-full font-semibold">
               {drafts.length}
             </span>
           </div>
@@ -256,20 +354,20 @@ export default function CodingRoundPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  className="bg-surface rounded-2xl border border-line p-4 sm:p-6 hover:shadow-lg transition-all font-body text-ink"
+                  className="bg-surface rounded-2xl border border-line p-4 sm:p-5 hover:shadow-lg transition-all font-body text-ink"
                 >
-                  <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                     <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Code2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                      <div className="w-11 h-11 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Code2 className="w-[22px] h-[22px] text-white" />
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-base sm:text-lg font-semibold font-display text-ink mb-1 truncate">
+                        <h4 className="text-base font-semibold font-display text-ink mb-0.5 truncate">
                           {assessment.title}
                         </h4>
 
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-ink-soft">
+                        <div className="flex flex-wrap items-center gap-3 text-[13px] text-ink-soft">
                           <span className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
                             <span className="font-bold text-violet-dark">
@@ -284,38 +382,62 @@ export default function CodingRoundPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                      <button
-                        type="button"
-                        onClick={() => setEditingAssessment(assessment)}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors cursor-pointer"
-                        title="Edit"
-                      >
-                        <Pencil className="w-4 h-4" />
-                        <span>Edit</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(assessment._id, 'draft')}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Delete</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedAssessment(assessment);
-                          setShowPublishModal(true);
-                        }}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 btn-settings-blue text-sm font-semibold rounded-xl transition-colors cursor-pointer"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Publish</span>
-                      </button>
-                    </div>
+                      <div className="relative">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const spaceBelow = window.innerHeight - rect.bottom;
+                              setMenuDirection(spaceBelow < 150 ? "up" : "down");
+                              setOpenActionMenuId(openActionMenuId === assessment._id ? null : assessment._id);
+                            }}
+                            className="p-2 hover:bg-line rounded-lg transition-colors cursor-pointer text-ink-soft hover:text-ink"
+                          >
+                            <MoreVertical className="w-5 h-5" />
+                          </motion.button>
+                          <AnimatePresence>
+                            {openActionMenuId === assessment._id && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: menuDirection === "up" ? 4 : -4 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: menuDirection === "up" ? 4 : -4 }}
+                                transition={{ duration: 0.12 }}
+                                className={`absolute right-0 ${menuDirection === "up" ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-36 bg-surface rounded-xl shadow-xl border border-line py-1.5 z-50 overflow-hidden`}
+                              >
+                              <button
+                                type="button"
+                                onClick={() => { setOpenActionMenuId(null); setEditingAssessment(assessment); }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer"
+                              >
+                                <Pencil className="w-4 h-4" />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { 
+                                  setOpenActionMenuId(null);
+                                  setSelectedAssessment(assessment);
+                                  setShowPublishModal(true);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                                <span>Publish</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setOpenActionMenuId(null); handleDelete(assessment._id, 'draft'); }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                <span>Delete</span>
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                   </div>
                 </motion.div>
               ))}
@@ -325,12 +447,12 @@ export default function CodingRoundPage() {
       )}
 
       {/* ------------------- PUBLISHED CODING ROUNDS ------------------- */}
-      {published.length > 0 && (
+      {(viewFilter === "all" || viewFilter === "published") && published.length > 0 && (
         <div>
           <div className="flex items-center gap-3 mb-4 font-body">
             <div className="w-2 h-8 bg-green-500 rounded-full"></div>
-            <h3 className="text-lg sm:text-xl font-semibold font-display text-ink">Published Coding Rounds</h3>
-            <span className="px-3 py-1 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-xs sm:text-sm rounded-full font-semibold">
+            <h3 className="text-[15px] font-semibold font-display text-ink">Published Coding Rounds</h3>
+            <span className="px-3 py-1 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-xs rounded-full font-semibold">
               {published.length}
             </span>
           </div>
@@ -344,20 +466,20 @@ export default function CodingRoundPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  className="bg-surface rounded-2xl border border-line p-4 sm:p-6 hover:shadow-lg transition-all font-body text-ink"
+                  className="bg-surface rounded-2xl border border-line p-4 sm:p-5 hover:shadow-lg transition-all font-body text-ink"
                 >
-                  <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
                     <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Code2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                      <div className="w-11 h-11 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Code2 className="w-[22px] h-[22px] text-white" />
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-base sm:text-lg font-semibold font-display text-ink mb-1 truncate">
+                        <h4 className="text-base font-semibold font-display text-ink mb-0.5 truncate">
                           {assessment.title}
                         </h4>
 
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-ink-soft">
+                        <div className="flex flex-wrap items-center gap-3 text-[13px] text-ink-soft">
                           <span className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
                             <span className="font-bold text-violet-dark">
@@ -388,25 +510,50 @@ export default function CodingRoundPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                      <button
-                        type="button"
-                        onClick={() => handleViewSubmissions(assessment._id)}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>View Submissions</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(assessment._id, "published")}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Delete</span>
-                      </button>
-                    </div>
+                      <div className="relative">
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const spaceBelow = window.innerHeight - rect.bottom;
+                            setMenuDirection(spaceBelow < 150 ? "up" : "down");
+                            setOpenActionMenuId(openActionMenuId === assessment._id ? null : assessment._id);
+                          }}
+                          className="p-2 hover:bg-line rounded-lg transition-colors cursor-pointer text-ink-soft hover:text-ink"
+                        >
+                          <MoreVertical className="w-5 h-5" />
+                        </motion.button>
+                        <AnimatePresence>
+                          {openActionMenuId === assessment._id && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95, y: menuDirection === "up" ? 4 : -4 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95, y: menuDirection === "up" ? 4 : -4 }}
+                              transition={{ duration: 0.12 }}
+                              className={`absolute right-0 ${menuDirection === "up" ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-48 bg-surface rounded-xl shadow-xl border border-line py-1.5 z-50 overflow-hidden`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => { setOpenActionMenuId(null); handleViewSubmissions(assessment._id); }}
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-ink hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-700 dark:hover:text-violet-300 transition-colors cursor-pointer whitespace-nowrap"
+                              >
+                                <Eye className="w-4 h-4 shrink-0" />
+                                <span>View Results</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setOpenActionMenuId(null); handleDelete(assessment._id, "published"); }}
+                                className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors cursor-pointer whitespace-nowrap"
+                              >
+                                <Trash2 className="w-4 h-4 shrink-0" />
+                                <span>Delete</span>
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                   </div>
                 </motion.div>
               ))}
@@ -414,6 +561,7 @@ export default function CodingRoundPage() {
           </div>
         </div>
       )}
+      </div>{/* end max-w-5xl wrapper */}
 
       {/* Create/Edit Modal */}
       {(showCreateModal || editingAssessment) && (

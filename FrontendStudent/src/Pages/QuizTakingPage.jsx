@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, Bookmark, LayoutGrid, Camera, Video, Maximize2, Minimize2 } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, Bookmark, LayoutGrid, Camera, Video, Maximize2, Minimize2, X, ChevronDown } from 'lucide-react';
 import { getQuizById, submitQuiz } from '../api/quizApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
 import { useWebcamProctor } from '../hooks/useWebcamProctor';
@@ -48,17 +48,15 @@ const ExpandableQuestion = ({ questionText, questionIdx }) => {
         </div>
         
         {isOverflowing && (
-          <div className="absolute bottom-4 left-0 right-0 h-12 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
-        )}
-        
-        {isOverflowing && (
-          <button
-            onClick={() => setIsExpanded(true)}
-            className="absolute -bottom-3 right-4 bg-white shadow-md border border-gray-200 text-purple-600 rounded-full p-1.5 hover:bg-purple-50 transition-colors z-10 flex items-center justify-center gap-1 text-xs font-bold px-3 cursor-pointer"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-            View Full Question
-          </button>
+          <div className="absolute bottom-0 left-0 w-full pt-12 pb-1 bg-gradient-to-t from-white via-white/90 to-transparent flex items-end">
+            <button
+              onClick={() => setIsExpanded(true)}
+              className="text-gray-500 hover:text-gray-700 transition-colors z-10 flex items-center gap-1 text-sm font-medium cursor-pointer"
+            >
+              Show more
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          </div>
         )}
       </div>
 
@@ -674,8 +672,8 @@ export default function QuizTakingPage() {
 
           {/* Question Content */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-            <div className="max-w-5xl mx-auto">
-              <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-5">
+            <div className="max-w-3xl mx-auto">
+              <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-sm border border-gray-100 mb-5 min-h-[450px]">
                 <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2.5">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Question {currentQuestion + 1} of {quiz.questions.length}

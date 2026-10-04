@@ -621,9 +621,14 @@ export default function TakeTestModal({ testPaper, studentId, studentName, onClo
               <button
                 onClick={() => handleSubmitTest(false)}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-3 bg-green-600 font-semibold text-white rounded-xl hover:bg-green-700 transition-colors cursor-pointer"
+                className="flex-1 px-4 py-3 bg-green-600 font-semibold text-white rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors cursor-pointer flex justify-center items-center gap-2"
               >
-                {isSubmitting ? 'Submitting...' : 'Submit Anyway'}
+                {isSubmitting ? (
+                  <>
+                    <Loader className="w-5 h-5 animate-spin" />
+                    Submitting...
+                  </>
+                ) : 'Submit Anyway'}
               </button>
             </div>
           </div>

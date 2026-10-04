@@ -29,10 +29,7 @@ export default function DoubtPage() {
   }
 
   return (
-    <div
-      className="bg-white rounded-xl border overflow-hidden shadow-lg"
-      style={{ height: "calc(100vh - 280px)" }}
-    >
+    <div className="max-w-4xl mx-auto pb-10">
       <DoubtChat classId={classId} user={user} />
     </div>
   );

@@ -1,26 +1,69 @@
 // FrontendTeacher/src/components/PublishQuizModal.jsx
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { X, Clock, Calendar, AlertCircle, CheckCircle, Camera } from "lucide-react";
+import { X, Clock, Calendar, AlertCircle, CheckCircle, Camera, ChevronDown } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
 
 export default function PublishQuizModal({ quiz, onClose, onPublished, showToast }) {
-  const [timingOption, setTimingOption] = useState("no-limit"); // 'no-limit', 'duration', 'schedule'
+  const totalQuestions = quiz.sections?.reduce((sum, sec) => sum + (sec.questions?.length || 0), 0) || quiz.questions?.length || 0;
+  const strictSections = quiz.sections?.filter(sec => sec.type === 'mcq' && sec.isStrictTiming) || [];
+  const hasStrictMcq = strictSections.length > 0;
+  const [timingOption, setTimingOption] = useState(hasStrictMcq ? "duration" : "no-limit"); // 'no-limit', 'duration', 'schedule'
+  const showStrictMcqBlock = strictSections.length > 1 && timingOption !== 'no-limit';
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [manualDuration, setManualDuration] = useState("");
+  
+  const [strictSectionDurations, setStrictSectionDurations] = useState({});
+  const [selectedStrictSectionId, setSelectedStrictSectionId] = useState(strictSections.length > 1 ? strictSections[0]._id : null);
+  
   const [webcamEnabled, setWebcamEnabled] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isTimingSet, setIsTimingSet] = useState(false);
+  
+  const [isStrictDropdownOpen, setIsStrictDropdownOpen] = useState(false);
+  const [dropdownDirection, setDropdownDirection] = useState('down');
+  const dropdownButtonRef = useRef(null);
 
-  const totalQuestions = quiz.sections?.reduce((sum, sec) => sum + (sec.questions?.length || 0), 0) || quiz.questions?.length || 0;
+  const toggleDropdown = (e) => {
+    e.preventDefault();
+    if (!isStrictDropdownOpen && dropdownButtonRef.current) {
+      const rect = dropdownButtonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 220) { // 220px threshold
+        setDropdownDirection('up');
+      } else {
+        setDropdownDirection('down');
+      }
+    }
+    setIsStrictDropdownOpen(!isStrictDropdownOpen);
+  };
+
+  const strictMcqRef = useRef(null);
+
+  const handleSetTiming = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsTimingSet(true);
+    if (showStrictMcqBlock && strictMcqRef.current) {
+      strictMcqRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   const handlePublish = async () => {
     try {
       setIsPublishing(true);
 
+      if (timingOption !== "no-limit" && !isTimingSet) {
+        showToast("Please click 'Set Timing' to confirm your timing settings", 'error');
+        setIsPublishing(false);
+        return;
+      }
+
       let payload = {
         duration: null,
+        strictMcqDuration: null,
         startTime: null,
         endTime: null,
       };
@@ -69,6 +112,32 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
         }
         payload.endTime = end.toISOString();
         payload.duration = Math.floor((end - start) / 60000);
+      }
+
+      if (hasStrictMcq) {
+        if (showStrictMcqBlock) {
+          let totalStrictTime = 0;
+          for (let sec of strictSections) {
+             const secDur = parseInt(strictSectionDurations[sec._id]);
+             if (!secDur || secDur <= 0) {
+               showToast(`Please enter a valid duration for strict section: ${sec.title}`, 'error');
+               setIsPublishing(false);
+               return;
+             }
+             totalStrictTime += secDur;
+          }
+          if (payload.duration && totalStrictTime > payload.duration) {
+             showToast("Total strict mode duration cannot exceed the overall exam duration", 'error');
+             setIsPublishing(false);
+             return;
+          }
+          payload.strictSectionDurations = strictSectionDurations;
+          payload.strictMcqDuration = totalStrictTime; // fallback just in case
+        } else {
+          // Exactly 1 strict section
+          payload.strictMcqDuration = payload.duration;
+          payload.strictSectionDurations = { [strictSections[0]._id]: payload.duration };
+        }
       }
 
       console.log("Publishing assessment with timing:", payload);
@@ -183,31 +252,33 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
 
             <div className="space-y-3">
               {/* No Time Limit */}
-              <label
-                className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
-                  timingOption === "no-limit"
-                    ? "border-violet-600 bg-violet-50 text-violet-dark shadow-sm"
-                    : "border-line bg-surface text-ink hover:border-purple-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="timing"
-                  value="no-limit"
-                  checked={timingOption === "no-limit"}
-                  onChange={(e) => setTimingOption(e.target.value)}
-                  className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
-                />
-                <div className="flex-1">
-                  <div className="font-bold text-ink mb-1">
-                    No Time Limit
+              {!hasStrictMcq && (
+                <label
+                  className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all ${
+                    timingOption === "no-limit"
+                      ? "border-violet-600 bg-violet-50 text-violet-dark shadow-sm"
+                      : "border-line bg-surface text-ink hover:border-purple-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="timing"
+                    value="no-limit"
+                    checked={timingOption === "no-limit"}
+                    onChange={(e) => { setTimingOption(e.target.value); setIsTimingSet(false); }}
+                    className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
+                  />
+                  <div className="flex-1">
+                    <div className="font-bold text-ink mb-1">
+                      No Time Limit
+                    </div>
+                    <p className="text-sm text-ink-soft">
+                      Students can take this assessment anytime without time
+                      restrictions
+                    </p>
                   </div>
-                  <p className="text-sm text-ink-soft">
-                    Students can take this assessment anytime without time
-                    restrictions
-                  </p>
-                </div>
-              </label>
+                </label>
+              )}
 
               {/* Total Duration */}
               <label
@@ -222,7 +293,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
                   name="timing"
                   value="duration"
                   checked={timingOption === "duration"}
-                  onChange={(e) => setTimingOption(e.target.value)}
+                  onChange={(e) => { setTimingOption(e.target.value); setIsTimingSet(false); }}
                   className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
                 />
                 <div className="flex-1">
@@ -237,18 +308,29 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
                   </p>
                   
                   {timingOption === "duration" && (
-                    <div>
-                      <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">
-                        Duration (Minutes)
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={manualDuration}
-                        onChange={(e) => setManualDuration(e.target.value)}
-                        placeholder="e.g. 60"
-                        className="w-full sm:w-1/2 px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
-                      />
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-bold text-ink-soft uppercase tracking-wider mb-1">
+                          Duration (Minutes)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={manualDuration}
+                          onChange={(e) => { setManualDuration(e.target.value); setIsTimingSet(false); }}
+                          placeholder="e.g. 60"
+                          className="w-full sm:w-1/2 px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                      <button
+                        onClick={handleSetTiming}
+                        disabled={isTimingSet}
+                        className={`px-4 py-2 text-white rounded-lg text-sm font-bold transition-colors cursor-pointer ${
+                          isTimingSet ? 'bg-green-600' : 'bg-violet-600 hover:bg-violet-700'
+                        }`}
+                      >
+                        {isTimingSet ? 'Timing Set ✓' : 'Set Timing'}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -267,7 +349,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
                   name="timing"
                   value="schedule"
                   checked={timingOption === "schedule"}
-                  onChange={(e) => setTimingOption(e.target.value)}
+                  onChange={(e) => { setTimingOption(e.target.value); setIsTimingSet(false); }}
                   className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
                 />
                 <div className="flex-1">
@@ -291,7 +373,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
                           type="datetime-local"
                           min={getMinDateTime()}
                           value={startTime}
-                          onChange={(e) => setStartTime(e.target.value)}
+                          onChange={(e) => { setStartTime(e.target.value); setIsTimingSet(false); }}
                           className="w-full px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
                         />
                       </div>
@@ -303,10 +385,19 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
                           type="datetime-local"
                           min={startTime || getMinDateTime()}
                           value={endTime}
-                          onChange={(e) => setEndTime(e.target.value)}
+                          onChange={(e) => { setEndTime(e.target.value); setIsTimingSet(false); }}
                           className="w-full px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
                         />
                       </div>
+                      <button
+                        onClick={handleSetTiming}
+                        disabled={isTimingSet}
+                        className={`px-4 py-2 text-white rounded-lg text-sm font-bold transition-colors cursor-pointer ${
+                          isTimingSet ? 'bg-green-600' : 'bg-violet-600 hover:bg-violet-700'
+                        }`}
+                      >
+                        {isTimingSet ? 'Timing Set ✓' : 'Set Timing'}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -314,6 +405,93 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
             </div>
           </div>
 
+          {/* Strict MCQ Timing */}
+          {showStrictMcqBlock && (
+            <div ref={strictMcqRef} className={`bg-indigo-50 border border-indigo-200 rounded-xl p-4 mt-4 scroll-mt-24 transition-all duration-300 ${!isTimingSet ? 'opacity-50 pointer-events-none grayscale-[0.2]' : ''}`}>
+              <div className="flex items-start gap-3">
+                <Clock className="w-5 h-5 text-indigo-600 mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+                    <p className="text-sm font-bold text-indigo-900">
+                      Strict MCQ Mode Enabled
+                    </p>
+                    <div className="relative" ref={dropdownButtonRef}>
+                      <button
+                        onClick={toggleDropdown}
+                        className="px-3 py-1.5 text-sm font-bold border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-colors text-indigo-800 rounded-lg outline-none focus:outline-none w-48 sm:w-56 shadow-sm cursor-pointer flex items-center justify-between gap-2"
+                      >
+                        <span className="truncate">{strictSections.find(s => s._id === selectedStrictSectionId)?.title || "Select Section"}</span>
+                        <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isStrictDropdownOpen ? "rotate-180" : ""}`} />
+                      </button>
+
+                      {isStrictDropdownOpen && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-[100]" 
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsStrictDropdownOpen(false); }} 
+                          />
+                          <div className={`absolute ${dropdownDirection === 'up' ? 'bottom-full mb-1' : 'top-full mt-1'} right-0 w-full bg-white border border-indigo-100 rounded-lg shadow-xl z-[101] overflow-hidden py-1 max-h-48 overflow-y-auto`}>
+                            {strictSections.map(sec => (
+                              <div
+                                key={sec._id}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setSelectedStrictSectionId(sec._id);
+                                  setIsStrictDropdownOpen(false);
+                                }}
+                                className={`px-4 py-2 text-sm font-bold cursor-pointer transition-colors ${
+                                  selectedStrictSectionId === sec._id
+                                    ? "bg-indigo-600 text-white"
+                                    : "text-indigo-900 hover:bg-indigo-50"
+                                }`}
+                              >
+                                {sec.title}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <p className={`text-sm mb-3 ${!isTimingSet ? 'text-red-600 font-bold' : 'text-indigo-800'}`}>
+                    {!isTimingSet 
+                      ? "⚠️ Please click 'Set Timing' for the main exam above before configuring strict mode." 
+                      : "You have enabled strict mode for multiple sections. Please set the time for each strict MCQ section individually."}
+                  </p>
+                  
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-indigo-700 uppercase tracking-wider mb-1">
+                        Duration for {strictSections.find(s => s._id === selectedStrictSectionId)?.title || 'Selected Section'} (Minutes)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={strictSectionDurations[selectedStrictSectionId] || ""}
+                        onChange={(e) => setStrictSectionDurations({...strictSectionDurations, [selectedStrictSectionId]: e.target.value})}
+                        placeholder="e.g. 30"
+                        className="w-full sm:w-1/2 px-3 py-2 border border-indigo-300 bg-white text-ink rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:text-gray-400"
+                        disabled={!isTimingSet}
+                      />
+                    </div>
+                    
+                    {(() => {
+                      const totalStrict = Object.values(strictSectionDurations).reduce((acc, val) => acc + (parseInt(val) || 0), 0);
+                      const mainDur = timingOption === "duration" ? parseInt(manualDuration) || 0 : (timingOption === "schedule" && startTime && endTime ? Math.floor((new Date(endTime) - new Date(startTime)) / 60000) : 0);
+                      if (mainDur > 0 && totalStrict > mainDur) {
+                        return (
+                          <p className="text-sm font-bold text-red-600 mt-2">
+                            Total strict mode duration ({totalStrict} mins) exceeds overall exam duration ({mainDur} mins)!
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Warning */}
           <div className="bg-amber-50 border border-amber-250 rounded-xl p-4">

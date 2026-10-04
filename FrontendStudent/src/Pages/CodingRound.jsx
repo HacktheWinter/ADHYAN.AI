@@ -47,12 +47,18 @@ export default function CodingRound() {
     setShowInstructionModal(true);
   };
 
+  const [isStartingCoding, setIsStartingCoding] = useState(false);
+
   const handleConfirmStartExam = () => {
     if (!selectedAssessment) return;
-    const targetId = selectedAssessment._id;
-    setShowInstructionModal(false);
-    setSelectedAssessment(null);
-    navigate(`/coding-round/${classId}/${targetId}`);
+    setIsStartingCoding(true);
+    setTimeout(() => {
+      const targetId = selectedAssessment._id;
+      setShowInstructionModal(false);
+      setSelectedAssessment(null);
+      setIsStartingCoding(false);
+      navigate(`/coding-round/${classId}/${targetId}`);
+    }, 800);
   };
 
   const getAssessmentStatus = (assessment) => {
@@ -279,16 +285,18 @@ export default function CodingRound() {
                   setShowInstructionModal(false);
                   setSelectedAssessment(null);
                 }}
-                className="px-6 py-2.5 font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer"
+                disabled={isStartingCoding}
+                className="px-6 py-2.5 font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmStartExam}
-                className="px-8 py-2.5 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-xl transition-colors shadow-md shadow-purple-600/20 cursor-pointer flex items-center gap-2"
+                disabled={isStartingCoding}
+                className="px-8 py-2.5 bg-purple-700 hover:bg-purple-800 text-white font-bold rounded-xl transition-colors shadow-md shadow-purple-600/20 cursor-pointer flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <Play className="w-4 h-4 fill-current" />
-                I Understand, Start Exam
+                {isStartingCoding ? <Loader className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                {isStartingCoding ? "Starting..." : "I Understand, Start Exam"}
               </button>
             </div>
           </div>
