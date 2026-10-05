@@ -29,7 +29,7 @@ export default function DoubtPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-10">
+    <div className="max-w-4xl mx-auto pb-10 px-4 sm:px-6">
       <DoubtChat classId={classId} user={user} />
     </div>
   );

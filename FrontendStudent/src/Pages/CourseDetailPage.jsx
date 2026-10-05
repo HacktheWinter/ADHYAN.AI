@@ -174,7 +174,7 @@ export default function CourseDetailPage() {
                 {/* Attendance */}
                 <button
                   onClick={handleAttendanceClick}
-                  className="h-10 px-4 sm:px-5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:text-purple-700 transition-all cursor-pointer flex items-center gap-2.5 text-sm font-semibold shadow-sm"
+                  className="h-10 w-10 sm:w-auto sm:px-5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:text-purple-700 transition-all cursor-pointer flex items-center justify-center gap-2.5 text-sm font-semibold shadow-sm"
                 >
                   <ClipboardCheck className="w-[18px] h-[18px] text-purple-600" />
                   <span className="hidden sm:inline">Attendance</span>
@@ -183,7 +183,7 @@ export default function CourseDetailPage() {
                 {/* Classes */}
                 <button
                   onClick={() => navigate("classes")}
-                  className="h-10 px-4 sm:px-5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:text-purple-700 transition-all cursor-pointer flex items-center gap-2.5 text-sm font-semibold shadow-sm"
+                  className="h-10 w-10 sm:w-auto sm:px-5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:text-purple-700 transition-all cursor-pointer flex items-center justify-center gap-2.5 text-sm font-semibold shadow-sm"
                 >
                   <Video className="w-[18px] h-[18px] text-purple-600" />
                   <span className="hidden sm:inline">Classes</span>
@@ -230,8 +230,8 @@ export default function CourseDetailPage() {
           </div>
 
           {/* ─── Main Navigation Tabs ─── */}
-          <div className="mb-6">
-            <div className="flex gap-1 border-b border-gray-100">
+          <div className="mb-6 overflow-x-auto no-scrollbar">
+            <div className="flex gap-1 border-b border-gray-100 min-w-max">
               {MAIN_TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -275,6 +275,13 @@ export default function CourseDetailPage() {
         }
         .animate-in {
           animation: fade-in 150ms ease-out, slide-in-from-top-1 150ms ease-out;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
     </div>

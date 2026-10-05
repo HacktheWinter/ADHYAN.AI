@@ -116,14 +116,14 @@ export default function DoubtChat() {
   return (
     <div className="space-y-6">
       {/* Header & Ask Button */}
-      <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Class Doubts</h1>
           <p className="text-sm text-gray-500">Post your questions and get answers from teachers and peers</p>
         </div>
         <button
           onClick={() => setShowAskForm(!showAskForm)}
-          className="px-5 py-2.5 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors flex items-center gap-2 shadow-md shadow-purple-600/10 text-sm cursor-pointer"
+          className="px-5 py-2.5 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 shadow-md shadow-purple-600/10 text-sm cursor-pointer sm:w-auto w-full"
         >
           {showAskForm ? (
             <>
@@ -206,7 +206,7 @@ export default function DoubtChat() {
             <div key={doubt._id} className="bg-white shadow-sm hover:shadow-md transition-shadow duration-200 rounded-2xl p-5 sm:p-6 border border-gray-200 group">
               {/* Doubt Header */}
               <div className="flex items-start justify-between gap-4 mb-4">
-                <div className="flex gap-3 items-start">
+                <div className="flex gap-3 items-start flex-1 min-w-0">
                   {doubt.profilePhoto ? (
                     <img src={doubt.profilePhoto} alt={doubt.authorName} className="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-100 flex-shrink-0" />
                   ) : (
@@ -214,16 +214,16 @@ export default function DoubtChat() {
                       {doubt.authorName?.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <div>
-                    <h2 className="text-[17px] font-bold text-gray-900 leading-tight">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-[17px] font-bold text-gray-900 leading-tight break-words">
                       {doubt.title}
                     </h2>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-sm font-semibold text-gray-700">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                      <span className="text-sm font-semibold text-gray-700 truncate max-w-full">
                         {doubt.authorName}
                       </span>
                       {doubt.authorRole && (
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                        <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                           doubt.authorRole === "teacher" 
                             ? "bg-amber-100 text-amber-800" 
                             : "bg-purple-100 text-purple-700"
@@ -231,9 +231,9 @@ export default function DoubtChat() {
                           {doubt.authorRole}
                         </span>
                       )}
-                      <span className="text-gray-300">•</span>
-                      <span className="text-xs text-gray-500 flex items-center gap-1 font-medium">
-                        <Clock className="w-3 h-3" />
+                      <span className="text-gray-300 hidden sm:inline">•</span>
+                      <span className="text-xs text-gray-500 flex items-center gap-1 font-medium whitespace-nowrap">
+                        <Clock className="w-3 h-3 flex-shrink-0" />
                         {new Date(doubt.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                       </span>
                     </div>
@@ -242,7 +242,7 @@ export default function DoubtChat() {
 
                 {/* Edit/Delete Actions */}
                 {doubt.authorId === classInfo.studentId && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                     {editingDoubtId === doubt._id ? (
                       <button onClick={() => { setEditingDoubtId(null); setEditText(""); }} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors cursor-pointer" title="Cancel">
                         <X className="w-4 h-4" />
@@ -294,12 +294,12 @@ export default function DoubtChat() {
                         <div key={index} className="flex gap-3">
                           <CornerDownRight className="w-4 h-4 text-gray-300 mt-1.5 flex-shrink-0" />
                           <div className="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-100 flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-bold text-[13px] text-gray-900">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
+                              <span className="font-bold text-[13px] text-gray-900 truncate max-w-full">
                                 {reply.authorName}
                               </span>
                               {reply.authorRole && (
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                                <span className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
                                   reply.authorRole === "teacher" 
                                     ? "bg-amber-100 text-amber-800" 
                                     : "bg-purple-100 text-purple-700"
@@ -307,8 +307,8 @@ export default function DoubtChat() {
                                   {reply.authorRole}
                                 </span>
                               )}
-                              <span className="text-gray-300 text-[10px]">•</span>
-                              <span className="text-[11px] text-gray-400 font-medium">
+                              <span className="text-gray-300 text-[10px] hidden sm:inline">•</span>
+                              <span className="text-[11px] text-gray-400 font-medium whitespace-nowrap">
                                 {new Date(reply.createdAt || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                               </span>
                             </div>
