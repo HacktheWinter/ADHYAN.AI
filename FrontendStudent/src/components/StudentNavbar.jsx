@@ -158,12 +158,12 @@ export default function StudentNavbar({ searchQuery = '', onSearchChange = () =>
               <>
                 <a 
                   href={LANDING_PAGE_URL}
-                  className="flex items-center space-x-1 focus:outline-none"
+                  className="flex items-center space-x-2.5 focus:outline-none"
                 >
                   <img 
                     src="/logo02.png" 
                     alt="ADHYAN.AI Logo" 
-                    className="w-16 object-contain"
+                    className="w-12 h-12 object-contain bg-white rounded-xl p-1 shadow-sm border border-gray-100"
                   />
                   <div className="hidden sm:block">
                     <h1 className="text-xl font-bold text-gray-900 leading-tight">ADHYAN.AI</h1>
