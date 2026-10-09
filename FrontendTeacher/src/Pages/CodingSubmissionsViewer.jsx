@@ -4,11 +4,12 @@ import {
   AlertTriangle, ArrowLeft, CheckCircle, Clock, Code2, Eye,
   FileCode, Loader, RefreshCw, Search, Trophy, Users, X,
   MoreVertical, BarChart2, User, Camera, MessageSquare, Award, Send,
-  Maximize2, Minimize2
+  Maximize2, Minimize2, Sparkles
 } from "lucide-react";
 import { getCodingAssessmentById, getCodingSubmissions, gradeCodingSubmission } from "../api/codingAssessmentApi";
 import axios from "axios";
 import API_BASE_URL from "../config";
+import ToastNotification from "../components/ToastNotification";
 
 export default function CodingSubmissionsViewer() {
   const { classId, assessmentId } = useParams();
@@ -25,7 +26,17 @@ export default function CodingSubmissionsViewer() {
   const [saving, setSaving] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [fullscreenPreview, setFullscreenPreview] = useState(false);
+  const [isCheckingAI, setIsCheckingAI] = useState(false);
+  const [showAIPrompt, setShowAIPrompt] = useState(false);
+  const [isBulkCheckingAI, setIsBulkCheckingAI] = useState(false);
+  const [bulkCheckProgress, setBulkCheckProgress] = useState({ current: 0, total: 0 });
+  const [showBulkAIPrompt, setShowBulkAIPrompt] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const maxMarks = Number(assessment?.maxMarks) || 10;
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -84,12 +95,79 @@ export default function CodingSubmissionsViewer() {
       setSaving(true);
       const result = await gradeCodingSubmission(selected._id, { marksAwarded: Number(grade), teacherFeedback: feedback });
       setSubmissions((items) => items.map((s) => s._id === selected._id ? result.submission : s));
-      // Auto-close the modal after successful save
       setSelected(null);
+      showToast("Grade saved successfully!");
     } catch (error) {
-      window.alert(error.response?.data?.error || "Could not save grade.");
+      showToast(error.response?.data?.error || "Could not save grade.", "error");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCheckAI = async (withScreenshot) => {
+    setShowAIPrompt(false);
+    setIsCheckingAI(true);
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/coding-assessment/check-agent/${selected._id}`,
+        { withScreenshot },
+        { withCredentials: true }
+      );
+      if (res.data.success) {
+        setGrade(res.data.marksAwarded);
+        setFeedback(res.data.feedback);
+        showToast("AI Evaluation Complete!");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast(error.response?.data?.error || "AI Check Failed", "error");
+    } finally {
+      setIsCheckingAI(false);
+    }
+  };
+
+  const handleBulkCheckAI = async (withScreenshot) => {
+    setShowBulkAIPrompt(false);
+    setIsBulkCheckingAI(true);
+    const ungraded = submissions.filter(s => s.marksAwarded === null || s.marksAwarded === undefined);
+    setBulkCheckProgress({ current: 0, total: ungraded.length });
+
+    let checkedCount = 0;
+    let failedCount = 0;
+    let lastError = null;
+
+    for (const sub of ungraded) {
+      setBulkCheckProgress(prev => ({ ...prev, current: prev.current + 1 }));
+      try {
+        const res = await axios.post(
+          `${API_BASE_URL}/coding-assessment/check-agent/${sub._id}`,
+          { withScreenshot },
+          { withCredentials: true }
+        );
+        if (res.data.success) {
+          // Update the specific submission in state so it immediately reflects as graded
+          setSubmissions(prev => prev.map(s => s._id === sub._id ? {
+            ...s,
+            marksAwarded: res.data.marksAwarded,
+            teacherFeedback: res.data.feedback,
+            submissionStatus: "evaluated"
+          } : s));
+          checkedCount++;
+        } else {
+          failedCount++;
+        }
+      } catch (error) {
+        console.error("Failed AI Check for:", sub._id, error);
+        failedCount++;
+        lastError = error.response?.data?.error || error.message;
+      }
+    }
+
+    setIsBulkCheckingAI(false);
+    if (failedCount > 0) {
+      showToast(`Evaluated ${checkedCount}. Failed ${failedCount}: ${lastError}`, "error");
+    } else {
+      showToast(`Successfully evaluated ${checkedCount} submissions with AI!`);
     }
   };
 
@@ -228,13 +306,49 @@ export default function CodingSubmissionsViewer() {
 
         {/* Refresh & Search Bar */}
         <div className="flex flex-col sm:flex-row gap-3 mb-4 sm:mb-6">
-          <button
-            onClick={fetchData}
-            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-line text-ink text-sm sm:text-base font-bold rounded-xl hover:bg-line/80 transition-colors cursor-pointer"
-          >
-            <RefreshCw className="w-5 h-5" />
-            Refresh
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={fetchData}
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-line text-ink text-sm sm:text-base font-bold rounded-xl hover:bg-line/80 transition-colors cursor-pointer"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Refresh
+            </button>
+
+            {submissions.filter(s => s.marksAwarded === null || s.marksAwarded === undefined).length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowBulkAIPrompt(true)}
+                  disabled={isBulkCheckingAI}
+                  className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 btn-settings-blue text-sm sm:text-base font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50 h-full"
+                >
+                  {isBulkCheckingAI ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      Checking {bulkCheckProgress.current} of {bulkCheckProgress.total}...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      Check All with AI ({submissions.filter(s => s.marksAwarded === null || s.marksAwarded === undefined).length})
+                    </>
+                  )}
+                </button>
+                
+                {showBulkAIPrompt && (
+                  <div className="absolute top-full left-0 mt-2 w-72 bg-surface border border-line rounded-xl shadow-xl p-4 z-50 animate-in fade-in slide-in-from-top-2">
+                    <p className="text-sm font-semibold mb-3">Include UI Screenshots?</p>
+                    <p className="text-xs text-ink-soft mb-4">Capturing screenshots for bulk checking takes much longer (approx 2-3s per student).</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleBulkCheckAI(false)} className="flex-1 py-1.5 px-2 bg-line text-ink-soft hover:bg-line/80 text-xs font-bold rounded-lg transition-colors cursor-pointer">No, Code Only</button>
+                      <button onClick={() => handleBulkCheckAI(true)} className="flex-1 py-1.5 px-2 bg-purple-600 text-white hover:bg-purple-700 text-xs font-bold rounded-lg transition-colors cursor-pointer">Yes, Capture UI</button>
+                    </div>
+                    <button onClick={() => setShowBulkAIPrompt(false)} className="absolute top-2 right-2 text-ink-soft hover:text-ink cursor-pointer"><X className="w-3.5 h-3.5"/></button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="relative flex-1 sm:max-w-xs ml-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-soft" />
@@ -529,13 +643,15 @@ export default function CodingSubmissionsViewer() {
 
               {/* Action Buttons */}
               <div className="px-4 sm:px-5 pb-3 sm:pb-4 flex items-center justify-end gap-2">
-                <button
-                  onClick={() => setSelected(null)}
-                  className="px-4 py-2 text-sm font-semibold text-ink-soft hover:text-ink hover:bg-line rounded-lg transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelected(null)}
+                    className="px-4 py-2 text-sm font-semibold text-ink-soft hover:text-ink hover:bg-line rounded-lg transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
                   onClick={saveGrade}
                   disabled={saving || grade === "" || Number(grade) < 0 || Number(grade) > maxMarks}
                   className="px-5 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm rounded-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm shadow-violet-600/20 hover:shadow-md hover:shadow-violet-600/30"
@@ -546,6 +662,7 @@ export default function CodingSubmissionsViewer() {
                     <><Send className="w-3.5 h-3.5" /> Save Grade</>
                   )}
                 </button>
+                </div>
               </div>
             </div>
           </section>
@@ -584,6 +701,13 @@ export default function CodingSubmissionsViewer() {
           />
         </div>
       )}
+      
+      <ToastNotification
+        show={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
     </div>
   );
 }
