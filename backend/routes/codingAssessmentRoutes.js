@@ -20,6 +20,8 @@ import {
   saveCodingProgress,
   submitCodingRound,
   checkCodingSubmission,
+  generateCodingAgent,
+  checkCodingAgent,
 } from "../controllers/codingAssessmentController.js";
 
 const router = express.Router();
@@ -34,6 +36,22 @@ router.post(
   authMiddleware,
   authorizeRoles("teacher"),
   createCodingAssessment
+);
+
+// Agent to generate coding questions (teacher)
+router.post(
+  "/generate-agent",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  generateCodingAgent
+);
+
+// Agent to check a coding submission
+router.post(
+  "/check-agent/:submissionId",
+  authMiddleware,
+  authorizeRoles("teacher"),
+  checkCodingAgent
 );
 
 // Upload reference image (teacher)

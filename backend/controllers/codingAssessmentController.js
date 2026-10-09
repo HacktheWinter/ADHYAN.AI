@@ -3,6 +3,7 @@ import CodingSubmission from "../models/CodingSubmission.js";
 import ActivityLog from "../models/ActivityLog.js";
 import Classroom from "../models/Classroom.js";
 import cloudinary from "../config/cloudinary.js";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ==================== TEACHER CONTROLLERS ====================
 
@@ -28,6 +29,175 @@ export const uploadReferenceImage = async (req, res) => {
   } catch (error) {
     console.error("Error in uploadReferenceImage:", error);
     res.status(500).json({ error: "Failed to upload reference image." });
+  }
+};
+
+// Agent to generate coding questions
+export const generateCodingAgent = async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required." });
+    }
+
+    const apiKey = process.env.GEN_API_KEY_1 || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "Gemini API key is not configured." });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+    const systemPrompt = `You are an expert AI coding instructor. Your task is to generate a comprehensive machine coding round based on the user's prompt. 
+You must output ONLY valid JSON. No markdown, no comments.
+The JSON must follow this exact structure:
+{
+  "title": "A short, descriptive title",
+  "problemStatement": "A detailed explanation of the problem to solve",
+  "requirements": "A bulleted list of constraints, edge cases, and UI requirements (separated by newlines)",
+  "starterHtml": "<!DOCTYPE html>...",
+  "starterCss": "/* Write CSS */...",
+  "starterJs": "// Write JS..."
+}
+Draft the HTML/CSS/JS boilerplate so the student has a good starting point. The JS should be linked or written in a script tag if necessary, but keep it clean. Do not give the full solution! Only starter boilerplate.
+CRITICAL: You MUST properly format the HTML, CSS, and JS code using newline characters (\\n) inside the JSON string. Do not compress the code into a single line. The code MUST be properly indented and line-by-line!`;
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      systemInstruction: systemPrompt,
+      generationConfig: {
+        temperature: 0.2,
+      },
+    });
+
+    const responseText = result.response.text();
+    let cleanedText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
+    
+    // Quick validation/critic loop (single self-correction)
+    try {
+      JSON.parse(cleanedText);
+    } catch(err) {
+      // Critic agent kicks in if JSON is malformed
+      const criticResult = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: `Fix this invalid JSON output from a previous step. Return ONLY valid JSON: \n\n${cleanedText}` }] }],
+        generationConfig: { temperature: 0.1 }
+      });
+      cleanedText = criticResult.response.text().replace(/```json/gi, "").replace(/```/g, "").trim();
+    }
+
+    const generatedJson = JSON.parse(cleanedText);
+
+    res.status(200).json({ success: true, generated: generatedJson });
+  } catch (error) {
+    console.error("Error in generateCodingAgent:", error);
+    res.status(500).json({ error: "Failed to generate coding assessment via AI." });
+  }
+};
+
+// Agent to check a coding submission
+export const checkCodingAgent = async (req, res) => {
+  try {
+    const { submissionId } = req.params;
+    const { withScreenshot } = req.body;
+
+    const submission = await CodingSubmission.findById(submissionId).populate("assessmentId");
+    if (!submission) return res.status(404).json({ error: "Submission not found" });
+
+    const assessment = submission.assessmentId;
+    if (!assessment) return res.status(404).json({ error: "Assessment not found" });
+
+    let screenshotBase64 = null;
+    if (withScreenshot) {
+      // Dynamic import to avoid crash if puppeteer not loaded at startup
+      const puppeteer = (await import('puppeteer')).default;
+      const browser = await puppeteer.launch({ headless: true });
+      const page = await browser.newPage();
+      
+      const combinedHtml = `<!DOCTYPE html><html><head><style>${submission.cssCode || ""}</style></head><body>${(submission.htmlCode || "").replace(
+        /<!DOCTYPE html>|<\/?html[^>]*>|<\/?head[^>]*>|<\/?body[^>]*>|<meta[^>]*>|<title[^>]*>.*?<\/title>/gi,
+        ""
+      )}<script>${submission.javascriptCode || submission.jsCode || ""}</script></body></html>`;
+      
+      await page.setContent(combinedHtml, { waitUntil: 'networkidle0' });
+      // Take screenshot as base64
+      screenshotBase64 = await page.screenshot({ encoding: "base64", fullPage: true });
+      await browser.close();
+    }
+
+    const apiKey = process.env.GEN_API_KEY_1 || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "Gemini API key is not configured." });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
+
+    const promptText = `You are an expert AI evaluator for a machine coding round.
+Evaluate the student's submission against the requirements.
+
+Max Marks: ${assessment.maxMarks}
+Problem Statement: ${assessment.problemStatement || assessment.questionText || ""}
+Requirements: ${assessment.requirements || "None specific, evaluate general quality"}
+
+Student HTML:
+${submission.htmlCode || "(empty)"}
+
+Student CSS:
+${submission.cssCode || "(empty)"}
+
+Student JS:
+${submission.javascriptCode || submission.jsCode || "(empty)"}
+
+${withScreenshot ? "I have also provided a screenshot of their rendered output. Please analyze if it visually meets the requirements." : "No visual screenshot provided. Evaluate purely based on code."}
+
+Output MUST be a valid JSON with this structure:
+{
+  "marksAwarded": 8.5,
+  "feedback": "Detailed feedback on what was good and what was missing."
+}`;
+
+    const parts = [{ text: promptText }];
+    if (screenshotBase64) {
+      parts.push({
+        inlineData: {
+          data: screenshotBase64,
+          mimeType: "image/png"
+        }
+      });
+    }
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts }],
+      generationConfig: { temperature: 0.2 }
+    });
+
+    let cleanedText = result.response.text().replace(/```json/gi, "").replace(/```/g, "").trim();
+    
+    // Quick validation/critic loop
+    try {
+      JSON.parse(cleanedText);
+    } catch(err) {
+      const criticResult = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: `Fix this invalid JSON output from a previous step. Return ONLY valid JSON: \n\n${cleanedText}` }] }],
+        generationConfig: { temperature: 0.1 }
+      });
+      cleanedText = criticResult.response.text().replace(/```json/gi, "").replace(/```/g, "").trim();
+    }
+
+    const evaluation = JSON.parse(cleanedText);
+    
+    // DB Save logic
+    submission.marksAwarded = Number(evaluation.marksAwarded) || 0;
+    submission.teacherFeedback = evaluation.feedback || "Evaluated by AI.";
+    submission.gradedAt = new Date();
+    
+    // Also save the result in the gradeCodingSubmission style (in case we need to trigger notifications/logs)
+    await submission.save();
+
+    res.status(200).json({ success: true, marksAwarded: submission.marksAwarded, feedback: submission.teacherFeedback });
+  } catch (error) {
+    console.error("Error in checkCodingAgent:", error);
+    res.status(500).json({ error: "Failed to evaluate coding submission via AI." });
   }
 };
 
