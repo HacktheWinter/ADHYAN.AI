@@ -8,6 +8,8 @@ import axios from 'axios';
 import API_BASE_URL from '../config';
 import { ArrowLeft, Plus, X, CalendarDays, Loader, Clock, AlignLeft, Trash2, MapPin } from 'lucide-react';
 import { getStoredUser } from '../utils/authStorage';
+import ConfirmationCard from '../components/ConfirmationCard';
+import ToastNotification from '../components/ToastNotification';
 
 const CalendarPage = () => {
     const { classId } = useParams();
@@ -18,6 +20,12 @@ const CalendarPage = () => {
     const [submitting, setSubmitting] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [deleting, setDeleting] = useState(false);
+    const [deleteConfirmEvent, setDeleteConfirmEvent] = useState(null);
+    const [toastConfig, setToastConfig] = useState({ message: '', type: 'success' });
+
+    const showToast = (message, type = 'success') => {
+        setToastConfig({ message, type });
+    };
     
     const currentUser = getStoredUser() || {};
     const teacherId = currentUser.id || currentUser._id;
@@ -99,17 +107,18 @@ const CalendarPage = () => {
     };
 
     const handleDeleteEvent = async () => {
-        if (!selectedEvent) return;
-        if (!window.confirm("Are you sure you want to delete this event? This action cannot be undone.")) return;
+        if (!deleteConfirmEvent) return;
 
         setDeleting(true);
         try {
-            await axios.delete(`${API_BASE_URL}/calendar/${selectedEvent.id}`);
+            await axios.delete(`${API_BASE_URL}/calendar/${deleteConfirmEvent.id}`);
             await fetchEvents();
+            showToast("Event deleted successfully", "success");
             setSelectedEvent(null);
+            setDeleteConfirmEvent(null);
         } catch (error) {
             console.error("Error deleting event:", error);
-            alert("Failed to delete event");
+            showToast("Failed to delete event", "error");
         } finally {
             setDeleting(false);
         }
@@ -151,6 +160,7 @@ const CalendarPage = () => {
 
             await axios.post(`${API_BASE_URL}/calendar/create`, payload);
             await fetchEvents();
+            showToast("Event added successfully", "success");
             setIsModalOpen(false);
             setNewEvent({
                 title: '',
@@ -164,7 +174,7 @@ const CalendarPage = () => {
 
         } catch (error) {
             console.error("Error creating event:", error);
-            alert("Failed to create event");
+            showToast("Failed to create event", "error");
         } finally {
             setSubmitting(false);
         }
@@ -756,18 +766,11 @@ const CalendarPage = () => {
 
                                 <div className="mt-8">
                                     <button
-                                        onClick={handleDeleteEvent}
-                                        disabled={deleting}
+                                        onClick={() => setDeleteConfirmEvent(selectedEvent)}
                                         className="w-full flex items-center justify-center gap-2 py-3 bg-error/10 text-error font-semibold rounded-xl hover:bg-error hover:text-white transition-all border border-error/25 group cursor-pointer"
                                     >
-                                        {deleting ? (
-                                            <Loader className="w-5 h-5 animate-spin" />
-                                        ) : (
-                                            <>
-                                                <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                                Delete Event
-                                            </>
-                                        )}
+                                        <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                        Delete Event
                                     </button>
                                 </div>
                             </div>
@@ -775,6 +778,25 @@ const CalendarPage = () => {
                     </div>
                 </div>
             )}
+
+            {/* Custom Delete Confirmation Modal */}
+            <ConfirmationCard
+                isOpen={!!deleteConfirmEvent}
+                title="Delete Event?"
+                message={`Are you sure you want to delete "${deleteConfirmEvent?.title}"? This action cannot be undone.`}
+                confirmText="Delete"
+                cancelText="Cancel"
+                onConfirm={handleDeleteEvent}
+                onCancel={() => setDeleteConfirmEvent(null)}
+                type="danger"
+                isLoading={deleting}
+            />
+
+            <ToastNotification
+                message={toastConfig.message}
+                type={toastConfig.type}
+                onClose={() => setToastConfig({ message: '', type: 'success' })}
+            />
         </div>
     );
 };

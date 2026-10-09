@@ -3,8 +3,10 @@ import { useOutletContext, useParams } from "react-router-dom";
 import { FileText, Download, Eye, X, Loader } from "lucide-react";
 import axios from "axios";
 
-import PdfPreview from "../components/PdfPreview";
+import DocumentPreview from "../components/DocumentPreview";
 import API_BASE_URL from "../config";
+import { downloadFile } from "../utils/downloadFile";
+import FileIcon from "../components/FileIcon";
 
 const StudentNotesPage = () => {
   const { id: classId } = useParams();
@@ -39,25 +41,7 @@ const StudentNotesPage = () => {
   };
 
   const handlePreview = (note) => {
-    const isWord = note.mimetype === 'application/msword' || 
-                   note.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-                   note.title?.toLowerCase().match(/\.(doc|docx)$/);
-                   
-    const isExcel = note.mimetype === 'application/vnd.ms-excel' || 
-                    note.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-                    note.title?.toLowerCase().match(/\.(xls|xlsx)$/);
-
-    if (isWord) {
-      const url = note.fileUrl || `${API_BASE_URL}/notes/file/${note.fileId}`;
-      const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}`;
-      window.open(viewerUrl, "_blank");
-    } else if (isExcel) {
-      const url = note.fileUrl || `${API_BASE_URL}/notes/file/${note.fileId}`;
-      const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
-      window.open(viewerUrl, "_blank");
-    } else {
-      setPreviewNote(note);
-    }
+    setPreviewNote(note);
   };
 
   const closePreview = () => {
@@ -66,7 +50,7 @@ const StudentNotesPage = () => {
 
   const handleDownload = (note) => {
     const url = note.fileUrl || `${API_BASE_URL}/notes/file/${note.fileId}`;
-    window.open(url, "_blank");
+    downloadFile(url, note.title || 'Note');
   };
 
   const formatDate = (dateString) => {
@@ -129,10 +113,7 @@ const StudentNotesPage = () => {
               >
                 <div className="p-6">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-6 h-6 text-purple-600" />
-                    </div>
-
+                    <FileIcon fileName={note.title} mimeType={note.mimetype} />
                     <div className="flex-1 min-w-0">
                       <h4 className="text-lg font-semibold text-gray-900 mb-1">
                         {note.title}
@@ -171,14 +152,12 @@ const StudentNotesPage = () => {
 
       {/* Preview Modal */}
       {previewNote && (
-
-        <PdfPreview
+        <DocumentPreview
           url={previewNote.fileUrl || `${API_BASE_URL}/notes/file/${previewNote.fileId}`}
           title={previewNote.title}
+          mimeType={previewNote.mimetype}
           onClose={closePreview}
         />
-
-       
       )}
     </div>
   );

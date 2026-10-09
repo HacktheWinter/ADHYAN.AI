@@ -11,6 +11,53 @@ import { getCodingAssessmentsByClassroom, getCodingSubmissions } from '../api/co
 // Imports updated
 import { MoreVertical, Check } from 'lucide-react';
 
+const CustomSelect = ({ value, onChange, options, className = "" }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className={`relative ${className}`} ref={ref}>
+      <div 
+        className="w-full p-2 bg-paper border border-line rounded-lg cursor-pointer flex items-center justify-between text-sm text-ink transition-colors hover:border-purple-300"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="truncate mr-2">
+          {options.find(o => o.value === value)?.label || 'Select...'}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-ink-soft flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </div>
+      {isOpen && (
+        <div className="absolute z-[999] w-full mt-1 bg-surface border border-line rounded-lg shadow-xl py-1 overflow-hidden">
+          {options.map((opt) => (
+            <div
+              key={opt.value}
+              className={`px-3 py-2 text-sm cursor-pointer hover:bg-purple-50 hover:text-purple-700 dark:hover:bg-purple-900/40 dark:hover:text-purple-300 transition-colors ${
+                value === opt.value ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 font-medium' : 'text-ink'
+              }`}
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ClassDashboard = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
@@ -391,27 +438,29 @@ const ClassDashboard = () => {
                         <div className="absolute right-0 sm:right-auto sm:left-0 top-full mt-2 w-64 bg-surface rounded-xl shadow-lg border border-line p-4 z-20">
                             <div className="space-y-3">
                                 <p className="font-semibold text-sm text-ink">Filter Students</p>
-                                <select 
+                                <CustomSelect 
                                     value={filterType} 
-                                    onChange={e => setFilterType(e.target.value)}
-                                    className="w-full p-2 text-sm bg-paper border border-line rounded-lg focus:outline-none focus:border-purple-500 text-ink"
-                                >
-                                    <option value="none">No Filter</option>
-                                    <option value="percentage">Average Percentage</option>
-                                    <option value="marks">Average Marks</option>
-                                </select>
+                                    onChange={val => setFilterType(val)}
+                                    options={[
+                                        { value: 'none', label: 'No Filter' },
+                                        { value: 'percentage', label: 'Average Percentage' },
+                                        { value: 'marks', label: 'Average Marks' }
+                                    ]}
+                                    className="w-full"
+                                />
                                 
                                 {filterType !== 'none' && (
                                     <div className="flex gap-2">
-                                        <select
+                                        <CustomSelect
                                             value={filterOperator}
-                                            onChange={e => setFilterOperator(e.target.value)}
-                                            className="w-1/3 p-2 text-sm bg-paper border border-line rounded-lg focus:outline-none focus:border-purple-500 text-ink"
-                                        >
-                                            <option value=">=">&gt;=</option>
-                                            <option value="<=">&lt;=</option>
-                                            <option value="==">==</option>
-                                        </select>
+                                            onChange={val => setFilterOperator(val)}
+                                            options={[
+                                                { value: '>=', label: '>=' },
+                                                { value: '<=', label: '<=' },
+                                                { value: '==', label: '==' }
+                                            ]}
+                                            className="w-1/3"
+                                        />
                                         <input
                                             type="number"
                                             value={filterValue}

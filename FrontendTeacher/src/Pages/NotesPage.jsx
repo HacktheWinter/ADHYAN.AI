@@ -17,11 +17,13 @@ import {
   deleteNote,
 } from "../api/notesApi";
 
-import PdfPreview from "../components/PdfPreview";
+import DocumentPreview from "../components/DocumentPreview";
 import { motion, AnimatePresence } from "framer-motion";
 import PageTransition from "../components/PageTransition";
 import ToastNotification from "../components/ToastNotification";
 import ConfirmationCard from "../components/ConfirmationCard";
+import { downloadFile } from "../utils/downloadFile";
+import FileIcon from "../components/FileIcon";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -189,28 +191,8 @@ const NotesPage = () => {
   };
 
   const handlePreview = (note) => {
-    const isWord = note.mimetype === 'application/msword' || 
-                   note.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-                   note.title?.toLowerCase().match(/\.(doc|docx)$/);
-                   
-    const isExcel = note.mimetype === 'application/vnd.ms-excel' || 
-                    note.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-                    note.title?.toLowerCase().match(/\.(xls|xlsx)$/);
-
-    if (isWord) {
-      const url = note.fileUrl || getNoteFileUrl(note.fileId);
-      const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}`;
-      window.open(viewerUrl, "_blank");
-      setOpenMenuId(null);
-    } else if (isExcel) {
-      const url = note.fileUrl || getNoteFileUrl(note.fileId);
-      const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
-      window.open(viewerUrl, "_blank");
-      setOpenMenuId(null);
-    } else {
-      setPreviewNote(note);
-      setOpenMenuId(null);
-    }
+    setPreviewNote(note);
+    setOpenMenuId(null);
   };
 
   const closePreview = () => {
@@ -219,7 +201,7 @@ const NotesPage = () => {
 
   const handleDownload = (note) => {
     const url = note.fileUrl || getNoteFileUrl(note.fileId);
-    window.open(url, "_blank");
+    downloadFile(url, note.title || 'Note');
     setOpenMenuId(null);
   };
 
@@ -390,10 +372,7 @@ const NotesPage = () => {
               >
                 <div className="p-4 sm:p-5">
                   <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-line">
-                      <FileText className="w-[22px] h-[22px] text-violet-dark" />
-                    </div>
-
+                    <FileIcon fileName={note.title} mimeType={note.mimetype} />
                     <div className="flex-1 min-w-0">
                       <h4 className="text-base font-semibold text-ink mb-0.5 truncate">
                         {note.title}
@@ -471,9 +450,10 @@ const NotesPage = () => {
 
       {/* Preview Modal */}
       {previewNote && (
-        <PdfPreview
+        <DocumentPreview
           url={previewNote.fileUrl || getNoteFileUrl(previewNote.fileId)}
           title={previewNote.title}
+          mimeType={previewNote.mimetype}
           onClose={closePreview}
         />
       )}

@@ -29,6 +29,7 @@ import {
   FileText,
   BookOpen,
   ClipboardCheck,
+  Code,
   X,
 } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -59,6 +60,13 @@ const TYPE_CONFIG = {
     bg: "bg-emerald-100 dark:bg-emerald-900/40",
     text: "text-emerald-700 dark:text-emerald-300",
     dot: "#10B981",
+  },
+  coding: {
+    label: "Coding Round",
+    icon: Code,
+    bg: "bg-pink-100 dark:bg-pink-900/40",
+    text: "text-pink-700 dark:text-pink-300",
+    dot: "#EC4899",
   },
 };
 
@@ -120,7 +128,7 @@ const AssessmentAnalyticsPanel = ({ teacherId }) => {
   // UI state
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState("all"); // all | quiz | test | assignment
+  const [filterType, setFilterType] = useState("all"); // all | quiz | test | assignment | coding
   const [tableSearch, setTableSearch] = useState("");
   const [sortField, setSortField] = useState("percentage");
   const [sortDir, setSortDir] = useState("desc");
@@ -391,7 +399,7 @@ const AssessmentAnalyticsPanel = ({ teacherId }) => {
                   />
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
-                  {["all", "quiz", "test", "assignment"].map((t) => (
+                  {["all", "quiz", "test", "assignment", "coding"].map((t) => (
                     <button
                       key={t}
                       onClick={() => setFilterType(t)}

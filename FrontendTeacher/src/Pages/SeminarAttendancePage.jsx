@@ -18,6 +18,8 @@ import * as XLSX from "xlsx";
 import api from "../api/axios";
 import Header from "../components/Header";
 import PageTransition from "../components/PageTransition";
+import ConfirmationCard from "../components/ConfirmationCard";
+import ToastNotification from "../components/ToastNotification";
 
 // ── Sorting & Grouping Utility ──────────────────────────────────
 /**
@@ -72,6 +74,12 @@ const SeminarAttendancePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSessions, setSelectedSessions] = useState([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [deleteConfirmInfo, setDeleteConfirmInfo] = useState(null);
+  const [toastConfig, setToastConfig] = useState({ message: "", type: "success" });
+
+  const showToast = (message, type = "success") => {
+    setToastConfig({ message, type });
+  };
 
   useEffect(() => {
     const fetchRecords = async () => {
@@ -163,29 +171,34 @@ const SeminarAttendancePage = () => {
     }
   };
 
-  const handleDeleteSession = async (e, sessionId, sessionTitle) => {
+  const requestDeleteSession = (e, sessionId, sessionTitle) => {
     e.stopPropagation();
-    if (!window.confirm(`Are you sure you want to delete the seminar "${sessionTitle}"? This action cannot be undone.`)) {
-      return;
-    }
+    setDeleteConfirmInfo({ type: "single", id: sessionId, title: sessionTitle });
+  };
+
+  const executeDeleteSession = async () => {
+    const { id: sessionId } = deleteConfirmInfo;
     try {
       setLoading(true);
       const res = await api.delete(`/seminar/session/${sessionId}`);
       if (res.data?.success) {
         setSessions((prev) => prev.filter((s) => s._id !== sessionId));
+        showToast("Seminar deleted successfully");
       }
     } catch (err) {
-      alert("Failed to delete seminar session");
+      showToast("Failed to delete seminar session", "error");
       console.error(err);
     } finally {
       setLoading(false);
+      setDeleteConfirmInfo(null);
     }
   };
 
-  const handleBulkDelete = async () => {
-    if (!window.confirm(`Are you sure you want to delete ${selectedSessions.length} seminar(s)? This action cannot be undone.`)) {
-      return;
-    }
+  const requestBulkDelete = () => {
+    setDeleteConfirmInfo({ type: "bulk" });
+  };
+
+  const executeBulkDelete = async () => {
     try {
       setLoading(true);
       const res = await api.post("/seminar/sessions/bulk-delete", { sessionIds: selectedSessions });
@@ -193,12 +206,22 @@ const SeminarAttendancePage = () => {
         setSessions((prev) => prev.filter((s) => !selectedSessions.includes(s._id)));
         setSelectedSessions([]);
         setIsSelectionMode(false);
+        showToast(`${selectedSessions.length} seminars deleted successfully`);
       }
     } catch (err) {
-      alert("Failed to delete selected seminars");
+      showToast("Failed to delete selected seminars", "error");
       console.error(err);
     } finally {
       setLoading(false);
+      setDeleteConfirmInfo(null);
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteConfirmInfo?.type === "single") {
+      executeDeleteSession();
+    } else if (deleteConfirmInfo?.type === "bulk") {
+      executeBulkDelete();
     }
   };
 
@@ -291,7 +314,7 @@ const SeminarAttendancePage = () => {
                   
                   {selectedSessions.length > 0 && (
                     <button
-                      onClick={handleBulkDelete}
+                      onClick={requestBulkDelete}
                       className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 rounded-xl text-sm font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/40 transition cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -441,7 +464,7 @@ const SeminarAttendancePage = () => {
                       </button>
                     )}
                     <button
-                      onClick={(e) => handleDeleteSession(e, session._id, session.title)}
+                      onClick={(e) => requestDeleteSession(e, session._id, session.title)}
                       className="flex items-center justify-center p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition"
                       title="Delete Session"
                     >
@@ -593,6 +616,28 @@ const SeminarAttendancePage = () => {
             );
           })}
         </div>
+        
+        <ConfirmationCard
+          isOpen={!!deleteConfirmInfo}
+          title={deleteConfirmInfo?.type === "bulk" ? "Delete Seminars?" : "Delete Seminar?"}
+          message={
+            deleteConfirmInfo?.type === "bulk"
+              ? `Are you sure you want to delete ${selectedSessions.length} seminar(s)? This action cannot be undone.`
+              : `Are you sure you want to delete "${deleteConfirmInfo?.title}"? This action cannot be undone.`
+          }
+          confirmText="Delete"
+          cancelText="Cancel"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteConfirmInfo(null)}
+          type="danger"
+          isLoading={loading}
+        />
+
+        <ToastNotification
+          message={toastConfig.message}
+          type={toastConfig.type}
+          onClose={() => setToastConfig({ message: "", type: "success" })}
+        />
       </PageTransition>
     </div>
   );

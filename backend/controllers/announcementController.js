@@ -16,10 +16,10 @@ const upload = multer({
 /**
  * POST /api/announcement/create
  * Body: { teacherId, classroomId, message }
- * File: file (optional)
+ * File: files (optional, max 4)
  */
 export const createAnnouncement = [
-  upload.single("file"),
+  upload.array("files", 4),
   async (req, res) => {
     try {
       const teacherId = req.user?._id?.toString() || req.body.teacherId;
@@ -53,36 +53,35 @@ export const createAnnouncement = [
           .json({ error: "You are not the teacher of this class" });
       }
 
-      let fileId = null;
-      let fileName = null;
-      let mimeType = null;
+      let attachments = [];
 
-      // Upload file to GridFS if present
-      if (req.file) {
-        const uploadStream = bucket.openUploadStream(req.file.originalname, {
-          contentType: req.file.mimetype,
-        });
-
-        // Use a promise to handle the stream completion
-        await new Promise((resolve, reject) => {
-          uploadStream.end(req.file.buffer);
-          uploadStream.on("finish", () => {
-            fileId = uploadStream.id;
-            fileName = req.file.originalname;
-            mimeType = req.file.mimetype;
-            resolve();
+      // Upload files to GridFS if present
+      if (req.files && req.files.length > 0) {
+        for (const file of req.files) {
+          const uploadStream = bucket.openUploadStream(file.originalname, {
+            contentType: file.mimetype,
           });
-          uploadStream.on("error", reject);
-        });
+
+          await new Promise((resolve, reject) => {
+            uploadStream.end(file.buffer);
+            uploadStream.on("finish", () => {
+              attachments.push({
+                fileId: uploadStream.id,
+                fileName: file.originalname,
+                mimeType: file.mimetype,
+              });
+              resolve();
+            });
+            uploadStream.on("error", reject);
+          });
+        }
       }
 
       const announcement = await Announcement.create({
         classroomId,
         teacherId,
         message,
-        fileId,
-        fileName,
-        mimeType,
+        attachments,
       });
 
       void logActivity({
@@ -154,13 +153,23 @@ export const deleteAnnouncement = async (req, res) => {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    // Delete file from GridFS if it exists
+    // Delete legacy file from GridFS if it exists
     if (announcement.fileId) {
       try {
         await bucket.delete(new mongoose.Types.ObjectId(announcement.fileId));
       } catch (err) {
-        console.error("Error deleting file from GridFS:", err);
-        // Continue deleting announcement even if file delete fails
+        console.error("Error deleting legacy file from GridFS:", err);
+      }
+    }
+
+    // Delete multiple attachments
+    if (announcement.attachments && announcement.attachments.length > 0) {
+      for (const att of announcement.attachments) {
+        try {
+          await bucket.delete(new mongoose.Types.ObjectId(att.fileId));
+        } catch (err) {
+          console.error("Error deleting attachment from GridFS:", err);
+        }
       }
     }
 

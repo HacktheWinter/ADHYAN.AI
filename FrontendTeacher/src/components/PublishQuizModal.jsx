@@ -9,14 +9,15 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
   const totalQuestions = quiz.sections?.reduce((sum, sec) => sum + (sec.questions?.length || 0), 0) || quiz.questions?.length || 0;
   const strictSections = quiz.sections?.filter(sec => sec.type === 'mcq' && sec.isStrictTiming) || [];
   const hasStrictMcq = strictSections.length > 0;
+  const totalSectionsCount = quiz.sections?.length || 0;
   const [timingOption, setTimingOption] = useState(hasStrictMcq ? "duration" : "no-limit"); // 'no-limit', 'duration', 'schedule'
-  const showStrictMcqBlock = strictSections.length > 1 && timingOption !== 'no-limit';
+  const showStrictMcqBlock = totalSectionsCount > 1 && hasStrictMcq && timingOption !== 'no-limit';
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [manualDuration, setManualDuration] = useState("");
   
   const [strictSectionDurations, setStrictSectionDurations] = useState({});
-  const [selectedStrictSectionId, setSelectedStrictSectionId] = useState(strictSections.length > 1 ? strictSections[0]._id : null);
+  const [selectedStrictSectionId, setSelectedStrictSectionId] = useState(hasStrictMcq ? strictSections[0]._id : null);
   
   const [webcamEnabled, setWebcamEnabled] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);

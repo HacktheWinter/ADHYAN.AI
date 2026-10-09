@@ -5,6 +5,7 @@ import { exportQuizToExcel, exportQuizToPDF } from '../utils/exportUtils';
 import axios from "axios";
 import API_BASE_URL from "../config";
 import Editor from "@monaco-editor/react";
+import ConfirmationCard from "./ConfirmationCard";
 
 const CustomSelect = ({ value, onChange, options }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -177,6 +178,12 @@ const emptySection = (index) => ({
 });
 
 const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
+  const [confirmConfig, setConfirmConfig] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
   const [title, setTitle] = useState(quiz.title || "");
   const [difficulty, setDifficulty] = useState(quiz.difficulty || "mixed");
   const [isDifficultyMenuOpen, setIsDifficultyMenuOpen] = useState(false);
@@ -261,17 +268,26 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
       showToast("Please select questions to delete", 'error');
       return;
     }
-    if (!confirm(`Are you sure you want to delete ${selected.length} questions?`)) return;
+    
+    setConfirmConfig({
+      isOpen: true,
+      title: "Delete Questions",
+      message: `Are you sure you want to delete ${selected.length} questions?`,
+      onConfirm: () => {
+        const deletedCount = selected.length;
+        const updatedSections = [...sections];
+        updatedSections[sIdx].questions = updatedSections[sIdx].questions.filter((_, i) => !selected.includes(i));
 
-    const updatedSections = [...sections];
-    updatedSections[sIdx].questions = updatedSections[sIdx].questions.filter((_, i) => !selected.includes(i));
+        if (updatedSections[sIdx].questions.length === 0) {
+          updatedSections[sIdx].questions = [emptyQuestion(updatedSections[sIdx].type)];
+        }
 
-    if (updatedSections[sIdx].questions.length === 0) {
-      updatedSections[sIdx].questions = [emptyQuestion(updatedSections[sIdx].type)];
-    }
-
-    setSections(updatedSections);
-    setSelectedQuestions(prev => ({ ...prev, [sIdx]: [] }));
+        setSections(updatedSections);
+        setSelectedQuestions(prev => ({ ...prev, [sIdx]: [] }));
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+        showToast(`Successfully deleted ${deletedCount} question${deletedCount > 1 ? 's' : ''}`, 'success');
+      }
+    });
   };
 
   useEffect(() => {
@@ -1183,11 +1199,10 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
                           {q.type === 'mcq' ? (
                             // MCQ Editor
                             <div className="space-y-4">
-                              <textarea
+                              <ExpandableTextarea
                                 value={q.question}
-                                onChange={(e) => updateQuestion(sIdx, qIdx, "question", e.target.value)}
+                                onChange={(val) => updateQuestion(sIdx, qIdx, "question", val)}
                                 placeholder="Enter your question text here..."
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300 outline-none resize-none h-24 text-sm transition-all"
                               />
                               <div className="space-y-2">
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -1230,9 +1245,41 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
                                         placeholder={`Option ${letter}`}
                                         className="flex-1 bg-transparent outline-none text-sm font-medium text-gray-800 placeholder-gray-400"
                                       />
+                                      {q.options.length > 2 && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const newOpts = [...q.options];
+                                            newOpts.splice(optIndex, 1);
+                                            let newCorrect = q.correctOptionIndex;
+                                            if (newCorrect === optIndex) newCorrect = null;
+                                            else if (newCorrect !== null && newCorrect > optIndex) newCorrect--;
+                                            updateQuestion(sIdx, qIdx, "options", newOpts);
+                                            updateQuestion(sIdx, qIdx, "correctOptionIndex", newCorrect);
+                                          }}
+                                          className="text-gray-400 hover:text-rose-500 p-1 rounded-lg hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100 z-10"
+                                        >
+                                          <X className="w-4 h-4" />
+                                        </button>
+                                      )}
                                     </label>
                                   );
                                 })}
+                                {q.options.length < 6 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      const newOpts = [...q.options, ""];
+                                      updateQuestion(sIdx, qIdx, "options", newOpts);
+                                    }}
+                                    className="mt-2 flex items-center gap-1.5 text-sm text-indigo-600 font-bold hover:text-indigo-800 transition-colors cursor-pointer"
+                                  >
+                                    <Plus className="w-4 h-4" /> Add Option
+                                  </button>
+                                )}
                               </div>
                             </div>
                           ) : (
@@ -1742,6 +1789,15 @@ const EditQuizModal = ({ quiz, onClose, onSave, showToast }) => {
         </div>
       </div>
     )}
+    <ConfirmationCard
+      isOpen={confirmConfig.isOpen}
+      title={confirmConfig.title}
+      message={confirmConfig.message}
+      onConfirm={confirmConfig.onConfirm}
+      onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+      confirmText="Delete"
+      type="danger"
+    />
     </>
   );
 };

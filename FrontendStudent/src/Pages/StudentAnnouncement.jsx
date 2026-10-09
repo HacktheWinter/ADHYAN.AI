@@ -3,7 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { FileText, Download, X, Loader, ArrowLeft } from "lucide-react";
 import { getAnnouncements, getAnnouncementFileUrl } from "../api/announcementApi";
 
-import PdfPreview from "../components/PdfPreview";
+import DocumentPreview from "../components/DocumentPreview";
+import { downloadFile } from "../utils/downloadFile";
+import FileIcon from "../components/FileIcon";
 
 // Note: We need to handle IDs separately since we are outside the CourseDetailPage context
 // We can parse it from URL params or pass it if structured differently. 
@@ -16,6 +18,7 @@ const StudentAnnouncement = () => {
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [previewFile, setPreviewFile] = useState(null);
+    const [imageLoading, setImageLoading] = useState(true);
 
     useEffect(() => {
         if (classId) {
@@ -38,38 +41,43 @@ const StudentAnnouncement = () => {
     const renderFilePreview = (fileId, mimeType, fileName) => {
         const url = getAnnouncementFileUrl(fileId);
         const isImage = mimeType?.startsWith('image/');
-        const isPdf = mimeType === 'application/pdf';
+        const isPdf = mimeType === 'application/pdf' || fileName?.toLowerCase().endsWith('.pdf');
+        const isWord = mimeType?.includes('wordprocessingml.document') || fileName?.toLowerCase().endsWith('.docx');
+        const isExcel = mimeType?.includes('spreadsheetml.sheet') || fileName?.toLowerCase().endsWith('.xlsx') || fileName?.toLowerCase().endsWith('.xls');
         
         if (isImage) {
             return (
-                <div className="mt-2 relative group max-w-sm cursor-pointer" onClick={() => setPreviewFile({ url, type: 'image', name: fileName })}>
-                    <img src={url} alt="Attachment" className="rounded-lg border border-gray-200 object-cover max-h-60" />
+                <div key={fileId} className="mt-2 relative group max-w-sm cursor-pointer" onClick={() => {
+                    setImageLoading(true);
+                    setPreviewFile({ url, type: 'image', name: fileName });
+                }}>
+                    <img src={url} alt="Attachment" className="rounded-lg border border-gray-200 object-cover h-20 w-28 sm:h-32 sm:w-48" />
                 </div>
             );
         }
         
         return (
             <div 
-                className={`mt-2 flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg max-w-sm ${isPdf ? 'cursor-pointer hover:bg-gray-100 transition-colors' : ''}`}
-                onClick={isPdf ? () => setPreviewFile({ url, type: 'pdf', name: fileName }) : undefined}
+                key={fileId}
+                className="mt-2 flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg max-w-full w-full sm:w-80 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => setPreviewFile({ url, type: 'document', name: fileName, mimeType })}
             >
-                <div className="p-2 bg-white rounded-md border border-gray-100 shadow-sm">
-                    <FileText className="w-5 h-5 text-purple-600" />
-                </div>
-                 <div className="flex-1 min-w-0">
+                <FileIcon fileName={fileName} mimeType={mimeType} />
+                 <div className="flex-1 min-w-0 pr-4">
                     <p className="text-sm font-medium text-gray-700 truncate">{fileName || "Attachment"}</p>
                     <p className="text-xs text-gray-500">Document</p>
                 </div>
-                <a 
-                    href={url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="p-2 text-gray-400 hover:text-purple-600 hover:bg-white rounded-full transition-all cursor-pointer"
+                <button
+                    type="button"
+                    className="p-2 text-gray-400 hover:text-purple-600 hover:bg-white rounded-full transition-all cursor-pointer flex-shrink-0"
                     title="Download"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        downloadFile(url, fileName || "Attachment");
+                    }}
                 >
                     <Download className="w-4 h-4" />
-                </a>
+                </button>
             </div>
         );
     };
@@ -136,6 +144,14 @@ const StudentAnnouncement = () => {
                                     {announcement.fileId && (
                                         renderFilePreview(announcement.fileId, announcement.mimeType, announcement.fileName)
                                     )}
+
+                                    {announcement.attachments && announcement.attachments.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 sm:gap-3 mt-3">
+                                            {announcement.attachments.map(att => 
+                                                renderFilePreview(att.fileId, att.mimeType, att.fileName)
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -145,28 +161,37 @@ const StudentAnnouncement = () => {
 
             {/* Preview Modal */}
             {previewFile && (
-                previewFile.type === 'pdf' ? (
-                    <PdfPreview 
+                previewFile.type === 'document' ? (
+                    <DocumentPreview 
                         url={previewFile.url} 
                         title={previewFile.name} 
+                        mimeType={previewFile.mimeType}
                         onClose={() => setPreviewFile(null)} 
                     />
                 ) : (
                     <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setPreviewFile(null)}>
-                        <div className="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center">
+                        <div className="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center justify-center min-h-[300px]">
                             <button 
                                 onClick={() => setPreviewFile(null)}
-                                className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white transition-colors"
+                                className="fixed top-4 right-4 sm:top-6 sm:right-6 p-2 bg-black/50 hover:bg-black/80 rounded-full text-white/90 hover:text-white transition-all z-[110]"
                             >
                                 <X className="w-8 h-8" />
                             </button>
+                            {imageLoading && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <Loader className="w-10 h-10 text-purple-400 animate-spin" />
+                                </div>
+                            )}
                             <img 
                                 src={previewFile.url} 
                                 alt={previewFile.name} 
-                                className="max-w-full max-h-[85vh] rounded-lg shadow-2xl"
+                                className={`max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl transition-opacity duration-300 relative z-10 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                                onLoad={() => setImageLoading(false)}
                                 onClick={(e) => e.stopPropagation()}
                             />
-                             <p className="text-white/80 mt-4 font-medium">{previewFile.name}</p>
+                             {!imageLoading && (
+                                <p className="text-white/80 mt-4 font-medium relative z-10">{previewFile.name}</p>
+                             )}
                         </div>
                     </div>
                 )
