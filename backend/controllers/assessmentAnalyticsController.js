@@ -6,6 +6,8 @@ import TestPaper from "../models/TestPaper.js";
 import TestSubmission from "../models/TestSubmission.js";
 import Assignment from "../models/Assignment.js";
 import AssignmentSubmission from "../models/AssignmentSubmission.js";
+import CodingAssessment from "../models/CodingAssessment.js";
+import CodingSubmission from "../models/CodingSubmission.js";
 
 /**
  * GET /api/assessment-analytics/assessments/:teacherId
@@ -36,8 +38,8 @@ export const getTeacherAssessments = async (req, res) => {
       };
     });
 
-    // 2. Fetch published items from all three assessment types in parallel
-    const [quizzes, testPapers, assignments] = await Promise.all([
+    // 2. Fetch published items from all assessment types in parallel
+    const [quizzes, testPapers, assignments, codingAssessments] = await Promise.all([
       Quiz.find({
         classroomId: { $in: classroomIds },
         status: "published",
@@ -50,6 +52,10 @@ export const getTeacherAssessments = async (req, res) => {
         classroomId: { $in: classroomIds },
         status: "published",
       }).select("_id title classroomId createdAt totalMarks"),
+      CodingAssessment.find({
+        classroomId: { $in: classroomIds },
+        status: "published",
+      }).select("_id title classroomId createdAt maxMarks"),
     ]);
 
     // 3. Shape them into a unified list
@@ -64,7 +70,7 @@ export const getTeacherAssessments = async (req, res) => {
           classSubject: classroomMap[cId]?.subject || "",
           classroomId: cId,
           studentCount: classroomMap[cId]?.studentCount || 0,
-          totalMarks: item.totalMarks,
+          totalMarks: item.totalMarks || item.maxMarks || 0,
           createdAt: item.createdAt,
         };
       });
@@ -73,6 +79,7 @@ export const getTeacherAssessments = async (req, res) => {
       ...shape(quizzes, "quiz"),
       ...shape(testPapers, "test"),
       ...shape(assignments, "assignment"),
+      ...shape(codingAssessments, "coding"),
     ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     return res.json({ assessments });
@@ -121,6 +128,14 @@ export const getAssessmentAnalytics = async (req, res) => {
       })
         .populate("studentId", "name email")
         .lean();
+    } else if (type === "coding") {
+      assessment = await CodingAssessment.findById(assessmentId);
+      if (!assessment)
+        return res.status(404).json({ error: "Coding assessment not found" });
+
+      submissions = await CodingSubmission.find({ assessmentId: assessmentId })
+        .populate("studentId", "name email")
+        .lean();
     } else {
       return res.status(400).json({ error: "Invalid assessment type" });
     }
@@ -138,13 +153,13 @@ export const getAssessmentAnalytics = async (req, res) => {
     // Normalise percentage across different submission schemas
     const getPercentage = (sub) => {
       if (typeof sub.percentage === "number") return sub.percentage;
-      const total = sub.totalMarks || assessment.totalMarks || 1;
-      const obtained = sub.marksObtained ?? sub.score ?? 0;
+      const total = sub.totalMarks || assessment.totalMarks || assessment.maxMarks || 1;
+      const obtained = sub.marksObtained ?? sub.score ?? sub.marksAwarded ?? 0;
       return Math.round((obtained / total) * 100);
     };
 
     const getMarksObtained = (sub) => {
-      return sub.marksObtained ?? sub.score ?? 0;
+      return sub.marksObtained ?? sub.score ?? sub.marksAwarded ?? 0;
     };
 
     const studentResults = submissions.map((sub) => {
@@ -157,7 +172,7 @@ export const getAssessmentAnalytics = async (req, res) => {
           "Unknown",
         email: sub.studentId?.email || "",
         marksObtained: getMarksObtained(sub),
-        totalMarks: sub.totalMarks || assessment.totalMarks || 0,
+        totalMarks: sub.totalMarks || assessment.totalMarks || assessment.maxMarks || 0,
         percentage: pct,
         status: pct >= PASS_THRESHOLD ? "pass" : "fail",
         submittedAt: sub.submittedAt,
@@ -212,7 +227,7 @@ export const getAssessmentAnalytics = async (req, res) => {
         _id: assessment._id,
         title: assessment.title,
         type,
-        totalMarks: assessment.totalMarks,
+        totalMarks: assessment.totalMarks || assessment.maxMarks,
         createdAt: assessment.createdAt,
       },
       classroom: {

@@ -30,9 +30,11 @@ import { getCodingAssessmentsByClassroom } from "../api/codingAssessmentApi";
 import { getNotesByClassroom } from "../api/notesApi";
 import axios from "axios";
 import API_BASE_URL from "../config";
-import PdfPreview from "../components/PdfPreview";
+import DocumentPreview from "../components/DocumentPreview";
 import ToastNotification from "../components/ToastNotification";
 import ConfirmationCard from "../components/ConfirmationCard";
+import { downloadFile } from "../utils/downloadFile";
+import FileIcon from "../components/FileIcon";
 
 const StreamPage = () => {
   const { classId } = useParams();
@@ -46,10 +48,11 @@ const StreamPage = () => {
 
   // Form State
   const [message, setMessage] = useState("");
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
 
   const [deleting, setDeleting] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
+  const [imageLoading, setImageLoading] = useState(true);
   const [openMenuId, setOpenMenuId] = useState(null);
 
   const [toast, setToast] = useState({ message: "", type: "success" });
@@ -157,14 +160,23 @@ const StreamPage = () => {
   };
 
   const handleFileSelect = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        alert("File size must be less than 10MB");
-        return;
-      }
-      setFile(selectedFile);
+    const selectedFiles = Array.from(e.target.files);
+    
+    if (files.length + selectedFiles.length > 4) {
+      showToast("You can only upload up to 4 files", "error");
+      return;
     }
+
+    const validFiles = selectedFiles.filter(f => {
+      if (f.size > 10 * 1024 * 1024) {
+        showToast(`File ${f.name} is too large (max 10MB)`, "error");
+        return false;
+      }
+      return true;
+    });
+
+    setFiles(prev => [...prev, ...validFiles]);
+    e.target.value = null; // reset input
   };
 
   const handlePost = async (e) => {
@@ -182,15 +194,17 @@ const StreamPage = () => {
       formData.append("teacherId", currentUser.id || currentUser._id);
       formData.append("classroomId", classId);
       formData.append("message", message.trim());
-      if (file) {
-        formData.append("file", file);
+      if (files.length > 0) {
+        files.forEach(f => {
+          formData.append("files", f);
+        });
       }
 
       await createAnnouncement(formData);
 
       // Reset and Close
       setMessage("");
-      setFile(null);
+      setFiles([]);
       setIsComposerOpen(false);
 
       showToast("Announcement created successfully!", "success");
@@ -230,18 +244,24 @@ const StreamPage = () => {
   const renderFilePreview = (fileId, mimeType, fileName) => {
     const url = getAnnouncementFileUrl(fileId);
     const isImage = mimeType?.startsWith("image/");
-    const isPdf = mimeType === "application/pdf";
+    const isPdf = mimeType === "application/pdf" || fileName?.toLowerCase().endsWith(".pdf");
+    const isWord = mimeType?.includes('wordprocessingml.document') || fileName?.toLowerCase().endsWith('.docx');
+    const isExcel = mimeType?.includes('spreadsheetml.sheet') || fileName?.toLowerCase().endsWith('.xlsx') || fileName?.toLowerCase().endsWith('.xls');
 
     if (isImage) {
       return (
         <div
+          key={fileId}
           className="mt-3 relative group inline-block cursor-pointer"
-          onClick={() => setPreviewFile({ url, type: "image", name: fileName })}
+          onClick={() => {
+            setImageLoading(true);
+            setPreviewFile({ url, type: "image", name: fileName });
+          }}
         >
           <img
             src={url}
             alt="Attachment"
-            className="rounded-xl border border-line object-contain max-h-[120px] sm:max-h-[140px] w-auto max-w-[240px] sm:max-w-xs bg-surface"
+            className="rounded-xl border border-line object-cover h-20 w-28 sm:h-32 sm:w-48 bg-surface"
           />
         </div>
       );
@@ -249,32 +269,28 @@ const StreamPage = () => {
 
     return (
       <div
-        className={`mt-3 flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-paper border border-line rounded-xl ${isPdf ? "cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-colors" : ""}`}
-        onClick={
-          isPdf
-            ? () => setPreviewFile({ url, type: "pdf", name: fileName })
-            : undefined
-        }
+        key={fileId}
+        className="mt-3 flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-paper border border-line rounded-xl cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-colors w-full sm:w-80 max-w-full"
+        onClick={() => setPreviewFile({ url, type: "document", name: fileName, mimeType })}
       >
-        <div className="p-1.5 sm:p-2 bg-violet-50 dark:bg-violet-950/30 rounded-lg border border-line flex-shrink-0">
-          <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-violet-700 dark:text-violet-400" />
-        </div>
-        <div className="flex-1 min-w-0">
+        <FileIcon fileName={fileName} mimeType={mimeType} />
+        <div className="flex-1 min-w-0 pr-4">
           <p className="text-xs sm:text-sm font-semibold text-ink truncate">
             {fileName || "Attachment"}
           </p>
           <p className="text-[10px] sm:text-xs text-ink-soft">Document</p>
         </div>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
           className="p-1.5 sm:p-2 text-ink-soft hover:text-violet-700 dark:hover:text-violet-400 hover:bg-surface rounded-lg transition-all cursor-pointer flex-shrink-0"
           title="Download"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            downloadFile(url, fileName || "Attachment");
+          }}
         >
           <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        </a>
+        </button>
       </div>
     );
   };
@@ -322,26 +338,28 @@ const StreamPage = () => {
                   autoFocus
                 />
 
-                {file && (
-                  <div className="mt-3 flex items-center gap-2 sm:gap-3 p-2.5 bg-violet-50 dark:bg-violet-950/20 border border-line rounded-xl">
-                    <div className="p-1.5 bg-surface rounded-lg border border-line flex-shrink-0">
-                      <FileText className="w-4 h-4 text-violet-700 dark:text-violet-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs sm:text-sm font-semibold text-ink truncate">
-                        {file.name}
-                      </p>
-                      <p className="text-[10px] sm:text-xs text-ink-soft">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFile(null)}
-                      className="p-1 hover:bg-violet-100 dark:hover:bg-violet-900/30 rounded-full text-violet-600 hover:text-violet-800 transition-colors cursor-pointer flex-shrink-0"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                {files.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {files.map((f, idx) => (
+                      <div key={idx} className="flex items-center gap-2 sm:gap-3 p-2.5 bg-violet-50 dark:bg-violet-950/20 border border-line rounded-xl">
+                        <FileIcon fileName={f.name} mimeType={f.type} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs sm:text-sm font-semibold text-ink truncate">
+                            {f.name}
+                          </p>
+                          <p className="text-[10px] sm:text-xs text-ink-soft">
+                            {(f.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))}
+                          className="p-1 hover:bg-violet-100 dark:hover:bg-violet-900/30 rounded-full text-violet-600 hover:text-violet-800 transition-colors cursor-pointer flex-shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -352,6 +370,8 @@ const StreamPage = () => {
                     type="file"
                     id="stream-file-upload"
                     className="hidden"
+                    multiple
+                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     onChange={handleFileSelect}
                   />
                   <label
@@ -369,7 +389,7 @@ const StreamPage = () => {
                     onClick={() => {
                       setIsComposerOpen(false);
                       setMessage("");
-                      setFile(null);
+                      setFiles([]);
                     }}
                     className="px-3 sm:px-4 py-1.5 text-ink-soft hover:text-ink hover:bg-surface rounded-lg transition-colors cursor-pointer text-sm font-medium"
                   >
@@ -498,6 +518,14 @@ const StreamPage = () => {
                       item.mimeType,
                       item.fileName
                     )}
+
+                  {item.attachments && item.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 sm:gap-3 mt-2 sm:mt-3">
+                      {item.attachments.map((att) => 
+                        renderFilePreview(att.fileId, att.mimeType, att.fileName)
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -567,10 +595,11 @@ const StreamPage = () => {
 
       {/* Preview Overlay */}
       {previewFile &&
-        (previewFile.type === "pdf" ? (
-          <PdfPreview
+        (previewFile.type === "document" ? (
+          <DocumentPreview
             url={previewFile.url}
             title={previewFile.name}
+            mimeType={previewFile.mimeType}
             onClose={() => setPreviewFile(null)}
           />
         ) : (
@@ -578,22 +607,30 @@ const StreamPage = () => {
             className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4"
             onClick={() => setPreviewFile(null)}
           >
-            <div className="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center">
+            <div className="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center justify-center min-h-[300px]">
               <button
                 onClick={() => setPreviewFile(null)}
-                className="absolute -top-8 sm:-top-12 right-0 p-2 text-white/70 hover:text-white transition-colors"
+                className="fixed top-4 right-4 sm:top-6 sm:right-6 p-2 bg-black/50 hover:bg-black/80 rounded-full text-white/90 hover:text-white transition-all z-[110]"
               >
                 <X className="w-6 h-6 sm:w-8 sm:h-8" />
               </button>
+              {imageLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader className="w-10 h-10 text-violet-400 animate-spin" />
+                </div>
+              )}
               <img
                 src={previewFile.url}
                 alt={previewFile.name}
-                className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+                className={`max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl transition-opacity duration-300 relative z-10 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                onLoad={() => setImageLoading(false)}
                 onClick={(e) => e.stopPropagation()}
               />
-              <p className="text-white/80 mt-4 font-medium text-sm sm:text-base px-4 text-center">
-                {previewFile.name}
-              </p>
+              {!imageLoading && (
+                <p className="text-white/80 mt-4 font-medium text-sm sm:text-base px-4 text-center relative z-10">
+                  {previewFile.name}
+                </p>
+              )}
             </div>
           </div>
         ))}

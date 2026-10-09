@@ -14,16 +14,23 @@ const announcementSchema = new mongoose.Schema(
     },
     fileId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: false, // Optional file attachment
+      required: false, // Optional file attachment (legacy)
     },
     fileName: {
-      type: String, // Original name of the file
+      type: String, // Original name of the file (legacy)
       required: false,
     },
     mimeType: {
-      type: String, // e.g., 'application/pdf', 'image/png'
+      type: String, // e.g., 'application/pdf', 'image/png' (legacy)
       required: false,
     },
+    attachments: [
+      {
+        fileId: { type: mongoose.Schema.Types.ObjectId, required: true },
+        fileName: { type: String, required: true },
+        mimeType: { type: String, required: true },
+      }
+    ],
     message: {
       type: String,
       required: true,
