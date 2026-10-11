@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Eye, EyeOff } from 'lucide-react';
+import { ChevronLeft, Eye, EyeOff, Bell, BellRing, Smartphone, CheckCircle2, AlertTriangle, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import StudentNavbar from '../components/StudentNavbar';
 import { getStoredToken } from '../utils/authStorage';
 import API_BASE_URL from '../config';
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  sendTestNotification,
+  isNotificationSupported,
+} from '../utils/notificationService';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -17,6 +23,52 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Notification Shade state
+  const [permission, setPermission] = useState(getNotificationPermission());
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifFeedback, setNotifFeedback] = useState({ type: '', message: '' });
+
+  const handleRequestPermission = async () => {
+    setNotifLoading(true);
+    setNotifFeedback({ type: '', message: '' });
+    try {
+      const result = await requestNotificationPermission();
+      setPermission(result);
+      if (result === 'granted') {
+        setNotifFeedback({
+          type: 'success',
+          message: 'Notifications enabled! You will now receive alerts in your notification shade.',
+        });
+      } else if (result === 'denied') {
+        setNotifFeedback({
+          type: 'error',
+          message: 'Permission was blocked. Please click the icon in your browser address bar to allow notifications.',
+        });
+      }
+    } catch {
+      setNotifFeedback({ type: 'error', message: 'Failed to request notification permission.' });
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    setNotifLoading(true);
+    setNotifFeedback({ type: '', message: '' });
+    try {
+      const res = await sendTestNotification();
+      setPermission(getNotificationPermission());
+      setNotifFeedback({
+        type: res.success ? 'success' : 'error',
+        message: res.message,
+      });
+    } catch {
+      setNotifFeedback({ type: 'error', message: 'Error sending test notification.' });
+    } finally {
+      setNotifLoading(false);
+    }
+  };
 
   const resetState = () => {
     setCurrentPassword('');
@@ -151,6 +203,120 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Device & PWA Notification Shade Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 bg-purple-50 rounded-xl text-purple-700">
+                <Smartphone className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Device & Notification Shade Alerts
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Receive native notifications in your Android/iOS notification drawer and status bar.
+                </p>
+              </div>
+            </div>
+
+            {/* Permission status badge */}
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                  permission === 'granted'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : permission === 'denied'
+                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}
+              >
+                {permission === 'granted' ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Shade Active
+                  </>
+                ) : permission === 'denied' ? (
+                  <>
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Permission Blocked
+                  </>
+                ) : (
+                  <>
+                    <Bell className="w-3.5 h-3.5" />
+                    Permission Required
+                  </>
+                )}
+              </span>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 mb-5">
+            <div className="flex flex-wrap items-center gap-3">
+              {permission !== 'granted' ? (
+                <button
+                  type="button"
+                  onClick={handleRequestPermission}
+                  disabled={notifLoading || !isNotificationSupported()}
+                  className="bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-800 transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                >
+                  <BellRing className="w-4 h-4" />
+                  Enable Notification Shade Alerts
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSendTestNotification}
+                  disabled={notifLoading}
+                  className="bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-800 transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Send className="w-4 h-4" />
+                  {notifLoading ? 'Sending...' : 'Send Test Notification to Shade'}
+                </button>
+              )}
+
+              {permission === 'granted' && (
+                <button
+                  type="button"
+                  onClick={handleRequestPermission}
+                  className="px-4 py-2 border border-gray-200 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  Re-check Permission
+                </button>
+              )}
+            </div>
+
+            {notifFeedback.message && (
+              <div
+                className={`mt-3 text-xs p-2.5 rounded-lg border ${
+                  notifFeedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    : 'bg-rose-50 text-rose-800 border-rose-200'
+                }`}
+              >
+                {notifFeedback.message}
+              </div>
+            )}
+          </div>
+
+          {/* Feature list */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-600">
+            <div className="p-3 bg-white border border-gray-100 rounded-lg shadow-2xs">
+              <p className="font-semibold text-gray-900 mb-1">📱 Lock Screen & Drawer</p>
+              <p>Alerts show in your device's pull-down notification shade, even when browser is minimized.</p>
+            </div>
+            <div className="p-3 bg-white border border-gray-100 rounded-lg shadow-2xs">
+              <p className="font-semibold text-gray-900 mb-1">⏰ Quiz & Class Reminders</p>
+              <p>Get notified when a scheduled quiz, test, or live class begins within 1 hour.</p>
+            </div>
+            <div className="p-3 bg-white border border-gray-100 rounded-lg shadow-2xs">
+              <p className="font-semibold text-gray-900 mb-1">📢 Instant Announcements</p>
+              <p>Direct updates whenever new course notes or teacher announcements are posted.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

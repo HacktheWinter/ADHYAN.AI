@@ -6,6 +6,7 @@ import StudentNavbar from "./components/StudentNavbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import Loader from "./components/Loader";
+import NotificationPermissionModal from "./components/NotificationPermissionModal";
 
 // Lazy loaded components
 const NoteCraftsDashboard = lazy(() => import("./Pages/NoteCraftsDashboard"));
@@ -55,6 +56,7 @@ function StudentLayout() {
 export default function App() {
   return (
     <Suspense fallback={<Loader />}>
+      <NotificationPermissionModal />
       <Routes>
         {/* Public routes */}
         <Route
