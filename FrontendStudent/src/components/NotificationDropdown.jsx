@@ -4,6 +4,7 @@ import API_BASE_URL from "../config";
 import { Bell, Clock, Calendar, CheckCircle, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getStoredUser } from "../utils/authStorage";
+import { syncNotificationsToShade } from "../utils/notificationService";
 
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -123,6 +124,7 @@ const NotificationDropdown = () => {
       allNotifications.sort((a, b) => b.time - a.time);
 
       setNotifications(allNotifications.slice(0, 10));
+      syncNotificationsToShade(allNotifications);
     } catch (error) {
       console.error("Error in fetchNotifications orchestration:", error);
     } finally {
