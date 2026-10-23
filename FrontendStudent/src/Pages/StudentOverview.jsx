@@ -10,7 +10,8 @@ import {
   BookOpen,
   AlertCircle,
   Clock,
-  Play
+  Play,
+  Lock
 } from "lucide-react";
 import { getAnnouncements } from "../api/announcementApi";
 import { getActiveQuizzes } from "../api/quizApi";
@@ -35,6 +36,7 @@ function formatStreamDate(dateString) {
 const getItemStatus = (item) => {
   const now = new Date();
   if (item.type === "assessment") {
+    if (item.quizStatus === "locked" || item.isLocked) return { text: "Locked", color: "bg-amber-50 text-amber-700 border-amber-200", icon: Lock };
     if (item.endTime && now > new Date(item.endTime)) return { text: "Expired", color: "bg-red-50 text-red-600 border-red-100", icon: AlertCircle };
     if (item.startTime && now < new Date(item.startTime)) return { text: "Upcoming", color: "bg-blue-50 text-blue-600 border-blue-100", icon: Clock };
     if (item.quizStatus === "expired" && !item.endTime) return { text: "Expired", color: "bg-red-50 text-red-600 border-red-100", icon: AlertCircle };

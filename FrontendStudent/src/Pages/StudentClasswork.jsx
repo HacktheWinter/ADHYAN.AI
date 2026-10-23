@@ -26,6 +26,7 @@ import {
   FileCode,
   Shield,
   Info,
+  Lock,
 } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
@@ -333,6 +334,7 @@ export default function StudentClasswork() {
   // ─── Status helpers ───
   const getQuizStatus = (quiz) => {
     if (quizSubmissions[quiz._id]) return { text: "Completed", color: "bg-green-50 text-green-700 border-green-100", icon: CheckCircle };
+    if (quiz.quizStatus === "locked" || quiz.isLocked) return { text: "Locked", color: "bg-amber-50 text-amber-700 border-amber-200", icon: Lock };
     if (quiz.endTime && currentTime > new Date(quiz.endTime)) return { text: "Expired", color: "bg-red-50 text-red-600 border-red-100", icon: AlertCircle };
     if (quiz.startTime && currentTime < new Date(quiz.startTime)) return { text: "Upcoming", color: "bg-blue-50 text-blue-600 border-blue-100", icon: Clock };
     if (quiz.quizStatus === "expired" && !quiz.endTime) return { text: "Expired", color: "bg-red-50 text-red-600 border-red-100", icon: AlertCircle };
@@ -543,7 +545,8 @@ export default function StudentClasswork() {
         const submitted = quizSubmissions[data._id];
         const isExpired = status.text === "Expired";
         const isUpcoming = status.text === "Upcoming";
-        const canTake = !submitted && !isExpired && !isUpcoming;
+        const isLocked = status.text === "Locked";
+        const canTake = !submitted && !isExpired && !isUpcoming && !isLocked;
         const totalQ = getTotalQuestions(data);
         return (
           <div key={`quiz-${data._id}`} {...containerProps}>
@@ -590,6 +593,8 @@ export default function StudentClasswork() {
                   </button>
                 ) : isUpcoming ? (
                   <span className="classwork-btn-disabled">Soon</span>
+                ) : isLocked ? (
+                  <span className="classwork-btn-disabled text-amber-700 border border-amber-200">Locked - entry closed</span>
                 ) : (
                   <span className="classwork-btn-disabled">Expired</span>
                 )}

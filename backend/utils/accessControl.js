@@ -1,9 +1,10 @@
 import mongoose from "mongoose";
 import Classroom from "../models/Classroom.js";
 
-export const createHttpError = (statusCode, message) => {
+export const createHttpError = (statusCode, message, code) => {
   const error = new Error(message);
   error.statusCode = statusCode;
+  if (code) error.code = code;
   return error;
 };
 

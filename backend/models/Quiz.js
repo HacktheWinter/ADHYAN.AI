@@ -148,6 +148,15 @@ const quizSchema = new mongoose.Schema({
     default: false,
   },
 
+  lockAfterMinutes: {
+    type: Number,
+    default: null,
+  },
+  lockAt: {
+    type: Date,
+    default: null,
+  },
+
   createdAt: {
     type: Date,
     default: Date.now,

@@ -1,7 +1,7 @@
 // FrontendStudent/src/Pages/Quiz.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
-import { Clock, CheckCircle, Play, Eye, Loader, AlertCircle } from 'lucide-react';
+import { Clock, CheckCircle, Play, Eye, Loader, AlertCircle, Lock } from 'lucide-react';
 import { getActiveQuizzes, checkSubmission, submitQuiz, autosaveQuiz } from '../api/quizApi';
 import QuizTakingModal from '../components/QuizTakingModal';
 import QuizResultModal from '../components/QuizResultModal';
@@ -226,6 +226,10 @@ export default function Quiz() {
     if (submissions[quiz._id]) {
       return { text: 'Completed', color: 'bg-green-100 text-green-800', icon: CheckCircle };
     }
+
+    if (quiz.quizStatus === 'locked' || quiz.isLocked) {
+      return { text: 'Locked', color: 'bg-amber-100 text-amber-800', icon: Lock };
+    }
     
     if (quiz.endTime && currentTime > new Date(quiz.endTime)) {
       return { text: 'Expired', color: 'bg-red-100 text-red-800', icon: AlertCircle };
@@ -311,7 +315,8 @@ export default function Quiz() {
           const hasSubmitted = submissions[quiz._id];
           const isExpired = status.text === 'Expired';
           const isUpcoming = status.text === 'Upcoming';
-          const canTake = !hasSubmitted && !isExpired && !isUpcoming;
+          const isLocked = status.text === 'Locked';
+          const canTake = !hasSubmitted && !isExpired && !isUpcoming && !isLocked;
 
           return (
             <div 
@@ -395,6 +400,14 @@ export default function Quiz() {
                   className="w-full py-2 rounded-lg font-medium bg-blue-100 text-blue-400 cursor-not-allowed"
                 >
                   Starts Soon
+                </button>
+              ) : isLocked ? (
+                <button
+                  disabled
+                  className="w-full py-2 rounded-lg font-medium bg-amber-100 text-amber-700 cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <Lock className="w-4 h-4" />
+                  Locked - entry closed
                 </button>
               ) : (
                 <button

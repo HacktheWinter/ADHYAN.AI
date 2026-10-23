@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Clock, AlertTriangle, CheckCircle, Loader, Shield, Info, X, Bookmark, LayoutGrid, ChevronRight, Camera, Video, Maximize2, Minimize2, ChevronDown } from 'lucide-react';
-import { submitQuiz, autosaveQuiz, runCode, uploadProctorSnapshot } from '../api/quizApi';
+import { submitQuiz, autosaveQuiz, runCode, uploadProctorSnapshot, startQuizAttempt } from '../api/quizApi';
 import { getQuizById } from '../api/quizApi';
 import { useFullScreenProctor } from '../hooks/useFullScreenProctor';
 import { useWebcamProctor } from '../hooks/useWebcamProctor';
@@ -532,6 +532,25 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       return;
     }
 
+    // Lock-gate: only when quiz.lockAt exists
+    if (quiz.lockAt) {
+      try {
+        await startQuizAttempt(quiz._id);
+      } catch (error) {
+        const errorData = error.response?.data;
+        if (error.response?.status === 403 && (errorData?.code === 'QUIZ_LOCKED' || errorData?.error?.includes('locked'))) {
+          showToast(errorData.error || "This quiz is locked. New entries are closed.", "error");
+          cleanupStorage();
+          setTimeout(() => {
+            onClose();
+          }, 1500);
+          return;
+        }
+        showToast("Couldn't start, please retry", "error");
+        return;
+      }
+    }
+
     const storageKey = `quiz_start_time_${quiz._id}`;
     if (!localStorage.getItem(storageKey)) {
       localStorage.setItem(storageKey, Date.now().toString());
@@ -570,15 +589,22 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
   };
 
   const cleanupStorage = () => {
-    if (shuffledQuiz) {
-      localStorage.removeItem(`quiz_start_time_${shuffledQuiz._id}`);
-      localStorage.removeItem(`quiz_layout_${shuffledQuiz._id}`);
-      localStorage.removeItem(`quiz_draft_${shuffledQuiz._id}`);
-      localStorage.removeItem(`quiz_refresh_count_${shuffledQuiz._id}`);
-      localStorage.removeItem(`quiz_selected_language_${shuffledQuiz._id}`);
-      clearViolations();
+    const qId = shuffledQuiz?._id || quiz._id;
+    if (qId) {
+      localStorage.removeItem(`quiz_start_time_${qId}`);
+      localStorage.removeItem(`quiz_layout_${qId}`);
+      localStorage.removeItem(`quiz_draft_${qId}`);
+      localStorage.removeItem(`quiz_refresh_count_${qId}`);
+      localStorage.removeItem(`quiz_selected_language_${qId}`);
+      if (typeof clearViolations === 'function') clearViolations();
     }
     localStorage.removeItem('activeQuiz');
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith(`quiz_${qId}_strict_q_`) || key.startsWith(`quiz_${quiz._id}_strict_q_`))) {
+        localStorage.removeItem(key);
+      }
+    }
   };
 
   const buildAnswersArray = () => {
@@ -621,7 +647,12 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
 
   const triggerAutosave = () => {
     const answersArray = buildAnswersArray();
-    autosaveQuiz(shuffledQuiz._id, studentId, answersArray).catch(err => console.error("Autosave failed:", err));
+    autosaveQuiz(shuffledQuiz._id, studentId, answersArray).catch(err => {
+      console.error("Autosave failed:", err);
+      if (err.response?.status === 403 && (err.response?.data?.code === 'QUIZ_LOCKED' || err.response?.data?.error?.includes('locked'))) {
+        showToast("Assessment is locked. Your answers cannot be saved.", "error");
+      }
+    });
   };
 
   useEffect(() => {
@@ -713,6 +744,16 @@ export default function QuizTakingModal({ quiz, studentId, studentName, onClose,
       if (error.response?.status === 404) {
         setIsQuizDeleted(true);
         cleanupStorage();
+        return;
+      }
+
+      // Handle locked quiz (403 QUIZ_LOCKED)
+      if (error.response?.status === 403 && (error.response?.data?.code === 'QUIZ_LOCKED' || errorMsg.toLowerCase().includes("locked"))) {
+        showToast("This quiz is locked. New entries are closed.", 'error');
+        cleanupStorage();
+        setIsSubmitting(false);
+        setProctorSubmitting(false);
+        setTimeout(() => onClose(), 1500);
         return;
       }
 
