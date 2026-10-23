@@ -1,7 +1,7 @@
 // FrontendTeacher/src/components/PublishQuizModal.jsx
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
-import { X, Clock, Calendar, AlertCircle, CheckCircle, Camera, ChevronDown } from "lucide-react";
+import { X, Clock, Calendar, AlertCircle, CheckCircle, Camera, ChevronDown, Lock } from "lucide-react";
 import axios from "axios";
 import API_BASE_URL from "../config";
 
@@ -23,6 +23,11 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
   const [isPublishing, setIsPublishing] = useState(false);
   const [isTimingSet, setIsTimingSet] = useState(false);
   
+  // Lock entry feature state
+  const [lockEnabled, setLockEnabled] = useState(false);
+  const [lockMinutes, setLockMinutes] = useState("");
+  const [isLockPopoverOpen, setIsLockPopoverOpen] = useState(false);
+  
   const [isStrictDropdownOpen, setIsStrictDropdownOpen] = useState(false);
   const [dropdownDirection, setDropdownDirection] = useState('down');
   const dropdownButtonRef = useRef(null);
@@ -43,13 +48,212 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
 
   const strictMcqRef = useRef(null);
 
+  const isDurationValid = useMemo(() => {
+    const val = parseInt(manualDuration);
+    return !isNaN(val) && val > 0;
+  }, [manualDuration]);
+
+  const isScheduleValid = useMemo(() => {
+    if (!startTime || !endTime) return false;
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return false;
+    return end > start;
+  }, [startTime, endTime]);
+
   const handleSetTiming = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsTimingSet(true);
-    if (showStrictMcqBlock && strictMcqRef.current) {
-      strictMcqRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
+    if (timingOption === "duration" && !isDurationValid) {
+      showToast("Please enter a valid duration in minutes", "error");
+      return;
+    }
+    if (timingOption === "schedule" && !isScheduleValid) {
+      if (!startTime || !endTime) {
+        showToast("Please select both start and end time", "error");
+      } else {
+        showToast("End time must be after start time", "error");
+      }
+      return;
+    }
+    setIsTimingSet(true);
+    setIsLockPopoverOpen(true);
+  };
+
+  // Compute effective duration for lock validation
+  const effectiveDuration = useMemo(() => {
+    if (timingOption === "duration") {
+      return parseInt(manualDuration) || 0;
+    }
+    if (timingOption === "schedule" && startTime && endTime) {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      if (end > start) {
+        return Math.floor((end - start) / 60000);
+      }
+    }
+    return 0;
+  }, [timingOption, manualDuration, startTime, endTime]);
+
+  const lockMax = effectiveDuration >= 2 ? Math.floor(effectiveDuration / 2) : 0;
+  const showLockControl = isTimingSet && timingOption !== "no-limit" && effectiveDuration >= 2;
+
+  const lockError = useMemo(() => {
+    if (!lockEnabled || !lockMinutes) return null;
+    const val = parseInt(lockMinutes);
+    if (isNaN(val) || val < 1) return "Lock time must be at least 1 minute.";
+    if (!Number.isInteger(val)) return "Lock time must be a whole number.";
+    if (val > lockMax) return `Lock time can be at most ${lockMax} minutes (half of the ${effectiveDuration} min duration).`;
+    return null;
+  }, [lockEnabled, lockMinutes, lockMax, effectiveDuration]);
+
+  const lockPreviewTime = useMemo(() => {
+    if (!lockEnabled || !lockMinutes || lockError) return null;
+    const val = parseInt(lockMinutes);
+    if (isNaN(val) || val < 1) return null;
+    let baseTime;
+    if (timingOption === "schedule" && startTime) {
+      baseTime = new Date(startTime);
+    } else {
+      baseTime = new Date();
+    }
+    const lockAt = new Date(baseTime.getTime() + val * 60000);
+    return lockAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }, [lockEnabled, lockMinutes, lockError, timingOption, startTime]);
+
+  // Clear lock and reset timing confirmation when switching timing options
+  const handleTimingChange = (value) => {
+    setTimingOption(value);
+    setIsTimingSet(false);
+    setIsLockPopoverOpen(false);
+    setLockEnabled(false);
+    setLockMinutes("");
+  };
+
+  const renderLockPopover = () => {
+    if (!showLockControl || !isLockPopoverOpen) return null;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        className="absolute bottom-full mb-3 left-0 z-50 w-[300px] sm:w-[360px] bg-white dark:bg-[#1E293B] border border-violet-300 dark:border-violet-600 rounded-2xl shadow-2xl p-4 text-ink font-body cursor-default select-text"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+              lockEnabled ? "bg-violet-600 text-white" : "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300"
+            }`}>
+              <Lock className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-bold text-sm text-ink">
+                  Lock Quiz Entry
+                </span>
+                <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-700">
+                  Optional
+                </span>
+              </div>
+              <p className="text-[11px] text-ink-soft leading-tight mt-0.5">
+                Block new student entries after X minutes
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Toggle Switch */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (lockEnabled) {
+                  setLockEnabled(false);
+                  setLockMinutes("");
+                } else {
+                  setLockEnabled(true);
+                }
+              }}
+              className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 cursor-pointer ${
+                lockEnabled ? "bg-violet-600" : "bg-gray-300 dark:bg-gray-600"
+              }`}
+              title={lockEnabled ? "Disable entry lock" : "Enable entry lock"}
+            >
+              <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${
+                lockEnabled ? "translate-x-5" : "translate-x-0"
+              }`} />
+            </button>
+
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsLockPopoverOpen(false);
+              }}
+              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-ink-soft hover:text-ink cursor-pointer transition-colors"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* When enabled, show inputs and preview */}
+        {lockEnabled ? (
+          <div className="mt-3 pt-3 border-t border-violet-100 dark:border-violet-800 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="text-xs font-bold text-violet-900 dark:text-violet-200 whitespace-nowrap">
+                Lock after:
+              </label>
+              <input
+                type="number"
+                min="1"
+                max={lockMax}
+                value={lockMinutes}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setLockMinutes(e.target.value)}
+                placeholder={`1 - ${lockMax}`}
+                className="w-20 px-2.5 py-1 border border-violet-300 dark:border-violet-600 bg-white dark:bg-paper text-ink rounded-lg outline-none focus:ring-2 focus:ring-violet-500 font-semibold text-xs"
+              />
+              <span className="text-xs text-violet-800 dark:text-violet-300 font-medium">
+                minutes (Max: {lockMax} min)
+              </span>
+            </div>
+
+            {lockPreviewTime && !lockError && (
+              <div className="text-[11px] text-violet-700 dark:text-violet-300 font-medium bg-violet-50 dark:bg-violet-900/30 px-2 py-1 rounded-md border border-violet-200 dark:border-violet-700">
+                🔒 Locks at {lockPreviewTime}{timingOption === "duration" ? " (approx)" : ""}
+              </div>
+            )}
+
+            {lockError && (
+              <p className="text-[11px] font-bold text-red-600 leading-tight">
+                {lockError}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-[11px] text-violet-700 dark:text-violet-300 font-medium bg-violet-50/70 dark:bg-violet-900/20 p-2 rounded-lg mt-1 border border-violet-100 dark:border-violet-800">
+            💡 Turn on to prevent students from joining late after the exam begins.
+          </p>
+        )}
+
+        {/* Popover Arrow pointing down to Set Timing button */}
+        <div className="absolute -bottom-2 left-6 w-3.5 h-3.5 bg-white dark:bg-[#1E293B] border-r border-b border-violet-300 dark:border-violet-600 rotate-45" />
+      </motion.div>
+    );
   };
 
   const handlePublish = async () => {
@@ -67,6 +271,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
         strictMcqDuration: null,
         startTime: null,
         endTime: null,
+        lockAfterMinutes: null,
       };
 
       if (timingOption === "duration") {
@@ -82,6 +287,18 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
         const end = new Date(start.getTime() + payload.duration * 60000);
         payload.startTime = start.toISOString();
         payload.endTime = end.toISOString();
+
+        // Add lock if enabled and valid
+        if (lockEnabled && lockMinutes) {
+          if (lockError) {
+            showToast(lockError, 'error');
+            setIsPublishing(false);
+            return;
+          }
+          payload.lockAfterMinutes = parseInt(lockMinutes);
+        } else {
+          payload.lockAfterMinutes = null;
+        }
       } else if (timingOption === "schedule") {
         if (!startTime) {
           showToast("Please select a start time", 'error');
@@ -113,6 +330,18 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
         }
         payload.endTime = end.toISOString();
         payload.duration = Math.floor((end - start) / 60000);
+
+        // Add lock if enabled and valid
+        if (lockEnabled && lockMinutes) {
+          if (lockError) {
+            showToast(lockError, 'error');
+            setIsPublishing(false);
+            return;
+          }
+          payload.lockAfterMinutes = parseInt(lockMinutes);
+        } else {
+          payload.lockAfterMinutes = null;
+        }
       }
 
       if (hasStrictMcq) {
@@ -266,7 +495,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
                     name="timing"
                     value="no-limit"
                     checked={timingOption === "no-limit"}
-                    onChange={(e) => { setTimingOption(e.target.value); setIsTimingSet(false); }}
+                    onChange={(e) => handleTimingChange(e.target.value)}
                     className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
                   />
                   <div className="flex-1">
@@ -294,7 +523,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
                   name="timing"
                   value="duration"
                   checked={timingOption === "duration"}
-                  onChange={(e) => { setTimingOption(e.target.value); setIsTimingSet(false); }}
+                  onChange={(e) => handleTimingChange(e.target.value)}
                   className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
                 />
                 <div className="flex-1">
@@ -318,20 +547,44 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
                           type="number"
                           min="1"
                           value={manualDuration}
-                          onChange={(e) => { setManualDuration(e.target.value); setIsTimingSet(false); }}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => { setManualDuration(e.target.value); setIsTimingSet(false); setIsLockPopoverOpen(false); setLockMinutes(""); setLockEnabled(false); }}
                           placeholder="e.g. 60"
                           className="w-full sm:w-1/2 px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
                         />
                       </div>
-                      <button
-                        onClick={handleSetTiming}
-                        disabled={isTimingSet}
-                        className={`px-4 py-2 text-white rounded-lg text-sm font-bold transition-colors cursor-pointer ${
-                          isTimingSet ? 'bg-green-600' : 'bg-violet-600 hover:bg-violet-700'
-                        }`}
-                      >
-                        {isTimingSet ? 'Timing Set ✓' : 'Set Timing'}
-                      </button>
+                      <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+                        {showLockControl && timingOption === "duration" && renderLockPopover()}
+                        <button
+                          type="button"
+                          disabled={!isTimingSet && !isDurationValid}
+                          title={!isTimingSet && !isDurationValid ? "Please enter a valid duration first" : ""}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!isTimingSet) {
+                              if (!isDurationValid) return;
+                              handleSetTiming(e);
+                            } else {
+                              setIsLockPopoverOpen(prev => !prev);
+                            }
+                          }}
+                          className={`px-4 py-2 text-white rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
+                            isTimingSet
+                              ? 'bg-green-600 hover:bg-green-700 cursor-pointer shadow-sm'
+                              : !isDurationValid
+                                ? 'bg-gray-400 dark:bg-gray-700 text-gray-200 dark:text-gray-400 cursor-not-allowed opacity-60'
+                                : 'bg-violet-600 hover:bg-violet-700 cursor-pointer shadow-sm'
+                          }`}
+                        >
+                          <span>{isTimingSet ? 'Timing Set ✓' : 'Set Timing'}</span>
+                          {isTimingSet && lockEnabled && lockMinutes && !lockError && (
+                            <span className="text-xs bg-green-800/80 px-2 py-0.5 rounded-full font-medium flex items-center gap-1 border border-green-500/30">
+                              <Lock className="w-3 h-3" /> {lockMinutes}m
+                            </span>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -350,7 +603,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
                   name="timing"
                   value="schedule"
                   checked={timingOption === "schedule"}
-                  onChange={(e) => { setTimingOption(e.target.value); setIsTimingSet(false); }}
+                  onChange={(e) => handleTimingChange(e.target.value)}
                   className="mt-1 text-purple-600 rounded border-line focus:ring-violet-600 cursor-pointer bg-paper"
                 />
                 <div className="flex-1">
@@ -374,7 +627,8 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
                           type="datetime-local"
                           min={getMinDateTime()}
                           value={startTime}
-                          onChange={(e) => { setStartTime(e.target.value); setIsTimingSet(false); }}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => { setStartTime(e.target.value); setIsTimingSet(false); setIsLockPopoverOpen(false); setLockMinutes(""); setLockEnabled(false); }}
                           className="w-full px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
                         />
                       </div>
@@ -386,19 +640,43 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
                           type="datetime-local"
                           min={startTime || getMinDateTime()}
                           value={endTime}
-                          onChange={(e) => { setEndTime(e.target.value); setIsTimingSet(false); }}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => { setEndTime(e.target.value); setIsTimingSet(false); setIsLockPopoverOpen(false); setLockMinutes(""); setLockEnabled(false); }}
                           className="w-full px-3 py-2 border border-line bg-paper text-ink rounded-xl outline-none focus:ring-2 focus:ring-purple-500"
                         />
                       </div>
-                      <button
-                        onClick={handleSetTiming}
-                        disabled={isTimingSet}
-                        className={`px-4 py-2 text-white rounded-lg text-sm font-bold transition-colors cursor-pointer ${
-                          isTimingSet ? 'bg-green-600' : 'bg-violet-600 hover:bg-violet-700'
-                        }`}
-                      >
-                        {isTimingSet ? 'Timing Set ✓' : 'Set Timing'}
-                      </button>
+                      <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+                        {showLockControl && timingOption === "schedule" && renderLockPopover()}
+                        <button
+                          type="button"
+                          disabled={!isTimingSet && !isScheduleValid}
+                          title={!isTimingSet && !isScheduleValid ? "Please select valid start and end time first" : ""}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!isTimingSet) {
+                              if (!isScheduleValid) return;
+                              handleSetTiming(e);
+                            } else {
+                              setIsLockPopoverOpen(prev => !prev);
+                            }
+                          }}
+                          className={`px-4 py-2 text-white rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
+                            isTimingSet
+                              ? 'bg-green-600 hover:bg-green-700 cursor-pointer shadow-sm'
+                              : !isScheduleValid
+                                ? 'bg-gray-400 dark:bg-gray-700 text-gray-200 dark:text-gray-400 cursor-not-allowed opacity-60'
+                                : 'bg-violet-600 hover:bg-violet-700 cursor-pointer shadow-sm'
+                          }`}
+                        >
+                          <span>{isTimingSet ? 'Timing Set ✓' : 'Set Timing'}</span>
+                          {isTimingSet && lockEnabled && lockMinutes && !lockError && (
+                            <span className="text-xs bg-green-800/80 px-2 py-0.5 rounded-full font-medium flex items-center gap-1 border border-green-500/30">
+                              <Lock className="w-3 h-3" /> {lockMinutes}m
+                            </span>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -494,6 +772,8 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
             </div>
           )}
 
+
+
           {/* Warning */}
           <div className="bg-amber-50 border border-amber-250 rounded-xl p-4">
             <div className="flex items-start gap-3">
@@ -523,7 +803,7 @@ export default function PublishQuizModal({ quiz, onClose, onPublished, showToast
           </button>
           <button
             onClick={handlePublish}
-            disabled={isPublishing}
+            disabled={isPublishing || (lockEnabled && (!lockMinutes || !!lockError))}
             className="flex-1 px-6 py-3 btn-settings-blue text-sm rounded-xl font-bold disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             {isPublishing ? (

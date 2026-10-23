@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Quiz from "../models/Quiz.js";
 import Note from "../models/Note.js";
 import Classroom from "../models/Classroom.js";
+import QuizSubmission from "../models/QuizSubmission.js";
 import { getBucket } from "../config/gridfs.js";
 import { generateQuizFromText, generateQuizFromTopics, generateCodingFromTopics, extractExactQuestions } from "../config/gemini.js";
 import {
@@ -11,6 +12,7 @@ import {
   validateTextContent,
 } from "../utils/fileExtractor.js";
 import { logActivity } from "../utils/activityTracker.js";
+import { validateLockAfterMinutes, computeLockAt, isLockPassed } from "../utils/quizLock.js";
 import axios from "axios";
 
 /**
@@ -730,6 +732,19 @@ export const getQuiz = async (req, res) => {
         return res.status(403).json({ error: "This quiz is not available." });
       }
       const now = new Date();
+
+      // Check lock for student with no submission
+      if (quiz.lockAt && isLockPassed(quiz, now)) {
+        const studentSub = req.user?._id
+          ? await QuizSubmission.findOne({ quizId: quiz._id, studentId: req.user._id }).select("_id").lean()
+          : null;
+        if (!studentSub) {
+          delete quizObj.sections;
+          quizObj.isLocked = true;
+          return res.status(200).json(quizObj);
+        }
+      }
+
       if ((quiz.endTime && now > new Date(quiz.endTime)) || 
           (quiz.startTime && now < new Date(quiz.startTime))) {
         delete quizObj.sections;
@@ -840,6 +855,10 @@ export const updateQuiz = async (req, res) => {
       }
     }
 
+    // Lock values can only be changed through the publish endpoint
+    delete updateData.lockAt;
+    delete updateData.lockAfterMinutes;
+
     // 5. Update controller immediately before database update: print executionMode and C++ driverCode
     updateData.sections?.forEach((sec, sIdx) => {
       sec.questions?.forEach((q, qIdx) => {
@@ -911,10 +930,10 @@ export const deleteQuiz = async (req, res) => {
 export const publishQuizWithTiming = async (req, res) => {
   try {
     const { quizId } = req.params;
-    const { duration, startTime, endTime, webcamEnabled, strictMcqDuration, strictSectionDurations } = req.body;
+    const { duration, startTime, endTime, webcamEnabled, strictMcqDuration, strictSectionDurations, lockAfterMinutes } = req.body;
     const teacherId = req.user?._id?.toString();
 
-    console.log("Publishing quiz:", { quizId, duration, startTime, endTime, strictMcqDuration, strictSectionDurations });
+    console.log("Publishing quiz:", { quizId, duration, startTime, endTime, strictMcqDuration, strictSectionDurations, lockAfterMinutes });
 
     const quiz = await Quiz.findById(quizId);
     if (!quiz) {
@@ -943,6 +962,25 @@ export const publishQuizWithTiming = async (req, res) => {
     quiz.endTime = calculatedEndTime || null;
     quiz.isActive = true;
     quiz.webcamEnabled = webcamEnabled || false;
+
+    // Handle lock feature
+    if (lockAfterMinutes != null && duration) {
+      const lockValidation = validateLockAfterMinutes({ duration, lockAfterMinutes });
+      if (!lockValidation.ok) {
+        return res.status(400).json({ error: lockValidation.error });
+      }
+      // Use the provided startTime, or the publish moment for "duration" mode
+      const effectiveStartTime = quiz.startTime || new Date();
+      if (!quiz.startTime) {
+        quiz.startTime = effectiveStartTime;
+      }
+      quiz.lockAfterMinutes = lockAfterMinutes;
+      quiz.lockAt = computeLockAt(effectiveStartTime, lockAfterMinutes);
+    } else {
+      // No lock or no duration — explicitly clear any stale lock
+      quiz.lockAfterMinutes = null;
+      quiz.lockAt = null;
+    }
 
     if (strictSectionDurations) {
       quiz.sections.forEach(section => {
@@ -1029,6 +1067,20 @@ export const getActiveQuizzesForStudent = async (req, res) => {
       status: "published",
     }).sort({ createdAt: -1 });
 
+    // Fetch student's submissions for all quizzes in a single query
+    const quizIds = quizzes.map(q => q._id);
+    let studentSubmissions = [];
+    if (req.user?._id && quizIds.length > 0) {
+      studentSubmissions = await QuizSubmission.find({
+        quizId: { $in: quizIds },
+        studentId: req.user._id,
+      }).select("quizId isDraft").lean();
+    }
+    const submissionMap = {};
+    for (const sub of studentSubmissions) {
+      submissionMap[sub.quizId.toString()] = sub;
+    }
+
     // Filter active quizzes based on time
     const activeQuizzes = quizzes.map((quiz) => {
       let quizStatus = "active";
@@ -1037,9 +1089,16 @@ export const getActiveQuizzesForStudent = async (req, res) => {
       if (quiz.endTime && now > new Date(quiz.endTime)) {
         quizStatus = "expired";
         delete quizObj.questions; // Security
+        delete quizObj.sections;
       } else if (quiz.startTime && now < new Date(quiz.startTime)) {
         quizStatus = "upcoming";
         delete quizObj.questions; // Security
+        delete quizObj.sections;
+      } else if (quiz.lockAt && isLockPassed(quiz, now) && !submissionMap[quiz._id.toString()]) {
+        // Lock passed and student has no submission (no draft, no final) -> locked
+        quizStatus = "locked";
+        delete quizObj.questions;
+        delete quizObj.sections;
       }
 
       // Strip answer data — active quizzes still leak correctAnswer without this

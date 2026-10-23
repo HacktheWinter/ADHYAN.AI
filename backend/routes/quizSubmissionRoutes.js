@@ -8,11 +8,15 @@ import {
   getQuizSubmissions,
   getSubmissionById,
   autosaveQuiz,
-  runCode
+  runCode,
+  startQuizAttempt
 } from '../controllers/quizSubmissionController.js';
 import { codeExecutionRateLimiter } from '../middleware/codeExecutionRateLimiter.js';
 
 const router = express.Router();
+
+// Start quiz attempt (lock-gate)
+router.post('/start', authMiddleware, authorizeRoles("student"), startQuizAttempt);
 
 // Run code against public test cases or custom input
 router.post('/run-code', authMiddleware, authorizeRoles("student"), codeExecutionRateLimiter, runCode);

@@ -17,6 +17,12 @@ export const getQuizById = async (quizId) => {
   return res.data;
 };
 
+// Start quiz attempt (lock gate)
+export const startQuizAttempt = async (quizId) => {
+  const res = await axios.post(`${BASE_URL}/quiz-submission/start`, { quizId });
+  return res.data;
+};
+
 // Submit quiz
 export const submitQuiz = async (quizId, studentId, answers, proctorPhoto = null) => {
   const payload = {

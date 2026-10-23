@@ -9,6 +9,7 @@ import {
   getAuthorizedClassroomForTeacher,
   getRequestUserId,
 } from "../utils/accessControl.js";
+import { isLockPassed } from "../utils/quizLock.js";
 
 /**
  * Server-side heuristic to detect obvious language mismatches.
@@ -299,6 +300,11 @@ export const submitQuiz = async (req, res) => {
       return res.status(400).json({ error: "Quiz already submitted", submission: existingSubmission });
     }
 
+    // Lock check: if no existing submission and lock has passed, reject
+    if (!existingSubmission && isLockPassed(quiz)) {
+      return res.status(403).json({ error: "This quiz is locked. New entries are closed.", code: "QUIZ_LOCKED" });
+    }
+
     const now = new Date();
     if (quiz.startTime && now < new Date(quiz.startTime)) {
       return res.status(403).json({ error: "Quiz has not started yet." });
@@ -466,6 +472,7 @@ export const submitQuiz = async (req, res) => {
     res.status(error.statusCode || 500).json({
       error: error.statusCode ? error.message : "Failed to submit quiz",
       details: error.statusCode ? undefined : error.message,
+      ...(error.code && { code: error.code }),
     });
   }
 };
@@ -491,6 +498,11 @@ export const autosaveQuiz = async (req, res) => {
     const existingSubmission = await QuizSubmission.findOne({ quizId, studentId });
     if (existingSubmission && !existingSubmission.isDraft) {
       return res.status(400).json({ error: "Quiz already submitted" });
+    }
+
+    // Lock check: if no existing submission and lock has passed, reject
+    if (!existingSubmission && isLockPassed(quiz)) {
+      return res.status(403).json({ error: "This quiz is locked. New entries are closed.", code: "QUIZ_LOCKED" });
     }
 
     const now = new Date();
@@ -583,7 +595,7 @@ export const autosaveQuiz = async (req, res) => {
     res.status(200).json({ success: true, message: "Draft saved successfully" });
   } catch (error) {
     console.error("Autosave error:", error);
-    res.status(error.statusCode || 500).json({ error: "Failed to autosave quiz" });
+    res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : "Failed to autosave quiz", ...(error.code && { code: error.code }) });
   }
 };
 
@@ -730,14 +742,21 @@ export const runCode = async (req, res) => {
     }
 
     const quiz = await getAuthorizedQuizForStudent(req, quizId);
+
+    // Lock check for run-code: if locked and student has no submission, reject
+    if (quiz.lockAt && isLockPassed(quiz)) {
+      const studentId = getRequestUserId(req);
+      const existingSub = await QuizSubmission.findOne({ quizId, studentId }).select("_id").lean();
+      if (!existingSub) {
+        return res.status(403).json({ error: "This quiz is locked. New entries are closed.", code: "QUIZ_LOCKED" });
+      }
+    }
     
     const allQuestions = quiz.sections?.length > 0 
       ? quiz.sections.flatMap(s => s.questions) 
       : quiz.questions;
       
     const question = allQuestions.find(q => q._id.toString() === questionId);
-    
-
 
     if (!question || question.type !== "coding") {
       return res.status(404).json({ error: "Coding question not found" });
@@ -777,6 +796,97 @@ export const runCode = async (req, res) => {
     res.status(200).json({ success: true, results });
   } catch (error) {
     console.error("Run code error:", error);
-    res.status(error.statusCode || 500).json({ error: error.message || "Failed to execute code" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Failed to execute code", ...(error.code && { code: error.code }) });
+  }
+};
+
+/**
+ * Start a quiz attempt (lock-gate endpoint)
+ * POST /api/quiz-submission/start
+ * Body: { quizId }
+ */
+export const startQuizAttempt = async (req, res) => {
+  try {
+    const { quizId } = req.body;
+    const studentId = getRequestUserId(req);
+
+    if (!quizId) {
+      return res.status(400).json({ error: "quizId is required" });
+    }
+
+    const quiz = await getAuthorizedQuizForStudent(req, quizId);
+    const student = req.user;
+
+    // Mirror the submit checks
+    if (quiz.status !== "published") {
+      return res.status(403).json({ error: "Quiz is not published." });
+    }
+
+    const now = new Date();
+    if (quiz.startTime && now < new Date(quiz.startTime)) {
+      return res.status(403).json({ error: "Quiz has not started yet." });
+    }
+
+    if (quiz.endTime) {
+      const endGrace = new Date(quiz.endTime);
+      endGrace.setMinutes(endGrace.getMinutes() + 5);
+      if (now > endGrace) {
+        return res.status(403).json({ error: "Quiz time has expired." });
+      }
+    }
+
+    // If quiz has no lock, return success without creating anything
+    if (!quiz.lockAt) {
+      return res.status(200).json({ success: true, tracked: false });
+    }
+
+    // Check existing submission
+    const existingSubmission = await QuizSubmission.findOne({ quizId, studentId });
+
+    if (existingSubmission && !existingSubmission.isDraft) {
+      return res.status(400).json({ error: "Quiz already submitted" });
+    }
+
+    // If draft exists, resuming is always allowed (even after lock)
+    if (existingSubmission && existingSubmission.isDraft) {
+      return res.status(200).json({ success: true, tracked: true, resumed: true });
+    }
+
+    // No submission exists: check lock
+    if (isLockPassed(quiz, now)) {
+      return res.status(403).json({ error: "This quiz is locked. New entries are closed.", code: "QUIZ_LOCKED" });
+    }
+
+    // Create the draft using upsert to prevent E11000 on double-click
+    const allQuestions = quiz.sections?.length > 0
+      ? quiz.sections.flatMap(s => s.questions)
+      : quiz.questions;
+
+    await QuizSubmission.findOneAndUpdate(
+      { quizId, studentId },
+      {
+        $setOnInsert: {
+          quizId,
+          studentId,
+          studentName: student.name,
+          answers: [],
+          score: 0,
+          totalQuestions: allQuestions.length,
+          totalMarks: 0,
+          percentage: 0,
+          isDraft: true,
+          submittedAt: new Date(),
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    return res.status(200).json({ success: true, tracked: true });
+  } catch (error) {
+    console.error("Start quiz attempt error:", error);
+    res.status(error.statusCode || 500).json({
+      error: error.statusCode ? error.message : "Failed to start quiz attempt",
+      ...(error.code && { code: error.code }),
+    });
   }
 };

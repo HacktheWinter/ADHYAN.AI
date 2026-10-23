@@ -4,7 +4,7 @@
  */
 
 export const isNotificationSupported = () => {
-  return typeof window !== "undefined" && "Notification" in window && "serviceWorker" in navigator;
+  return typeof window !== "undefined" && "Notification" in window;
 };
 
 export const getNotificationPermission = () => {
@@ -29,22 +29,51 @@ export const requestNotificationPermission = async () => {
 };
 
 /**
+ * Robustly retrieves or initializes the ServiceWorkerRegistration
+ */
+const getActiveRegistration = async () => {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    return null;
+  }
+
+  try {
+    // 1. Try existing registration
+    const existing = await navigator.serviceWorker.getRegistration();
+    if (existing && existing.active) {
+      return existing;
+    }
+
+    // 2. Race navigator.serviceWorker.ready with a 2-second timeout to prevent hanging
+    const readyReg = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("SW ready timeout")), 2000)),
+    ]).catch(() => null);
+
+    if (readyReg) {
+      return readyReg;
+    }
+
+    // 3. Fallback: register sw.js directly
+    return await navigator.serviceWorker.register("/sw.js");
+  } catch (err) {
+    console.warn("Could not get active service worker registration:", err);
+    return null;
+  }
+};
+
+/**
  * Display a notification directly on the native OS Notification Shade / System Tray
- * using the Service Worker registration.
  */
 export const showShadeNotification = async ({
   title = "ADHYAN.AI Notification",
   body = "You have an update in ADHYAN.AI",
   icon = "/logo02.png",
-  badge = "/logo02.png",
   data = { url: "/" },
   tag = "adhyan-shade-alert",
-  actions = [{ action: "open", title: "Open Portal" }],
   vibrate = [200, 100, 200],
-  requireInteraction = false,
 } = {}) => {
   if (!isNotificationSupported()) {
-    console.warn("Notification Shade not supported on this platform.");
+    console.warn("Notification not supported on this platform.");
     return false;
   }
 
@@ -53,31 +82,40 @@ export const showShadeNotification = async ({
     return false;
   }
 
+  const options = {
+    body,
+    icon,
+    tag,
+    data,
+    renotify: true,
+  };
+
+  // Only attach vibrate if supported by the browser to prevent mobile exceptions
+  if (typeof navigator !== "undefined" && "vibrate" in navigator && Array.isArray(vibrate)) {
+    options.vibrate = vibrate;
+  }
+
   try {
-    // Wait for the service worker registration
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await getActiveRegistration();
 
-    if (!registration || !registration.showNotification) {
-      console.warn("Service Worker registration showNotification not available.");
-      return false;
+    if (registration && typeof registration.showNotification === "function") {
+      await registration.showNotification(title, options);
+      return true;
     }
+  } catch (swError) {
+    console.warn("ServiceWorker showNotification failed, attempting fallback:", swError);
+  }
 
-    const options = {
-      body,
-      icon,
-      badge,
-      data,
-      tag,
-      vibrate,
-      renotify: true,
-      requireInteraction,
-      actions,
-    };
-
-    await registration.showNotification(title, options);
+  // Fallback to standard window Notification if SW is not ready or fails
+  try {
+    new Notification(title, {
+      body: options.body,
+      icon: options.icon,
+      tag: options.tag,
+    });
     return true;
-  } catch (error) {
-    console.error("Failed to show notification in shade:", error);
+  } catch (fallbackError) {
+    console.error("All notification methods failed:", fallbackError);
     return false;
   }
 };
@@ -86,19 +124,27 @@ export const showShadeNotification = async ({
  * Sends an instant test notification to the system notification shade.
  */
 export const sendTestNotification = async () => {
-  const perm = await requestNotificationPermission();
+  let perm = getNotificationPermission();
+
+  if (perm !== "granted") {
+    perm = await requestNotificationPermission();
+  }
+
   if (perm !== "granted") {
     return {
       success: false,
-      message: perm === "denied" 
-        ? "Notification permission was blocked in your browser settings. Please enable it in browser site settings."
+      message: perm === "denied"
+        ? "Notification permission was blocked in browser settings. Please allow notifications in site settings."
         : "Notification permission was not granted.",
     };
   }
 
+  // Small delay for OS permission sync on Android/iOS
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
   const shown = await showShadeNotification({
-    title: "🔔 ADHYAN.AI - Notification Shade Active",
-    body: "System notifications are enabled! You'll receive live class, quiz, and test updates right here in your pull-down drawer.",
+    title: "🔔 ADHYAN.AI Alert",
+    body: "Notifications are working! You'll receive class, quiz, and test updates right here in your pull-down drawer.",
     tag: `test-alert-${Date.now()}`,
     data: { url: "/" },
   });
@@ -107,7 +153,7 @@ export const sendTestNotification = async () => {
     success: shown,
     message: shown
       ? "Notification sent! Check your notification shade / pull-down drawer."
-      : "Could not trigger notification. Ensure your service worker is registered and active.",
+      : "Could not display notification. Please ensure notifications are enabled in phone settings.",
   };
 };
 
@@ -126,13 +172,11 @@ export const syncNotificationsToShade = async (notifications = []) => {
   }
 
   const now = Date.now();
-  const oneHour = 60 * 60 * 1000;
   const oneDay = 24 * 60 * 60 * 1000;
 
   for (const notif of notifications) {
     if (shownIds.includes(notif.id)) continue;
 
-    // Show in shade if it's urgent (starting in < 1 hr), a recent announcement, or published today
     const isUrgent = notif.type === "urgent";
     const isRecent = notif.time && Math.abs(now - new Date(notif.time).getTime()) < oneDay;
 
@@ -148,7 +192,6 @@ export const syncNotificationsToShade = async (notifications = []) => {
     }
   }
 
-  // Keep last 100 shown IDs to avoid unlimited growth
   if (shownIds.length > 100) {
     shownIds = shownIds.slice(shownIds.length - 100);
   }

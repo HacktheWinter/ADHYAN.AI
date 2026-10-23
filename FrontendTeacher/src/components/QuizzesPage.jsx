@@ -18,6 +18,7 @@ import {
   Maximize,
   Minimize,
   MoreVertical,
+  Lock,
 } from "lucide-react";
 import axios from "axios";
 import { getNotesByClassroom } from "../api/notesApi";
@@ -645,6 +646,15 @@ const QuizzesPage = () => {
                         <span className="px-2.5 py-1 bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 text-xs rounded-full font-bold">
                           Published
                         </span>
+                        {quiz.lockAt && (
+                          <>
+                            <span className="hidden sm:inline">•</span>
+                            <span className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 text-xs rounded-full font-bold">
+                              <Lock className="w-3.5 h-3.5" />
+                              Locks at {new Date(quiz.lockAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
