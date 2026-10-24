@@ -1,6 +1,7 @@
 // Backend test script — validates Judge0 integration logic WITHOUT requiring Judge0 to be running.
 // Run with: node --experimental-vm-modules backend/services/__tests__/codeExecution.test.js
 
+import "dotenv/config";
 import assert from "assert";
 
 // ─── Test 1: Language Map ───
@@ -295,38 +296,182 @@ console.log("✅ All integration tests passed\n");
 // ─── Test 7: ExecuteCode limits and cooldowns ───
 console.log("=== Test 7: ExecuteCode limits and cooldowns ===");
 
-import { executeCode } from "../codeExecution.service.js";
+import { executeCode, getQueueMetrics, _clearCooldownsForTesting } from "../codeExecution.service.js";
 
 const testCases = [{ input: "in", expectedOutput: "out" }];
 const mockDetails = { coding: { executionMode: "standard" } };
 
+const setMockJudge0Success = (stdout = "out\n") => {
+  let tokenCounter = 0;
+  axios.post = async () => ({ data: { token: `token_${++tokenCounter}` } });
+  axios.get = async () => ({
+    status: 200,
+    data: {
+      status: { id: 3, description: "Accepted" },
+      stdout: Buffer.from(stdout).toString("base64"),
+      stderr: null,
+      compile_output: null,
+      message: null,
+    },
+  });
+};
+
 // Test Cooldown
-try {
-  // First call should pass (though it might fail if Judge0 is offline, but we just check if it throws cooldown error immediately)
-  // We don't await because it might hang or hit the mocked axios. But wait, executeCode awaits submitToJudge0, which is mocked!
-  // Wait, the mocks are only applied INSIDE runIntegrationTest. If we call it outside, it will hit localhost Judge0.
-  // We can just check the immediate throw for cooldown.
-  const p1 = executeCode("user_limit", "python", "print('hello')", testCases, mockDetails).catch(e => e.message); // Should be trapped by inner try/catch and return array with error
-  
-  // Second call immediately after should hit cooldown and return the mapped error
-  const results2 = await executeCode("user_limit", "python", "print('hello')", testCases, mockDetails);
-  assert.ok(results2[0].runError.includes("Please wait"), "Should return cooldown error");
+_clearCooldownsForTesting();
+setMockJudge0Success("out\n");
+const p1 = executeCode("user_limit", "python", "print('hello')", testCases, mockDetails);
+const results2 = await executeCode("user_limit", "python", "print('hello')", testCases, mockDetails);
+assert.ok(results2[0].runError.includes("Please wait"), "Should return cooldown error");
 
-  // A different user should bypass cooldown
-  const p3 = executeCode("user_limit_2", "python", "print('hello')", testCases, mockDetails).catch(e => e.message);
-  
-  // Test queue full
-  // Start many executions in parallel to hit MAX_EXECUTION_QUEUE.
-  // executeCode will resolve when Judge0 resolves, but if we don't mock it, it might actually send requests.
-  // Since we only want to test the queue logic, we can flood it with empty tasks or mock processQueue, but we can't easily mock inner variables.
-  // It's acceptable to skip full MAX_EXECUTION_QUEUE integration test here to avoid sending 60 requests to actual judge0, 
-  // but we can manually verify the cooldown works as expected.
-  console.log("✅ Cooldown logic tested successfully\n");
+// A different user should bypass cooldown
+const p3 = await executeCode("user_limit_2", "python", "print('hello')", testCases, mockDetails);
+assert.strictEqual(p3[0].passed, true, "Different user should succeed");
+await p1;
+console.log("✅ Cooldown logic tested successfully\n");
 
-} catch(err) {
-  console.error("Test 7 failed:", err);
-  throw err;
+// ─── Test 8: Queue admission and FIFO processing ───
+console.log("=== Test 8: Queue Admission and FIFO Processing ===");
+_clearCooldownsForTesting();
+const processedOrder = [];
+axios.post = async (url, payload) => {
+  const match = payload.source_code.match(/TASK_ID_(\d+)/);
+  const taskId = match ? parseInt(match[1], 10) : 0;
+  return { data: { token: `tok_${taskId}` } };
+};
+axios.get = async (url) => {
+  const match = url.match(/tok_(\d+)/);
+  const taskId = match ? parseInt(match[1], 10) : 0;
+  processedOrder.push(taskId);
+  return {
+    status: 200,
+    data: {
+      status: { id: 3 },
+      stdout: Buffer.from("out\n").toString("base64"),
+    },
+  };
+};
+
+const tasks12 = [];
+for (let i = 1; i <= 12; i++) {
+  tasks12.push(
+    executeCode(
+      `fifo_student_${i}`,
+      "python",
+      `print("TASK_ID_${i}")`,
+      [{ input: "in", expectedOutput: "out" }],
+      mockDetails
+    )
+  );
+}
+const results12 = await Promise.all(tasks12);
+assert.strictEqual(results12.length, 12, "All 12 tasks should complete");
+assert.ok(results12.every(r => r[0].passed), "All 12 tasks should pass");
+assert.strictEqual(getQueueMetrics().activeExecutions, 0, "Active executions should be 0 after completion");
+assert.strictEqual(getQueueMetrics().queueLength, 0, "Queue length should be 0 after completion");
+console.log("✅ Queue admission and FIFO processing verified\n");
+
+// ─── Test 9: Queue-full behavior at configured limit (500) ───
+console.log("=== Test 9: Queue-Full Behavior at Limit (500) ===");
+_clearCooldownsForTesting();
+let releaseHoldingGate;
+const holdingPromise = new Promise((resolve) => {
+  releaseHoldingGate = resolve;
+});
+
+let activeStarted = 0;
+axios.post = async () => {
+  activeStarted++;
+  if (activeStarted <= 8) {
+    await holdingPromise;
+  }
+  return { data: { token: "hold_token" } };
+};
+axios.get = async () => ({
+  status: 200,
+  data: {
+    status: { id: 3 },
+    stdout: Buffer.from("out\n").toString("base64"),
+  },
+});
+
+// Start 8 executions to saturate MAX_ACTIVE_EXECUTIONS
+const holdingTasks = [];
+for (let i = 1; i <= 8; i++) {
+  holdingTasks.push(
+    executeCode(`holding_user_${i}`, "python", "print('hold')", [{ input: "in", expectedOutput: "out" }], mockDetails)
+  );
 }
 
-console.log("🎉 ALL TESTS PASSED — Judge0 integration logic is correct.\n");
-console.log("Note: These tests validate logic only. Real Judge0 execution must be tested on the VPS.");
+// Wait briefly for the 8 tasks to become active
+await new Promise(r => setTimeout(r, 20));
+assert.strictEqual(getQueueMetrics().activeExecutions, 8, "Should have 8 active executions");
+
+// Now push 500 tasks into the queue (filling MAX_EXECUTION_QUEUE = 500)
+const queuedTasks = [];
+for (let i = 1; i <= 500; i++) {
+  queuedTasks.push(
+    executeCode(`queue_user_${i}`, "python", "print('queued')", [{ input: "in", expectedOutput: "out" }], mockDetails)
+  );
+}
+
+// Verify queue is now full at 500
+assert.strictEqual(getQueueMetrics().queueLength, 500, "Queue length should be 500");
+
+// The 501st task should be rejected immediately because queue is full
+const rejectedResult = await executeCode("overflow_user", "python", "print('overflow')", [{ input: "in", expectedOutput: "out" }], mockDetails);
+assert.strictEqual(rejectedResult[0].passed, false, "Overflow task must fail");
+assert.strictEqual(rejectedResult[0].runError, "Execution queue is full. Please try again in a few moments.", "Must return queue full error");
+
+// Release the gate and wait for all holding and queued tasks to finish
+releaseHoldingGate();
+const allCompleted = await Promise.all([...holdingTasks, ...queuedTasks]);
+assert.strictEqual(allCompleted.length, 508, "All 508 admitted tasks should complete");
+assert.strictEqual(getQueueMetrics().activeExecutions, 0, "Active executions must return to 0");
+assert.strictEqual(getQueueMetrics().queueLength, 0, "Queue length must return to 0");
+console.log("✅ Queue-full behavior at 500 limit verified\n");
+
+// ─── Test 10: Task failures and active counter cleanup ───
+console.log("=== Test 10: Task Failures and Active Counter Cleanup ===");
+_clearCooldownsForTesting();
+axios.post = async () => {
+  const err = new Error("Simulated network failure");
+  err.code = "ECONNRESET";
+  throw err;
+};
+
+const failedResult = await executeCode("fail_user", "python", "print('fail')", [{ input: "in", expectedOutput: "out" }], mockDetails);
+assert.strictEqual(failedResult[0].passed, false);
+assert.strictEqual(getQueueMetrics().activeExecutions, 0, "activeExecutions must decrement to 0 even on task error");
+assert.strictEqual(getQueueMetrics().queueLength, 0, "Queue length must be 0");
+console.log("✅ Task failure cleanup verified\n");
+
+// ─── Test 11: Concurrent submissions without duplicate processing ───
+console.log("=== Test 11: Concurrent Submissions Without Duplicate Processing ===");
+_clearCooldownsForTesting();
+setMockJudge0Success("output123\n");
+const studentCount = 25;
+const concurrentPromises = [];
+for (let i = 1; i <= studentCount; i++) {
+  concurrentPromises.push(
+    executeCode(`concurrent_student_${i}`, "python", `print(${i})`, [{ input: "in", expectedOutput: "output123" }], mockDetails)
+  );
+}
+const concurrentResults = await Promise.all(concurrentPromises);
+assert.strictEqual(concurrentResults.length, studentCount);
+assert.ok(concurrentResults.every(r => r[0].passed));
+assert.strictEqual(getQueueMetrics().activeExecutions, 0);
+assert.strictEqual(getQueueMetrics().queueLength, 0);
+console.log("✅ Concurrent submissions verified\n");
+
+// ─── Test 12: Single execution behavior ───
+console.log("=== Test 12: Single Execution Behavior ===");
+_clearCooldownsForTesting();
+setMockJudge0Success("hello world\n");
+const singleResult = await executeCode("single_student", "python", "print('hello world')", [{ input: "in", expectedOutput: "hello world" }], mockDetails);
+assert.strictEqual(singleResult.length, 1);
+assert.strictEqual(singleResult[0].passed, true);
+assert.strictEqual(singleResult[0].actualOutput, "hello world\n");
+assert.strictEqual(getQueueMetrics().activeExecutions, 0);
+console.log("✅ Single execution behavior verified\n");
+
+console.log("🎉 ALL TESTS PASSED — Judge0 queue, limits, and integration logic verified.\n");
