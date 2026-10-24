@@ -82,7 +82,7 @@ export const submitToJudge0 = async ({
     );
     token = response.data?.token;
   } catch (error) {
-    throw normalizeJudge0Error(error, "Failed to submit code to execution engine", "submission");
+    throw normalizeJudge0Error(error, "Failed to submit code to execution engine");
   }
 
   if (!token) {
@@ -167,7 +167,7 @@ const pollSubmission = async (token) => {
     } catch (error) {
       // If it's a known infrastructure error (400, 401, 403, 404, 422) that we threw above, throw immediately without retrying
       if (error.response && (error.response.status === 400 || error.response.status === 401 || error.response.status === 403 || error.response.status === 404 || error.response.status === 422)) {
-         throw normalizeJudge0Error(error, "Failed to retrieve execution result", "polling");
+         throw normalizeJudge0Error(error, "Failed to retrieve execution result");
       }
 
       // For network errors (Axios timeout, connection refused) or other unexpected errors, retry
@@ -175,7 +175,7 @@ const pollSubmission = async (token) => {
         await sleep(POLL_INTERVAL_MS);
         continue;
       }
-      throw normalizeJudge0Error(error, "Failed to retrieve execution result", "polling");
+      throw normalizeJudge0Error(error, "Failed to retrieve execution result");
     }
   }
 
@@ -229,7 +229,7 @@ const normalizeResult = (data) => {
  * Normalize Judge0/Axios errors into user-friendly messages.
  * NEVER exposes auth tokens or internal infrastructure details.
  */
-const normalizeJudge0Error = (error, fallbackMessage, stage = "unknown") => {
+const normalizeJudge0Error = (error, fallbackMessage) => {
   // Connection refused — Judge0 is not running
   if (error.code === "ECONNREFUSED") {
     const err = new Error("Code execution service is temporarily unavailable. Please try again later.");
@@ -249,43 +249,7 @@ const normalizeJudge0Error = (error, fallbackMessage, stage = "unknown") => {
       return new Error("Invalid request to code execution service.");
     }
     if (status === 401 || status === 403) {
-      const config = error.config || error.response?.config;
-      const headers = config?.headers;
-      const hasAuthToken = Boolean(
-        headers && (
-          typeof headers.get === "function"
-            ? headers.get("x-auth-token")
-            : typeof headers.has === "function"
-              ? headers.has("x-auth-token")
-              : Object.keys(headers).some(
-                  (k) => k.toLowerCase() === "x-auth-token" && Boolean(headers[k])
-                )
-        )
-      );
-
-      let targetUrl = "unknown";
-      try {
-        if (config?.url) {
-          const parsedUrl = new URL(
-            config.url,
-            config.baseURL || JUDGE0_URL()
-          );
-          const sanitizedPath = parsedUrl.pathname.replace(
-            /\/submissions\/[^/]+/,
-            "/submissions/:token"
-          );
-          targetUrl = `${parsedUrl.origin}${sanitizedPath}`;
-        }
-      } catch {
-        targetUrl = "unknown";
-      }
-
-      console.error("[Judge0] Auth failure:", {
-        status,
-        stage,
-        hasAuthToken,
-        targetUrl,
-      });
+      console.error("[Judge0] Authentication error — check JUDGE0_AUTH_TOKEN configuration.");
       return new Error("Code execution service configuration error. Please contact your administrator.");
     }
     if (status === 422) {

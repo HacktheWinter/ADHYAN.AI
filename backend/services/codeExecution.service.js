@@ -6,7 +6,7 @@ import { submitToJudge0 } from "./judge0.service.js";
 import { getJudge0LanguageId, normalizeLanguage, isSupportedLanguage } from "./languageMap.js";
 
 const MAX_ACTIVE_EXECUTIONS = 8;
-const MAX_EXECUTION_QUEUE = 50;
+const MAX_EXECUTION_QUEUE = 500;
 const RUN_CODE_COOLDOWN_SECONDS = 5;
 
 let activeExecutions = 0;
@@ -14,12 +14,22 @@ const executionQueue = [];
 const userCooldowns = new Map();
 
 const processQueue = () => {
-  if (executionQueue.length === 0 || activeExecutions >= MAX_ACTIVE_EXECUTIONS) {
-    return;
+  while (executionQueue.length > 0 && activeExecutions < MAX_ACTIVE_EXECUTIONS) {
+    activeExecutions++;
+    const task = executionQueue.shift();
+    task();
   }
-  activeExecutions++;
-  const task = executionQueue.shift();
-  task();
+};
+
+export const getQueueMetrics = () => ({
+  activeExecutions,
+  queueLength: executionQueue.length,
+  maxActive: MAX_ACTIVE_EXECUTIONS,
+  maxQueue: MAX_EXECUTION_QUEUE,
+});
+
+export const _clearCooldownsForTesting = () => {
+  userCooldowns.clear();
 };
 
 /**
